@@ -1,0 +1,21 @@
+<view class="page">
+  <view class="hero">
+    <view class="brand">智愈</view>
+    <view class="subtitle">全链路基础设施检测</view>
+  </view>
+
+  <view class="panel">
+    <view class="summary">{{ overall }}</view>
+    <van-cell-group inset>
+      <van-cell wx:for="{{ services }}" wx:key="name" title="{{ item.label }}">
+        <van-tag slot="right-icon" type="{{ item.status === 'ok' ? 'success' : 'danger' }}">
+          {{ item.status === 'ok' ? '正常' : '异常' }}
+        </van-tag>
+      </van-cell>
+    </van-cell-group>
+    <van-button block color="#0e8a7d" loading="{{ loading }}" bind:click="refreshHealth">
+      重新检测
+    </van-button>
+  </view>
+  <van-toast id="van-toast" />
+</view>

@@ -1,4 +1,4 @@
-# 智愈先锋（zhiyu-health）
+# 智愈（zhiyu-health）
 
 AI 驱动的全链路医疗健康平台：C 端微信原生小程序（医疗 AI Agent）+ B 端医生/医院管理后台（Vue3），后端为全 Python（FastAPI）单体。两周 demo 项目，评审交付。
 

@@ -3,12 +3,14 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.uv-cache/
 .pytest_cache/
 .ruff_cache/
 
 # Node / 前端
 node_modules/
 dist/
+.npm-cache/
 
 # 密钥与环境（所有 .env 变体不入库，仅保留示例）
 .env*

@@ -1,0 +1,6 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE DATABASE zhiyu_test;
+
+\connect zhiyu_test
+CREATE EXTENSION IF NOT EXISTS vector;

@@ -4,7 +4,7 @@
 
 ## 项目
 
-智愈先锋（zhiyu-health）：医疗 B+C 平台 demo。C 端微信小程序（医疗 AI Agent）、B 端 Vue3 管理后台、FastAPI 单体后端。周期两周，评审交付。
+智愈（zhiyu-health）：医疗 B+C 平台 demo。C 端微信小程序（医疗 AI Agent）、B 端 Vue3 管理后台、FastAPI 单体后端。周期两周，评审交付。
 
 ## 技术栈（锁死，不得擅自替换）
 
