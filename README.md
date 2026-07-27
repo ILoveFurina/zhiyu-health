@@ -2,110 +2,92 @@
 
 AI 驱动的医疗 B+C 平台：C 端微信原生小程序（医疗 AI Agent）+ B 端 Vue3 管理后台 + FastAPI 单体后端。
 
+## 运行拓扑
+
+- 云服务器 `43.139.160.223`：仅运行 PostgreSQL 16 + pgvector、Redis 7、Neo4j 5。
+- 本地开发机：运行 FastAPI、Vue3 B 端和微信开发者工具。
+- 团队成员通过账号密码直连云端数据库；云安全组只允许团队固定公网 IP 访问数据库端口。
+
+正式产品名为“智愈”，助手名为“小愈”；`zhiyu-health` 是仓库标识。
+
 ## 仓库结构
 
 ```text
 server/        FastAPI 后端 + Agent（LangChain/LangGraph）
 admin/         B 端 Vue3 + Element Plus
 miniprogram/   C 端微信原生小程序 + Vant Weapp
-deploy/        存储初始化脚本
+deploy/        云端存储初始化脚本
 docs/          ADR 与产品规格
 ```
 
-## 云端拓扑
+## 1. 云服务器启动数据库
 
-整套运行环境统一部署在 `43.139.160.223`：
-
-- `gateway`：唯一公网入口，Nginx 在 80 端口提供 B 端页面并反向代理 `/api`。
-- `api`：FastAPI 只在 Compose 内部网络提供服务。
-- PostgreSQL 16 + pgvector、Redis 7、Neo4j 5：宿主机端口只绑定 `127.0.0.1`，不对公网开放。
-- `neo4j-test` 与 `api-tests`：仅在 `test` profile 中启动，不复用演示 Neo4j 数据。
-
-正式产品名为“智愈”，助手名为“小愈”；`zhiyu-health` 是仓库标识。
-
-## 一键部署
-
-服务器需预先安装 Docker Engine 与 Docker Compose v2。登录服务器并进入仓库后：
+服务器需安装 Docker Engine 与 Docker Compose v2。在服务器仓库目录执行：
 
 ```bash
-cp .env.example .env
-# 编辑 .env：替换全部“改密码/改密钥”占位值；数据库密码使用长随机字母数字串，避免 URL 特殊字符转义问题
-docker compose up -d --build
+sh deploy/bootstrap-env.sh
+docker compose up -d
 docker compose ps
-curl http://127.0.0.1/api/health
 ```
 
-期望 health 响应：
-
-```json
-{
-  "status": "ok",
-  "services": {
-    "postgres": { "status": "ok" },
-    "redis": { "status": "ok" },
-    "neo4j": { "status": "ok" }
-  }
-}
-```
-
-浏览器访问 `http://43.139.160.223` 查看 B 端 health 页面。云安全组只需为当前演示开放 80；不要开放 5432、6379、7474、7687 或 7688。
-
-常用运维命令：
+默认启动 PostgreSQL、Redis、Neo4j。测试用 Neo4j 按需启动：
 
 ```bash
-docker compose logs -f api gateway
-docker compose pull
-docker compose up -d --build
-docker compose down
+docker compose --profile test up -d neo4j-test
 ```
 
-`docker compose down` 不删除数据卷。不要在有演示数据时执行带 `-v` 的命令。
+云安全组放行 5432、6379、7474、7687（测试时再放行 7688），来源必须限定为团队固定公网 IP，禁止配置为 `0.0.0.0/0`。
 
-## 锁文件与测试
+## 2. 本地配置与 FastAPI
 
-Python 依赖由 `pyproject.toml` 声明、`uv.lock` 精确锁定；B 端和小程序依赖分别由各自的 `package-lock.json` 锁定。云端以容器复现测试环境：
-
-```bash
-docker compose --profile test run --rm api-tests
-```
-
-开发机只做代码检查时可执行：
+从 `.env.example` 创建 `.env`，填入服务器生成的 PostgreSQL、Redis、Neo4j 密码和后续功能所需的方舟配置。连接地址保持为 `43.139.160.223`，`.env` 永不入库或打印。
 
 ```bash
 uv sync --frozen --dev
+uv run uvicorn app.main:app --app-dir server --reload
+```
+
+验证三存储 health：
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+期望 PostgreSQL、Redis、Neo4j 均返回 `ok`；PostgreSQL 检查同时确认 `vector` 扩展已启用。
+
+## 3. 本地 B 端
+
+```bash
+cd admin
+npm ci
+npm run dev
+```
+
+访问 `http://localhost:5173`。Vite 将 `/api` 代理到本地 FastAPI `127.0.0.1:8000`。
+
+## 4. 微信小程序
+
+1. 在 `miniprogram/` 执行 `npm ci`。
+2. 用微信开发者工具导入 `miniprogram/`，选择“工具 → 构建 npm”。
+3. 模拟器关闭“校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”。
+4. health 页默认请求本机 `http://127.0.0.1:8000/api/health`。
+5. 预览二维码与真机调试通过微信开发者工具的调试代理访问本地 FastAPI；不依赖已备案 HTTPS 域名。
+
+提交的 `project.config.json` 使用游客 AppID，仅支持模拟器；预览或真机调试时在开发者工具中选择团队真实 AppID，该本地配置不提交。
+
+## 测试与检查
+
+```bash
 uv run pytest
 uv run ruff check server
 uv run mypy server/app
 
 cd admin
-npm ci
 npm run typecheck
 npm run build
 ```
 
-## SSH 隧道与 Tailscale
-
-数据库端口保持回环绑定。需要用本地数据库工具访问云端依赖时，通过 SSH 隧道转发：
-
-```bash
-ssh -N \
-  -L 5432:127.0.0.1:5432 \
-  -L 6379:127.0.0.1:6379 \
-  -L 7474:127.0.0.1:7474 \
-  -L 7687:127.0.0.1:7687 \
-  <服务器用户>@43.139.160.223
-```
-
-如果团队已接入同一 Tailnet，可将 SSH 目标替换为服务器的 Tailscale IP 或 MagicDNS 名称；端口仍通过隧道访问，不修改 Compose 的 `127.0.0.1` 绑定。
-
-## 微信小程序
-
-1. 在 `miniprogram/` 执行 `npm ci`。
-2. 用微信开发者工具导入 `miniprogram/`，选择“工具 → 构建 npm”。
-3. 模拟器开发时关闭“校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”，health 页会请求 `http://43.139.160.223/api/health`。
-4. 预览二维码/真机调试需要开发者工具调试代理；若脱离开发者工具运行，则必须为云端入口配置 HTTPS 与小程序 request 合法域名。
-
-小程序不上架、不审核；演示以开发者工具模拟器为主。
+Python 依赖由 `pyproject.toml` 声明、`uv.lock` 精确锁定；B 端和小程序依赖分别由各自的 `package-lock.json` 锁定。
 
 ## 文档
 

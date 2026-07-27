@@ -37,8 +37,11 @@ class HealthService:
         return {"status": "ok"}
 
     async def _check_postgres(self) -> None:
-        async with self._clients.postgres.connect() as connection:
-            result = await connection.execute(
+        await asyncio.to_thread(self._check_postgres_sync)
+
+    def _check_postgres_sync(self) -> None:
+        with self._clients.postgres.connect() as connection:
+            result = connection.execute(
                 text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
             )
             result.scalar_one()
