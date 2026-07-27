@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原型（定稿）：C端聊天页 — 智愈（throwaway）</title>
+<!--
+  定稿版，与 docs/specs/0002-ui-conventions.md 逐条对齐，作为施工期视觉参照。
+  已拍板：品牌主色青绿 #0e8a7d + 页面背景薄雾青绿渐变；候选切换器已移除。
+  - 导航栏：[‹][☰][智愈 左对齐]，透明悬浮；☰ 开"对话记录"抽屉
+  - 抽屉两段结构：顶部"我的"区（健康档案/我的挂号/用药提醒）+ 对话记录区（票 27）
+  - 空状态：吉祥物插画位 + 小愈问候 + 话题卡；功能入口横排胶囊在输入栏上方
+  - 输入栏双行：[🎤][档位 ▸][咨询人 ▸][发送]，placeholder"发消息或按住说话…"
+  - AI 诊室引导卡：步骤条 + 咨询人上下文条（姓名脱敏）；免责声明双保险
+  - 状态色（不随主色）：焦虑→暖橙气泡、红线症状→全屏红警告（右上角原型控制触发）
+  图标一律用 emoji/字符占位，真实实现用 Vant Weapp 图标。
+-->
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background:#dfe3e8; display:flex; align-items:center; justify-content:center;
+    min-height:100vh; overflow:hidden;
+  }
+  .stage { display:flex; align-items:center; justify-content:center; width:100%; height:100vh; }
+  .phone {
+    width:375px; height:min(812px, 94vh);
+    background:linear-gradient(180deg,#e9f6f2 0%,#f4faf8 45%,#f8faf9 100%);
+    border-radius:28px; box-shadow:0 18px 60px rgba(0,0,0,.28);
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+    --brand:#0e8a7d; --brand-soft:#e8f5f2; --brand-grad:#d0ede8; --bubble-user:#95deae;
+  }
+
+  /* ============ 导航栏：‹ ☰ 智愈 左对齐，透明悬浮 ============ */
+  .nav-header { display:flex; align-items:center; gap:14px; padding:12px 14px;
+                background:transparent; }
+  .nh-ico { font-size:18px; color:#333; cursor:pointer; line-height:1; }
+  .nh-title { font-size:16px; font-weight:600; }
+
+  /* ============ ☰ 抽屉：我的 + 对话记录（票 27） ============ */
+  .ctx-mask { position:absolute; inset:0; background:rgba(0,0,0,.4); z-index:35;
+              opacity:0; pointer-events:none; transition:opacity .2s; }
+  .ctx-mask.open { opacity:1; pointer-events:auto; }
+  .ctx-drawer { position:absolute; top:0; left:0; bottom:0; width:78%; background:#fff;
+                z-index:40; transform:translateX(-105%); transition:transform .22s ease;
+                display:flex; flex-direction:column; box-shadow:2px 0 16px rgba(0,0,0,.12); }
+  .ctx-drawer.open { transform:translateX(0); }
+  .ctx-head { display:flex; justify-content:space-between; align-items:center;
+              padding:14px 16px; border-bottom:1px solid #f0f0f0; }
+  .ctx-head .t { font-size:16px; font-weight:600; }
+  .ctx-new { border:1px solid var(--brand); color:var(--brand); border-radius:14px;
+             padding:5px 11px; font-size:12px; cursor:pointer; background:#fff; }
+  .ctx-list { flex:1; overflow-y:auto; }
+  .ctx-item { display:flex; justify-content:space-between; align-items:center;
+              padding:13px 16px; font-size:14px; color:#333; cursor:pointer; }
+  .ctx-item:active { background:#f5f5f5; }
+  .ctx-item .ctx-t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ctx-del { color:#ccc; font-size:12px; padding:2px 6px; cursor:pointer; }
+  .ctx-del:hover { color:#e64545; }
+  .ctx-section { padding:12px 16px 4px; font-size:12px; color:#999; }
+  .ctx-biz { display:flex; align-items:center; gap:10px; padding:12px 16px;
+             font-size:14px; color:#333; cursor:pointer; }
+  .ctx-biz:active { background:#f5f5f5; }
+  .ctx-biz .biz-ic { font-size:16px; }
+  .ctx-biz .biz-arrow { margin-left:auto; color:#ccc; }
+
+  /* ============ 空状态：吉祥物位 + 问候 + 话题卡 ============ */
+  .empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+           padding:24px; gap:14px; }
+  .mascot { width:88px; height:88px; border-radius:50%;
+            background:linear-gradient(135deg,var(--brand-soft),var(--brand-grad));
+            color:var(--brand); display:flex; align-items:center; justify-content:center;
+            font-size:38px; flex-direction:column; }
+  .mascot small { font-size:9px; opacity:.6; margin-top:2px; }
+  .empty h3 { font-size:17px; }
+  .empty h3 span { color:var(--brand); }
+  .topics { width:100%; display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .topic { background:#fff; border-radius:10px; padding:12px 13px; font-size:13px; color:#333;
+           cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.06);
+           display:flex; align-items:center; gap:8px; }
+  .topic .hash { width:20px; height:20px; border-radius:6px; background:var(--brand); color:#fff;
+                 display:flex; align-items:center; justify-content:center; font-size:12px; flex:0 0 auto; }
+  .topic .arrow { margin-left:auto; color:#ccc; }
+
+  /* ============ 聊天气泡与公共元素 ============ */
+  .thread { flex:1; overflow-y:auto; padding:12px; display:none; flex-direction:column; }
+  .bubble { max-width:78%; padding:10px 12px; border-radius:12px; font-size:14px; line-height:1.55; margin:8px 0; }
+  .bubble.user { align-self:flex-end; background:var(--bubble-user); color:#1a1a1a; border-bottom-right-radius:4px; }
+  .bubble.ai   { align-self:flex-start; background:#fff; color:#1a1a1a; border-bottom-left-radius:4px;
+                 box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .disclaimer-inline { margin-top:6px; padding-top:6px; border-top:1px dashed #e5e5e5;
+                       font-size:10px; color:#999; }
+  .chip { display:inline-block; border:1px solid #ddd; background:#fff; border-radius:14px;
+          padding:5px 11px; font-size:12px; color:#444; cursor:pointer; margin:3px 4px 3px 0; }
+  .emo-tag { display:none; font-size:10px; color:#b25f00; background:#fff4e0;
+             border-radius:8px; padding:2px 6px; margin-top:6px; width:fit-content; }
+  .phone.emo-anxious .emo-tag { display:block; }
+  .phone.emo-anxious .bubble.ai.medical { background:#fff8f0; border:1px solid #ffd591; }
+
+  /* ============ 引导卡片（含 AI 诊室步骤条 + 咨询人上下文条） ============ */
+  .guide-card { background:#fff; border-radius:12px; margin:8px 0; padding:12px;
+                box-shadow:0 1px 4px rgba(0,0,0,.1); align-self:stretch; }
+  .guide-card h4 { font-size:14px; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .guide-card .hint { font-size:11px; color:#999; margin-top:8px; }
+  .btn-row { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .card-btn { border:1px solid var(--brand); color:var(--brand); background:#fff;
+              border-radius:14px; padding:6px 12px; font-size:12px; cursor:pointer; }
+  .card-btn.primary { background:var(--brand); color:#fff; }
+  .steps { display:flex; align-items:center; gap:6px; font-size:11px; color:#999;
+           margin:2px 0 8px; }
+  .steps b { color:var(--brand); font-weight:600; }
+  .consult-bar { display:flex; align-items:center; gap:6px; font-size:12px; color:#666;
+                 background:#f7f8fa; border-radius:8px; padding:7px 10px; margin-bottom:8px; }
+  .consult-bar b { color:var(--brand); font-weight:600; }
+  .consult-bar .switch { margin-left:auto; color:var(--brand); cursor:pointer; }
+
+  /* ============ 输入栏（双行） ============ */
+  .disclaimer-bar { background:rgba(245,245,245,.85); color:#999; font-size:10px; text-align:center;
+                    padding:4px 8px; }
+  .entries { display:flex; gap:8px; overflow-x:auto; padding:8px 10px 4px; background:#fff; }
+  .entry { flex:0 0 auto; display:flex; align-items:center; gap:4px; border:1px solid #e0e0e0;
+           border-radius:16px; padding:6px 12px; font-size:12px; color:#333; background:#fff;
+           cursor:pointer; }
+  .composer { background:#fff; border-top:1px solid #eee; padding:8px 10px 10px; }
+  .c-row1 { display:flex; }
+  .c-row1 input { flex:1; border:none; background:#f2f3f5; border-radius:18px;
+                  padding:10px 14px; font-size:14px; outline:none; }
+  .hold-talk { display:none; flex:1; background:#f2f3f5; border-radius:18px;
+               padding:10px 0; text-align:center; font-size:14px; color:#333; user-select:none; }
+  .composer.voice-on .hold-talk { display:block; }
+  .composer.voice-on .c-row1 input { display:none; }
+  .c-row2 { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .round-btn { width:32px; height:32px; border-radius:50%; background:#f2f3f5; border:none;
+               font-size:15px; cursor:pointer; color:#333; }
+  .cpill { border:1px solid #e0e0e0; border-radius:14px; padding:5px 11px; font-size:12px;
+           color:#333; cursor:pointer; background:#fff; }
+  .cpill.gear { color:var(--brand); border-color:var(--brand); }
+  .send-btn { border:none; background:var(--brand); color:#fff; border-radius:16px;
+              padding:7px 16px; font-size:13px; cursor:pointer; margin-left:auto; }
+
+  /* ============ 红线症状：全屏红警告（状态色，固定） ============ */
+  .redflag { position:absolute; inset:0; background:#e64545; z-index:50; display:none;
+             flex-direction:column; align-items:center; justify-content:center;
+             color:#fff; padding:32px; text-align:center; gap:12px; }
+  .redflag.open { display:flex; }
+  .redflag .ico { font-size:44px; }
+  .redflag h2 { font-size:20px; }
+  .redflag p { font-size:14px; line-height:1.7; opacity:.95; }
+  .redflag button { margin-top:10px; border:1px solid #fff; background:transparent; color:#fff;
+                    border-radius:18px; padding:8px 22px; font-size:14px; cursor:pointer; }
+
+  /* ============ 原型控制（不属于设计本身） ============ */
+  .proto-controls { position:fixed; top:14px; right:14px; background:#222; color:#fff;
+                    border-radius:10px; padding:8px 12px; font-size:12px; z-index:100;
+                    display:flex; gap:8px; align-items:center; }
+  .proto-controls button { border:none; border-radius:6px; padding:5px 10px; cursor:pointer;
+                           background:#0e8a7d; color:#fff; font-size:12px; }
+  .proto-controls button.red { background:#e64545; }
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone" id="phone"></div></div>
+
+<div class="proto-controls">
+  <span>原型控制</span>
+  <button id="emoBtn">平静 → 焦虑</button>
+  <button id="redBtn" class="red">演示红线症状</button>
+</div>
+
+<script>
+/* ---------------- 数据（虚构演示数据） ---------------- */
+const ENTRIES = [
+  { k:'consult',  icon:'🩺', name:'AI诊室' },
+  { k:'skin',     icon:'📷', name:'拍皮肤' },
+  { k:'pillbox',  icon:'💊', name:'拍药盒' },
+  { k:'hospital', icon:'📍', name:'找医院' },
+  { k:'report',   icon:'📄', name:'看报告' },
+  { k:'diet',     icon:'🥗', name:'拍饮食' },
+];
+const PROMPTS = [
+  '高血压老人用药应该注意什么',
+  '为我推荐 28 天健康减肥食谱计划',
+  '最近总失眠，有什么调理建议',
+];
+const CONVOS = [
+  '头痛，持续两天了',
+  '拍皮肤',
+  '高血压老人用药应该注意什么',
+  '挂号',
+  '找医院',
+  '看报告',
+  '最近总失眠，有什么调理建议',
+];
+const GEARS = ['自动', '快速回答', '深度思考'];
+const PROFILES = ['本人', '妈妈', '爷爷'];
+const DISCLAIMER = '仅供参考，不替代医生诊断';
+const DEMO_AI = '别太紧张，单次偏高不一定说明问题。建议连续三天早晚各测一次并记录；若持续 ≥140/90，可到心血管内科就诊。平时少盐、规律作息。';
+
+let state = { gear: 0, emo: false, profile: 0 };
+
+/* ---------------- 片段 ---------------- */
+function esc(s){ return s.replace(/</g,'&lt;'); }
+function userBubble(t){ return '<div class="bubble user">' + esc(t) + '</div>'; }
+function aiMedicalBubble(){
+  return '<div class="bubble ai medical">' + esc(DEMO_AI) +
+    '<div class="disclaimer-inline">⚠ ' + DISCLAIMER + '</div>' +
+    '<div class="emo-tag">情绪感知：焦虑 · 已切换安抚语气</div></div>';
+}
+function guideCardHTML(k){
+  if (k === 'consult') return '<div class="guide-card"><h4>🩺 AI诊室</h4>' +
+    '<div class="steps"><b>01·描述症状</b> » 02·科室推荐 » 03·完成挂号</div>' +
+    '<div class="consult-bar">本次咨询人：<b>本*人</b><span class="switch" data-demo>切换</span></div>' +
+    '<div style="font-size:13px;color:#444">请描述主要症状和持续时间：</div>' +
+    '<div class="btn-row">' + ['头痛','发热','咳嗽','腹痛','乏力'].map(s =>
+      '<span class="chip" data-prompt="' + s + '，持续两天了">' + s + '</span>').join('') + '</div></div>';
+  if (k === 'hospital') return '<div class="guide-card"><h4>📍 找医院</h4>' +
+    '<div class="btn-row"><button class="card-btn primary" data-demo>获取当前位置</button>' +
+    '<span style="font-size:12px;color:#999;align-self:center">未定位</span></div>' +
+    '<div class="btn-row"><input style="flex:1;border:1px solid #ddd;border-radius:14px;padding:6px 12px;font-size:12px;outline:none" placeholder="输入症状或科室，如：皮肤科">' +
+    '<button class="card-btn" data-demo>查询</button></div>' +
+    '<div class="hint">将结合你的位置推荐附近医院与科室</div></div>';
+  const meta = { skin:['📷','拍皮肤','拍摄或上传患处照片，AI 帮你初步分析'],
+                 pillbox:['💊','拍药盒','拍摄药盒，查说明书、用法用量与禁忌'],
+                 report:['📄','看报告','上传体检报告照片或 PDF，逐页解读'],
+                 diet:['🥗','拍饮食','拍摄餐食，估算热量与营养搭配'] }[k];
+  return '<div class="guide-card"><h4>' + meta[0] + ' ' + meta[1] + '</h4>' +
+    '<div style="font-size:12px;color:#666">' + meta[2] + '</div>' +
+    '<div class="btn-row"><button class="card-btn primary" data-demo>拍照</button>' +
+    '<button class="card-btn" data-demo>上传图片</button></div></div>';
+}
+
+function render(){
+  return '' +
+  '<div class="nav-header">' +
+    '<span class="nh-ico" data-demo>‹</span>' +
+    '<span class="nh-ico" data-burger>☰</span>' +
+    '<span class="nh-title">智愈</span></div>' +
+
+  '<div class="empty" id="empty">' +
+    '<div class="mascot">✚<small>吉祥物位</small></div>' +
+    '<h3>你好，我是<span>小愈</span></h3>' +
+    '<div class="topics">' +
+      PROMPTS.map(p => '<div class="topic" data-prompt="' + p + '"><span class="hash">#</span>' + p +
+        '<span class="arrow">›</span></div>').join('') +
+    '</div></div>' +
+
+  '<div class="thread" id="chat"></div>' +
+
+  '<div class="disclaimer-bar">⚠ ' + DISCLAIMER + '</div>' +
+  '<div class="entries">' +
+    ENTRIES.map(e => '<span class="entry" data-entry="' + e.k + '">' + e.icon + ' ' + e.name + '</span>').join('') +
+  '</div>' +
+
+  '<div class="composer" id="composer">' +
+    '<div class="c-row1"><input id="cInput" placeholder="发消息或按住说话…">' +
+      '<div class="hold-talk">按住 说话</div></div>' +
+    '<div class="c-row2">' +
+      '<button class="round-btn" data-voice>🎤</button>' +
+      '<span class="cpill gear" data-gearcycle>' + GEARS[state.gear] + ' ▸</span>' +
+      '<span class="cpill" data-profile>' + PROFILES[state.profile] + ' ▸</span>' +
+      '<button class="send-btn" data-send>发送</button>' +
+    '</div></div>' +
+
+  '<div class="ctx-mask" id="ctxMask" data-mask></div>' +
+  '<div class="ctx-drawer" id="ctxDrawer">' +
+    '<div class="ctx-section">我的</div>' +
+    '<div class="ctx-biz" data-demo><span class="biz-ic">📋</span>健康档案<span class="biz-arrow">›</span></div>' +
+    '<div class="ctx-biz" data-demo><span class="biz-ic">🗓</span>我的挂号<span class="biz-arrow">›</span></div>' +
+    '<div class="ctx-biz" data-demo><span class="biz-ic">⏰</span>用药提醒<span class="biz-arrow">›</span></div>' +
+    '<div class="ctx-head"><span class="t">对话记录</span>' +
+      '<span class="ctx-new" data-newchat>＋ 新对话</span></div>' +
+    '<div class="ctx-list">' +
+      CONVOS.map(c => '<div class="ctx-item" data-ctxitem><span class="ctx-t">' + esc(c) +
+        '</span><span class="ctx-del" data-ctxdel>✕</span></div>').join('') +
+    '</div></div>' +
+
+  '<div class="redflag" id="redflag">' +
+    '<div class="ico">⚠</div><h2>检测到紧急症状</h2>' +
+    '<p>你描述的症状可能提示紧急危险。<br>请尽快就医，或立即拨打 120。<br>如有他人陪同，请立刻告知。</p>' +
+    '<button data-redclose>我已了解，关闭</button></div>';
+}
+
+/* ---------------- 装配与交互 ---------------- */
+const phone = document.getElementById('phone');
+function paint(){ phone.innerHTML = render(); }
+paint();
+
+document.getElementById('emoBtn').onclick = function(){
+  state.emo = !state.emo;
+  phone.classList.toggle('emo-anxious', state.emo);
+  this.textContent = state.emo ? '焦虑 → 平静' : '平静 → 焦虑';
+};
+document.getElementById('redBtn').onclick = () =>
+  phone.querySelector('#redflag').classList.add('open');
+
+function startChat(){
+  phone.querySelector('#empty').style.display = 'none';
+  const chat = phone.querySelector('#chat');
+  chat.style.display = 'flex';
+  return chat;
+}
+function appendDemoExchange(chat, text){
+  chat.insertAdjacentHTML('beforeend', userBubble(text));
+  chat.insertAdjacentHTML('beforeend', aiMedicalBubble());
+  chat.scrollTop = chat.scrollHeight;
+}
+
+phone.addEventListener('click', e => {
+  const del = e.target.closest('[data-ctxdel]');
+  if (del){ del.parentElement.remove(); return; }
+
+  const t = e.target.closest('[data-entry],[data-prompt],[data-gearcycle],[data-profile],[data-voice],[data-send],[data-burger],[data-mask],[data-newchat],[data-ctxitem],[data-redclose],[data-demo]');
+  if (!t) return;
+  const chat = phone.querySelector('#chat');
+
+  if (t.hasAttribute('data-burger')){
+    phone.querySelector('#ctxDrawer').classList.add('open');
+    phone.querySelector('#ctxMask').classList.add('open');
+  }
+  if (t.hasAttribute('data-mask')){
+    phone.querySelector('#ctxDrawer').classList.remove('open');
+    phone.querySelector('#ctxMask').classList.remove('open');
+  }
+  if (t.hasAttribute('data-newchat')) paint();          // 新对话 = 重置聊天态（票 27：惰性创建）
+  if (t.hasAttribute('data-ctxitem')){
+    phone.querySelector('#ctxDrawer').classList.remove('open');
+    phone.querySelector('#ctxMask').classList.remove('open');
+    const c = startChat();
+    if (!c.hasChildNodes()) appendDemoExchange(c, t.querySelector('.ctx-t').textContent);
+  }
+  if (t.hasAttribute('data-redclose'))
+    phone.querySelector('#redflag').classList.remove('open');
+  if (t.dataset.entry !== undefined){
+    const c = startChat();
+    c.insertAdjacentHTML('beforeend', guideCardHTML(t.dataset.entry));
+    c.scrollTop = c.scrollHeight;
+  }
+  if (t.dataset.prompt !== undefined)
+    appendDemoExchange(startChat(), t.dataset.prompt);
+  if (t.hasAttribute('data-gearcycle')){
+    state.gear = (state.gear + 1) % GEARS.length;
+    t.textContent = GEARS[state.gear] + ' ▸';
+  }
+  if (t.hasAttribute('data-profile')){
+    state.profile = (state.profile + 1) % PROFILES.length;
+    t.textContent = PROFILES[state.profile] + ' ▸';
+  }
+  if (t.hasAttribute('data-voice')){
+    const c = phone.querySelector('#composer');
+    c.classList.toggle('voice-on');
+    t.textContent = c.classList.contains('voice-on') ? '⌨' : '🎤';
+  }
+  if (t.hasAttribute('data-send')){
+    const input = phone.querySelector('#cInput');
+    const v = input.value.trim(); if (!v) return;
+    appendDemoExchange(startChat(), v);
+    input.value = '';
+  }
+  // data-demo：纯占位按钮，无行为
+});
+</script>
+</body>
+</html>
