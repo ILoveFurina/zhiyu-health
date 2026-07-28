@@ -82,12 +82,17 @@ class ChatControllerTest {
                 eq("doctor_recommendations"), isNull()))
                 .thenReturn(new Message(
                         11L, 7L, "assistant", "doctor_recommendations", "{}", null));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(),
+                eq("appointment"), isNull()))
+                .thenReturn(new Message(12L, 7L, "assistant", "appointment", "{}", null));
         when(agentClient.chat(anyMap())).thenReturn(Flux.just(
                 ServerSentEvent.builder("{\"effort\": \"low\"}").event("meta").build(),
                 ServerSentEvent.builder("{\"text\": \"你好\"}").event("token").build(),
                 // 结构化推荐同属 AI 产出，也必须由业务后端出口兜底免责声明
                 ServerSentEvent.builder("{\"doctors\":[{\"doctor_id\":2,\"name\":\"周安宁\"}]}")
                         .event("doctor_recommendations").build(),
+                ServerSentEvent.builder("{\"appointment_id\":21,\"notice\":\"病情摘要已发送给医生\"}")
+                        .event("appointment").build(),
                 // 故意省略 disclaimer，验证业务后端出口兜底
                 ServerSentEvent.builder("{\"role\":\"assistant\",\"content\":\"请问哪里不舒服？\",\"effort\":\"low\"}")
                         .event("message").build(),
@@ -120,6 +125,7 @@ class ChatControllerTest {
         int cardEnd = body.indexOf("event:message", cardStart);
         assertThat(body.substring(cardStart, cardEnd))
                 .contains("\"doctor_id\":2", "仅供参考，不替代医生诊断", "\"message_id\":11");
+        assertThat(body).contains("event:appointment", "病情摘要已发送给医生", "\"message_id\":12");
         assertThat(body).contains("event:message", "仅供参考，不替代医生诊断", "\"message_id\":10");
         assertThat(body).contains("event:done");
     }

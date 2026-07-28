@@ -78,6 +78,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      AGENT_CALLBACK_SECRET: ${AGENT_CALLBACK_SECRET:?请在 .env 中设置 AGENT_CALLBACK_SECRET}
       SERVER_PY_BASE_URL: ${SERVER_PY_BASE_URL:-http://host.docker.internal:8000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     ports:

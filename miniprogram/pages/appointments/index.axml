@@ -1,0 +1,21 @@
+<view class="page">
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{appointments.length === 0}}" class="state">暂无挂号</view>
+
+  <view a:for="{{appointments}}" a:key="appointment_id" class="card">
+    <view class="head">
+      <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
+      <view class="status {{item.status === '已约' ? 'booked' : ''}}">{{item.status}}</view>
+    </view>
+    <view class="meta">{{item.schedule_date}} {{item.time_slot}}</view>
+    <view class="number">就诊序号：{{item.sequence_number}} 号</view>
+    <view a:if="{{item.condition_summary}}" class="summary">病情摘要：{{item.condition_summary}}</view>
+    <ai-disclaimer a:if="{{item.summary_disclaimer}}" text="{{item.summary_disclaimer}}" />
+    <view
+      a:if="{{item.status === '已约'}}"
+      class="cancel"
+      data-id="{{item.appointment_id}}"
+      onTap="cancel"
+    >取消挂号</view>
+  </view>
+</view>

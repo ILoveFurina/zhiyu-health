@@ -7,7 +7,7 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 
 from collections.abc import AsyncIterator
 
-from app.agent.runner import AgentRunner
+from app.agent.runner import AgentContext, AgentRunner
 from app.core.constants import DISCLAIMER
 from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
 
@@ -26,6 +26,8 @@ class AgentChatService:
         self,
         *,
         messages: list[dict[str, str]],
+        patient_id: int,
+        conversation_id: int,
         effort_choice: EffortChoice,
         scenario: Scenario,
     ) -> AsyncIterator[dict[str, object]]:
@@ -33,7 +35,8 @@ class AgentChatService:
         effort = map_reasoning_effort(effort_choice, scenario)
         yield {"event": EVENT_META, "data": {"effort": effort}}
         parts: list[str] = []
-        async for output in self._agent_runner.astream_reply(messages, effort):
+        context = AgentContext(patient_id=patient_id, conversation_id=conversation_id)
+        async for output in self._agent_runner.astream_reply(messages, effort, context):
             if output.event == EVENT_TOKEN and isinstance(output.data, str):
                 parts.append(output.data)
                 yield {"event": EVENT_TOKEN, "data": {"text": output.data}}

@@ -92,7 +92,8 @@ public class ConversationService {
                 .eq(Message::getConversationId, conversationId)
                 // 卡片 JSON 用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文。
                 .notIn(Message::getKind,
-                        Message.KIND_DOCTOR_RECOMMENDATIONS, Message.KIND_DOCTOR_SLOTS)
+                        Message.KIND_DOCTOR_RECOMMENDATIONS, Message.KIND_DOCTOR_SLOTS,
+                        Message.KIND_APPOINTMENT, Message.KIND_APPOINTMENTS)
                 .orderByDesc(Message::getId)
                 .last("LIMIT " + CONTEXT_MESSAGE_LIMIT));
         List<Message> chronological = new ArrayList<>(newestFirst);

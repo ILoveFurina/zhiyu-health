@@ -106,6 +106,8 @@ Page({
         onAssistant: (data, tokens) => this.playAssistant(aiMsg.id, data, tokens),
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
+        onAppointment: (data) => this.appendCard('appointment', data),
+        onAppointments: (data) => this.appendCard('appointments', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => {},
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -158,8 +160,12 @@ Page({
   onSlotSelected(selection) {
     const { scheduleId, scheduleDate, timeSlot } = selection
     this.sendText(
-      `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}）`
+      `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}），请帮我完成挂号`
     )
+  },
+
+  openAppointments() {
+    my.navigateTo({ url: '/pages/appointments/index' })
   },
 
   showRedFlag(id, data) {

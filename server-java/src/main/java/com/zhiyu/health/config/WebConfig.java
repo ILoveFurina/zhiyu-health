@@ -16,13 +16,17 @@ public class WebConfig implements WebMvcConfigurer {
     private final String jwtSecret;
     private final int permitsPerMinute;
     private final String[] corsOrigins;
+    private final String agentCallbackSecret;
 
     public WebConfig(
             // 演示占位默认值，生产一律走 .env 注入
             @Value("${zhiyu.jwt-secret:zhiyu-dev-only-placeholder-secret}") String jwtSecret,
+            @Value("${zhiyu.agent.callback-secret}")
+            String agentCallbackSecret,
             @Value("${zhiyu.rate-limit.permits-per-minute:60}") int permitsPerMinute,
             @Value("${CORS_ORIGINS:http://localhost:5173}") String corsOrigins) {
         this.jwtSecret = jwtSecret;
+        this.agentCallbackSecret = agentCallbackSecret;
         this.permitsPerMinute = permitsPerMinute;
         this.corsOrigins = Arrays.stream(corsOrigins.split(","))
                 .map(String::trim)
@@ -51,6 +55,15 @@ public class WebConfig implements WebMvcConfigurer {
     public FilterRegistrationBean<AuthFilter> authFilterRegistration() {
         FilterRegistrationBean<AuthFilter> bean = new FilterRegistrationBean<>(new AuthFilter(jwtSecret));
         bean.addUrlPatterns("/api/*");
+        bean.setOrder(20);
+        return bean;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AgentCallbackAuthFilter> agentCallbackAuthFilterRegistration() {
+        FilterRegistrationBean<AgentCallbackAuthFilter> bean = new FilterRegistrationBean<>(
+                new AgentCallbackAuthFilter(agentCallbackSecret));
+        bean.addUrlPatterns("/api/agent/appointments", "/api/agent/appointments/*");
         bean.setOrder(20);
         return bean;
     }

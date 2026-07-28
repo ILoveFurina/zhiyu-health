@@ -13,6 +13,8 @@ public class Message {
     public static final String KIND_TEXT = "text";
     public static final String KIND_DOCTOR_RECOMMENDATIONS = "doctor_recommendations";
     public static final String KIND_DOCTOR_SLOTS = "doctor_slots";
+    public static final String KIND_APPOINTMENT = "appointment";
+    public static final String KIND_APPOINTMENTS = "appointments";
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -51,6 +53,7 @@ public class Message {
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 
     public static boolean isAiCardKind(String kind) {
-        return KIND_DOCTOR_RECOMMENDATIONS.equals(kind) || KIND_DOCTOR_SLOTS.equals(kind);
+        return KIND_DOCTOR_RECOMMENDATIONS.equals(kind) || KIND_DOCTOR_SLOTS.equals(kind)
+                || KIND_APPOINTMENT.equals(kind) || KIND_APPOINTMENTS.equals(kind);
     }
 }

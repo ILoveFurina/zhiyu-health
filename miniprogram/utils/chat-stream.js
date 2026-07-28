@@ -68,6 +68,10 @@ function dispatch(events, handlers) {
       handlers.onDoctorRecommendations(data)
     } else if (event === 'doctor_slots') {
       handlers.onDoctorSlots(data)
+    } else if (event === 'appointment') {
+      handlers.onAppointment(data)
+    } else if (event === 'appointments') {
+      handlers.onAppointments(data)
     } else if (event === 'red_flag') {
       handlers.onRedFlag(data)
       tokens = []

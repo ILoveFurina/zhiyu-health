@@ -64,4 +64,11 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             WHERE id = #{scheduleId} AND is_active = TRUE AND remaining_slots > 0
             """)
     int decrementRemainingSlots(@Param("scheduleId") long scheduleId);
+
+    @Update("""
+            UPDATE schedules
+            SET remaining_slots = remaining_slots + 1
+            WHERE id = #{scheduleId} AND remaining_slots < total_slots
+            """)
+    int incrementRemainingSlots(@Param("scheduleId") long scheduleId);
 }

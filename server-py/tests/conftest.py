@@ -10,8 +10,10 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from app.agent.runner import AgentOutput
+from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
+
+TEST_AGENT_SECRET = "test-only-agent-callback-secret"
 
 
 class StubHealthService:
@@ -27,9 +29,9 @@ class FakeAgentRunner:
         self.calls: list[dict[str, object]] = []
 
     async def astream_reply(
-        self, messages: list[dict[str, str]], effort: str
+        self, messages: list[dict[str, str]], effort: str, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
-        self.calls.append({"messages": messages, "effort": effort})
+        self.calls.append({"messages": messages, "effort": effort, "context": context})
         for token in self.tokens:
             yield AgentOutput("token", token)
 
@@ -37,6 +39,10 @@ class FakeAgentRunner:
 @pytest.fixture
 def harness() -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
-    app = create_app(health_service=StubHealthService(), agent_runner=fake_agent)
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_runner=fake_agent,
+        agent_auth_secret=TEST_AGENT_SECRET,
+    )
     with TestClient(app) as client:
         yield SimpleNamespace(client=client, agent=fake_agent)

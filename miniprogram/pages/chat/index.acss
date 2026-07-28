@@ -23,6 +23,13 @@
   padding-top: 120rpx;
 }
 
+.appointments-link {
+  align-self: flex-end;
+  margin-bottom: 20rpx;
+  color: #0e8a7d;
+  font-size: 24rpx;
+}
+
 .mascot {
   width: 176rpx;
   height: 176rpx;
