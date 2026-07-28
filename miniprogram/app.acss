@@ -1,0 +1,5 @@
+page {
+  min-height: 100%;
+  background: linear-gradient(180deg, #e9f6f2 0%, #f4faf8 45%, #f8faf9 100%);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}

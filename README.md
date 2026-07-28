@@ -94,13 +94,13 @@ npm run dev
 
 ## 4. 支付宝小程序
 
-1. 在 `miniprogram/` 执行 `npm ci`。
-2. 用支付宝小程序开发者工具导入 `miniprogram/`，选择“工具 → 构建 npm”。
+1. 在 `miniprogram/` 执行 `npm ci`（antd-mini 直接引用 `node_modules`，无需“构建 npm”）。
+2. 用支付宝小程序开发者工具导入 `miniprogram/`（已提交 `mini.project.json`，含 component2 配置）。
 3. 模拟器关闭“校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”。
 4. health 页默认请求本机 `http://127.0.0.1:8000/api/health`。
 5. 预览二维码与真机调试通过支付宝开发者工具的调试代理访问本地 FastAPI；不依赖已备案 HTTPS 域名。
 
-提交的 `project.config.json` 使用游客 AppID，仅支持模拟器；预览或真机调试时在开发者工具中选择团队真实 AppID，该本地配置不提交。
+预览或真机调试时在开发者工具中选择团队真实 AppID，该本地配置不提交。
 
 ## 测试与检查
 

@@ -1,18 +1,9 @@
 {
-  "pages": ["pages/health/index"],
+  "pages": ["pages/chat/index", "pages/health/index"],
   "window": {
-    "navigationBarTitleText": "智愈",
-    "navigationBarBackgroundColor": "#ffffff",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#e9f6f2"
-  },
-  "style": "v2",
-  "sitemapLocation": "sitemap.json",
-  "usingComponents": {
-    "van-button": "@vant/weapp/button/index",
-    "van-cell": "@vant/weapp/cell/index",
-    "van-cell-group": "@vant/weapp/cell-group/index",
-    "van-tag": "@vant/weapp/tag/index",
-    "van-toast": "@vant/weapp/toast/index"
+    "defaultTitle": "智愈",
+    "titleBarColor": "#e9f6f2",
+    "backgroundColor": "#e9f6f2",
+    "pullRefresh": false
   }
 }

@@ -3,6 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "dependencies": {
-    "@vant/weapp": "^1.11.7"
+    "antd-mini": "^3"
   }
 }

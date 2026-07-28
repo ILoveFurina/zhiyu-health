@@ -1,0 +1,1 @@
+<view class="ai-disclaimer">⚠ {{text}}</view>

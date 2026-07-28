@@ -1,3 +1,7 @@
 {
-  "navigationBarTitleText": "智愈 · 服务状态"
+  "defaultTitle": "智愈 · 服务自检",
+  "usingComponents": {
+    "ant-button": "antd-mini/es/Button/index",
+    "ant-tag": "antd-mini/es/Tag/index"
+  }
 }

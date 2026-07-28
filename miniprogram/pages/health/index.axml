@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="card">
+    <view class="title">后端与存储连通性</view>
+    <view class="overall">总体状态：{{overall}}</view>
+    <view a:for="{{services}}" a:key="name" class="row">
+      <view class="label">{{item.label}}</view>
+      <ant-tag color="{{item.status === 'ok' ? 'green' : 'red'}}">{{item.status}}</ant-tag>
+    </view>
+    <ant-button type="primary" loading="{{loading}}" onTap="refreshHealth">重新检测</ant-button>
+  </view>
+</view>

@@ -1,0 +1,8 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "zhiyu-miniprogram",
+  "component2": true,
+  "compileOptions": {
+    "component2": true
+  }
+}

@@ -1,0 +1,263 @@
+/* 聊天页（演示主画面），视觉对齐 docs/specs/0002-ui-conventions.md */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.thread {
+  flex: 1;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.thread-tail {
+  height: 2rpx;
+}
+
+/* ===== 空状态 ===== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 120rpx;
+}
+
+.mascot {
+  width: 176rpx;
+  height: 176rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e8f5f2, #d0ede8);
+  color: #0e8a7d;
+  font-size: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.greet {
+  margin-top: 28rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.greet .brand {
+  color: #0e8a7d;
+}
+
+.greet-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.topics {
+  width: 100%;
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.topic {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 24rpx 26rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
+}
+
+.topic .hash {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 12rpx;
+  background: #0e8a7d;
+  color: #fff;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.topic .topic-text {
+  font-size: 26rpx;
+  color: #333;
+}
+
+.topic .arrow {
+  margin-left: auto;
+  color: #ccc;
+  font-size: 32rpx;
+}
+
+/* ===== 气泡 ===== */
+.bubble {
+  max-width: 78%;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  line-height: 1.55;
+  margin: 16rpx 0;
+  word-break: break-all;
+}
+
+.bubble.user {
+  margin-left: auto;
+  background: #95deae;
+  color: #1a1a1a;
+  border-bottom-right-radius: 8rpx;
+  width: fit-content;
+}
+
+.bubble.ai {
+  margin-right: auto;
+  background: #fff;
+  color: #1a1a1a;
+  border-bottom-left-radius: 8rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
+  width: fit-content;
+}
+
+.cursor {
+  color: #0e8a7d;
+}
+
+/* ===== 红线内联卡（历史回看时呈现） ===== */
+.redflag-card {
+  margin: 16rpx 0;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  background: #e64545;
+  color: #fff;
+}
+
+.rf-card-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.rf-card-body {
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+/* ===== 免责声明常驻细条 ===== */
+.disclaimer-bar {
+  background: rgba(245, 245, 245, 0.9);
+  color: #999;
+  font-size: 20rpx;
+  text-align: center;
+  padding: 8rpx 16rpx;
+}
+
+/* ===== 输入栏 ===== */
+.composer {
+  background: #fff;
+  border-top: 1rpx solid #eee;
+  padding: 16rpx 20rpx 24rpx;
+}
+
+.c-row1 {
+  display: flex;
+}
+
+.c-input {
+  flex: 1;
+  background: #f2f3f5;
+  border-radius: 36rpx;
+  padding: 18rpx 28rpx;
+  font-size: 28rpx;
+}
+
+.c-row2 {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.cpill {
+  border: 1rpx solid #e0e0e0;
+  border-radius: 28rpx;
+  padding: 10rpx 22rpx;
+  font-size: 24rpx;
+  color: #333;
+  background: #fff;
+}
+
+.cpill.gear {
+  color: #0e8a7d;
+  border-color: #0e8a7d;
+}
+
+.send-btn {
+  margin-left: auto;
+  background: #0e8a7d;
+  color: #fff;
+  border-radius: 32rpx;
+  padding: 12rpx 36rpx;
+  font-size: 26rpx;
+}
+
+.send-btn.send-disabled {
+  opacity: 0.45;
+}
+
+/* ===== 红线症状全屏警告（状态色固定 #e64545，不得用普通卡片） ===== */
+.redflag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #e64545;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  padding: 64rpx;
+  text-align: center;
+}
+
+.rf-ico {
+  font-size: 88rpx;
+}
+
+.rf-h {
+  font-size: 40rpx;
+  font-weight: 600;
+  margin-top: 24rpx;
+}
+
+.rf-rule {
+  margin-top: 24rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.rf-advice {
+  margin-top: 16rpx;
+  font-size: 30rpx;
+  line-height: 1.7;
+}
+
+.rf-tip {
+  margin-top: 24rpx;
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.rf-btn {
+  margin-top: 48rpx;
+  border: 1rpx solid #fff;
+  border-radius: 36rpx;
+  padding: 16rpx 56rpx;
+  font-size: 28rpx;
+  color: #fff;
+}

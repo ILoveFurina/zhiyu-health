@@ -1,0 +1,76 @@
+<view class="page">
+  <scroll-view
+    class="thread"
+    scroll-y
+    scroll-into-view="{{anchorId}}"
+    scroll-with-animation
+  >
+    <!-- 空状态：问候 + 3 个推荐提示词（导诊/用药注意/健康管理各一） -->
+    <view a:if="{{messages.length === 0}}" class="empty">
+      <view class="mascot">✚</view>
+      <view class="greet">你好，我是<text class="brand">小愈</text></view>
+      <view class="greet-sub">描述症状，我帮你找到合适的科室</view>
+      <view class="topics">
+        <view
+          a:for="{{prompts}}"
+          a:key="index"
+          class="topic"
+          data-text="{{item}}"
+          onTap="sendPrompt"
+        >
+          <view class="hash">#</view>
+          <view class="topic-text">{{item}}</view>
+          <view class="arrow">›</view>
+        </view>
+      </view>
+    </view>
+
+    <view a:for="{{messages}}" a:key="id">
+      <view a:if="{{item.role === 'user'}}" class="bubble user">{{item.content}}</view>
+
+      <view a:elif="{{item.kind === 'red_flag'}}" class="redflag-card">
+        <view class="rf-card-title">⚠ 紧急提醒</view>
+        <view class="rf-card-body">{{item.content}}</view>
+      </view>
+
+      <view a:else class="bubble ai" id="msg-{{item.id}}">
+        <text>{{item.content}}</text>
+        <text a:if="{{item.streaming}}" class="cursor">▍</text>
+        <ai-disclaimer a:if="{{!item.streaming && item.disclaimer}}" text="{{item.disclaimer}}" />
+      </view>
+    </view>
+    <view id="thread-bottom" class="thread-tail"></view>
+  </scroll-view>
+
+  <!-- 免责声明常驻细条（双保险之二） -->
+  <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
+
+  <!-- 输入栏（双行结构） -->
+  <view class="composer">
+    <view class="c-row1">
+      <input
+        class="c-input"
+        value="{{inputValue}}"
+        onInput="onInput"
+        onConfirm="send"
+        confirm-type="send"
+        placeholder="发消息或按住说话…"
+        disabled="{{sending}}"
+      />
+    </view>
+    <view class="c-row2">
+      <view class="cpill gear" onTap="cycleGear">{{gearLabel}} ▸</view>
+      <view class="send-btn {{canSend ? '' : 'send-disabled'}}" onTap="send">发送</view>
+    </view>
+  </view>
+
+  <!-- 红线症状：全屏红色警告（中断导诊，尽快就医/拨打 120） -->
+  <view a:if="{{redFlag}}" class="redflag-overlay">
+    <view class="rf-ico">⚠</view>
+    <view class="rf-h">紧急提醒</view>
+    <view class="rf-rule">{{redFlag.rule}}</view>
+    <view class="rf-advice">{{redFlag.advice}}</view>
+    <view class="rf-tip">小愈已中断本次导诊，你的安全最重要。</view>
+    <view class="rf-btn" onTap="closeRedFlag">我知道了</view>
+  </view>
+</view>

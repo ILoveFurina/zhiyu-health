@@ -1,4 +1,4 @@
-const { apiBaseUrl } = require('../../utils/config')
+const { request } = require('../../utils/request')
 
 Page({
   data: {
@@ -13,13 +13,8 @@ Page({
 
   refreshHealth() {
     this.setData({ loading: true })
-    wx.request({
-      url: `${apiBaseUrl}/health`,
-      success: ({ statusCode, data }) => {
-        if (statusCode !== 200) {
-          this.showFailure()
-          return
-        }
+    request({ url: '/health' })
+      .then((data) => {
         const labels = {
           postgres: 'PostgreSQL + pgvector',
           redis: 'Redis',
@@ -30,17 +25,13 @@ Page({
           services: Object.keys(labels).map((name) => ({
             name,
             label: labels[name],
-            status: data.services[name].status,
+            status: (data.services[name] && data.services[name].status) || 'error',
           })),
         })
-      },
-      fail: () => this.showFailure(),
-      complete: () => this.setData({ loading: false }),
-    })
-  },
-
-  showFailure() {
-    this.setData({ overall: '无法连接云端服务', services: [] })
-    wx.showToast({ title: 'Health 接口连接失败', icon: 'none' })
+      })
+      .catch(() =>
+        this.setData({ overall: '后端不可达', services: [] })
+      )
+      .finally(() => this.setData({ loading: false }))
   },
 })
