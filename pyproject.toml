@@ -5,16 +5,12 @@ description = "智愈医疗 B+C 平台"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.116,<1",
+    "httpx>=0.28,<1",
     "langchain>=1,<2",
     "langchain-openai>=0.3,<1",
     "langgraph>=0.6,<2",
     "neo4j>=5,<7",
-    "psycopg[binary]>=3.2,<4",
-    "pwdlib[argon2]>=0.2,<1",
     "pydantic-settings>=2.10,<3",
-    "pyjwt>=2.10,<3",
-    "redis>=6,<8",
-    "sqlalchemy>=2.0,<3",
     "uvicorn[standard]>=0.35,<1",
 ]
 
@@ -30,10 +26,10 @@ dev = [
 package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["server"]
-testpaths = ["server/tests"]
+pythonpath = ["server-py"]
+testpaths = ["server-py/tests"]
 
 [tool.ruff]
 line-length = 100
-src = ["server"]
+src = ["server-py"]
 target-version = "py312"
