@@ -2,7 +2,7 @@ import { history, useModel } from '@umijs/max';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { login, fetchMe } from '@/services/auth';
-import { homeByRole, setCachedUser, setToken } from '@/app';
+import { homeByRole, setCachedUser, setToken } from '@/utils/session';
 
 export default function LoginPage() {
   const { setInitialState } = useModel('@@initialState');
