@@ -37,6 +37,11 @@ public class RedisSlotCounter implements SlotCounter {
     }
 
     @Override
+    public void adjust(long scheduleId, int delta) {
+        redisTemplate.opsForValue().increment(key(scheduleId), delta);
+    }
+
+    @Override
     public void delete(long scheduleId) {
         redisTemplate.delete(key(scheduleId));
     }

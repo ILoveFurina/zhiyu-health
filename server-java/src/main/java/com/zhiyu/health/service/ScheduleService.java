@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class ScheduleService {
@@ -57,24 +59,37 @@ public class ScheduleService {
     }
 
     public Schedule updateSchedule(Schedule changes) {
-        Schedule current = scheduleMapper.selectById(changes.getId());
-        if (current == null || doctorMapper.selectById(changes.getDoctorId()) == null) {
+        if (doctorMapper.selectById(changes.getDoctorId()) == null) {
             return null;
         }
-        int usedSlots = current.getTotalSlots() - current.getRemainingSlots();
-        if (changes.getTotalSlots() < usedSlots) {
-            throw new ScheduleCapacityException();
-        }
-        changes.setRemainingSlots(changes.getTotalSlots() - usedSlots);
-        changes.setIsActive(current.getIsActive());
+        AtomicBoolean counterAdjusted = new AtomicBoolean();
+        AtomicInteger appliedDelta = new AtomicInteger();
         try {
             return transactionTemplate.execute(status -> {
-                scheduleMapper.updateById(changes);
-                slotCounter.set(changes.getId(), changes.getRemainingSlots());
-                return changes;
+                Schedule current = scheduleMapper.selectByIdForUpdate(changes.getId());
+                if (current == null) {
+                    return null;
+                }
+                int usedSlots = current.getTotalSlots() - current.getRemainingSlots();
+                if (changes.getTotalSlots() < usedSlots) {
+                    throw new ScheduleCapacityException();
+                }
+                int capacityDelta = changes.getTotalSlots() - current.getTotalSlots();
+                if (scheduleMapper.adjustCapacity(changes) != 1) {
+                    throw new ScheduleCapacityException();
+                }
+                if (capacityDelta != 0) {
+                    // INCRBY 与预约 DECR 可交换，避免用旧快照覆盖并发扣减。
+                    slotCounter.adjust(changes.getId(), capacityDelta);
+                    appliedDelta.set(capacityDelta);
+                    counterAdjusted.set(true);
+                }
+                return scheduleMapper.selectById(changes.getId());
             });
         } catch (RuntimeException exception) {
-            slotCounter.set(current.getId(), current.getRemainingSlots());
+            if (counterAdjusted.get()) {
+                slotCounter.adjust(changes.getId(), -appliedDelta.get());
+            }
             throw exception;
         }
     }
@@ -84,8 +99,8 @@ public class ScheduleService {
         if (schedule == null) {
             return null;
         }
+        scheduleMapper.disable(scheduleId);
         schedule.setIsActive(false);
-        scheduleMapper.updateById(schedule);
         return schedule;
     }
 

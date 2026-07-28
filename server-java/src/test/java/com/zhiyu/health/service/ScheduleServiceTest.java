@@ -9,8 +9,6 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -145,8 +143,12 @@ class ScheduleServiceTest {
         current.setTotalSlots(20);
         current.setRemainingSlots(12);
         current.setIsActive(true);
-        when(scheduleMapper.selectById(1L)).thenReturn(current);
+        Schedule expandedResult = schedule(1L, 24, 16);
+        when(scheduleMapper.selectByIdForUpdate(1L)).thenReturn(current, expandedResult);
+        when(scheduleMapper.selectById(1L)).thenReturn(expandedResult);
         when(doctorMapper.selectById(1L)).thenReturn(new Doctor());
+        when(scheduleMapper.adjustCapacity(any(Schedule.class))).thenReturn(1);
+        slotCounter.initialize(1L, 12);
         ScheduleService service = serviceWithImmediateTransaction();
         Schedule expanded = new Schedule();
         expanded.setId(1L);
@@ -164,6 +166,56 @@ class ScheduleServiceTest {
         tooSmall.setTotalSlots(7);
         assertThatThrownBy(() -> service.updateSchedule(tooSmall))
                 .isInstanceOf(ScheduleCapacityException.class);
+    }
+
+    @Test
+    void capacityIncreaseAndSlotDecrementDoNotOverwriteEachOther() throws Exception {
+        AtomicInteger pgTotal = new AtomicInteger(20);
+        AtomicInteger pgRemaining = new AtomicInteger(1);
+        when(doctorMapper.selectById(1L)).thenReturn(new Doctor());
+        when(scheduleMapper.selectByIdForUpdate(1L)).thenAnswer(invocation ->
+                schedule(1L, pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.selectById(1L)).thenAnswer(invocation ->
+                schedule(1L, pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.decrementRemainingSlots(1L)).thenAnswer(invocation ->
+                pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
+        when(scheduleMapper.adjustCapacity(any(Schedule.class))).thenAnswer(invocation -> {
+            Schedule changes = invocation.getArgument(0);
+            int delta = changes.getTotalSlots() - pgTotal.getAndSet(changes.getTotalSlots());
+            pgRemaining.addAndGet(delta);
+            return 1;
+        });
+        slotCounter.initialize(1L, 1);
+        ScheduleService service = serviceWithImmediateTransaction();
+        Schedule expanded = schedule(1L, 24, null);
+        AtomicInteger successfulDecrements = new AtomicInteger();
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            executor.submit(() -> service.updateSchedule(expanded));
+            executor.submit(() -> {
+                if (service.tryDecrementSlot(1L)) {
+                    successfulDecrements.incrementAndGet();
+                }
+            });
+            executor.shutdown();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(successfulDecrements).hasValue(1);
+        assertThat(pgRemaining).hasValue(4);
+        assertThat(slotCounter.values.get(1L)).hasValue(4);
+    }
+
+    private Schedule schedule(long id, int totalSlots, Integer remainingSlots) {
+        Schedule schedule = new Schedule();
+        schedule.setId(id);
+        schedule.setDoctorId(1L);
+        schedule.setTotalSlots(totalSlots);
+        schedule.setRemainingSlots(remainingSlots);
+        schedule.setIsActive(true);
+        return schedule;
     }
 
     private ScheduleService serviceWithImmediateTransaction() {
@@ -185,32 +237,4 @@ class ScheduleServiceTest {
         Object execute(TransactionCallback<?> callback);
     }
 
-    private static final class InMemorySlotCounter implements SlotCounter {
-        private final Map<Long, AtomicInteger> values = new ConcurrentHashMap<>();
-
-        @Override
-        public void initialize(long scheduleId, int remainingSlots) {
-            values.put(scheduleId, new AtomicInteger(remainingSlots));
-        }
-
-        @Override
-        public long decrement(long scheduleId) {
-            return values.get(scheduleId).decrementAndGet();
-        }
-
-        @Override
-        public void increment(long scheduleId) {
-            values.get(scheduleId).incrementAndGet();
-        }
-
-        @Override
-        public void set(long scheduleId, int remainingSlots) {
-            values.put(scheduleId, new AtomicInteger(remainingSlots));
-        }
-
-        @Override
-        public void delete(long scheduleId) {
-            values.remove(scheduleId);
-        }
-    }
 }

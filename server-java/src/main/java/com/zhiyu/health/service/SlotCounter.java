@@ -10,5 +10,7 @@ public interface SlotCounter {
 
     void set(long scheduleId, int remainingSlots);
 
+    void adjust(long scheduleId, int delta);
+
     void delete(long scheduleId);
 }
