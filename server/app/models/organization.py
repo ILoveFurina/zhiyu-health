@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.schedule import Schedule
 
 
 class Hospital(Base):
@@ -42,3 +47,6 @@ class Doctor(Base):
     specialty: Mapped[str] = mapped_column(Text)
     photo_url: Mapped[str] = mapped_column(String(500))
     department: Mapped[Department] = relationship(back_populates="doctors")
+    schedules: Mapped[list["Schedule"]] = relationship(
+        back_populates="doctor", cascade="all, delete-orphan"
+    )
