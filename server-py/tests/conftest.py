@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agent.runner import AgentOutput
 from app.main import create_app
 
 
@@ -27,10 +28,10 @@ class FakeAgentRunner:
 
     async def astream_reply(
         self, messages: list[dict[str, str]], effort: str
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[AgentOutput]:
         self.calls.append({"messages": messages, "effort": effort})
         for token in self.tokens:
-            yield token
+            yield AgentOutput("token", token)
 
 
 @pytest.fixture

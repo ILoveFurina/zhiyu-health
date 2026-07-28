@@ -81,6 +81,9 @@ class ChatControllerTest {
         when(agentClient.chat(anyMap())).thenReturn(Flux.just(
                 ServerSentEvent.builder("{\"effort\": \"low\"}").event("meta").build(),
                 ServerSentEvent.builder("{\"text\": \"你好\"}").event("token").build(),
+                // 结构化推荐同属 AI 产出，也必须由业务后端出口兜底免责声明
+                ServerSentEvent.builder("{\"doctors\":[{\"doctor_id\":2,\"name\":\"周安宁\"}]}")
+                        .event("doctor_recommendations").build(),
                 // 故意省略 disclaimer，验证业务后端出口兜底
                 ServerSentEvent.builder("{\"role\":\"assistant\",\"content\":\"请问哪里不舒服？\",\"effort\":\"low\"}")
                         .event("message").build(),
@@ -109,6 +112,10 @@ class ChatControllerTest {
 
         assertThat(body).contains("event:meta", "\"effort\":\"low\"", "\"conversation_id\":7");
         assertThat(body).contains("event:token", "\"text\":\"你好\"");
+        int cardStart = body.indexOf("event:doctor_recommendations");
+        int cardEnd = body.indexOf("event:message", cardStart);
+        assertThat(body.substring(cardStart, cardEnd))
+                .contains("\"doctor_id\":2", "仅供参考，不替代医生诊断");
         assertThat(body).contains("event:message", "仅供参考，不替代医生诊断", "\"message_id\":10");
         assertThat(body).contains("event:done");
     }

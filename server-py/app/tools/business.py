@@ -8,6 +8,7 @@ server-java 统一入口的回调通道，地址经 SERVER_JAVA_BASE_URL 配置�
 from typing import Any
 
 import httpx
+from langchain_core.tools import BaseTool, tool
 
 
 class BusinessCallbackClient:
@@ -34,3 +35,23 @@ class BusinessCallbackClient:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
+    """装配 Agent 可调用的业务工具；函数本身只校验参数并转发到业务后端。"""
+
+    @tool
+    async def recommend_doctors(department_name: str) -> dict[str, Any]:
+        """按科室名称查询当前仍有号源的医生，用于导诊后的医生推荐。"""
+        result = await client.get(
+            "/api/agent/doctors/recommend", {"department_name": department_name}
+        )
+        return dict(result)
+
+    @tool
+    async def get_doctor_slots(doctor_id: int) -> dict[str, Any]:
+        """按医生 ID 查询当前可预约的日期、时段和剩余号源。"""
+        result = await client.get(f"/api/agent/doctors/{doctor_id}/slots")
+        return dict(result)
+
+    return [recommend_doctors, get_doctor_slots]

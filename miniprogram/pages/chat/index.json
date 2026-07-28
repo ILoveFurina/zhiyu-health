@@ -1,4 +1,8 @@
 {
   "defaultTitle": "智愈",
-  "titleBarColor": "#e9f6f2"
+  "titleBarColor": "#e9f6f2",
+  "usingComponents": {
+    "ai-disclaimer": "/components/ai-disclaimer/index",
+    "doctor-card": "/components/doctor-card/index"
+  }
 }

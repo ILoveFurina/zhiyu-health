@@ -1,0 +1,86 @@
+.card {
+  margin: 16rpx 0;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  margin-bottom: 12rpx;
+  color: #1a1a1a;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.doctor,
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #eee;
+}
+
+.doctor:last-child,
+.slot:last-child {
+  border-bottom: 0;
+}
+
+.avatar {
+  width: 92rpx;
+  height: 92rpx;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #e9f6f2;
+}
+
+.doctor-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.doctor-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+
+.name,
+.slot-date {
+  color: #222;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.doctor-title,
+.specialty,
+.availability,
+.empty {
+  color: #777;
+  font-size: 22rpx;
+}
+
+.specialty {
+  margin-top: 8rpx;
+  line-height: 1.45;
+}
+
+.availability {
+  margin-top: 6rpx;
+  color: #0e8a7d;
+}
+
+.choose {
+  flex: 0 0 auto;
+  padding: 10rpx 22rpx;
+  border-radius: 26rpx;
+  background: #0e8a7d;
+  color: #fff;
+  font-size: 23rpx;
+}
+
+.empty {
+  padding: 24rpx 0;
+  text-align: center;
+}

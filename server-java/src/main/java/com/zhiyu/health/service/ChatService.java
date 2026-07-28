@@ -104,6 +104,8 @@ public class ChatService {
                         "text",
                         nullableText(object.get("effort")));
                 object.put("message_id", saved.getId());
+            } else if (isAiCardEvent(eventName) && data instanceof ObjectNode object) {
+                ensureDisclaimer(object);
             }
             send(emitter, eventName, data);
         } catch (IOException | IllegalStateException e) {
@@ -121,6 +123,10 @@ public class ChatService {
         if (!DISCLAIMER.equals(message.path("disclaimer").asText())) {
             message.put("disclaimer", DISCLAIMER);
         }
+    }
+
+    private boolean isAiCardEvent(String eventName) {
+        return "doctor_recommendations".equals(eventName) || "doctor_slots".equals(eventName);
     }
 
     private void send(SseEmitter emitter, String event, JsonNode data) throws IOException {

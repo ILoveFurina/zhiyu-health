@@ -17,7 +17,7 @@ from app.config import get_settings, get_web_settings
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
 from app.services.health import HealthChecker, HealthService
-from app.tools.business import BusinessCallbackClient
+from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
 def create_app(
@@ -26,17 +26,20 @@ def create_app(
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
         if health_service is not None:
             # 注入装配路径（测试）：不触碰真实存储与 settings
+            app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
             app.state.health_service = health_service
             yield
             return
         settings = get_settings()
         clients = create_knowledge_clients(settings)
         app.state.health_service = HealthService(clients)
-        # 业务工具回调通道（薄壳）：装配在此，具体业务工具由后续票注入 Agent 图
         app.state.business_client = BusinessCallbackClient(settings.server_java_base_url)
+        runner = agent_runner or LazySettingsAgentRunner(
+            build_business_tools(app.state.business_client)
+        )
+        app.state.chat_service = AgentChatService(runner)
         try:
             yield
         finally:

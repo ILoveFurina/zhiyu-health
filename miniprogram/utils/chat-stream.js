@@ -64,6 +64,10 @@ function dispatch(events, handlers) {
     } else if (event === 'message') {
       handlers.onAssistant(data, tokens)
       tokens = []
+    } else if (event === 'doctor_recommendations') {
+      handlers.onDoctorRecommendations(data)
+    } else if (event === 'doctor_slots') {
+      handlers.onDoctorSlots(data)
     } else if (event === 'red_flag') {
       handlers.onRedFlag(data)
       tokens = []

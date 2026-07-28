@@ -33,6 +33,14 @@
         <view class="rf-card-body">{{item.content}}</view>
       </view>
 
+      <doctor-card
+        a:elif="{{item.kind === 'doctor_recommendations' || item.kind === 'doctor_slots'}}"
+        kind="{{item.kind}}"
+        card="{{item.card}}"
+        onSelectDoctor="onDoctorSelected"
+        onSelectSlot="onSlotSelected"
+      />
+
       <view a:else class="bubble ai" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
