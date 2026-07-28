@@ -109,7 +109,7 @@ def _tool_event(
         return "doctor_recommendations"
     if tool_name == "get_doctor_slots":
         return "doctor_slots"
-    if tool_name == "save_condition_summary":
+    if tool_name == "create_appointment":
         return "appointment"
     if tool_name == "get_appointment":
         return "appointments"

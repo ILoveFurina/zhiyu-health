@@ -34,7 +34,6 @@ zhiyu:
     doctor-password: ${SEED_DOCTOR_PASSWORD:}
   agent:
     base-url: ${SERVER_PY_BASE_URL:http://localhost:8000}
-    # 服务间认证的演示占位值；部署时由两端同名环境变量覆盖
-    callback-secret: ${AGENT_CALLBACK_SECRET:zhiyu-dev-only-agent-callback-secret}
+    callback-secret: ${AGENT_CALLBACK_SECRET}
   rate-limit:
     permits-per-minute: 60

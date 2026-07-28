@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import httpx
-from conftest import StubHealthService
+from conftest import TEST_AGENT_SECRET, StubHealthService
 from fastapi.testclient import TestClient
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
@@ -25,7 +25,12 @@ from app.tools.business import BusinessCallbackClient, build_business_tools
 
 def _post_chat(client, payload: dict) -> list[dict]:
     payload = {"patient_id": 12, "conversation_id": 7, **payload}
-    with client.stream("POST", "/api/agent/chat", json=payload) as response:
+    with client.stream(
+        "POST",
+        "/api/agent/chat",
+        json=payload,
+        headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+    ) as response:
         assert response.status_code == 200
         raw = "".join(response.iter_text())
     events = []
@@ -102,9 +107,26 @@ def test_scenario_drives_auto_effort(harness: SimpleNamespace) -> None:
 
 
 def test_empty_messages_is_rejected(harness: SimpleNamespace) -> None:
-    response = harness.client.post("/api/agent/chat", json={"messages": []})
+    response = harness.client.post(
+        "/api/agent/chat",
+        json={"messages": []},
+        headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+    )
 
     assert response.status_code == 422
+
+
+def test_chat_rejects_calls_without_java_service_credential(harness: SimpleNamespace) -> None:
+    response = harness.client.post(
+        "/api/agent/chat",
+        json={
+            "patient_id": 12,
+            "conversation_id": 7,
+            "messages": [{"role": "user", "content": "你好"}],
+        },
+    )
+
+    assert response.status_code == 401
 
 
 def test_http_agent_streams_structured_cards_from_business_tools_in_call_order() -> None:
@@ -189,12 +211,9 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
                 ToolCall(name="get_doctor_slots", args={"doctor_id": 2}, id="call-2")
             ]),
             AIMessage(content="", tool_calls=[ToolCall(
-                name="create_appointment", args={"schedule_id": 9}, id="call-3"
-            )]),
-            AIMessage(content="", tool_calls=[ToolCall(
-                name="save_condition_summary",
-                args={"appointment_id": 21, "condition_summary": "主诉胸闷两天"},
-                id="call-4",
+                name="create_appointment",
+                args={"schedule_id": 9, "condition_summary": "主诉胸闷两天"},
+                id="call-3",
             )]),
             "已为你挂号，病情摘要也已发送给医生。",
         ]),
@@ -202,7 +221,12 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        with TestClient(create_app(health_service=StubHealthService(), agent_runner=runner)) as client:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
             events = _post_chat(
                 client, {"messages": [{"role": "user", "content": "医生还有号吗"}]}
             )
@@ -239,7 +263,6 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
         ["system", "human", "ai", "tool"],
         ["system", "human", "ai", "tool", "ai", "tool"],
         ["system", "human", "ai", "tool", "ai", "tool", "ai", "tool"],
-        ["system", "human", "ai", "tool", "ai", "tool", "ai", "tool", "ai", "tool"],
     ]
 
 
@@ -269,7 +292,12 @@ def test_get_appointment_tool_uses_hidden_patient_context() -> None:
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        with TestClient(create_app(health_service=StubHealthService(), agent_runner=runner)) as client:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
             events = _post_chat(client, {"messages": [{"role": "user", "content": "我的挂号"}]})
     finally:
         asyncio.run(callback.aclose())

@@ -23,6 +23,7 @@ from app.tools.business import BusinessCallbackClient, build_business_tools
 def create_app(
     health_service: HealthChecker | None = None,
     agent_runner: AgentRunner | None = None,
+    agent_auth_secret: str | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -30,9 +31,11 @@ def create_app(
             # 注入装配路径（测试）：不触碰真实存储与 settings
             app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
             app.state.health_service = health_service
+            app.state.agent_callback_secret = agent_auth_secret
             yield
             return
         settings = get_settings()
+        app.state.agent_callback_secret = settings.agent_callback_secret
         clients = create_knowledge_clients(settings)
         app.state.health_service = HealthService(clients)
         app.state.business_client = BusinessCallbackClient(

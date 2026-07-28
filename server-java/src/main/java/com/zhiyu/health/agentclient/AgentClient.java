@@ -17,8 +17,11 @@ public class AgentClient {
     private final WebClient webClient;
 
     public AgentClient(WebClient.Builder builder,
-                       @Value("${zhiyu.agent.base-url}") String baseUrl) {
-        this.webClient = builder.baseUrl(baseUrl).build();
+                       @Value("${zhiyu.agent.base-url}") String baseUrl,
+                       @Value("${zhiyu.agent.callback-secret}") String callbackSecret) {
+        this.webClient = builder.baseUrl(baseUrl)
+                .defaultHeader("X-Agent-Callback-Token", callbackSecret)
+                .build();
     }
 
     /** 发起对话请求，返回 SSE 事件流 */

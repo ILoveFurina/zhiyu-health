@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     public WebConfig(
             // 演示占位默认值，生产一律走 .env 注入
             @Value("${zhiyu.jwt-secret:zhiyu-dev-only-placeholder-secret}") String jwtSecret,
-            @Value("${zhiyu.agent.callback-secret:zhiyu-dev-only-agent-callback-secret}")
+            @Value("${zhiyu.agent.callback-secret}")
             String agentCallbackSecret,
             @Value("${zhiyu.rate-limit.permits-per-minute:60}") int permitsPerMinute,
             @Value("${CORS_ORIGINS:http://localhost:5173}") String corsOrigins) {

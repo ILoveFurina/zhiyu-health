@@ -31,7 +31,7 @@ class Settings(WebSettings):
     neo4j_password: str = ""
     # 业务工具薄壳的回调地址（server-java 统一入口）
     server_java_base_url: str = "http://localhost:8080"
-    agent_callback_secret: str = "zhiyu-dev-only-agent-callback-secret"
+    agent_callback_secret: str
     # 火山方舟（ADR-0004）；测试注入 fake Agent，不依赖这些值
     ark_api_key: str = ""
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
@@ -45,4 +45,5 @@ def get_web_settings() -> WebSettings:
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # BaseSettings 在运行时从环境注入必填密钥；静态类型器无法识别这条构造路径。
+    return Settings()  # type: ignore[call-arg]

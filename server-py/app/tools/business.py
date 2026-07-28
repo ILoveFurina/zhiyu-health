@@ -63,41 +63,40 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
 
     @tool
     async def create_appointment(
-        schedule_id: int, runtime: ToolRuntime[AgentContext]
+        schedule_id: int,
+        condition_summary: str,
+        runtime: ToolRuntime[AgentContext],
     ) -> dict[str, Any]:
-        """为当前患者预约所选排班。成功后必须继续生成并保存病情摘要。"""
+        """为当前患者预约所选排班；成功后自动保存本次会话的病情摘要。"""
         if schedule_id <= 0:
             raise ValueError("schedule_id 必须为正整数")
-        result = await client.post(
+        if not condition_summary.strip():
+            raise ValueError("condition_summary 不能为空")
+        appointment = dict(await client.post(
             "/api/agent/appointments",
             {
                 "patient_id": runtime.context.patient_id,
                 "conversation_id": runtime.context.conversation_id,
                 "schedule_id": schedule_id,
             },
-        )
-        return dict(result)
-
-    @tool
-    async def save_condition_summary(
-        appointment_id: int,
-        condition_summary: str,
-        runtime: ToolRuntime[AgentContext],
-    ) -> dict[str, Any]:
-        """挂号成功后，为该挂号单保存根据当前会话生成的简短病情摘要。"""
-        if appointment_id <= 0:
-            raise ValueError("appointment_id 必须为正整数")
-        if not condition_summary.strip():
-            raise ValueError("condition_summary 不能为空")
-        result = await client.post(
-            f"/api/agent/appointments/{appointment_id}/summary",
-            {
-                "patient_id": runtime.context.patient_id,
-                "conversation_id": runtime.context.conversation_id,
-                "condition_summary": condition_summary.strip(),
-            },
-        )
-        return dict(result)
+        ))
+        try:
+            result = await client.post(
+                f"/api/agent/appointments/{appointment['appointment_id']}/summary",
+                {
+                    "patient_id": runtime.context.patient_id,
+                    "conversation_id": runtime.context.conversation_id,
+                    "condition_summary": condition_summary.strip(),
+                },
+            )
+            return dict(result)
+        except httpx.HTTPError:
+            # 挂号已经提交，摘要失败只能降级提示，绝不能把成功挂号伪装成整体失败。
+            return {
+                **appointment,
+                "summary_sent": False,
+                "notice": "挂号成功，病情摘要暂未发送",
+            }
 
     @tool
     async def get_appointment(runtime: ToolRuntime[AgentContext]) -> dict[str, Any]:
@@ -111,6 +110,5 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
         recommend_doctors,
         get_doctor_slots,
         create_appointment,
-        save_condition_summary,
         get_appointment,
     ]

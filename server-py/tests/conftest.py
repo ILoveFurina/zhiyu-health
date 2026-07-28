@@ -13,6 +13,8 @@ from fastapi.testclient import TestClient
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
 
+TEST_AGENT_SECRET = "test-only-agent-callback-secret"
+
 
 class StubHealthService:
     async def check(self) -> dict[str, object]:
@@ -37,6 +39,10 @@ class FakeAgentRunner:
 @pytest.fixture
 def harness() -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
-    app = create_app(health_service=StubHealthService(), agent_runner=fake_agent)
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_runner=fake_agent,
+        agent_auth_secret=TEST_AGENT_SECRET,
+    )
     with TestClient(app) as client:
         yield SimpleNamespace(client=client, agent=fake_agent)
