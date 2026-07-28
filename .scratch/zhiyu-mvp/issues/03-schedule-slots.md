@@ -6,7 +6,7 @@
 
 **Blocked by:** 02 — B 端认证与组织管理
 
-**Status:** ready-for-agent
+**Status:** retired — superseded-by-30
 
 - [ ] schedules 表含 total_slots / remaining_slots
 - [ ] 排班管理界面：列表 + 创建 + 停用

@@ -1,5 +1,8 @@
 name: zhiyu-health
 
+# 仅供人工在云服务器首次部署或维护数据库基础设施。
+# 日常开发、应用启动与测试均在本地完成；Agent 未经明确授权不得远程执行本文件。
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -65,29 +68,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-
-  # server-java（业务后端，唯一对外入口）；server-py 暂在宿主机以 uvicorn 运行，
-  # SERVER_PY_BASE_URL 默认指向宿主机 8000 端口
-  server-java:
-    build: ./server-java
-    restart: unless-stopped
-    environment:
-      DATABASE_JDBC_URL: jdbc:postgresql://postgres:5432/zhiyu
-      DATABASE_USER: zhiyu
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
-      AGENT_CALLBACK_SECRET: ${AGENT_CALLBACK_SECRET:?请在 .env 中设置 AGENT_CALLBACK_SECRET}
-      SERVER_PY_BASE_URL: ${SERVER_PY_BASE_URL:-http://host.docker.internal:8000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
 volumes:
   postgres-data:

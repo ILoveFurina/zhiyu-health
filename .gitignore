@@ -33,3 +33,4 @@ miniprogram_npm/
 /project.private.config.json
 /miniprogram/project.private.config.json
 .worktrees/
+.scratch/*.log

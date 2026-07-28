@@ -88,7 +88,7 @@ Status: ready-for-agent
 ## Implementation Decisions
 
 - **三端双栈后端**：支付宝小程序 C 端（原生 + antd-mini，ADR-0008，替代微信端 ADR-0002）、React + Umi + Ant Design B 端（ADR-0009）、Java 业务后端 server-java（Spring Boot + MyBatis-Plus）+ Python Agent 层 server-py（FastAPI + LangGraph，ADR-0009），均全部 AI 生成代码。
-- **演示运行拓扑**：开发数据库部署于云服务器 `43.139.160.223`，团队通过账号密码直连，云安全组仅放行团队固定公网 IP；server-java（Docker Compose）、server-py（uvicorn）、B 端与小程序开发环境在本地运行；小程序以开发者工具模拟器为主，真机通过预览二维码 + 开发者工具真机调试代理访问本地后端，不要求 HTTPS 域名。
+- **演示运行拓扑**：开发数据库部署于云服务器，团队通过账号密码直连，云安全组仅放行团队固定公网 IP；server-java（Maven）、server-py（uvicorn）、B 端与小程序开发环境均在本地运行。云服务器不部署应用，Agent 未经明确授权不得 SSH 登录或执行远程维护；小程序以开发者工具模拟器为主，真机通过预览二维码 + 开发者工具真机调试代理访问本地 server-java，不要求 HTTPS 域名。
 - **存储分工**：PostgreSQL 16 存全部业务实体 + pgvector 存知识块向量（ADR-0003）；Redis 承担号源计数与缓存；Neo4j 只存医学知识图谱（症状/疾病/科室/药品/禁忌五类节点 + 边），不装业务实体、无任何双写（ADR-0006）。
 - **LLM**：火山方舟一个 key；对话/视觉解读用 `doubao-seed-2.1-turbo`，RAG 向量化用 `doubao-embedding-vision`；C 端对话三档可选（自动/快速回答/深度思考），默认自动——后端按场景分配（导诊走低档、报告解读走高档）（ADR-0004）。
 - **Agent**：LangChain + LangGraph 编排（ADR-0005），依赖版本锁死；tool 函数为薄壳（仅参数校验），业务逻辑全在 service 层。第一版工具：`search_knowledge`（pgvector 召回）、`traverse_graph`（Neo4j 一跳扩展）、`recommend_doctors`、`get_doctor_slots`、`create_appointment`、`get_appointment`、`check_contraindication`。
@@ -101,12 +101,12 @@ Status: ready-for-agent
 
 ## Testing Decisions
 
-- **主 seam：FastAPI HTTP API 层**（TestClient），只测外部行为，不测实现细节——这是全局唯一的高层接缝。
-- **LLM seam**：LLM 客户端接口可替换为 fake；Agent 行为测试用 fake LLM 断言工具调用序列与业务副作用（如挂号单落库）。
+- **server-java 主 seam**：HTTP API 层使用 MockMvc 测外部行为；规则引擎单测覆盖危险输入触发和正常输入不误触。
+- **server-py 主 seam**：Agent HTTP 接口使用 TestClient；LLM 与业务回调均以 fake 替换，断言工具调用顺序和回调参数，不直接写业务库。
 - **防超卖**：API 层并发测试——N 并发抢最后 1 个号源，恰好 1 个成功，Redis 与 PG 计数一致。
 - **禁忌规则**：service 层单元测试（过敏史 × 药品 → 拦截/放行）。
 - **前端（两端）**：不写自动化测试，以演示剧本手动验收——两周周期的现实取舍。
-- 测试依赖由 docker-compose 提供独立的 PG 数据库、Redis DB 与 Neo4j 测试实例，使用 `TEST_DATABASE_URL` / `TEST_REDIS_URL` / `TEST_NEO4J_URI`，不得复用演示数据；本地测试通过安全组白名单内的公网连接访问云端依赖。
+- 集成测试在本地运行，通过 `TEST_DATABASE_URL` / `TEST_REDIS_URL` / `TEST_NEO4J_URI` 连接云端独立测试库，不得复用演示数据；测试失败不得触发 SSH、远程部署或云端服务变更。
 
 ## Out of Scope
 
@@ -119,4 +119,4 @@ Status: ready-for-agent
 
 - **演示剧本**：主线（症状 → 情感化追问 → 推荐 → 挂号 → 切 B 端接诊台看摘要 → 开方 → 回 C 端处方解读）；支线亮点（图谱可视化、过敏禁忌拦截、并发防超卖）。
 - **Seed 规模**：2 医院、6–8 科室、15–20 医生、未来 7 天排班、15–20 症状场景图谱数据、30–50 药品 + 禁忌规则、演示账号（患者 2 / 医生 2 / 管理员 1）。
-- 术语以根目录 `CONTEXT.md` 为准；架构决策见 `docs/adr/0001`–`0007`。
+- 术语以根目录 `CONTEXT.md` 为准；架构决策见 `docs/adr/0001`–`0009`。
