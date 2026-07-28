@@ -20,21 +20,19 @@ class AppointmentToolControllerTest {
     @Test
     void createToolValidatesAndDelegatesToAppointmentService() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
-        when(service.create(12L, 7L, 9L, "主诉胸闷两天。仅供参考，不替代医生诊断"))
-                .thenReturn(appointment());
+        when(service.create(12L, 7L, 9L))
+                .thenReturn(appointmentWithoutSummary());
         MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
 
         mvc.perform(post("/api/agent/appointments")
                         .contentType("application/json")
                         .content("""
-                                {"patient_id":12,"conversation_id":7,"schedule_id":9,
-                                 "condition_summary":"主诉胸闷两天。仅供参考，不替代医生诊断"}
+                                {"patient_id":12,"conversation_id":7,"schedule_id":9}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.appointment_id").value(21))
-                .andExpect(jsonPath("$.summary_sent").value(true))
-                .andExpect(jsonPath("$.notice").value("病情摘要已发送给医生"));
-        verify(service).create(12L, 7L, 9L, "主诉胸闷两天。仅供参考，不替代医生诊断");
+                .andExpect(jsonPath("$.summary_sent").value(false));
+        verify(service).create(12L, 7L, 9L);
     }
 
     @Test
@@ -49,14 +47,21 @@ class AppointmentToolControllerTest {
     }
 
     @Test
-    void rejectsMissingSummaryBeforeCallingService() throws Exception {
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(mock(AppointmentService.class)))
-                .build();
+    void savesSummaryAfterAppointmentSuccess() throws Exception {
+        AppointmentService service = mock(AppointmentService.class);
+        when(service.saveConditionSummary(12L, 7L, 21L, "主诉胸闷两天"))
+                .thenReturn(appointment());
+        MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
 
-        mvc.perform(post("/api/agent/appointments")
+        mvc.perform(post("/api/agent/appointments/21/summary")
                         .contentType("application/json")
-                        .content("{\"patient_id\":12,\"conversation_id\":7,\"schedule_id\":9}"))
-                .andExpect(status().isBadRequest());
+                        .content("""
+                                {"patient_id":12,"conversation_id":7,
+                                 "condition_summary":"主诉胸闷两天"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary_sent").value(true))
+                .andExpect(jsonPath("$.notice").value("病情摘要已发送给医生"));
     }
 
     private AppointmentService.AppointmentView appointment() {
@@ -64,5 +69,11 @@ class AppointmentToolControllerTest {
                 21L, 9L, 2L, "周安宁", "心血管内科", "2026-07-29", "上午",
                 1, "已约", "主诉胸闷两天。仅供参考，不替代医生诊断",
                 "2026-07-28T10:00:00+08:00");
+    }
+
+    private AppointmentService.AppointmentView appointmentWithoutSummary() {
+        return new AppointmentService.AppointmentView(
+                21L, 9L, 2L, "周安宁", "心血管内科", "2026-07-29", "上午",
+                1, "已约", null, "2026-07-28T10:00:00+08:00");
     }
 }

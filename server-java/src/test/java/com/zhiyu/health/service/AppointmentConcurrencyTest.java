@@ -55,7 +55,7 @@ class AppointmentConcurrencyTest {
                 long currentPatient = patientId;
                 executor.submit(() -> {
                     try {
-                        service.create(currentPatient, 7L, 9L, "摘要");
+                        service.create(currentPatient, 7L, 9L);
                         successes.incrementAndGet();
                     } catch (RuntimeException ignored) {
                         // 售罄是并发竞争的预期外部结果。

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,7 +33,15 @@ public class AppointmentToolController {
     @PostMapping
     public AppointmentCard create(@Valid @RequestBody CreateAppointmentRequest request) {
         return AppointmentCard.from(appointmentService.create(
-                request.patientId(), request.conversationId(), request.scheduleId(),
+                request.patientId(), request.conversationId(), request.scheduleId()));
+    }
+
+    @PostMapping("/{appointmentId}/summary")
+    public AppointmentCard saveSummary(
+            @PathVariable @Positive long appointmentId,
+            @Valid @RequestBody SaveSummaryRequest request) {
+        return AppointmentCard.from(appointmentService.saveConditionSummary(
+                request.patientId(), request.conversationId(), appointmentId,
                 request.conditionSummary()));
     }
 
@@ -46,7 +55,12 @@ public class AppointmentToolController {
     public record CreateAppointmentRequest(
             @JsonProperty("patient_id") @NotNull @Positive Long patientId,
             @JsonProperty("conversation_id") @NotNull @Positive Long conversationId,
-            @JsonProperty("schedule_id") @NotNull @Positive Long scheduleId,
+            @JsonProperty("schedule_id") @NotNull @Positive Long scheduleId) {
+    }
+
+    public record SaveSummaryRequest(
+            @JsonProperty("patient_id") @NotNull @Positive Long patientId,
+            @JsonProperty("conversation_id") @NotNull @Positive Long conversationId,
             @JsonProperty("condition_summary") @NotBlank String conditionSummary) {
     }
 
@@ -69,11 +83,13 @@ public class AppointmentToolController {
             String notice) {
 
         static AppointmentCard from(AppointmentService.AppointmentView value) {
+            boolean summarySent = value.conditionSummary() != null;
             return new AppointmentCard(
                     value.id(), value.scheduleId(), value.doctorId(), value.doctorName(),
                     value.departmentName(), value.scheduleDate(), value.timeSlot(),
                     value.sequenceNumber(), value.status(), value.conditionSummary(),
-                    ChatService.DISCLAIMER, true, "病情摘要已发送给医生");
+                    summarySent ? ChatService.DISCLAIMER : null,
+                    summarySent, summarySent ? "病情摘要已发送给医生" : null);
         }
     }
 }

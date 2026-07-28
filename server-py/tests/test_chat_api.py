@@ -110,12 +110,14 @@ def test_empty_messages_is_rejected(harness: SimpleNamespace) -> None:
 def test_http_agent_streams_structured_cards_from_business_tools_in_call_order() -> None:
     http_calls: list[tuple[str, str]] = []
     http_call_payloads: list[str] = []
+    requests_auth_header: list[str] = []
     model_calls: list[list[str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         http_calls.append((request.url.path, request.url.query.decode()))
         if request.method == "POST":
             http_call_payloads.append(request.content.decode())
+            requests_auth_header.append(request.headers["X-Agent-Callback-Token"])
         if request.url.path.endswith("/recommend"):
             return httpx.Response(200, json={"doctors": [{
                 "doctor_id": 2,
@@ -135,17 +137,20 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
                     "remaining_slots": 3,
                 }],
             })
+        summary_sent = request.url.path.endswith("/summary")
         return httpx.Response(200, json={
             "appointment_id": 21,
             "schedule_id": 9,
             "doctor_name": "周安宁",
             "status": "已约",
-            "summary_sent": True,
-            "notice": "病情摘要已发送给医生",
+            "summary_sent": summary_sent,
+            "notice": "病情摘要已发送给医生" if summary_sent else None,
         })
 
     callback = BusinessCallbackClient(
-        "http://server-java.test", transport=httpx.MockTransport(handler)
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
     )
 
     class ToolCallingFake(GenericFakeChatModel):
@@ -184,12 +189,12 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
                 ToolCall(name="get_doctor_slots", args={"doctor_id": 2}, id="call-2")
             ]),
             AIMessage(content="", tool_calls=[ToolCall(
-                name="create_appointment",
-                args={
-                    "schedule_id": 9,
-                    "condition_summary": "主诉胸闷两天。仅供参考，不替代医生诊断",
-                },
-                id="call-3",
+                name="create_appointment", args={"schedule_id": 9}, id="call-3"
+            )]),
+            AIMessage(content="", tool_calls=[ToolCall(
+                name="save_condition_summary",
+                args={"appointment_id": 21, "condition_summary": "主诉胸闷两天"},
+                id="call-4",
             )]),
             "已为你挂号，病情摘要也已发送给医生。",
         ]),
@@ -220,18 +225,21 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
         ),
         ("/api/agent/doctors/2/slots", ""),
         ("/api/agent/appointments", ""),
+        ("/api/agent/appointments/21/summary", ""),
     ]
     assert json.loads(http_call_payloads[0]) == {
         "patient_id": 12,
         "conversation_id": 7,
         "schedule_id": 9,
-        "condition_summary": "主诉胸闷两天。仅供参考，不替代医生诊断",
     }
+    assert json.loads(http_call_payloads[1])["condition_summary"] == "主诉胸闷两天"
+    assert requests_auth_header == ["shared-secret", "shared-secret"]
     assert model_calls == [
         ["system", "human"],
         ["system", "human", "ai", "tool"],
         ["system", "human", "ai", "tool", "ai", "tool"],
         ["system", "human", "ai", "tool", "ai", "tool", "ai", "tool"],
+        ["system", "human", "ai", "tool", "ai", "tool", "ai", "tool", "ai", "tool"],
     ]
 
 
@@ -243,7 +251,9 @@ def test_get_appointment_tool_uses_hidden_patient_context() -> None:
         return httpx.Response(200, json={"appointments": [{"appointment_id": 21}]})
 
     callback = BusinessCallbackClient(
-        "http://server-java.test", transport=httpx.MockTransport(handler)
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
     )
 
     class ToolCallingFake(GenericFakeChatModel):

@@ -27,8 +27,7 @@ public class AppointmentService {
         this.transactionTemplate = transactionTemplate;
     }
 
-    public AppointmentView create(long patientId, long conversationId, long scheduleId,
-                                  String conditionSummary) {
+    public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         AtomicBoolean redisDeducted = new AtomicBoolean();
         Long appointmentId;
         try {
@@ -58,7 +57,6 @@ public class AppointmentService {
                 appointment.setScheduleId(scheduleId);
                 appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
                 appointment.setStatus(Appointment.STATUS_BOOKED);
-                appointment.setConditionSummary(ensureDisclaimer(conditionSummary));
                 appointmentMapper.insert(appointment);
                 return appointment.getId();
             });
@@ -74,6 +72,16 @@ public class AppointmentService {
 
     public List<AppointmentView> listForPatient(long patientId) {
         return appointmentMapper.selectViewsByPatient(patientId).stream().map(this::toView).toList();
+    }
+
+    public AppointmentView saveConditionSummary(long patientId, long conversationId,
+                                                long appointmentId, String summary) {
+        String safeSummary = ensureDisclaimer(summary);
+        if (appointmentMapper.updateConditionSummary(
+                appointmentId, patientId, conversationId, safeSummary) != 1) {
+            throw new ApiException(404, "挂号单不存在");
+        }
+        return view(appointmentId);
     }
 
     public AppointmentView cancel(long patientId, long appointmentId) {
@@ -143,8 +151,17 @@ public class AppointmentService {
                 appointment.getDoctorName(), appointment.getDepartmentName(),
                 appointment.getScheduleDate() == null ? null : appointment.getScheduleDate().toString(),
                 appointment.getTimeSlot() == null ? null : appointment.getTimeSlot().getValue(),
-                appointment.getSequenceNumber(), displayStatus, appointment.getConditionSummary(),
+                appointment.getSequenceNumber(), displayStatus,
+                summaryWithoutDisclaimer(appointment.getConditionSummary()),
                 appointment.getCreatedAt() == null ? null : appointment.getCreatedAt().toString());
+    }
+
+    private String summaryWithoutDisclaimer(String summary) {
+        if (summary == null) {
+            return null;
+        }
+        String content = summary.replace(ChatService.DISCLAIMER, "").trim();
+        return content.endsWith("。") ? content.substring(0, content.length() - 1) : content;
     }
 
     public record AppointmentView(

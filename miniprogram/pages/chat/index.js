@@ -160,7 +160,7 @@ Page({
   onSlotSelected(selection) {
     const { scheduleId, scheduleDate, timeSlot } = selection
     this.sendText(
-      `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}）`
+      `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}），请帮我完成挂号`
     )
   },
 

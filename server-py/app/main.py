@@ -35,7 +35,9 @@ def create_app(
         settings = get_settings()
         clients = create_knowledge_clients(settings)
         app.state.health_service = HealthService(clients)
-        app.state.business_client = BusinessCallbackClient(settings.server_java_base_url)
+        app.state.business_client = BusinessCallbackClient(
+            settings.server_java_base_url, callback_secret=settings.agent_callback_secret
+        )
         runner = agent_runner or LazySettingsAgentRunner(
             build_business_tools(app.state.business_client)
         )

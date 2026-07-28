@@ -31,6 +31,7 @@ class Settings(WebSettings):
     neo4j_password: str = ""
     # 业务工具薄壳的回调地址（server-java 统一入口）
     server_java_base_url: str = "http://localhost:8080"
+    agent_callback_secret: str = "zhiyu-dev-only-agent-callback-secret"
     # 火山方舟（ADR-0004）；测试注入 fake Agent，不依赖这些值
     ark_api_key: str = ""
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"

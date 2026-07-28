@@ -59,7 +59,8 @@ public class AppointmentController {
                     value.id(), value.scheduleId(), value.doctorId(), value.doctorName(),
                     value.departmentName(), value.scheduleDate(), value.timeSlot(),
                     value.sequenceNumber(), value.status(), value.conditionSummary(),
-                    ChatService.DISCLAIMER, value.createdAt());
+                    value.conditionSummary() == null ? null : ChatService.DISCLAIMER,
+                    value.createdAt());
         }
     }
 }

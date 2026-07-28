@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     schedule_id BIGINT NOT NULL REFERENCES schedules(id),
     sequence_number INT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'BOOKED',
-    condition_summary TEXT NOT NULL,
+    condition_summary TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     cancelled_at TIMESTAMPTZ,
     CONSTRAINT uq_appointments_patient_schedule UNIQUE (patient_id, schedule_id),

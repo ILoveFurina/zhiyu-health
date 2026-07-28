@@ -36,6 +36,18 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             """)
     int markCancelled(@Param("appointmentId") long appointmentId);
 
+    @Update("""
+            UPDATE appointments
+            SET condition_summary = COALESCE(condition_summary, #{summary})
+            WHERE id = #{appointmentId}
+              AND patient_id = #{patientId}
+              AND conversation_id = #{conversationId}
+            """)
+    int updateConditionSummary(@Param("appointmentId") long appointmentId,
+                               @Param("patientId") long patientId,
+                               @Param("conversationId") long conversationId,
+                               @Param("summary") String summary);
+
     @Select("""
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
                    s.schedule_date, s.time_slot

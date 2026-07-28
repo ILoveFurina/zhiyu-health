@@ -25,7 +25,7 @@ class AppointmentServiceTest {
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
 
     @Test
-    void createsAppointmentWithSequenceAndSummaryAfterAtomicSlotDeduction() {
+    void createsAppointmentBeforeConditionSummaryGeneration() {
         java.util.concurrent.atomic.AtomicReference<Appointment> inserted =
                 new java.util.concurrent.atomic.AtomicReference<>();
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 3));
@@ -37,18 +37,31 @@ class AppointmentServiceTest {
             inserted.set(appointment);
             return 1;
         });
-        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+        Appointment createdView = view("BOOKED", 1);
+        createdView.setConditionSummary(null);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(createdView);
         slotCounter.initialize(9L, 3);
 
-        AppointmentService.AppointmentView created = service().create(
-                12L, 7L, 9L, "主诉胸闷两天，活动后加重");
+        AppointmentService.AppointmentView created = service().create(12L, 7L, 9L);
 
         assertThat(created.status()).isEqualTo("已约");
         assertThat(created.sequenceNumber()).isEqualTo(1);
-        assertThat(created.conditionSummary()).contains("仅供参考，不替代医生诊断");
-        assertThat(inserted.get().getConditionSummary()).isEqualTo(
-                "主诉胸闷两天，活动后加重。仅供参考，不替代医生诊断");
+        assertThat(created.conditionSummary()).isNull();
+        assertThat(inserted.get().getConditionSummary()).isNull();
         assertThat(slotCounter.values.get(9L)).hasValue(2);
+    }
+
+    @Test
+    void savesGeneratedSummaryOnlyForOwningPatientAndConversation() {
+        when(appointmentMapper.updateConditionSummary(
+                21L, 12L, 7L, "主诉胸闷两天。仅供参考，不替代医生诊断"))
+                .thenReturn(1);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+
+        AppointmentService.AppointmentView updated = service().saveConditionSummary(
+                12L, 7L, 21L, "主诉胸闷两天");
+
+        assertThat(updated.conditionSummary()).isEqualTo("主诉胸闷两天");
     }
 
     @Test
@@ -59,7 +72,7 @@ class AppointmentServiceTest {
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
         slotCounter.initialize(9L, 2);
 
-        AppointmentService.AppointmentView result = service().create(12L, 7L, 9L, "摘要");
+        AppointmentService.AppointmentView result = service().create(12L, 7L, 9L);
 
         assertThat(result.id()).isEqualTo(21L);
         assertThat(slotCounter.values.get(9L)).hasValue(2);
@@ -83,7 +96,7 @@ class AppointmentServiceTest {
         AppointmentService service = new AppointmentService(
                 appointmentMapper, scheduleMapper, slotCounter, transaction);
 
-        assertThatThrownBy(() -> service.create(12L, 7L, 9L, "摘要"))
+        assertThatThrownBy(() -> service.create(12L, 7L, 9L))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
     }
@@ -112,7 +125,7 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 0));
         slotCounter.initialize(9L, 0);
 
-        assertThatThrownBy(() -> service().create(12L, 7L, 9L, "摘要"))
+        assertThatThrownBy(() -> service().create(12L, 7L, 9L))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("号源已约满");
         assertThat(slotCounter.values.get(9L)).hasValue(0);
