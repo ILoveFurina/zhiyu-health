@@ -6,7 +6,7 @@
 
 **Blocked by:** 01 — 项目骨架与基础设施
 
-**Status:** ready-for-agent
+**Status:** retired — superseded-by-29
 
 - [ ] staff_users 表 + 登录接口 + JWT + 角色字段（admin/doctor）
 - [ ] 医院、科室、医生三个管理页面 CRUD 可用

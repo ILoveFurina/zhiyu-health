@@ -10,10 +10,16 @@
 - 存储：PostgreSQL 16 + pgvector、Redis、Neo4j；业务数据只存 PostgreSQL，医学知识图谱只存 Neo4j
 - 前端：支付宝原生小程序 + antd-mini；B 端使用 React + TypeScript + Umi + Ant Design + AntV + Zustand
 
+### 运行拓扑（硬约束）
+
+- 云服务器只提供已部署的 PostgreSQL、Redis、Neo4j 数据服务；server-java、server-py、admin、小程序开发者工具和全部测试均在本地运行
+- 未经用户明确要求，禁止通过 SSH 登录云服务器、上传代码、部署应用、执行远程命令、重启服务或改动云端 Compose；数据库连接失败时只检查本地配置和安全组白名单并报告
+- 日常开发不得执行 `docker compose up`；`compose.yaml` 仅供人工进行云数据库首次部署或维护
+- 本地进程通过 `.env` 中的云数据库地址直连；不得打印 `.env` 内容或连接凭据
+
 ## 2. Commands
 
 ```bash
-docker compose up -d
 mvn -f server-java/pom.xml spring-boot:run
 mvn -f server-java/pom.xml test
 uv sync --frozen --dev
@@ -63,6 +69,16 @@ npm --prefix miniprogram ci
 
 ## 7. Agent skills
 
-- Issue tracker：`.scratch/zhiyu-mvp/issues/`，规则见 `docs/agents/issue-tracker.md`
-- Triage labels：使用默认五类规范角色标签，规则见 `docs/agents/triage-labels.md`
-- Domain docs：采用 `CONTEXT.md` + `docs/adr/` single-context 布局，规则见 `docs/agents/domain.md`
+### Issue tracker
+
+任务与 PRD 使用本地 Markdown 管理：PRD 位于 `.scratch/zhiyu-mvp/spec.md`，票单位于 `.scratch/zhiyu-mvp/issues/`。详见 `docs/agents/issue-tracker.md`。
+
+普通实施票生命周期为 `ready-for-agent → claimed → done`；被替代的票标记 `retired`，`done` 与 `retired` 均视为 blocker 已解除。
+
+### Triage labels
+
+使用默认的五类 triage 标签。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+采用 single-context：根目录 `CONTEXT.md` 保存领域语言，架构决策放在 `docs/adr/`。详见 `docs/agents/domain.md`。

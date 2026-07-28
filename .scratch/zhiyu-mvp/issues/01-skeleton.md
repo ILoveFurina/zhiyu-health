@@ -6,6 +6,8 @@
 
 **Status:** done
 
+> **Current topology:** 本票记录初始基础设施交付；ADR-0009 后，云服务器只运行数据库，server-java、server-py、B 端与测试均在本地运行。远程 Compose 只允许人工明确授权的首次部署或维护，Agent 不得自行 SSH 操作。
+
 - [x] `docker compose up` 在云服务器一键起全部依赖（PG 启用 pgvector 扩展、Redis、Neo4j），数据库启用账号密码认证
 - [x] 团队成员通过账号密码直连云端依赖；云安全组仅放行团队固定公网 IP，禁止向 `0.0.0.0/0` 开放数据库端口
 - [x] 后端依赖由 `pyproject.toml` 声明并生成 `uv.lock`，两者均提交入库；安装与测试使用锁文件复现
