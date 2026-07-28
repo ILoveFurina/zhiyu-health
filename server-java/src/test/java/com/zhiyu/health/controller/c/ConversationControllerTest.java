@@ -22,11 +22,13 @@ class ConversationControllerTest {
     @Test
     void messagesExposeDisclaimerOnlyForAiText() throws Exception {
         ConversationService conversations = mock(ConversationService.class);
-        when(conversations.getForPatient(7L, 12L)).thenReturn(new Conversation(7L, 12L, "头疼"));
         Message user = message(1L, "user", "text", "我头疼");
         Message assistant = message(2L, "assistant", "text", "建议挂神经内科");
         Message redFlag = message(3L, "assistant", "red_flag", "请拨打 120");
-        when(conversations.listMessages(7L)).thenReturn(List.of(user, assistant, redFlag));
+        when(conversations.listMessagesForPatient(7L, 12L)).thenReturn(List.of(
+                view(user, null),
+                view(assistant, "仅供参考，不替代医生诊断"),
+                view(redFlag, null)));
         MockMvc mvc = standaloneSetup(new ConversationController(conversations)).build();
 
         mvc.perform(get("/api/c/conversations/7/messages")
@@ -41,5 +43,11 @@ class ConversationControllerTest {
         Message message = new Message(id, 7L, role, kind, content, null);
         message.setCreatedAt(OffsetDateTime.parse("2026-07-28T10:00:00+08:00"));
         return message;
+    }
+
+    private ConversationService.MessageView view(Message message, String disclaimer) {
+        return new ConversationService.MessageView(
+                message.getId(), message.getRole(), message.getKind(), message.getContent(),
+                message.getEffort(), disclaimer, message.getCreatedAt().toString());
     }
 }

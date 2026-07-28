@@ -41,10 +41,11 @@ public class ChatService {
 
     public SseEmitter chat(Long patientId, Long conversationId, String content,
                            String effort, String scenario) {
+        // 安全门先于会话与消息写入，更先于 Agent 调用。
+        RedFlagHit hit = redFlagRules.judge(content);
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, content);
         conversations.appendMessage(conversation.getId(), "user", content, "text", null);
 
-        RedFlagHit hit = redFlagRules.judge(content);
         if (hit != null) {
             return redFlagStream(conversation, hit);
         }

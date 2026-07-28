@@ -9,7 +9,7 @@ const { getToken } = require('./auth')
  * SSE 流后按事件序回放：token 交给页面打字机输出，其余事件即时分发。
  * 若未来支付宝支持分片回调，只需替换本文件内部实现。
  */
-function streamChat({ content, conversationId, effort, handlers }) {
+function streamChat({ content, conversationId, effort, scenario, handlers }) {
   my.request({
     url: `${apiBaseUrl}/c/chat`,
     method: 'POST',
@@ -20,6 +20,7 @@ function streamChat({ content, conversationId, effort, handlers }) {
       content,
       conversation_id: conversationId || undefined,
       effort,
+      scenario,
     },
     headers: {
       'Content-Type': 'application/json',

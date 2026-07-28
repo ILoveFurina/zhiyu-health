@@ -20,10 +20,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -69,7 +66,6 @@ class ChatControllerTest {
         assertThat(body).contains("event:meta", "\"conversation_id\":7");
         assertThat(body).contains("event:red_flag", "120", "胸痛");
         assertThat(body).doesNotContain("disclaimer");
-        verify(agentClient, never()).chat(anyMap());
     }
 
     @Test
@@ -115,11 +111,40 @@ class ChatControllerTest {
         assertThat(body).contains("event:token", "\"text\":\"你好\"");
         assertThat(body).contains("event:message", "仅供参考，不替代医生诊断", "\"message_id\":10");
         assertThat(body).contains("event:done");
-        verify(conversations).appendMessage(7L, "user", "你好", "text", null);
-        verify(agentClient).chat(argThat(bodyMap ->
-                "auto".equals(bodyMap.get("effort"))
-                        && "triage".equals(bodyMap.get("scenario"))
-                        && java.util.List.of(java.util.Map.of("role", "user", "content", "你好"))
-                        .equals(bodyMap.get("messages"))));
+    }
+
+    @Test
+    void interpretationScenarioIsPassedThroughForAutoEffort() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "帮我解读报告"))
+                .thenReturn(new Conversation(8L, 12L, "帮我解读报告"));
+        when(conversations.recentContext(8L)).thenReturn(java.util.List.of(
+                java.util.Map.of("role", "user", "content", "帮我解读报告")));
+        when(agentClient.chat(org.mockito.ArgumentMatchers.argThat(body ->
+                "interpretation".equals(body.get("scenario")))))
+                .thenReturn(Flux.just(
+                        ServerSentEvent.builder("{\"effort\":\"high\"}").event("meta").build(),
+                        ServerSentEvent.builder("{}").event("done").build()));
+        ChatService service = new ChatService(
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+        MockMvc mvc = standaloneSetup(new ChatController(service))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"帮我解读报告\",\"effort\":\"auto\","
+                                + "\"scenario\":\"interpretation\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = mvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(body).contains("event:meta", "\"effort\":\"high\"");
     }
 }

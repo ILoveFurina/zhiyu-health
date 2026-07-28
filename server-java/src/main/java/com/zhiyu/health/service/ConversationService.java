@@ -53,6 +53,23 @@ public class ConversationService {
                 .eq(Conversation::getPatientId, patientId));
     }
 
+    /** 当前患者的消息输出；归属校验与免责声明语义都在业务层完成。 */
+    public List<MessageView> listMessagesForPatient(Long conversationId, Long patientId) {
+        if (getForPatient(conversationId, patientId) == null) {
+            throw new ConversationNotFoundException();
+        }
+        return listMessages(conversationId).stream()
+                .map(message -> new MessageView(
+                        message.getId(),
+                        message.getRole(),
+                        message.getKind(),
+                        message.getContent(),
+                        message.getEffort(),
+                        isAiOutput(message) ? ChatService.DISCLAIMER : null,
+                        message.getCreatedAt() == null ? null : message.getCreatedAt().toString()))
+                .toList();
+    }
+
     @Transactional
     public Message appendMessage(Long conversationId, String role, String content,
                                  String kind, String effort) {
@@ -80,5 +97,19 @@ public class ConversationService {
         return chronological.stream()
                 .map(message -> Map.of("role", message.getRole(), "content", message.getContent()))
                 .toList();
+    }
+
+    private boolean isAiOutput(Message message) {
+        return "assistant".equals(message.getRole()) && "text".equals(message.getKind());
+    }
+
+    public record MessageView(
+            Long id,
+            String role,
+            String kind,
+            String content,
+            String effort,
+            String disclaimer,
+            String createdAt) {
     }
 }

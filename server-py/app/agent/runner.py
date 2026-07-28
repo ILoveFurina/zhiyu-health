@@ -5,12 +5,13 @@ AgentRunner 协议是 LLM seam：测试用 fake 替换，断言消息历史与�
 reasoning_effort 作为扁平参数随 chat completions 请求体发送（ADR-0004）。
 """
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Sequence
 from typing import Any, Protocol
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import SecretStr
@@ -35,14 +36,19 @@ class LangGraphAgentRunner:
     low/high 两档，因此按档位缓存编译图。
     """
 
-    def __init__(self, model_factory: Callable[[ReasoningEffort], BaseChatModel]) -> None:
+    def __init__(
+        self,
+        model_factory: Callable[[ReasoningEffort], BaseChatModel],
+        tools: Sequence[BaseTool] | None = None,
+    ) -> None:
         self._model_factory = model_factory
+        self._tools = list(tools or [])
         self._graphs: dict[str, CompiledStateGraph[Any, Any, Any, Any]] = {}
 
     def _graph(self, effort: ReasoningEffort) -> CompiledStateGraph[Any, Any, Any, Any]:
         if effort not in self._graphs:
             self._graphs[effort] = create_agent(
-                self._model_factory(effort), tools=[], system_prompt=SYSTEM_PROMPT
+                self._model_factory(effort), tools=self._tools, system_prompt=SYSTEM_PROMPT
             )
         return self._graphs[effort]
 

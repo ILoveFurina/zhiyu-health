@@ -22,7 +22,7 @@ public class PatientTokenService {
     private final int expireMinutes;
 
     public PatientTokenService(
-            @Value("${zhiyu.jwt-secret:zhiyu-dev-only-placeholder-secret}") String secret,
+            @Value("${zhiyu.jwt-secret}") String secret,
             @Value("${zhiyu.patient-token-expire-minutes:720}") int expireMinutes) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expireMinutes = expireMinutes;

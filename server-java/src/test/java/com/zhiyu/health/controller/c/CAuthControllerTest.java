@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +35,6 @@ class CAuthControllerTest {
                 .andExpect(jsonPath("$.patient.nickname").value("阿珍"));
 
         String token = tokens.issue(3L);
-        assert tokens.verify(token) == 3L;
+        assertThat(tokens.verify(token)).isEqualTo(3L);
     }
 }

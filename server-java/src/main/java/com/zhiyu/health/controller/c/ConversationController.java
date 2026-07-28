@@ -2,9 +2,6 @@ package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.zhiyu.health.config.AuthFilter;
-import com.zhiyu.health.entity.Message;
-import com.zhiyu.health.service.ChatService;
-import com.zhiyu.health.service.ConversationNotFoundException;
 import com.zhiyu.health.service.ConversationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,23 +37,10 @@ public class ConversationController {
     public List<MessageOut> listMessages(
             @PathVariable Long conversationId,
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
-        if (conversations.getForPatient(conversationId, Long.valueOf(patientId)) == null) {
-            throw new ConversationNotFoundException();
-        }
-        return conversations.listMessages(conversationId).stream()
-                .map(this::toMessageOut)
+        return conversations.listMessagesForPatient(conversationId, Long.valueOf(patientId)).stream()
+                .map(message -> new MessageOut(
+                        message.id(), message.role(), message.kind(), message.content(),
+                        message.effort(), message.disclaimer(), message.createdAt()))
                 .toList();
-    }
-
-    private MessageOut toMessageOut(Message message) {
-        boolean aiOutput = "assistant".equals(message.getRole()) && "text".equals(message.getKind());
-        return new MessageOut(
-                message.getId(),
-                message.getRole(),
-                message.getKind(),
-                message.getContent(),
-                message.getEffort(),
-                aiOutput ? ChatService.DISCLAIMER : null,
-                message.getCreatedAt() == null ? null : message.getCreatedAt().toString());
     }
 }
