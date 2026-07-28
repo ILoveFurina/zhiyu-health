@@ -1,0 +1,4 @@
+# umi 运行时生成物（dev/build 时重建）
+src/.umi/
+src/.umi-production/
+src/.umi-test/
