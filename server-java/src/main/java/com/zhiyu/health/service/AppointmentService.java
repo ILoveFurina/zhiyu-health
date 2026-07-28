@@ -74,6 +74,21 @@ public class AppointmentService {
         return appointmentMapper.selectViewsByPatient(patientId).stream().map(this::toView).toList();
     }
 
+    public AppointmentView createWithSummary(long patientId, long conversationId,
+                                             long scheduleId, String summary) {
+        AppointmentView created = create(patientId, conversationId, scheduleId);
+        if (created.conditionSummary() != null) {
+            // 幂等重试返回已有完整挂号单，保留原会话摘要，禁止被新会话覆盖或误报为发送失败。
+            return created;
+        }
+        try {
+            return saveConditionSummary(patientId, conversationId, created.id(), summary);
+        } catch (RuntimeException exception) {
+            // 创建事务已经独立提交；摘要失败只降级卡片，不回滚或隐藏真实挂号结果。
+            return created;
+        }
+    }
+
     public AppointmentView saveConditionSummary(long patientId, long conversationId,
                                                 long appointmentId, String summary) {
         String safeSummary = ensureDisclaimer(summary);

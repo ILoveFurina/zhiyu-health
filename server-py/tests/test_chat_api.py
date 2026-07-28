@@ -159,7 +159,7 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
                     "remaining_slots": 3,
                 }],
             })
-        summary_sent = request.url.path.endswith("/summary")
+        summary_sent = request.method == "POST"
         return httpx.Response(200, json={
             "appointment_id": 21,
             "schedule_id": 9,
@@ -249,15 +249,14 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
         ),
         ("/api/agent/doctors/2/slots", ""),
         ("/api/agent/appointments", ""),
-        ("/api/agent/appointments/21/summary", ""),
     ]
     assert json.loads(http_call_payloads[0]) == {
         "patient_id": 12,
         "conversation_id": 7,
         "schedule_id": 9,
+        "condition_summary": "主诉胸闷两天",
     }
-    assert json.loads(http_call_payloads[1])["condition_summary"] == "主诉胸闷两天"
-    assert requests_auth_header == ["shared-secret", "shared-secret"]
+    assert requests_auth_header == ["shared-secret"]
     assert model_calls == [
         ["system", "human"],
         ["system", "human", "ai", "tool"],

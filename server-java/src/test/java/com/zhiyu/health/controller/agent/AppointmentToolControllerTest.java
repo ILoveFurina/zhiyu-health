@@ -20,19 +20,20 @@ class AppointmentToolControllerTest {
     @Test
     void createToolValidatesAndDelegatesToAppointmentService() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
-        when(service.create(12L, 7L, 9L))
+        when(service.createWithSummary(12L, 7L, 9L, "主诉胸闷两天"))
                 .thenReturn(appointmentWithoutSummary());
         MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
 
         mvc.perform(post("/api/agent/appointments")
                         .contentType("application/json")
                         .content("""
-                                {"patient_id":12,"conversation_id":7,"schedule_id":9}
+                                {"patient_id":12,"conversation_id":7,"schedule_id":9,
+                                 "condition_summary":"主诉胸闷两天"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.appointment_id").value(21))
                 .andExpect(jsonPath("$.summary_sent").value(false));
-        verify(service).create(12L, 7L, 9L);
+        verify(service).createWithSummary(12L, 7L, 9L, "主诉胸闷两天");
     }
 
     @Test

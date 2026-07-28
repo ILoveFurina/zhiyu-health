@@ -20,5 +20,5 @@
 - server-java 的 `AppointmentService` 在排班行锁保护下完成幂等检查、Redis 原子预扣、PG 余量对账、序号分配与挂号单写入；提交失败精确回补 Redis。取消通过挂号单行锁保证只有首次状态转换回补两端号源。
 - Agent 在 `create_appointment` 工具中先完成挂号，再自动保存模型基于本次会话生成的病情摘要；摘要失败不撤销已成功挂号，仍返回挂号成功卡片。患者 ID 与会话 ID 通过 LangChain `ToolRuntime` 隐藏注入，不暴露给模型。
 - Java→Python 与 Python→Java 的患者级链路均使用无默认值的 `AGENT_CALLBACK_SECRET` 服务间认证；C 端提供对话成功卡片、“我的挂号”列表和取消入口，所有摘要界面均显示免责声明标注。
-- 验证：server-java 94 项、server-py 21 项通过，ruff 与 mypy 全绿；C 端 12 个 JS 文件通过语法检查，新增/修改 JSON 可解析。支付宝开发者工具普通编译成功，AI 首页、“我的挂号”空状态与返回链路实测无红色控制台错误；仅有本地 HTTP 非 HTTPS 的开发警告。
+- 验证：server-java 96 项、server-py 19 项通过，ruff 与 mypy 全绿；C 端 12 个 JS 文件通过语法检查，新增/修改 JSON 可解析。支付宝开发者工具普通编译成功，AI 首页、“我的挂号”空状态与返回链路实测无红色控制台错误；仅有本地 HTTP 非 HTTPS 的开发警告。
 - 双轴 code-review 初审发现工具回调认证、卡片点击意图与摘要触发顺序问题，均已修正；测试文件行数按用户明确指示不拆分。

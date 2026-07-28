@@ -32,8 +32,9 @@ public class AppointmentToolController {
 
     @PostMapping
     public AppointmentCard create(@Valid @RequestBody CreateAppointmentRequest request) {
-        return AppointmentCard.from(appointmentService.create(
-                request.patientId(), request.conversationId(), request.scheduleId()));
+        return AppointmentCard.from(appointmentService.createWithSummary(
+                request.patientId(), request.conversationId(), request.scheduleId(),
+                request.conditionSummary()));
     }
 
     @PostMapping("/{appointmentId}/summary")
@@ -55,7 +56,8 @@ public class AppointmentToolController {
     public record CreateAppointmentRequest(
             @JsonProperty("patient_id") @NotNull @Positive Long patientId,
             @JsonProperty("conversation_id") @NotNull @Positive Long conversationId,
-            @JsonProperty("schedule_id") @NotNull @Positive Long scheduleId) {
+            @JsonProperty("schedule_id") @NotNull @Positive Long scheduleId,
+            @JsonProperty("condition_summary") @NotBlank String conditionSummary) {
     }
 
     public record SaveSummaryRequest(
@@ -89,7 +91,9 @@ public class AppointmentToolController {
                     value.departmentName(), value.scheduleDate(), value.timeSlot(),
                     value.sequenceNumber(), value.status(), value.conditionSummary(),
                     summarySent ? ChatService.DISCLAIMER : null,
-                    summarySent, summarySent ? "病情摘要已发送给医生" : null);
+                    summarySent, summarySent
+                            ? "病情摘要已发送给医生"
+                            : "挂号成功，病情摘要暂未发送");
         }
     }
 }

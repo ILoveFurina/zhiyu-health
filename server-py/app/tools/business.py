@@ -12,7 +12,6 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
 from app.agent.runner import AgentContext
-from app.services.appointments import create_with_summary
 
 
 class BusinessCallbackClient:
@@ -73,13 +72,16 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             raise ValueError("schedule_id 必须为正整数")
         if not condition_summary.strip():
             raise ValueError("condition_summary 不能为空")
-        return await create_with_summary(
-            client,
-            patient_id=runtime.context.patient_id,
-            conversation_id=runtime.context.conversation_id,
-            schedule_id=schedule_id,
-            condition_summary=condition_summary.strip(),
+        result = await client.post(
+            "/api/agent/appointments",
+            {
+                "patient_id": runtime.context.patient_id,
+                "conversation_id": runtime.context.conversation_id,
+                "schedule_id": schedule_id,
+                "condition_summary": condition_summary.strip(),
+            },
         )
+        return dict(result)
 
     @tool
     async def get_appointment(runtime: ToolRuntime[AgentContext]) -> dict[str, Any]:

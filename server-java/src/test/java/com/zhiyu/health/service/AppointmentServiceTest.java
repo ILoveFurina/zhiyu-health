@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -77,6 +78,47 @@ class AppointmentServiceTest {
         assertThat(result.id()).isEqualTo(21L);
         assertThat(slotCounter.values.get(9L)).hasValue(2);
         verify(scheduleMapper, never()).decrementRemainingSlots(9L);
+    }
+
+    @Test
+    void duplicateWithSummaryReturnsExistingResultWithoutRewritingFromNewConversation() {
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
+        when(appointmentMapper.selectForPatientAndSchedule(12L, 9L))
+                .thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+
+        AppointmentService.AppointmentView result = service().createWithSummary(
+                12L, 99L, 9L, "新会话摘要");
+
+        assertThat(result.conditionSummary()).isEqualTo("主诉胸闷两天");
+        verify(appointmentMapper, never()).updateConditionSummary(
+                anyLong(), anyLong(), anyLong(), any(String.class));
+    }
+
+    @Test
+    void summaryFailureKeepsCommittedAppointmentResult() {
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
+        when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
+        when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
+        when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(21L);
+            return 1;
+        });
+        Appointment withoutSummary = view("BOOKED", 1);
+        withoutSummary.setConditionSummary(null);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(withoutSummary);
+        when(appointmentMapper.updateConditionSummary(
+                anyLong(), anyLong(), anyLong(), any(String.class)))
+                .thenThrow(new IllegalStateException("摘要存储失败"));
+        slotCounter.initialize(9L, 1);
+
+        AppointmentService.AppointmentView result = service().createWithSummary(
+                12L, 7L, 9L, "主诉胸闷两天");
+
+        assertThat(result.id()).isEqualTo(21L);
+        assertThat(result.conditionSummary()).isNull();
+        assertThat(slotCounter.values.get(9L)).hasValue(0);
     }
 
     @Test
