@@ -44,6 +44,7 @@ public class ScheduleService {
         }
         schedule.setRemainingSlots(schedule.getTotalSlots());
         schedule.setIsActive(true);
+        // Redis 不参与 PG 事务；先初始化计数，提交失败后再删除，避免留下可预约的孤儿号源池。
         try {
             return transactionTemplate.execute(status -> {
                 scheduleMapper.insert(schedule);
@@ -66,6 +67,7 @@ public class ScheduleService {
         AtomicInteger appliedDelta = new AtomicInteger();
         try {
             return transactionTemplate.execute(status -> {
+                // 锁必须覆盖读取与 delta 计算，使并发容量更新基于最新已提交总量。
                 Schedule current = scheduleMapper.selectByIdForUpdate(changes.getId());
                 if (current == null) {
                     return null;
@@ -88,6 +90,7 @@ public class ScheduleService {
             });
         } catch (RuntimeException exception) {
             if (counterAdjusted.get()) {
+                // Redis 不随 PG 回滚，只反向补偿本事务实际应用的增量。
                 slotCounter.adjust(changes.getId(), -appliedDelta.get());
             }
             throw exception;
@@ -99,6 +102,7 @@ public class ScheduleService {
         if (schedule == null) {
             return null;
         }
+        // 仅更新状态列，避免把查询后已被并发扣减的 remaining_slots 整行写回。
         scheduleMapper.disable(scheduleId);
         schedule.setIsActive(false);
         return schedule;
