@@ -1,4 +1,4 @@
-import { history, useModel } from '@umijs/max';
+import { useModel } from '@umijs/max';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { login, fetchMe } from '@/services/auth';
@@ -18,7 +18,9 @@ export default function LoginPage() {
           const currentUser = await fetchMe();
           setCachedUser(currentUser);
           await setInitialState({ currentUser });
-          history.replace(homeByRole(currentUser.role));
+          // access 插件在同一轮单页跳转中仍可能读取旧权限；完整 replace 后由
+          // getInitialState 重新拉取 /me，避免医生首次登录短暂落入 403 页面。
+          window.location.replace(homeByRole(currentUser.role));
         }}
       >
         <ProFormText

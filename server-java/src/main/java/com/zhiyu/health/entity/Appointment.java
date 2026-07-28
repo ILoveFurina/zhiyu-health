@@ -13,6 +13,7 @@ public class Appointment {
 
     public static final String STATUS_BOOKED = "BOOKED";
     public static final String STATUS_CANCELLED = "CANCELLED";
+    public static final String STATUS_VISITED = "VISITED";
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -35,6 +36,8 @@ public class Appointment {
     private LocalDate scheduleDate;
     @TableField(exist = false)
     private TimeSlot timeSlot;
+    @TableField(exist = false)
+    private String patientNickname;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -64,4 +67,6 @@ public class Appointment {
     public void setScheduleDate(LocalDate scheduleDate) { this.scheduleDate = scheduleDate; }
     public TimeSlot getTimeSlot() { return timeSlot; }
     public void setTimeSlot(TimeSlot timeSlot) { this.timeSlot = timeSlot; }
+    public String getPatientNickname() { return patientNickname; }
+    public void setPatientNickname(String patientNickname) { this.patientNickname = patientNickname; }
 }

@@ -1,6 +1,6 @@
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history } from '@umijs/max';
-import { Dropdown, message } from 'antd';
+import { App as AntdApp, Dropdown, message } from 'antd';
 import { LogoutOutlined } from '@ant-design/icons';
 import React from 'react';
 import { fetchMe, type CurrentUser } from '@/services/auth';
@@ -18,6 +18,10 @@ const ADMIN_PATHS = ['/hospitals', '/departments', '/doctors'];
 
 export interface InitialState {
   currentUser?: CurrentUser;
+}
+
+export function rootContainer(container: React.ReactNode) {
+  return <AntdApp>{container}</AntdApp>;
 }
 
 export async function getInitialState(): Promise<InitialState> {

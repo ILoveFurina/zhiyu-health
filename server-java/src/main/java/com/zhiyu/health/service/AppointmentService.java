@@ -159,8 +159,11 @@ public class AppointmentService {
     }
 
     private AppointmentView toView(Appointment appointment) {
-        String displayStatus = Appointment.STATUS_BOOKED.equals(appointment.getStatus())
-                ? "已约" : "已取消";
+        String displayStatus = switch (appointment.getStatus()) {
+            case Appointment.STATUS_VISITED -> "已接诊";
+            case Appointment.STATUS_CANCELLED -> "已取消";
+            default -> "已约";
+        };
         return new AppointmentView(
                 appointment.getId(), appointment.getScheduleId(), appointment.getDoctorId(),
                 appointment.getDoctorName(), appointment.getDepartmentName(),

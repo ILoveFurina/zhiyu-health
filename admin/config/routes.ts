@@ -19,5 +19,5 @@ export default [
     component: './Doctor',
     access: 'canAdmin',
   },
-  { name: '工作台', path: '/workbench', component: './Workbench' },
+  { name: '接诊台', path: '/workbench', component: './Workbench', access: 'canDoctor' },
 ];
