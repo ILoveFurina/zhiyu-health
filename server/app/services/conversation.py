@@ -3,7 +3,7 @@
 会话惰性创建：首条用户消息发出时才建会话，标题取首条用户消息截断。
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -65,7 +65,8 @@ class ConversationService:
             session.add(message)
             conversation = session.get(Conversation, conversation_id)
             if conversation is not None:
-                conversation.last_active_at = message.created_at or conversation.last_active_at
+                # 活跃时间随新消息推进（票 27 对话记录按最近活跃倒序依赖此字段）
+                conversation.last_active_at = func.now()
             session.commit()
             session.refresh(message)
             return message

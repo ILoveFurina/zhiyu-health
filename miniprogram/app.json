@@ -5,5 +5,8 @@
     "titleBarColor": "#e9f6f2",
     "backgroundColor": "#e9f6f2",
     "pullRefresh": false
+  },
+  "usingComponents": {
+    "ai-disclaimer": "/components/ai-disclaimer/index"
   }
 }

@@ -53,7 +53,3 @@ class PatientService:
                 session.commit()
                 session.refresh(patient)
             return patient
-
-    def get(self, patient_id: int) -> Patient | None:
-        with Session(self._engine) as session:
-            return session.get(Patient, patient_id)

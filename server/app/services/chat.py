@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from app.agent.runner import AgentRunner
 from app.core.constants import DISCLAIMER
 from app.models import Message
+from app.models.conversation import KIND_RED_FLAG, KIND_TEXT, ROLE_ASSISTANT, ROLE_USER
 from app.services.conversation import ConversationService
 from app.services.reasoning import EffortChoice, ReasoningEffort, map_reasoning_effort
 from app.services.red_flag import RedFlagHit, RedFlagService
@@ -50,7 +51,9 @@ class ChatService:
             conversation_id,
             content,
         )
-        await asyncio.to_thread(self._conversations.append_message, conversation.id, "user", content)
+        await asyncio.to_thread(
+            self._conversations.append_message, conversation.id, ROLE_USER, content
+        )
 
         hit = self._red_flag.judge(content)
         if hit is not None:
@@ -58,9 +61,9 @@ class ChatService:
             saved = await asyncio.to_thread(
                 self._conversations.append_message,
                 conversation.id,
-                "assistant",
+                ROLE_ASSISTANT,
                 warning,
-                "red_flag",
+                KIND_RED_FLAG,
             )
             return self._red_flag_stream(conversation.id, saved, hit)
 
@@ -95,16 +98,16 @@ class ChatService:
         saved = await asyncio.to_thread(
             self._conversations.append_message,
             conversation_id,
-            "assistant",
+            ROLE_ASSISTANT,
             content,
-            "text",
+            KIND_TEXT,
             effort,
         )
         yield {
             "event": EVENT_MESSAGE,
             "data": {
                 "message_id": saved.id,
-                "role": "assistant",
+                "role": ROLE_ASSISTANT,
                 "content": content,
                 "disclaimer": DISCLAIMER,
                 "effort": effort,

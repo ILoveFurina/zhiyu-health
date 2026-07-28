@@ -103,6 +103,8 @@ def test_red_flag_interrupts_without_calling_agent(harness: SimpleNamespace) -> 
     ).json()
     assert [m["kind"] for m in messages] == ["text", "red_flag"]
     assert "120" in messages[1]["content"]
+    # 红线警告是规则引擎产物而非 AI 产出：与 SSE 通道一致，不注入免责声明
+    assert messages[1]["disclaimer"] is None
 
 
 def test_effort_choice_is_mapped_by_backend(harness: SimpleNamespace) -> None:

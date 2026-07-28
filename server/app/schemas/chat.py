@@ -1,8 +1,6 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
-EffortChoice = Literal["auto", "quick", "deep"]
+from app.services.reasoning import EffortChoice
 
 
 class ChatRequest(BaseModel):

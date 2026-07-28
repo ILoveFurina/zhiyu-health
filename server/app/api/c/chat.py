@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from app.api.deps import get_current_patient_id
 from app.core.constants import DISCLAIMER
 from app.models import Message
+from app.models.conversation import KIND_TEXT, ROLE_ASSISTANT
 from app.schemas.chat import ChatRequest, MessageOut
 from app.services.conversation import ConversationNotFoundError
 
@@ -60,13 +61,15 @@ def list_messages(
 
 
 def _to_message_out(message: Message) -> MessageOut:
+    # 免责声明注入与 SSE 通道口径一致：仅 AI 产出（assistant 文本）携带；
+    # 红线警告是规则引擎产物而非 AI 产出，不注入
+    is_ai_output = message.role == ROLE_ASSISTANT and message.kind == KIND_TEXT
     return MessageOut(
         id=message.id,
         role=message.role,
         kind=message.kind,
         content=message.content,
         effort=message.effort,
-        # 后端统一注入免责声明字段：仅 AI 产出携带
-        disclaimer=DISCLAIMER if message.role == "assistant" else None,
+        disclaimer=DISCLAIMER if is_ai_output else None,
         created_at=message.created_at.isoformat(),
     )
