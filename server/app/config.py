@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +27,9 @@ class Settings(WebSettings):
     neo4j_uri: str
     neo4j_user: str
     neo4j_password: str
+    jwt_secret: SecretStr | None = None
+    seed_admin_password: SecretStr | None = None
+    seed_doctor_password: SecretStr | None = None
 
 
 @lru_cache
