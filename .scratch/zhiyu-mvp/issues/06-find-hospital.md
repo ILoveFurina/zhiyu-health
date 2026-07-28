@@ -6,6 +6,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] wx.getLocation 授权流程 + 拒绝授权的降级路径
+- [ ] my.getLocation 授权流程 + 拒绝授权的降级路径
 - [ ] 医院按经纬度距离排序查询（SQL 距离计算，不引 PostGIS）
 - [ ] 医院卡片含距离与地址，可联动导诊对话

@@ -1,11 +1,11 @@
 # 智愈（zhiyu-health）
 
-AI 驱动的全链路医疗健康平台：C 端微信原生小程序（医疗 AI Agent）+ B 端医生/医院管理后台（Vue3），后端为全 Python（FastAPI）单体。两周 demo 项目，评审交付。
+AI 驱动的全链路医疗健康平台：C 端支付宝原生小程序（医疗 AI Agent）+ B 端医生/医院管理后台（Vue3），后端为全 Python（FastAPI）单体。两周 demo 项目，评审交付。
 
 ## Language
 
 **C端**:
-面向患者的微信原生小程序，承载医疗 AI Agent，是用户的"第一联系人"。
+面向患者的支付宝原生小程序，承载医疗 AI Agent，是用户的"第一联系人"。
 _Avoid_: 患者端、用户端、小程序端
 
 **B端**:

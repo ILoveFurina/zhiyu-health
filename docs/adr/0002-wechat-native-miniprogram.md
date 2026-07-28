@@ -1,6 +1,6 @@
 # C 端采用微信原生小程序（而非 uni-app / 支付宝小程序）
 
-Status: accepted
+Status: superseded by ADR-0008
 
 C 端载体选微信原生小程序 + Vant Weapp 组件库。
 
