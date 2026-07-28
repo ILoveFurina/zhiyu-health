@@ -2,7 +2,8 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session
 
 from app.main import create_app
 
@@ -13,6 +14,9 @@ class FakeRedis:
 
     async def set(self, key: str, value: int) -> None:
         self.values[key] = value
+
+    async def delete(self, key: str) -> None:
+        self.values.pop(key, None)
 
 
 def create_admin_client(tmp_path) -> tuple[TestClient, dict[str, str], FakeRedis]:
@@ -26,7 +30,8 @@ def create_admin_client(tmp_path) -> tuple[TestClient, dict[str, str], FakeRedis
             seed_database=True,
             seed_admin_password=admin_password,
             seed_doctor_password=secrets.token_urlsafe(16),
-        )
+        ),
+        raise_server_exceptions=False,
     )
     client.__enter__()
     login = client.post(
@@ -97,3 +102,61 @@ def test_admin_can_disable_schedule_without_removing_its_slot_pool(tmp_path) -> 
     assert listed.json() == [disabled.json()]
     assert missing.status_code == 404
     assert redis.values[f"schedule:{created['id']}:remaining_slots"] == 12
+
+
+def test_failed_database_commit_does_not_leave_orphaned_slot_count(tmp_path) -> None:
+    client, headers, redis = create_admin_client(tmp_path)
+
+    def fail_commit(_: Session) -> None:
+        raise RuntimeError("模拟数据库提交失败")
+
+    try:
+        doctor_id = client.get("/api/b/doctors", headers=headers).json()[0]["id"]
+        event.listen(Session, "before_commit", fail_commit)
+        failed = client.post(
+            "/api/b/schedules",
+            headers=headers,
+            json={
+                "doctor_id": doctor_id,
+                "schedule_date": (
+                    datetime.now(UTC).date() + timedelta(days=1)
+                ).isoformat(),
+                "time_slot": "上午",
+                "total_slots": 8,
+            },
+        )
+        event.remove(Session, "before_commit", fail_commit)
+        listed = client.get("/api/b/schedules", headers=headers)
+    finally:
+        if event.contains(Session, "before_commit", fail_commit):
+            event.remove(Session, "before_commit", fail_commit)
+        client.__exit__(None, None, None)
+
+    assert failed.status_code == 500
+    assert listed.json() == []
+    assert redis.values == {}
+
+
+def test_schedule_rejects_time_slot_outside_supported_periods(tmp_path) -> None:
+    client, headers, redis = create_admin_client(tmp_path)
+    try:
+        doctor_id = client.get("/api/b/doctors", headers=headers).json()[0]["id"]
+        rejected = client.post(
+            "/api/b/schedules",
+            headers=headers,
+            json={
+                "doctor_id": doctor_id,
+                "schedule_date": (
+                    datetime.now(UTC).date() + timedelta(days=1)
+                ).isoformat(),
+                "time_slot": "凌晨",
+                "total_slots": 8,
+            },
+        )
+        listed = client.get("/api/b/schedules", headers=headers)
+    finally:
+        client.__exit__(None, None, None)
+
+    assert rejected.status_code == 422
+    assert listed.json() == []
+    assert redis.values == {}

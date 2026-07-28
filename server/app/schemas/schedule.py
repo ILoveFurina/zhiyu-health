@@ -2,11 +2,13 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.schedule import TimeSlot
+
 
 class ScheduleInput(BaseModel):
     doctor_id: int
     schedule_date: date
-    time_slot: str = Field(min_length=1, max_length=30)
+    time_slot: TimeSlot
     total_slots: int = Field(gt=0)
 
 

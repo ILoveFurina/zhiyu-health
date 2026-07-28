@@ -11,6 +11,8 @@ from app.schemas.schedule import ScheduleInput
 class SlotCounter(Protocol):
     async def set(self, key: str, value: int) -> object: ...
 
+    async def delete(self, key: str) -> object: ...
+
 
 def slot_counter_key(schedule_id: int) -> str:
     return f"schedule:{schedule_id}:remaining_slots"
@@ -38,13 +40,13 @@ class ScheduleService:
         )
         self.session.add(schedule)
         self.session.flush()
+        counter_key = slot_counter_key(schedule.id)
         try:
-            await self.slot_counter.set(
-                slot_counter_key(schedule.id), schedule.remaining_slots
-            )
+            await self.slot_counter.set(counter_key, schedule.remaining_slots)
             self.session.commit()
         except Exception:
             self.session.rollback()
+            await self.slot_counter.delete(counter_key)
             raise
         self.session.refresh(schedule)
         return schedule
