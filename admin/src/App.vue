@@ -1,59 +1,37 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
 
-import { fetchHealth, type HealthResponse, type ServiceName } from './api/health'
+import { fetchProfile, type StaffProfile } from './api/auth'
+import { clearToken, getToken } from './api/client'
+import DepartmentPage from './components/DepartmentPage.vue'
+import DoctorPage from './components/DoctorPage.vue'
+import HospitalPage from './components/HospitalPage.vue'
+import LoginView from './components/LoginView.vue'
 
-const serviceLabels: Record<ServiceName, string> = {
-  postgres: 'PostgreSQL + pgvector',
-  redis: 'Redis',
-  neo4j: 'Neo4j',
-}
+const profile = ref<StaffProfile | null>(null)
+const activePage = ref('hospitals')
+const loading = ref(Boolean(getToken()))
 
-const health = ref<HealthResponse | null>(null)
-const loading = ref(false)
-const errorMessage = ref('')
-
-async function refreshHealth() {
+async function loadProfile() {
   loading.value = true
-  errorMessage.value = ''
-  try {
-    health.value = await fetchHealth()
-  } catch {
-    errorMessage.value = '无法连接后端 health 接口，请确认 FastAPI 已启动。'
-  } finally {
-    loading.value = false
-  }
+  try { profile.value = await fetchProfile() }
+  catch { clearToken(); profile.value = null }
+  finally { loading.value = false }
 }
-
-onMounted(refreshHealth)
+function logout() { clearToken(); profile.value = null }
+onMounted(() => { if (getToken()) loadProfile() })
 </script>
 
 <template>
-  <el-container class="app-shell">
-    <el-header class="header">智愈 B 端</el-header>
-    <el-main>
-      <el-card class="health-card">
-        <template #header>
-          <div class="card-header">
-            <span>基础设施状态</span>
-            <el-button :loading="loading" type="primary" @click="refreshHealth">刷新</el-button>
-          </div>
-        </template>
-
-        <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
-        <el-skeleton v-else-if="!health" :rows="3" animated />
-        <el-descriptions v-else :column="1" border>
-          <el-descriptions-item
-            v-for="(service, name) in health.services"
-            :key="name"
-            :label="serviceLabels[name as ServiceName]"
-          >
-            <el-tag :type="service.status === 'ok' ? 'success' : 'danger'">
-              {{ service.status === 'ok' ? '正常' : '异常' }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-    </el-main>
+  <LoginView v-if="!profile && !loading" @success="loadProfile" />
+  <div v-else-if="loading" class="center-loading"><el-icon class="is-loading" :size="36"><Loading /></el-icon></div>
+  <el-container v-else-if="profile" class="app-shell">
+    <el-aside width="220px" class="sidebar"><div class="brand">智愈 B 端</div><el-menu v-model="activePage" :default-active="activePage" @select="activePage = $event">
+      <el-menu-item index="hospitals">医院管理</el-menu-item><el-menu-item index="departments">科室管理</el-menu-item><el-menu-item index="doctors">医生管理</el-menu-item></el-menu></el-aside>
+    <el-container><el-header class="header"><span>组织资源中心</span><div><el-tag>{{ profile.role === 'admin' ? '管理员' : '医生' }}</el-tag><span class="username">{{ profile.username }}</span><el-button link @click="logout">退出</el-button></div></el-header>
+      <el-main><el-alert v-if="profile.role !== 'admin'" title="医生账号无组织管理权限" type="info" show-icon />
+        <template v-else><HospitalPage v-if="activePage === 'hospitals'" /><DepartmentPage v-else-if="activePage === 'departments'" /><DoctorPage v-else /></template>
+      </el-main></el-container>
   </el-container>
 </template>
