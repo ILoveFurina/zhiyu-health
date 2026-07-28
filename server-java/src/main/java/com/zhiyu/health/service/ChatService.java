@@ -1,6 +1,15 @@
 package com.zhiyu.health.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.agentclient.AgentClient;
+import com.zhiyu.health.entity.Conversation;
+import com.zhiyu.health.entity.Message;
+import com.zhiyu.health.rule.RedFlagHit;
+import com.zhiyu.health.rule.RedFlagRuleEngine;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -9,49 +18,124 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 对话链路骨架：组装请求体调 server-py，SSE 事件原样透传回端。
- * 会话持久化、历史组装、红线门是后续票（31）的职责，本票只做透传。
- */
+/** 对话主干：持久化 → 红线前置 → Agent SSE → 出口兜底。 */
 @Service
 public class ChatService {
 
+    public static final String DISCLAIMER = "仅供参考，不替代医生诊断";
     private static final long EMITTER_TIMEOUT_MS = 60_000L;
+    private static final String RED_FLAG_TEMPLATE = "检测到紧急危险信号：%s。%s。导诊已中断。";
 
     private final AgentClient agentClient;
+    private final ConversationService conversations;
+    private final RedFlagRuleEngine redFlagRules;
+    private final ObjectMapper objectMapper;
 
-    public ChatService(AgentClient agentClient) {
+    public ChatService(AgentClient agentClient, ConversationService conversations,
+                       RedFlagRuleEngine redFlagRules, ObjectMapper objectMapper) {
         this.agentClient = agentClient;
+        this.conversations = conversations;
+        this.redFlagRules = redFlagRules;
+        this.objectMapper = objectMapper;
     }
 
-    public SseEmitter chat(String content, String effort, String scenario) {
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+    public SseEmitter chat(Long patientId, Long conversationId, String content,
+                           String effort, String scenario) {
+        // 安全门先于会话与消息写入，更先于 Agent 调用。
+        RedFlagHit hit = redFlagRules.judge(content);
+        Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, content);
+        conversations.appendMessage(conversation.getId(), "user", content, "text", null);
 
+        if (hit != null) {
+            return redFlagStream(conversation, hit);
+        }
+        return agentStream(conversation, effort, scenario);
+    }
+
+    private SseEmitter redFlagStream(Conversation conversation, RedFlagHit hit) {
+        String warning = RED_FLAG_TEMPLATE.formatted(hit.ruleName(), hit.advice());
+        Message saved = conversations.appendMessage(
+                conversation.getId(), "assistant", warning, "red_flag", null);
+        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+        try {
+            send(emitter, "meta", objectMapper.createObjectNode()
+                    .put("conversation_id", conversation.getId()));
+            ObjectNode data = objectMapper.createObjectNode()
+                    .put("message_id", saved.getId())
+                    .put("rule", hit.ruleName())
+                    .put("content", warning)
+                    .put("advice", hit.advice());
+            send(emitter, "red_flag", data);
+            send(emitter, "done", objectMapper.createObjectNode());
+            emitter.complete();
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+        return emitter;
+    }
+
+    private SseEmitter agentStream(Conversation conversation, String effort, String scenario) {
+        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         Map<String, Object> body = new HashMap<>();
-        body.put("messages", List.of(Map.of("role", "user", "content", content)));
-        if (effort != null && !effort.isBlank()) {
-            body.put("effort", effort);
-        }
-        if (scenario != null && !scenario.isBlank()) {
-            body.put("scenario", scenario);
-        }
+        body.put("messages", conversations.recentContext(conversation.getId()));
+        body.put("effort", blankToDefault(effort, "auto"));
+        body.put("scenario", blankToDefault(scenario, "triage"));
 
         agentClient.chat(body).subscribe(
-                event -> {
-                    try {
-                        // 事件名必须先于 data 写入：小程序端按行序解析（先 event 后 data）
-                        SseEmitter.SseEventBuilder builder = SseEmitter.event();
-                        if (event.event() != null) {
-                            builder.name(event.event());
-                        }
-                        emitter.send(builder.data(event.data()));
-                    } catch (IOException | IllegalStateException e) {
-                        emitter.completeWithError(e);
-                    }
-                },
+                event -> forwardAgentEvent(emitter, conversation.getId(), event),
                 emitter::completeWithError,
-                emitter::complete
-        );
+                emitter::complete);
         return emitter;
+    }
+
+    private void forwardAgentEvent(SseEmitter emitter, Long conversationId,
+                                   ServerSentEvent<String> event) {
+        try {
+            String eventName = event.event();
+            JsonNode data = parseData(event.data());
+            if ("meta".equals(eventName) && data instanceof ObjectNode object) {
+                object.put("conversation_id", conversationId);
+            } else if ("message".equals(eventName) && data instanceof ObjectNode object) {
+                ensureDisclaimer(object);
+                Message saved = conversations.appendMessage(
+                        conversationId,
+                        "assistant",
+                        object.path("content").asText(),
+                        "text",
+                        nullableText(object.get("effort")));
+                object.put("message_id", saved.getId());
+            }
+            send(emitter, eventName, data);
+        } catch (IOException | IllegalStateException e) {
+            emitter.completeWithError(e);
+        }
+    }
+
+    private JsonNode parseData(String data) throws JsonProcessingException {
+        return data == null || data.isBlank()
+                ? objectMapper.createObjectNode()
+                : objectMapper.readTree(data);
+    }
+
+    private void ensureDisclaimer(ObjectNode message) {
+        if (!DISCLAIMER.equals(message.path("disclaimer").asText())) {
+            message.put("disclaimer", DISCLAIMER);
+        }
+    }
+
+    private void send(SseEmitter emitter, String event, JsonNode data) throws IOException {
+        SseEmitter.SseEventBuilder builder = SseEmitter.event();
+        if (event != null) {
+            builder.name(event);
+        }
+        emitter.send(builder.data(objectMapper.writeValueAsString(data)));
+    }
+
+    private String blankToDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String nullableText(JsonNode value) {
+        return value == null || value.isNull() ? null : value.asText();
     }
 }

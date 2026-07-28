@@ -15,6 +15,15 @@ const PROMPTS = [
   '为我推荐 28 天健康减肥食谱计划',
 ]
 
+const INTERPRETATION_KEYWORDS = ['解读', '报告', '处方']
+
+/** 自动档按意图分配：导诊 low，报告/处方解读 high。 */
+function scenarioFor(content) {
+  return INTERPRETATION_KEYWORDS.some((keyword) => content.includes(keyword))
+    ? 'interpretation'
+    : 'triage'
+}
+
 Page({
   data: {
     messages: [], // {id, role, kind, content, disclaimer, streaming}
@@ -91,6 +100,7 @@ Page({
       content,
       conversationId: this.data.conversationId,
       effort: GEARS[this.data.gearIndex].key,
+      scenario: scenarioFor(content),
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
         onAssistant: (data, tokens) => this.playAssistant(aiMsg.id, data, tokens),
