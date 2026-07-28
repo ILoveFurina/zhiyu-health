@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 public class AuthFilter extends OncePerRequestFilter {
 
     public static final String ATTR_AUTH_SUBJECT = "authSubject";
+    /** B 端角色（admin/doctor），供 controller 做角色判断 */
+    public static final String ATTR_AUTH_ROLE = "authRole";
 
     private final SecretKey key;
 
@@ -32,8 +34,8 @@ public class AuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // 登录端点属后续票，先放行
-        if (path.startsWith("/api/c/auth/") || path.startsWith("/api/b/auth/")) {
+        // 登录端点本身不持令牌，放行
+        if (path.startsWith("/api/c/auth/") || path.startsWith("/api/b/auth/login")) {
             return true;
         }
         return !path.startsWith("/api/c/") && !path.startsWith("/api/b/");
@@ -63,6 +65,7 @@ public class AuthFilter extends OncePerRequestFilter {
             }
 
             request.setAttribute(ATTR_AUTH_SUBJECT, claims.getSubject());
+            request.setAttribute(ATTR_AUTH_ROLE, claims.get("role", String.class));
             filterChain.doFilter(request, response);
         } catch (JwtException | IllegalArgumentException e) {
             reject(response);
