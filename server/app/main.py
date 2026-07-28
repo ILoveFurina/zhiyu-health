@@ -21,13 +21,20 @@ def create_app(
     *,
     seed_database: bool = False,
     jwt_secret: str | None = None,
+    seed_admin_password: str | None = None,
+    seed_doctor_password: str | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.jwt_secret = jwt_secret or secrets.token_urlsafe(32)
         if database_engine is not None:
             app.state.database_engine = database_engine
-            initialize_database(database_engine, with_seed=seed_database)
+            initialize_database(
+                database_engine,
+                with_seed=seed_database,
+                admin_password=seed_admin_password,
+                doctor_password=seed_doctor_password,
+            )
             if health_service is not None:
                 app.state.health_service = health_service
             yield
@@ -47,7 +54,20 @@ def create_app(
             if settings.jwt_secret is not None
             else app.state.jwt_secret
         )
-        initialize_database(clients.postgres, with_seed=seed_database)
+        initialize_database(
+            clients.postgres,
+            with_seed=seed_database,
+            admin_password=(
+                settings.seed_admin_password.get_secret_value()
+                if settings.seed_admin_password is not None
+                else None
+            ),
+            doctor_password=(
+                settings.seed_doctor_password.get_secret_value()
+                if settings.seed_doctor_password is not None
+                else None
+            ),
+        )
         try:
             yield
         finally:

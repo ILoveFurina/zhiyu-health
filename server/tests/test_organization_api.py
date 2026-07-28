@@ -1,21 +1,32 @@
+import secrets
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 
 from app.main import create_app
 
 
-def create_admin_client(tmp_path) -> tuple[TestClient, dict[str, str]]:
+def create_admin_client(tmp_path) -> tuple[TestClient, dict[str, str], str]:
+    admin_password = secrets.token_urlsafe(16)
+    doctor_password = secrets.token_urlsafe(16)
     engine = create_engine(f"sqlite:///{tmp_path / 'organization.db'}")
-    client = TestClient(create_app(database_engine=engine, seed_database=True))
+    client = TestClient(
+        create_app(
+            database_engine=engine,
+            seed_database=True,
+            seed_admin_password=admin_password,
+            seed_doctor_password=doctor_password,
+        )
+    )
     client.__enter__()
     login = client.post(
-        "/api/b/auth/login", json={"username": "admin", "password": "admin123"}
+        "/api/b/auth/login", json={"username": "admin", "password": admin_password}
     )
-    return client, {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return client, {"Authorization": f"Bearer {login.json()['access_token']}"}, doctor_password
 
 
 def test_admin_can_manage_hospitals_through_full_crud(tmp_path) -> None:
-    client, headers = create_admin_client(tmp_path)
+    client, headers, _ = create_admin_client(tmp_path)
     try:
         assert client.get("/api/b/hospitals").status_code == 401
 
@@ -72,7 +83,7 @@ def create_hospital(client: TestClient, headers: dict[str, str]) -> int:
 
 
 def test_admin_can_manage_departments_with_visit_location(tmp_path) -> None:
-    client, headers = create_admin_client(tmp_path)
+    client, headers, _ = create_admin_client(tmp_path)
     try:
         hospital_id = create_hospital(client, headers)
         created = client.post(
@@ -109,7 +120,7 @@ def test_admin_can_manage_departments_with_visit_location(tmp_path) -> None:
 
 
 def test_admin_can_manage_doctors_with_professional_profile(tmp_path) -> None:
-    client, headers = create_admin_client(tmp_path)
+    client, headers, _ = create_admin_client(tmp_path)
     try:
         hospital_id = create_hospital(client, headers)
         department = client.post(
@@ -157,14 +168,17 @@ def test_admin_can_manage_doctors_with_professional_profile(tmp_path) -> None:
 
 
 def test_seed_exposes_minimum_organization_and_separates_doctor_role(tmp_path) -> None:
-    client, admin_headers = create_admin_client(tmp_path)
+    client, admin_headers, doctor_password = create_admin_client(tmp_path)
     try:
         hospitals = client.get("/api/b/hospitals", headers=admin_headers)
         departments = client.get("/api/b/departments", headers=admin_headers)
         doctors = client.get("/api/b/doctors", headers=admin_headers)
         doctor_login = client.post(
             "/api/b/auth/login",
-            json={"username": "doctor.lin", "password": "doctor123"},
+            json={
+                "username": "doctor.lin",
+                "password": doctor_password,
+            },
         )
         doctor_headers = {
             "Authorization": f"Bearer {doctor_login.json()['access_token']}"

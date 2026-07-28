@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 
@@ -5,13 +7,18 @@ from app.main import create_app
 
 
 def test_admin_can_log_in_and_access_staff_profile(tmp_path) -> None:
+    admin_password = secrets.token_urlsafe(16)
     engine = create_engine(f"sqlite:///{tmp_path / 'auth.db'}")
-    app = create_app(database_engine=engine, seed_database=True)
+    app = create_app(
+        database_engine=engine,
+        seed_database=True,
+        seed_admin_password=admin_password,
+    )
 
     with TestClient(app) as client:
         login = client.post(
             "/api/b/auth/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": "admin", "password": admin_password},
         )
         profile = client.get(
             "/api/b/auth/me",

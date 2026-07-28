@@ -7,13 +7,21 @@ from app.models import Base, Department, Doctor, Hospital, StaffRole, StaffUser
 password_hash = PasswordHash.recommended()
 
 
-def initialize_database(engine: Engine, *, with_seed: bool) -> None:
+def initialize_database(
+    engine: Engine,
+    *,
+    with_seed: bool,
+    admin_password: str | None = None,
+    doctor_password: str | None = None,
+) -> None:
     Base.metadata.create_all(engine)
     if with_seed:
-        seed_database(engine)
+        seed_database(engine, admin_password=admin_password, doctor_password=doctor_password)
 
 
-def seed_database(engine: Engine) -> None:
+def seed_database(
+    engine: Engine, *, admin_password: str | None, doctor_password: str | None
+) -> None:
     with Session(engine) as session:
         hospital = session.scalar(select(Hospital).where(Hospital.name == "智愈市人民医院"))
         if hospital is None:
@@ -59,19 +67,23 @@ def seed_database(engine: Engine) -> None:
                 "https://example.com/demo/chen-qinghe.jpg",
             ),
         ]
-        if session.scalar(select(StaffUser).where(StaffUser.username == "admin")) is None:
+        if admin_password and session.scalar(
+            select(StaffUser).where(StaffUser.username == "admin")
+        ) is None:
             session.add(
                 StaffUser(
                     username="admin",
-                    password_hash=password_hash.hash("admin123"),
+                    password_hash=password_hash.hash(admin_password),
                     role=StaffRole.ADMIN,
                 )
             )
-        if session.scalar(select(StaffUser).where(StaffUser.username == "doctor.lin")) is None:
+        if doctor_password and session.scalar(
+            select(StaffUser).where(StaffUser.username == "doctor.lin")
+        ) is None:
             session.add(
                 StaffUser(
                     username="doctor.lin",
-                    password_hash=password_hash.hash("doctor123"),
+                    password_hash=password_hash.hash(doctor_password),
                     role=StaffRole.DOCTOR,
                     doctor_id=doctors[0].id,
                 )

@@ -5,7 +5,7 @@ import { login } from '../api/auth'
 import { setToken } from '../api/client'
 
 const emit = defineEmits<{ success: [] }>()
-const form = reactive({ username: 'admin', password: 'admin123' })
+const form = reactive({ username: '', password: '' })
 const loading = ref(false)
 const error = ref('')
 

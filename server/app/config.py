@@ -28,6 +28,8 @@ class Settings(WebSettings):
     neo4j_user: str
     neo4j_password: str
     jwt_secret: SecretStr | None = None
+    seed_admin_password: SecretStr | None = None
+    seed_doctor_password: SecretStr | None = None
 
 
 @lru_cache

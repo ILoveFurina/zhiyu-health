@@ -31,8 +31,7 @@ def test_health_reports_all_storage_dependencies() -> None:
 
 
 def test_default_application_is_ready_for_asgi_server() -> None:
-    with TestClient(app) as client:
-        response = client.get("/openapi.json")
+    response = TestClient(app).get("/openapi.json")
 
     assert response.status_code == 200
     assert response.json()["info"]["title"] == "智愈 API"
