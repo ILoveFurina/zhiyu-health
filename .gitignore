@@ -32,3 +32,4 @@ miniprogram_npm/
 /project.config.json
 /project.private.config.json
 /miniprogram/project.private.config.json
+.worktrees/
