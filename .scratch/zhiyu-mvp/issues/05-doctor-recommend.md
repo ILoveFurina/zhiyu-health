@@ -18,4 +18,4 @@
 - 小程序 `doctor-card` 独立组件展示照片、职称、擅长与剩余号源；选择医生回传 `doctor_id` 触发时段查询，选择时段回传 `schedule_id`，挂号扣减留给票 07。
 - 依赖实现已对照 `uv.lock`（langchain 1.3.14、langchain-core 1.5.1、langgraph 1.2.9）及 LangChain 官方工具/流式文档，沿既有 `astream(..., stream_mode="messages")` 读取 ToolMessage。
 - 验证：server-java 全套 81 项、server-py 全套 17 项通过，ruff 与 mypy 全绿；独立 server-java 实例真实连接 PostgreSQL 执行两条新查询成功（当前库无未来号源，返回空数组）。支付宝小程序开发者工具 3.10.15 编译成功，AI 页无控制台错误；运行时注入两类 SSE payload，卡片渲染、免责声明、医生/时段点击回传均实测通过。仅有本地 HTTP 非 HTTPS 的开发工具既有警告。
-- 双轴 code-review：Spec 初审指出卡片未持久化，已补写 messages 并排除出 LLM 文本上下文；Standards 指出的次要文字色值已按 Spec 0002 改为 `#999`。跨三运行时的事件名同步属于协议必要映射，未引入代码生成机制。
+- 双轴 code-review：Spec 初审指出卡片未持久化，已补写 messages 并排除出 LLM 文本上下文；Standards 指出的次要文字色值已按 Spec 0002 改为 `#999`。跨三运行时的事件名同步属于协议必要映射，未引入代码生成机制；复核 Standards/Spec 均为 0 residual findings。
