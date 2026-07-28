@@ -11,8 +11,16 @@ import httpx
 
 
 class BusinessCallbackClient:
-    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
-        self._client = httpx.AsyncClient(base_url=base_url, timeout=timeout)
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 10.0,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        # transport 注入只改变 I/O seam，生产默认仍使用 HTTPX 网络传输。
+        self._client = httpx.AsyncClient(
+            base_url=base_url, timeout=timeout, transport=transport
+        )
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         response = await self._client.get(path, params=params)
