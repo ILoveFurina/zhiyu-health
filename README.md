@@ -6,7 +6,16 @@ AI 驱动的医疗 B+C 平台：C 端微信原生小程序（医疗 AI Agent）+
 
 - 云服务器 `43.139.160.223`：仅运行 PostgreSQL 16 + pgvector、Redis 7、Neo4j 5。
 - 本地开发机：运行 FastAPI、Vue3 B 端和微信开发者工具。
-- 团队成员通过账号密码直连云端数据库；云安全组只允许团队固定公网 IP 访问数据库端口。
+- 团队成员通过数据库账号密码直接连接云端依赖，不建立 SSH 隧道；SSH 只用于服务器部署和维护。
+- 云安全组只允许团队固定公网 IP 访问数据库端口，人员网络出口变化后需先更新白名单。
+
+```text
+本地微信开发者工具 ─┐
+本地 Vue3 管理端 ───┼─> 本地 FastAPI :8000 ─> 43.139.160.223 上的 PG / Redis / Neo4j
+本地 API 测试 ──────┘
+```
+
+FastAPI 和前端不部署到这台云服务器，日常开发、SSE 联调和断点调试均在各成员本机完成。
 
 正式产品名为“智愈”，助手名为“小愈”；`zhiyu-health` 是仓库标识。
 
@@ -36,11 +45,29 @@ docker compose ps
 docker compose --profile test up -d neo4j-test
 ```
 
-云安全组放行 5432、6379、7474、7687（测试时再放行 7688），来源必须限定为团队固定公网 IP，禁止配置为 `0.0.0.0/0`。
+云安全组按需放行以下端口，来源必须限定为团队固定公网 IP，禁止配置为 `0.0.0.0/0`：
+
+| 端口 | 服务 | 用途 |
+| --- | --- | --- |
+| 5432 | PostgreSQL | 业务数据与 pgvector |
+| 6379 | Redis | 缓存与号源计数 |
+| 7474 | Neo4j HTTP | Neo4j Browser 管理界面，可选 |
+| 7687 | Neo4j Bolt | 应用连接 |
+| 7688 | Neo4j Test Bolt | 独立测试实例，仅测试时开放 |
 
 ## 2. 本地配置与 FastAPI
 
-从 `.env.example` 创建 `.env`，填入服务器生成的 PostgreSQL、Redis、Neo4j 密码和后续功能所需的方舟配置。连接地址保持为 `43.139.160.223`，`.env` 永不入库或打印。
+在每位成员的本地仓库中，从 `.env.example` 创建 `.env`。通过团队约定的安全渠道取得服务器生成的 PostgreSQL、Redis、Neo4j 密码，填写对应连接串；主机地址保持为 `43.139.160.223`，无需填写 SSH 用户名或配置端口转发。`.env` 永不入库、不得发到群聊或打印到日志。
+
+启动前可先在 PowerShell 验证当前公网 IP 已加入云安全组：
+
+```powershell
+Test-NetConnection 43.139.160.223 -Port 5432
+Test-NetConnection 43.139.160.223 -Port 6379
+Test-NetConnection 43.139.160.223 -Port 7687
+```
+
+三项的 `TcpTestSucceeded` 均应为 `True`。随后在本地启动 FastAPI：
 
 ```bash
 uv sync --frozen --dev

@@ -57,3 +57,5 @@ server/app/
 ## 工作流
 
 按 `.scratch/zhiyu-mvp/issues/` 票单施工（阻塞关系见各票 "Blocked by"），一票一个分支，完成合 `main`。
+
+Git 提交信息以中文为主，必要的技术名词、命令和约定式提交前缀可保留英文。

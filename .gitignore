@@ -27,3 +27,8 @@ Thumbs.db
 .kimi-code/
 .claude/
 miniprogram_npm/
+
+# 微信开发者工具本地配置
+/project.config.json
+/project.private.config.json
+/miniprogram/project.private.config.json

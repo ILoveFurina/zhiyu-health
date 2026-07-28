@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** in-progress
+**Status:** done
 
 - [x] `docker compose up` 在云服务器一键起全部依赖（PG 启用 pgvector 扩展、Redis、Neo4j），数据库启用账号密码认证
 - [x] 团队成员通过账号密码直连云端依赖；云安全组仅放行团队固定公网 IP，禁止向 `0.0.0.0/0` 开放数据库端口
@@ -12,5 +12,5 @@
 - [x] FastAPI 骨架含 health 接口，分别连通 PG / Redis / Neo4j 并返回各自状态
 - [x] Vue3 + Element Plus 脚手架能调用 health 接口并展示结果
 - [x] 微信原生小程序脚手架（Vant Weapp 接入）能调用 health 接口
-- [ ] 小程序演示以开发者工具模拟器为主；预览二维码 + 开发者工具真机调试经工具代理可调用本地 health 接口，不依赖 HTTPS 域名
+- [x] 小程序演示以开发者工具模拟器为主；预览二维码 + 开发者工具真机调试经工具代理可调用本地 health 接口，不依赖 HTTPS 域名
 - [x] README 写明一键启动步骤
