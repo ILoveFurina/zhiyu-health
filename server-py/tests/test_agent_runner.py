@@ -18,7 +18,11 @@ from app.agent.runner import LangGraphAgentRunner
 
 def _collect(runner: LangGraphAgentRunner, messages: list[dict[str, str]]) -> str:
     async def run() -> str:
-        parts = [token async for token in runner.astream_reply(messages, "low")]
+        parts = [
+            output.data
+            async for output in runner.astream_reply(messages, "low")
+            if output.event == "token" and isinstance(output.data, str)
+        ]
         return "".join(parts)
 
     return asyncio.run(run())
@@ -60,6 +64,9 @@ def test_runner_feeds_system_prompt_and_full_history_to_model() -> None:
     assert len(seen) == 1
     received = seen[0]
     assert received[0][0] == "system"  # 人设 system prompt 在最前
+    assert "先回应用户的感受" in received[0][1]
+    assert "recommend_doctors" in received[0][1]
+    assert "get_doctor_slots" in received[0][1]
     assert received[1:] == [
         ("human", "我咳嗽三天了"),
         ("ai", "有发烧吗？"),

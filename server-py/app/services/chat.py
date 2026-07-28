@@ -33,9 +33,15 @@ class AgentChatService:
         effort = map_reasoning_effort(effort_choice, scenario)
         yield {"event": EVENT_META, "data": {"effort": effort}}
         parts: list[str] = []
-        async for token in self._agent_runner.astream_reply(messages, effort):
-            parts.append(token)
-            yield {"event": EVENT_TOKEN, "data": {"text": token}}
+        async for output in self._agent_runner.astream_reply(messages, effort):
+            if output.event == EVENT_TOKEN and isinstance(output.data, str):
+                parts.append(output.data)
+                yield {"event": EVENT_TOKEN, "data": {"text": output.data}}
+            elif isinstance(output.data, dict):
+                yield {
+                    "event": output.event,
+                    "data": {**output.data, "disclaimer": DISCLAIMER},
+                }
         yield {
             "event": EVENT_MESSAGE,
             "data": {

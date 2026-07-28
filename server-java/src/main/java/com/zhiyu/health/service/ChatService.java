@@ -101,8 +101,17 @@ public class ChatService {
                         conversationId,
                         "assistant",
                         object.path("content").asText(),
-                        "text",
+                        Message.KIND_TEXT,
                         nullableText(object.get("effort")));
+                object.put("message_id", saved.getId());
+            } else if (Message.isAiCardKind(eventName) && data instanceof ObjectNode object) {
+                ensureDisclaimer(object);
+                Message saved = conversations.appendMessage(
+                        conversationId,
+                        "assistant",
+                        objectMapper.writeValueAsString(object),
+                        eventName,
+                        null);
                 object.put("message_id", saved.getId());
             }
             send(emitter, eventName, data);

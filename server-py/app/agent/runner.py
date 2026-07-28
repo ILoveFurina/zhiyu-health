@@ -5,12 +5,14 @@ AgentRunner 协议是 LLM seam：测试用 fake 替换，断言消息历史与�
 reasoning_effort 作为扁平参数随 chat completions 请求体发送（ADR-0004）。
 """
 
+import json
 from collections.abc import AsyncIterator, Callable, Sequence
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
@@ -21,11 +23,17 @@ from app.config import Settings, get_settings
 from app.services.reasoning import ReasoningEffort
 
 
+@dataclass(frozen=True)
+class AgentOutput:
+    event: Literal["token", "doctor_recommendations", "doctor_slots"]
+    data: str | dict[str, Any]
+
+
 class AgentRunner(Protocol):
     def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort
-    ) -> AsyncIterator[str]:
-        """按给定推理档位流式生成回复，逐段产出文本 token。"""
+    ) -> AsyncIterator[AgentOutput]:
+        """按给定推理档位流式产出文本 token 或结构化工具结果。"""
         ...
 
 
@@ -54,18 +62,39 @@ class LangGraphAgentRunner:
 
     async def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[AgentOutput]:
         graph = self._graph(effort)
         lc_messages = _to_lc_messages(messages)
         async for item in graph.astream({"messages": lc_messages}, stream_mode="messages"):
             if not isinstance(item, tuple):
                 continue
             chunk, metadata = item
+            if isinstance(chunk, ToolMessage):
+                event = _tool_event(chunk.name)
+                if event is not None and isinstance(chunk.content, str):
+                    try:
+                        payload = json.loads(chunk.content)
+                    except json.JSONDecodeError:
+                        # 工具错误仍会回到模型解释；只有成功的结构化结果才投影成卡片。
+                        continue
+                    if isinstance(payload, dict):
+                        yield AgentOutput(event, payload)
+                continue
             if metadata.get("langgraph_node") != "model":
                 continue
             content = chunk.content
             if isinstance(content, str) and content:
-                yield content
+                yield AgentOutput("token", content)
+
+
+def _tool_event(
+    tool_name: str | None,
+) -> Literal["doctor_recommendations", "doctor_slots"] | None:
+    if tool_name == "recommend_doctors":
+        return "doctor_recommendations"
+    if tool_name == "get_doctor_slots":
+        return "doctor_slots"
+    return None
 
 
 def _to_lc_messages(messages: list[dict[str, str]]) -> list[BaseMessage]:
@@ -78,7 +107,9 @@ def _to_lc_messages(messages: list[dict[str, str]]) -> list[BaseMessage]:
     return result
 
 
-def build_langgraph_agent_runner(settings: Settings) -> LangGraphAgentRunner:
+def build_langgraph_agent_runner(
+    settings: Settings, tools: Sequence[BaseTool] | None = None
+) -> LangGraphAgentRunner:
     def model_factory(effort: ReasoningEffort) -> BaseChatModel:
         return ChatOpenAI(
             model=settings.doubao_chat_model,
@@ -87,7 +118,7 @@ def build_langgraph_agent_runner(settings: Settings) -> LangGraphAgentRunner:
             reasoning_effort=effort,
         )
 
-    return LangGraphAgentRunner(model_factory)
+    return LangGraphAgentRunner(model_factory, tools=tools)
 
 
 class LazySettingsAgentRunner:
@@ -97,13 +128,14 @@ class LazySettingsAgentRunner:
     只有真正命中对话接口才读取方舟配置。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, tools: Sequence[BaseTool] | None = None) -> None:
         self._runner: LangGraphAgentRunner | None = None
+        self._tools = tools
 
     async def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[AgentOutput]:
         if self._runner is None:
-            self._runner = build_langgraph_agent_runner(get_settings())
-        async for token in self._runner.astream_reply(messages, effort):
-            yield token
+            self._runner = build_langgraph_agent_runner(get_settings(), self._tools)
+        async for output in self._runner.astream_reply(messages, effort):
+            yield output

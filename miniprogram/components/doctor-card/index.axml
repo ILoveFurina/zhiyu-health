@@ -1,0 +1,43 @@
+<view class="card">
+  <view class="title">{{kind === 'doctor_recommendations' ? '为你找到这些医生' : '可预约时段'}}</view>
+
+  <view a:if="{{kind === 'doctor_recommendations'}}">
+    <view a:for="{{card.doctors}}" a:key="doctor_id" class="doctor">
+      <image class="avatar" src="{{item.photo_url}}" mode="aspectFill" />
+      <view class="doctor-main">
+        <view class="doctor-head">
+          <text class="name">{{item.name}}</text>
+          <text class="doctor-title">{{item.title}}</text>
+        </view>
+        <view class="specialty">擅长：{{item.specialty}}</view>
+        <view class="availability">共剩 {{item.remaining_slots}} 个号源</view>
+      </view>
+      <view
+        class="choose"
+        data-id="{{item.doctor_id}}"
+        data-name="{{item.name}}"
+        onTap="selectDoctor"
+      >选择</view>
+    </view>
+    <view a:if="{{card.doctors.length === 0}}" class="empty">暂时没有可预约医生</view>
+  </view>
+
+  <view a:else>
+    <view a:for="{{card.slots}}" a:key="schedule_id" class="slot">
+      <view>
+        <view class="slot-date">{{item.schedule_date}} · {{item.time_slot}}</view>
+        <view class="availability">剩余 {{item.remaining_slots}} 个号源</view>
+      </view>
+      <view
+        class="choose"
+        data-id="{{item.schedule_id}}"
+        data-date="{{item.schedule_date}}"
+        data-slot="{{item.time_slot}}"
+        onTap="selectSlot"
+      >选择</view>
+    </view>
+    <view a:if="{{card.slots.length === 0}}" class="empty">该医生暂时没有可预约时段</view>
+  </view>
+
+  <ai-disclaimer text="{{card.disclaimer}}" />
+</view>

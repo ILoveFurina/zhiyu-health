@@ -16,11 +16,11 @@ from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, BaseMessage, ToolCall
 from langchain_core.outputs import ChatResult
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import BaseTool
 
 from app.agent.runner import LangGraphAgentRunner
 from app.main import create_app
-from app.tools.business import BusinessCallbackClient
+from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
 def _post_chat(client, payload: dict) -> list[dict]:
@@ -104,22 +104,34 @@ def test_empty_messages_is_rejected(harness: SimpleNamespace) -> None:
     assert response.status_code == 422
 
 
-def test_http_agent_runs_business_tool_callback_before_final_reply() -> None:
-    http_calls: list[str] = []
+def test_http_agent_streams_structured_cards_from_business_tools_in_call_order() -> None:
+    http_calls: list[tuple[str, str]] = []
     model_calls: list[list[str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        http_calls.append(request.url.path)
-        return httpx.Response(200, json={"remaining_slots": 3})
+        http_calls.append((request.url.path, request.url.query.decode()))
+        if request.url.path.endswith("/recommend"):
+            return httpx.Response(200, json={"doctors": [{
+                "doctor_id": 2,
+                "name": "周安宁",
+                "title": "副主任医师",
+                "specialty": "胸痛评估、心力衰竭",
+                "photo_url": "https://example.com/demo/zhou.jpg",
+                "remaining_slots": 5,
+            }]})
+        return httpx.Response(200, json={
+            "doctor_id": 2,
+            "slots": [{
+                "schedule_id": 9,
+                "schedule_date": "2026-07-29",
+                "time_slot": "上午",
+                "remaining_slots": 3,
+            }],
+        })
 
     callback = BusinessCallbackClient(
         "http://server-java.test", transport=httpx.MockTransport(handler)
     )
-
-    @tool
-    async def get_doctor_slots(doctor_id: int) -> dict[str, Any]:
-        """查询医生号源。"""
-        return await callback.get("/api/agent/slots", {"doctor_id": doctor_id})  # type: ignore[no-any-return]
 
     class ToolCallingFake(GenericFakeChatModel):
         messages: Iterator[AIMessage | str]
@@ -147,12 +159,19 @@ def test_http_agent_runs_business_tool_callback_before_final_reply() -> None:
         disable_streaming=True,
         messages=iter([
             AIMessage(content="", tool_calls=[
-                ToolCall(name="get_doctor_slots", args={"doctor_id": 2}, id="call-1")
+                ToolCall(
+                    name="recommend_doctors",
+                    args={"department_name": "心血管内科"},
+                    id="call-1",
+                )
             ]),
-            "还有 3 个号源。",
+            AIMessage(content="", tool_calls=[
+                ToolCall(name="get_doctor_slots", args={"doctor_id": 2}, id="call-2")
+            ]),
+            "周医生明天上午还有 3 个号源。",
         ]),
     )
-    runner = LangGraphAgentRunner(lambda effort: fake, tools=[get_doctor_slots])
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
         with TestClient(create_app(health_service=StubHealthService(), agent_runner=runner)) as client:
@@ -162,9 +181,22 @@ def test_http_agent_runs_business_tool_callback_before_final_reply() -> None:
     finally:
         asyncio.run(callback.aclose())
 
-    assert events[-2]["data"]["content"] == "还有 3 个号源。"
-    assert http_calls == ["/api/agent/slots"]
+    assert [event["event"] for event in events] == [
+        "meta", "doctor_recommendations", "doctor_slots", "token", "message", "done"
+    ]
+    assert events[1]["data"]["doctors"][0]["name"] == "周安宁"
+    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert events[2]["data"]["slots"][0]["schedule_id"] == 9
+    assert events[-2]["data"]["content"] == "周医生明天上午还有 3 个号源。"
+    assert http_calls == [
+        (
+            "/api/agent/doctors/recommend",
+            "department_name=%E5%BF%83%E8%A1%80%E7%AE%A1%E5%86%85%E7%A7%91",
+        ),
+        ("/api/agent/doctors/2/slots", ""),
+    ]
     assert model_calls == [
         ["system", "human"],
         ["system", "human", "ai", "tool"],
+        ["system", "human", "ai", "tool", "ai", "tool"],
     ]

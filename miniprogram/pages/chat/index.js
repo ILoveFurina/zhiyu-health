@@ -26,7 +26,7 @@ function scenarioFor(content) {
 
 Page({
   data: {
-    messages: [], // {id, role, kind, content, disclaimer, streaming}
+    messages: [], // 文本、红线警告或医生/号源结构化卡片
     prompts: PROMPTS,
     inputValue: '',
     canSend: false,
@@ -104,6 +104,8 @@ Page({
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
         onAssistant: (data, tokens) => this.playAssistant(aiMsg.id, data, tokens),
+        onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
+        onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => {},
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -135,6 +137,29 @@ Page({
   finishAssistant(id, content, disclaimer) {
     this.patchMessage(id, (msg) => ({ ...msg, content, disclaimer, streaming: false }))
     this.setData({ sending: false, canSend: this.data.inputValue.trim().length > 0 })
+  },
+
+  appendCard(kind, card) {
+    const message = {
+      id: ++this._msgSeq,
+      role: 'assistant',
+      kind,
+      card,
+      disclaimer: card.disclaimer,
+    }
+    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
+  },
+
+  onDoctorSelected(selection) {
+    const { doctorId, name } = selection
+    this.sendText(`我想选择${name}医生（doctor_id: ${doctorId}），请查询可预约时段`)
+  },
+
+  onSlotSelected(selection) {
+    const { scheduleId, scheduleDate, timeSlot } = selection
+    this.sendText(
+      `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}）`
+    )
   },
 
   showRedFlag(id, data) {
