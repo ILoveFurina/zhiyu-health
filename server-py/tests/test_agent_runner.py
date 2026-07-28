@@ -13,14 +13,16 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatResult
 
-from app.agent.runner import LangGraphAgentRunner
+from app.agent.runner import AgentContext, LangGraphAgentRunner
 
 
 def _collect(runner: LangGraphAgentRunner, messages: list[dict[str, str]]) -> str:
     async def run() -> str:
         parts = [
             output.data
-            async for output in runner.astream_reply(messages, "low")
+            async for output in runner.astream_reply(
+                messages, "low", AgentContext(patient_id=12, conversation_id=7)
+            )
             if output.event == "token" and isinstance(output.data, str)
         ]
         return "".join(parts)

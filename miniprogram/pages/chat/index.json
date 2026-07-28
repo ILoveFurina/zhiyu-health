@@ -3,6 +3,7 @@
   "titleBarColor": "#e9f6f2",
   "usingComponents": {
     "ai-disclaimer": "/components/ai-disclaimer/index",
-    "doctor-card": "/components/doctor-card/index"
+    "doctor-card": "/components/doctor-card/index",
+    "appointment-card": "/components/appointment-card/index"
   }
 }

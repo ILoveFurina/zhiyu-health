@@ -24,14 +24,24 @@ from app.services.reasoning import ReasoningEffort
 
 
 @dataclass(frozen=True)
+class AgentContext:
+    """由 server-java 注入且不暴露给模型的可信业务身份。"""
+
+    patient_id: int
+    conversation_id: int
+
+
+@dataclass(frozen=True)
 class AgentOutput:
-    event: Literal["token", "doctor_recommendations", "doctor_slots"]
+    event: Literal[
+        "token", "doctor_recommendations", "doctor_slots", "appointment", "appointments"
+    ]
     data: str | dict[str, Any]
 
 
 class AgentRunner(Protocol):
     def astream_reply(
-        self, messages: list[dict[str, str]], effort: ReasoningEffort
+        self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
         """按给定推理档位流式产出文本 token 或结构化工具结果。"""
         ...
@@ -56,16 +66,21 @@ class LangGraphAgentRunner:
     def _graph(self, effort: ReasoningEffort) -> CompiledStateGraph[Any, Any, Any, Any]:
         if effort not in self._graphs:
             self._graphs[effort] = create_agent(
-                self._model_factory(effort), tools=self._tools, system_prompt=SYSTEM_PROMPT
+                self._model_factory(effort),
+                tools=self._tools,
+                system_prompt=SYSTEM_PROMPT,
+                context_schema=AgentContext,
             )
         return self._graphs[effort]
 
     async def astream_reply(
-        self, messages: list[dict[str, str]], effort: ReasoningEffort
+        self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
         graph = self._graph(effort)
         lc_messages = _to_lc_messages(messages)
-        async for item in graph.astream({"messages": lc_messages}, stream_mode="messages"):
+        async for item in graph.astream(
+            {"messages": lc_messages}, context=context, stream_mode="messages"
+        ):
             if not isinstance(item, tuple):
                 continue
             chunk, metadata = item
@@ -89,11 +104,15 @@ class LangGraphAgentRunner:
 
 def _tool_event(
     tool_name: str | None,
-) -> Literal["doctor_recommendations", "doctor_slots"] | None:
+) -> Literal["doctor_recommendations", "doctor_slots", "appointment", "appointments"] | None:
     if tool_name == "recommend_doctors":
         return "doctor_recommendations"
     if tool_name == "get_doctor_slots":
         return "doctor_slots"
+    if tool_name == "create_appointment":
+        return "appointment"
+    if tool_name == "get_appointment":
+        return "appointments"
     return None
 
 
@@ -133,9 +152,9 @@ class LazySettingsAgentRunner:
         self._tools = tools
 
     async def astream_reply(
-        self, messages: list[dict[str, str]], effort: ReasoningEffort
+        self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
         if self._runner is None:
             self._runner = build_langgraph_agent_runner(get_settings(), self._tools)
-        async for output in self._runner.astream_reply(messages, effort):
+        async for output in self._runner.astream_reply(messages, effort, context):
             yield output

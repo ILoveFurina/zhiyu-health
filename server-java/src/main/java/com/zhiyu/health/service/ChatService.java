@@ -78,6 +78,8 @@ public class ChatService {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         Map<String, Object> body = new HashMap<>();
         body.put("messages", conversations.recentContext(conversation.getId()));
+        body.put("patient_id", conversation.getPatientId());
+        body.put("conversation_id", conversation.getId());
         body.put("effort", blankToDefault(effort, "auto"));
         body.put("scenario", blankToDefault(scenario, "triage"));
 

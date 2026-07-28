@@ -1,0 +1,20 @@
+<view class="card">
+  <view class="success-title">✓ {{kind === 'appointment' ? '挂号成功' : '我的挂号'}}</view>
+
+  <view a:if="{{kind === 'appointment'}}" class="appointment">
+    <view class="doctor">{{card.department_name}} · {{card.doctor_name}}医生</view>
+    <view class="meta">{{card.schedule_date}} {{card.time_slot}} · 第 {{card.sequence_number}} 号</view>
+    <view class="summary-notice">{{card.notice}}</view>
+    <view class="summary">病情摘要：{{card.condition_summary}}</view>
+    <ai-disclaimer text="{{card.summary_disclaimer || card.disclaimer}}" />
+  </view>
+
+  <view a:else>
+    <view a:for="{{card.appointments}}" a:key="appointment_id" class="appointment">
+      <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
+      <view class="meta">{{item.schedule_date}} {{item.time_slot}} · {{item.status}}</view>
+    </view>
+    <view a:if="{{card.appointments.length === 0}}" class="empty">暂无挂号</view>
+    <ai-disclaimer text="{{card.disclaimer}}" />
+  </view>
+</view>

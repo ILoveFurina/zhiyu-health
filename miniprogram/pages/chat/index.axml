@@ -7,6 +7,7 @@
   >
     <!-- 空状态：问候 + 3 个推荐提示词（导诊/用药注意/健康管理各一） -->
     <view a:if="{{messages.length === 0}}" class="empty">
+      <view class="appointments-link" onTap="openAppointments">我的挂号</view>
       <view class="mascot">✚</view>
       <view class="greet">你好，我是<text class="brand">小愈</text></view>
       <view class="greet-sub">描述症状，我帮你找到合适的科室</view>
@@ -39,6 +40,12 @@
         card="{{item.card}}"
         onSelectDoctor="onDoctorSelected"
         onSelectSlot="onSlotSelected"
+      />
+
+      <appointment-card
+        a:elif="{{item.kind === 'appointment' || item.kind === 'appointments'}}"
+        kind="{{item.kind}}"
+        card="{{item.card}}"
       />
 
       <view a:else class="bubble ai" id="msg-{{item.id}}">

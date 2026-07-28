@@ -1,0 +1,64 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.state {
+  padding-top: 180rpx;
+  color: #999;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.card {
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+}
+
+.doctor {
+  flex: 1;
+  color: #222;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.status {
+  color: #999;
+  font-size: 23rpx;
+}
+
+.status.booked {
+  color: #0e8a7d;
+}
+
+.meta,
+.number,
+.summary {
+  margin-top: 12rpx;
+  color: #666;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.summary {
+  color: #333;
+}
+
+.cancel {
+  margin-top: 20rpx;
+  padding: 13rpx 0;
+  border: 1rpx solid #e64545;
+  border-radius: 28rpx;
+  color: #e64545;
+  font-size: 24rpx;
+  text-align: center;
+}

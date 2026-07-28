@@ -26,6 +26,8 @@ async def chat(body: AgentChatRequest, request: Request) -> StreamingResponse:
     chat_service = request.app.state.chat_service
     events = chat_service.stream(
         messages=[{"role": m.role, "content": m.content} for m in body.messages],
+        patient_id=body.patient_id,
+        conversation_id=body.conversation_id,
         effort_choice=body.effort,
         scenario=body.scenario,
     )

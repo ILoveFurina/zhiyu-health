@@ -1,0 +1,47 @@
+.card {
+  margin: 16rpx 0;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.success-title {
+  color: #0e8a7d;
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.appointment {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #eee;
+}
+
+.appointment:last-child {
+  border-bottom: 0;
+}
+
+.doctor {
+  color: #222;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.meta,
+.summary,
+.empty {
+  margin-top: 8rpx;
+  color: #999;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.summary-notice {
+  display: inline-block;
+  margin-top: 14rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 18rpx;
+  background: #e9f6f2;
+  color: #0e8a7d;
+  font-size: 23rpx;
+}
