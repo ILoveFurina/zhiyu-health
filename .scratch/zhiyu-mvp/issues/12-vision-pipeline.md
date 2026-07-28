@@ -2,7 +2,7 @@
 
 **What to build:** 多模态视觉管道：上传（拍照/相册/PDF 文件；文字型 PDF 可抽取文本，扫描型 PDF 用 PyMuPDF 逐页栅格化后交 vision）→ vision 解读 → 结构化通俗解读卡片 + 免责声明标注，并将解读结果持久化。此管道封装为可复用服务，拍药盒/拍皮肤/拍饮食/拍舌苔四票全部复用它。报告解读支持多页报告。
 
-**Blocked by:** 04 — Agent 对话主干
+**Blocked by:** 31 — 票 04 拆分迁移
 
 **Status:** ready-for-agent
 

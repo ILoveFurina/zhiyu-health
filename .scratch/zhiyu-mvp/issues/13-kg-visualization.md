@@ -2,7 +2,7 @@
 
 **What to build:** Neo4j 图谱五类节点（症状/疾病/科室/药品/禁忌）数据全量 seed；`traverse_graph` 工具接入 Agent（检索时沿边一跳扩展，GraphRAG 雏形）；B 端"医学知识图谱"页：ECharts 力导向图渲染全图，点击节点看详情。
 
-**Blocked by:** 02 — B 端认证与组织管理；10 — RAG 知识库
+**Blocked by:** 29 — 票 02 业务迁移（Java）；10 — RAG 知识库
 
 **Status:** ready-for-agent
 

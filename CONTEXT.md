@@ -1,6 +1,6 @@
 # 智愈（zhiyu-health）
 
-AI 驱动的全链路医疗健康平台：C 端支付宝原生小程序（医疗 AI Agent）+ B 端医生/医院管理后台（Vue3），后端为全 Python（FastAPI）单体。两周 demo 项目，评审交付。
+AI 驱动的全链路医疗健康平台：C 端支付宝原生小程序（医疗 AI Agent）+ B 端 React 管理后台，后端双栈：Java 业务后端（server-java）+ Python Agent 层（server-py）（ADR-0009）。两周 demo 项目，评审交付。
 
 ## Language
 
@@ -11,6 +11,22 @@ _Avoid_: 患者端、用户端、小程序端
 **B端**:
 面向医生与医院运营者的管理后台，为 C 端 Agent 提供数据支撑与服务能力。
 _Avoid_: 管理端、运营后台、医生端
+
+**业务后端**:
+Java 服务（`server-java/`），平台唯一对外入口与唯一业务写入方：鉴权、审计、规则引擎、号源扣减、B 端全部 API 与 C 端业务 API。对话请求也由它流式转发给 Agent 层。
+_Avoid_: "后端"（双栈语境下必须指明哪端）
+
+**Agent 层**:
+Python 服务（`server-py/`），承载 LangGraph 对话编排、LLM/语音对接与医学知识检索（Neo4j/pgvector 直连只读），无业务写入权，业务数据一律经工具回调业务后端。
+_Avoid_: AI 后端、Agent 后端
+
+**统一入口**:
+端侧一切请求（含 C 端对话）都先进业务后端的架构约定：鉴权、审计、限流只此一处；对话由业务后端 SSE 流式调 Agent 层，token 逐跳透传。
+_Avoid_: 直连 Agent 层
+
+**工具回调**:
+Agent 层的业务工具经 HTTP 调用业务后端读写业务数据的链路。知识检索（Neo4j/pgvector）不属于工具回调，由 Agent 层直连只读。
+_Avoid_: 反向调用、内部 API（泛指时）
 
 **智能导诊**:
 C 端 Agent 的核心流程：症状描述 → 追问 → 科室推荐 → 医生推荐 → 完成挂号。

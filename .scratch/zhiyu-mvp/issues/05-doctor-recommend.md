@@ -2,7 +2,7 @@
 
 **What to build:** Agent 工具链首批业务工具上线：`recommend_doctors`（按科室查有号医生）、`get_doctor_slots`（查排班剩余号源）；对话中输出结构化医生推荐卡片（照片/职称/擅长/剩余号源），用户可在卡片上选医生、选时段。情感化人设 system prompt 第一版随此票落地。
 
-**Blocked by:** 03 — 排班与号源池；04 — Agent 对话主干
+**Blocked by:** 30 — 票 03 业务迁移（Java）；31 — 票 04 拆分迁移
 
 **Status:** ready-for-agent
 

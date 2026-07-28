@@ -2,7 +2,7 @@
 
 **What to build:** RAG 落地：策划 15–20 个症状场景知识数据（LLM 辅助 + 人工校对），经 doubao-embedding-vision 向量化入 pgvector；`search_knowledge` 工具接入 Agent，导诊回答先检索后生成；检索增强做成可开关（供演示对比裸 LLM vs 知识增强）。
 
-**Blocked by:** 04 — Agent 对话主干
+**Blocked by:** 31 — 票 04 拆分迁移
 
 **Status:** ready-for-agent
 

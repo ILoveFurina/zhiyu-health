@@ -1,8 +1,13 @@
 {
-  "miniprogramRoot": "./",
-  "projectname": "zhiyu-miniprogram",
-  "component2": true,
+  "format": 2,
   "compileOptions": {
     "component2": true
+  },
+  "miniprogramRoot": "./",
+  "unknownConfig": {
+    "projectname": "zhiyu-miniprogram",
+    "compileOptions": {
+      "component2": true
+    }
   }
 }
