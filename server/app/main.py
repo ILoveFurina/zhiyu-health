@@ -1,65 +1,93 @@
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.engine import Engine
+from sqlalchemy import Engine
 
-from app.agent.runner import AgentRunner, build_langgraph_agent_runner
+from app.agent.runner import AgentRunner, LazySettingsAgentRunner
+from app.api.b.auth import router as auth_router
+from app.api.b.organization import router as organization_router
+from app.api.b.schedule import router as schedule_router
 from app.api.c.auth import router as c_auth_router
 from app.api.c.chat import router as c_chat_router
 from app.api.health import router as health_router
 from app.config import get_settings, get_web_settings
-from app.db.base import Base
-from app.db.clients import StorageClients, create_storage_clients
-from app.models import Conversation, Message, Patient  # noqa: F401  # 注册建表元数据
-from app.services.auth import PatientService, TokenService
+from app.db.clients import create_storage_clients
+from app.db.seed import initialize_database
 from app.services.chat import ChatService
 from app.services.conversation import ConversationService
 from app.services.health import HealthChecker, HealthService
+from app.services.patient import PatientService, PatientTokenService
 from app.services.red_flag import RedFlagService
+from app.services.schedule import SlotCounter
 
 
 def create_app(
     health_service: HealthChecker | None = None,
+    database_engine: Engine | None = None,
+    redis_client: SlotCounter | None = None,
     *,
-    engine: Engine | None = None,
+    seed_database: bool = False,
+    jwt_secret: str | None = None,
+    seed_admin_password: str | None = None,
+    seed_doctor_password: str | None = None,
     agent_runner: AgentRunner | None = None,
-    token_secret: str | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        clients: StorageClients | None = None
-        if engine is None:
-            # 生产装配：存储与 LLM 全部来自 settings
-            settings = get_settings()
-            clients = create_storage_clients(settings)
-            pg_engine = clients.postgres
-            runner = agent_runner or build_langgraph_agent_runner(settings)
-            secret, expire_minutes = settings.jwt_secret, settings.jwt_expire_minutes
-            app.state.health_service = health_service or HealthService(clients)
-        else:
-            # 测试装配：外部注入测试库、fake Agent 与固定令牌密钥
-            if agent_runner is None:
-                raise ValueError("注入 engine 时必须同时注入 agent_runner")
-            pg_engine = engine
-            runner = agent_runner
-            secret, expire_minutes = token_secret or "test-secret", 720
+        app.state.jwt_secret = jwt_secret or secrets.token_urlsafe(32)
+        if redis_client is not None:
+            app.state.redis_client = redis_client
+        if database_engine is not None:
+            app.state.database_engine = database_engine
+            initialize_database(
+                database_engine,
+                with_seed=seed_database,
+                admin_password=seed_admin_password,
+                doctor_password=seed_doctor_password,
+            )
             if health_service is not None:
                 app.state.health_service = health_service
+            _wire_c_side(app, database_engine, agent_runner)
+            yield
+            database_engine.dispose()
+            return
+        if health_service is not None:
+            app.state.health_service = health_service
+            yield
+            return
 
-        Base.metadata.create_all(pg_engine)
-        app.state.token_service = TokenService(secret, expire_minutes)
-        app.state.patient_service = PatientService(pg_engine)
-        app.state.conversation_service = ConversationService(pg_engine)
-        app.state.chat_service = ChatService(
-            app.state.conversation_service, RedFlagService(), runner
+        settings = get_settings()
+        clients = create_storage_clients(settings)
+        app.state.health_service = HealthService(clients)
+        app.state.database_engine = clients.postgres
+        app.state.redis_client = clients.redis
+        app.state.jwt_secret = (
+            settings.jwt_secret.get_secret_value()
+            if settings.jwt_secret is not None
+            else app.state.jwt_secret
         )
+        initialize_database(
+            clients.postgres,
+            with_seed=seed_database,
+            admin_password=(
+                settings.seed_admin_password.get_secret_value()
+                if settings.seed_admin_password is not None
+                else None
+            ),
+            doctor_password=(
+                settings.seed_doctor_password.get_secret_value()
+                if settings.seed_doctor_password is not None
+                else None
+            ),
+        )
+        _wire_c_side(app, clients.postgres, agent_runner, settings.jwt_expire_minutes)
         try:
             yield
         finally:
-            if clients is not None:
-                await clients.close()
+            await clients.close()
 
     application = FastAPI(title="智愈 API", lifespan=lifespan)
     application.add_middleware(
@@ -70,9 +98,28 @@ def create_app(
         allow_headers=["*"],
     )
     application.include_router(health_router, prefix="/api")
+    application.include_router(auth_router, prefix="/api")
+    application.include_router(organization_router, prefix="/api")
+    application.include_router(schedule_router, prefix="/api")
     application.include_router(c_auth_router, prefix="/api")
     application.include_router(c_chat_router, prefix="/api")
     return application
 
 
-app = create_app()
+def _wire_c_side(
+    app: FastAPI,
+    engine: Engine,
+    agent_runner: AgentRunner | None,
+    expire_minutes: int = 720,
+) -> None:
+    """装配 C 端服务：mock 登录、会话持久化、对话编排（LLM seam 可注入 fake）。"""
+    runner = agent_runner or LazySettingsAgentRunner()
+    app.state.patient_token_service = PatientTokenService(app.state.jwt_secret, expire_minutes)
+    app.state.patient_service = PatientService(engine)
+    app.state.conversation_service = ConversationService(engine)
+    app.state.chat_service = ChatService(
+        app.state.conversation_service, RedFlagService(), runner
+    )
+
+
+app = create_app(seed_database=True)

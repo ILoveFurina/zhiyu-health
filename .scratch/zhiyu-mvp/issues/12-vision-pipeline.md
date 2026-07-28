@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] 图片与 PDF 上传链路（wx.chooseMedia / wx.chooseMessageFile）
+- [ ] 图片与 PDF 上传链路（my.chooseImage / my.chooseFileFromDisk 或等价支付宝 API）
 - [ ] 文字型 PDF 抽取文本；扫描型 PDF 用 PyMuPDF 逐页栅格化为图片后交 vision 处理（含多页）
 - [ ] 报告解读结构化卡片输出 + 免责声明标注
 - [ ] report_interpretations 表先按 patient/session 持久化原文件类型、结构化解读结果与免责声明；票 21 建档后再关联当前 health_profile 供档案时间线查询

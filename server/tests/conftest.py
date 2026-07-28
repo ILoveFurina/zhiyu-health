@@ -1,25 +1,18 @@
-"""测试基座：独立测试库（TEST_DATABASE_URL，不得复用演示数据）+ fake Agent。
+"""测试基座：临时 SQLite 库（与 B 端测试同模式）+ fake Agent。
 
 seam 纪律：主 seam 为 FastAPI HTTP API 层；LLM 以 FakeAgentRunner 替换，
 断言它对多轮上下文与推理档位的接收情况以及业务副作用（消息落库）。
 """
 
-import os
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
 
-from app.db.base import Base
 from app.main import create_app
-
-load_dotenv()
-
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 
 class StubHealthService:
@@ -43,24 +36,16 @@ class FakeAgentRunner:
 
 
 @pytest.fixture
-def engine() -> Iterator[Engine]:
-    if not TEST_DATABASE_URL:
-        pytest.skip("TEST_DATABASE_URL 未配置，跳过数据库测试")
-    test_engine = create_engine(TEST_DATABASE_URL)
-    Base.metadata.drop_all(test_engine)
-    Base.metadata.create_all(test_engine)
-    yield test_engine
-    test_engine.dispose()
-
-
-@pytest.fixture
-def harness(engine: Engine) -> Iterator[SimpleNamespace]:
+def harness(tmp_path: Path) -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'chat.db'}", connect_args={"check_same_thread": False}
+    )
     app = create_app(
         health_service=StubHealthService(),
-        engine=engine,
+        database_engine=engine,
+        jwt_secret="test-secret-test-secret-test-secret",
         agent_runner=fake_agent,
-        token_secret="test-secret-test-secret-test-secret",
     )
     with TestClient(app) as client:
         yield SimpleNamespace(client=client, agent=fake_agent, engine=engine)

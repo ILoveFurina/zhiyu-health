@@ -4,15 +4,15 @@
 
 ## 项目
 
-智愈（zhiyu-health）：医疗 B+C 平台 demo。C 端微信小程序（医疗 AI Agent）、B 端 Vue3 管理后台、FastAPI 单体后端。周期两周，评审交付。
+智愈（zhiyu-health）：医疗 B+C 平台 demo。C 端支付宝小程序（医疗 AI Agent）、B 端 Vue3 管理后台、FastAPI 单体后端。周期两周，评审交付。
 
 ## 技术栈（锁死，不得擅自替换）
 
 - 后端：Python 3.12+ / FastAPI / SQLAlchemy / uv 管理依赖（`pyproject.toml` 声明依赖，`uv.lock` 锁定精确解析版本并入库）
 - Agent：LangChain + LangGraph。**生成相关代码必须对照 `uv.lock` 中的实际版本及对应官方文档，禁止凭记忆混用新旧 API**
-- LLM：火山方舟（OpenAI 兼容协议）。对话/视觉 `doubao-seed-2.1-turbo`，embedding `doubao-embedding-vision`。C 端对话推理档默认自动（场景分配：导诊低、解读高）
+- LLM：火山方舟（OpenAI 兼容协议）。对话/视觉 `doubao-seed-2.1-turbo`，embedding `doubao-embedding-vision`。C 端对话推理档默认自动（场景分配：导诊低、解读高）。语音识别/TTS 用火山引擎语音服务（小程序录音 → 识别 REST → 文本进对话），与火山方舟同账号体系
 - 存储：PostgreSQL 16 + pgvector（业务 + 向量）/ Redis（号源计数、缓存）/ Neo4j（仅医学知识图谱）
-- 前端：微信原生小程序 + Vant Weapp；Vue3 + Element Plus + Vite
+- 前端：支付宝原生小程序 + antd-mini；Vue3 + Element Plus + Vite
 - schema 管理：`create_all` + 幂等 seed，不使用 Alembic；开发期 schema 演进统一执行 drop + recreate + seed，不在旧表上做隐式迁移
 
 ## 分层纪律

@@ -1,50 +1,38 @@
-"""C 端 mock 登录与令牌（免注册即得患者身份，登录本身为 Mock 边界）。"""
-
 from datetime import UTC, datetime, timedelta
 
 import jwt
+from pwdlib import PasswordHash
 from sqlalchemy import select
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from app.models import Patient
+from app.models.staff import StaffUser
+
+password_hash = PasswordHash.recommended()
 
 
-class TokenService:
-    def __init__(self, secret: str, expire_minutes: int = 720) -> None:
-        self._secret = secret
-        self._expire_minutes = expire_minutes
+class AuthService:
+    def __init__(self, session: Session, jwt_secret: str) -> None:
+        self.session = session
+        self.jwt_secret = jwt_secret
 
-    def issue(self, patient_id: int) -> str:
-        now = datetime.now(UTC)
-        payload = {
-            "sub": str(patient_id),
-            "iat": now,
-            "exp": now + timedelta(minutes=self._expire_minutes),
-        }
-        return jwt.encode(payload, self._secret, algorithm="HS256")
+    def authenticate(self, username: str, password: str) -> StaffUser | None:
+        staff = self.session.scalar(select(StaffUser).where(StaffUser.username == username))
+        if staff is None or not password_hash.verify(password, staff.password_hash):
+            return None
+        return staff
 
-    def verify(self, token: str) -> int:
-        """校验失败抛 jwt.InvalidTokenError，由调用方转换为 401。"""
-        payload = jwt.decode(token, self._secret, algorithms=["HS256"])
-        return int(payload["sub"])
+    def create_access_token(self, staff: StaffUser) -> str:
+        expires_at = datetime.now(UTC) + timedelta(hours=8)
+        return jwt.encode(
+            {"sub": str(staff.id), "role": staff.role.value, "exp": expires_at},
+            self.jwt_secret,
+            algorithm="HS256",
+        )
 
-
-class PatientService:
-    def __init__(self, engine: Engine) -> None:
-        self._engine = engine
-
-    def mock_login(self, nickname: str) -> Patient:
-        """免注册登录：按昵称取或建患者。"""
-        with Session(self._engine) as session:
-            patient = session.scalar(select(Patient).where(Patient.nickname == nickname))
-            if patient is None:
-                patient = Patient(nickname=nickname)
-                session.add(patient)
-                session.commit()
-                session.refresh(patient)
-            return patient
-
-    def get(self, patient_id: int) -> Patient | None:
-        with Session(self._engine) as session:
-            return session.get(Patient, patient_id)
+    def resolve_token(self, token: str) -> StaffUser | None:
+        try:
+            payload = jwt.decode(token, self.jwt_secret, algorithms=["HS256"])
+            staff_id = int(payload["sub"])
+        except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
+            return None
+        return self.session.get(StaffUser, staff_id)

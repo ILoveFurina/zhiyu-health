@@ -10,6 +10,7 @@ dependencies = [
     "langgraph>=0.6,<2",
     "neo4j>=5,<7",
     "psycopg[binary]>=3.2,<4",
+    "pwdlib[argon2]>=0.2,<1",
     "pydantic-settings>=2.10,<3",
     "pyjwt>=2.10,<3",
     "redis>=6,<8",

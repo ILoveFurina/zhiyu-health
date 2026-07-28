@@ -16,7 +16,7 @@ from langgraph.graph.state import CompiledStateGraph
 from pydantic import SecretStr
 
 from app.agent.prompts import SYSTEM_PROMPT
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.services.reasoning import ReasoningEffort
 
 
@@ -82,3 +82,22 @@ def build_langgraph_agent_runner(settings: Settings) -> LangGraphAgentRunner:
         )
 
     return LangGraphAgentRunner(model_factory)
+
+
+class LazySettingsAgentRunner:
+    """首次调用时才从 settings 构建生产 runner。
+
+    让注入装配路径（测试用 SQLite + 不配置方舟环境变量）不依赖 settings，
+    只有真正命中对话接口才读取方舟配置。
+    """
+
+    def __init__(self) -> None:
+        self._runner: LangGraphAgentRunner | None = None
+
+    async def astream_reply(
+        self, messages: list[dict[str, str]], effort: ReasoningEffort
+    ) -> AsyncIterator[str]:
+        if self._runner is None:
+            self._runner = build_langgraph_agent_runner(get_settings())
+        async for token in self._runner.astream_reply(messages, effort):
+            yield token
