@@ -10,6 +10,10 @@ import java.time.OffsetDateTime;
 @TableName("messages")
 public class Message {
 
+    public static final String KIND_TEXT = "text";
+    public static final String KIND_DOCTOR_RECOMMENDATIONS = "doctor_recommendations";
+    public static final String KIND_DOCTOR_SLOTS = "doctor_slots";
+
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long conversationId;
@@ -45,4 +49,8 @@ public class Message {
     public void setEffort(String effort) { this.effort = effort; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+
+    public static boolean isAiCardKind(String kind) {
+        return KIND_DOCTOR_RECOMMENDATIONS.equals(kind) || KIND_DOCTOR_SLOTS.equals(kind);
+    }
 }

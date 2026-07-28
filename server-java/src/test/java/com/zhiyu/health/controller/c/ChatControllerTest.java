@@ -78,6 +78,10 @@ class ChatControllerTest {
                 java.util.Map.of("role", "user", "content", "你好")));
         when(conversations.appendMessage(7L, "assistant", "请问哪里不舒服？", "text", "low"))
                 .thenReturn(new Message(10L, 7L, "assistant", "text", "请问哪里不舒服？", "low"));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(),
+                eq("doctor_recommendations"), isNull()))
+                .thenReturn(new Message(
+                        11L, 7L, "assistant", "doctor_recommendations", "{}", null));
         when(agentClient.chat(anyMap())).thenReturn(Flux.just(
                 ServerSentEvent.builder("{\"effort\": \"low\"}").event("meta").build(),
                 ServerSentEvent.builder("{\"text\": \"你好\"}").event("token").build(),
@@ -115,7 +119,7 @@ class ChatControllerTest {
         int cardStart = body.indexOf("event:doctor_recommendations");
         int cardEnd = body.indexOf("event:message", cardStart);
         assertThat(body.substring(cardStart, cardEnd))
-                .contains("\"doctor_id\":2", "仅供参考，不替代医生诊断");
+                .contains("\"doctor_id\":2", "仅供参考，不替代医生诊断", "\"message_id\":11");
         assertThat(body).contains("event:message", "仅供参考，不替代医生诊断", "\"message_id\":10");
         assertThat(body).contains("event:done");
     }

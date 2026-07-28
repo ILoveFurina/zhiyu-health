@@ -90,6 +90,9 @@ public class ConversationService {
     public List<Map<String, String>> recentContext(Long conversationId) {
         List<Message> newestFirst = messageMapper.selectList(new LambdaQueryWrapper<Message>()
                 .eq(Message::getConversationId, conversationId)
+                // 卡片 JSON 用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文。
+                .notIn(Message::getKind,
+                        Message.KIND_DOCTOR_RECOMMENDATIONS, Message.KIND_DOCTOR_SLOTS)
                 .orderByDesc(Message::getId)
                 .last("LIMIT " + CONTEXT_MESSAGE_LIMIT));
         List<Message> chronological = new ArrayList<>(newestFirst);
@@ -100,7 +103,9 @@ public class ConversationService {
     }
 
     private boolean isAiOutput(Message message) {
-        return "assistant".equals(message.getRole()) && "text".equals(message.getKind());
+        return "assistant".equals(message.getRole())
+                && (Message.KIND_TEXT.equals(message.getKind())
+                || Message.isAiCardKind(message.getKind()));
     }
 
     public record MessageView(
