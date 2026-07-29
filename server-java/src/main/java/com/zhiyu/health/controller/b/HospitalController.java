@@ -1,9 +1,7 @@
 package com.zhiyu.health.controller.b;
 
-import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Hospital;
 import com.zhiyu.health.service.OrganizationService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -23,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 医院管理：仅 admin 角色可操作，业务在 OrganizationService */
+/** 医院管理：仅 admin 角色可操作（AdminInterceptor），业务在 OrganizationService */
 @RestController
 @RequestMapping("/api/b/hospitals")
 @RequiredArgsConstructor
@@ -39,38 +37,27 @@ public class HospitalController {
             @NotNull @DecimalMin("-90") @DecimalMax("90") Double latitude) {}
 
     @GetMapping
-    public List<Hospital> list(HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public List<Hospital> list() {
         return organizationService.listHospitals();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Hospital create(@Validated @RequestBody HospitalInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public Hospital create(@Validated @RequestBody HospitalInput input) {
         return organizationService.createHospital(toEntity(new Hospital(), input));
     }
 
     @PutMapping("/{id}")
-    public Hospital update(
-            @PathVariable long id, @Validated @RequestBody HospitalInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public Hospital update(@PathVariable long id, @Validated @RequestBody HospitalInput input) {
         Hospital hospital = toEntity(new Hospital(), input);
         hospital.setId(id);
-        Hospital updated = organizationService.updateHospital(hospital);
-        if (updated == null) {
-            throw new ApiException(404, "医院不存在");
-        }
-        return updated;
+        return organizationService.updateHospital(hospital);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        if (!organizationService.deleteHospital(id)) {
-            throw new ApiException(404, "医院不存在");
-        }
+    public void delete(@PathVariable long id) {
+        organizationService.deleteHospital(id);
     }
 
     private Hospital toEntity(Hospital hospital, HospitalInput input) {

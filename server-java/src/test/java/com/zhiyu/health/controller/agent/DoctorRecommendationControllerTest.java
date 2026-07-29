@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.agent;
 
+import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.service.DoctorRecommendationService;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DoctorRecommendationController.class)
 class DoctorRecommendationControllerTest {
 
+    /** 与 src/test/resources/application.properties 的回调密钥一致 */
+    private static final String CALLBACK_SECRET = "test-only-agent-callback-secret";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -34,6 +38,7 @@ class DoctorRecommendationControllerTest {
                         "https://example.com/demo/zhou.jpg", 5)));
 
         mockMvc.perform(get("/api/agent/doctors/recommend")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
                         .param("department_name", "心血管内科"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.doctors.length()").value(1))
@@ -52,7 +57,8 @@ class DoctorRecommendationControllerTest {
                 new DoctorRecommendationService.DoctorSlot(
                         9L, LocalDate.of(2026, 7, 29), TimeSlot.MORNING, 3)));
 
-        mockMvc.perform(get("/api/agent/doctors/2/slots"))
+        mockMvc.perform(get("/api/agent/doctors/2/slots")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.doctor_id").value(2))
                 .andExpect(jsonPath("$.slots.length()").value(1))

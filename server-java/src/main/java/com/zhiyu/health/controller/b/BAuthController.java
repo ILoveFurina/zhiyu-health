@@ -4,13 +4,13 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,9 +40,8 @@ public class BAuthController {
     }
 
     @GetMapping("/me")
-    public StaffProfile me(HttpServletRequest request) {
-        String subject = (String) request.getAttribute(AuthFilter.ATTR_AUTH_SUBJECT);
-        StaffUser staff = authService.profile(Long.parseLong(subject));
+    public StaffProfile me(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
+        StaffUser staff = authService.profile(staffId);
         if (staff == null) {
             throw new ApiException(401, "登录已失效");
         }

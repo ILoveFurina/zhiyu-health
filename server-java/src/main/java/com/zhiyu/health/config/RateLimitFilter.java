@@ -38,9 +38,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         });
 
         if (window.count.get() > permitsPerMinute) {
-            response.setStatus(429);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"detail\": \"请求过于频繁\"}");
+            ApiErrorBody.write(response, 429, "请求过于频繁");
             return;
         }
         filterChain.doFilter(request, response);

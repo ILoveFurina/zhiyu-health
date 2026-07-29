@@ -3,16 +3,13 @@ package com.zhiyu.health.config;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import javax.crypto.SecretKey;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * JWT 鉴权：只拦 /api/c/** 与 /api/b/**，放行 /api/health 与登录端点。
@@ -28,7 +25,7 @@ public class AuthFilter extends OncePerRequestFilter {
     private final SecretKey key;
 
     public AuthFilter(String jwtSecret) {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        this.key = JwtKeys.hmacShaKey(jwtSecret);
     }
 
     @Override
@@ -42,8 +39,8 @@ public class AuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
             reject(response);
@@ -73,8 +70,6 @@ public class AuthFilter extends OncePerRequestFilter {
     }
 
     private void reject(HttpServletResponse response) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"detail\": \"未认证或令牌无效\"}");
+        ApiErrorBody.write(response, HttpServletResponse.SC_UNAUTHORIZED, "未认证或令牌无效");
     }
 }

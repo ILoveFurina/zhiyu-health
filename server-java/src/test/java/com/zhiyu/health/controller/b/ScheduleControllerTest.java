@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.entity.TimeSlot;
@@ -106,6 +107,9 @@ class ScheduleControllerTest {
 
     @Test
     void missingScheduleReturns404() throws Exception {
+        // 404 判定已下沉到 service；此处模拟 service 抛出，验证 advice 出口形状
+        when(scheduleService.getSchedule(99L)).thenThrow(new ApiException(404, "排班不存在"));
+
         mockMvc.perform(get("/api/b/schedules/99")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())

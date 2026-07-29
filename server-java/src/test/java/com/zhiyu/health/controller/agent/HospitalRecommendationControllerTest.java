@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.agent;
 
+import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.service.HospitalRecommendationService;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(ApiExceptionHandler.class)
 class HospitalRecommendationControllerTest {
 
+    /** 与 src/test/resources/application.properties 的回调密钥一致 */
+    private static final String CALLBACK_SECRET = "test-only-agent-callback-secret";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -36,6 +40,7 @@ class HospitalRecommendationControllerTest {
                         2L, "智愈市第二医院", "三级乙等", "智愈市江宁路 200 号", 2.4)));
 
         mockMvc.perform(get("/api/agent/hospitals/nearby")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
                         .param("longitude", "121.4737")
                         .param("latitude", "31.2304"))
                 .andExpect(status().isOk())
@@ -52,6 +57,7 @@ class HospitalRecommendationControllerTest {
     @Test
     void rejectsInvalidLongitude() throws Exception {
         mockMvc.perform(get("/api/agent/hospitals/nearby")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
                         .param("longitude", "200")
                         .param("latitude", "31.2304"))
                 .andExpect(status().isBadRequest());
@@ -60,6 +66,7 @@ class HospitalRecommendationControllerTest {
     @Test
     void rejectsInvalidLatitude() throws Exception {
         mockMvc.perform(get("/api/agent/hospitals/nearby")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
                         .param("longitude", "121.4737")
                         .param("latitude", "95"))
                 .andExpect(status().isBadRequest());

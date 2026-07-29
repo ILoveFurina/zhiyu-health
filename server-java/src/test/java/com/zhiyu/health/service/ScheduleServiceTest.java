@@ -1,5 +1,6 @@
 package com.zhiyu.health.service;
 
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DoctorMapper;
@@ -48,13 +49,15 @@ class ScheduleServiceTest {
     }
 
     @Test
-    void createDoesNothingWhenDoctorIsMissing() {
+    void createRejectsWhenDoctorIsMissing() {
         ScheduleService service = serviceWithImmediateTransaction();
         Schedule input = new Schedule();
         input.setDoctorId(99L);
         input.setTotalSlots(8);
 
-        assertThat(service.createSchedule(input)).isNull();
+        assertThatThrownBy(() -> service.createSchedule(input))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("医生不存在");
         verify(scheduleMapper, never()).insert(any(Schedule.class));
         assertThat(slotCounter.values).isEmpty();
     }
@@ -165,7 +168,8 @@ class ScheduleServiceTest {
         tooSmall.setDoctorId(1L);
         tooSmall.setTotalSlots(7);
         assertThatThrownBy(() -> service.updateSchedule(tooSmall))
-                .isInstanceOf(ScheduleCapacityException.class);
+                .isInstanceOf(ApiException.class)
+                .hasMessage("号源总数不能小于已使用号源数");
     }
 
     @Test

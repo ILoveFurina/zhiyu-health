@@ -2,6 +2,7 @@ package com.zhiyu.health.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.mapper.ConversationMapper;
@@ -35,7 +36,7 @@ public class ConversationService {
                     .eq(Conversation::getId, conversationId)
                     .eq(Conversation::getPatientId, patientId));
             if (found == null) {
-                throw new ConversationNotFoundException();
+                throw notFound();
             }
             return found;
         }
@@ -74,7 +75,7 @@ public class ConversationService {
     @Transactional
     public void deleteForPatient(Long conversationId, Long patientId) {
         if (getForPatient(conversationId, patientId) == null) {
-            throw new ConversationNotFoundException();
+            throw notFound();
         }
         conversationMapper.delete(new LambdaQueryWrapper<Conversation>()
                 .eq(Conversation::getId, conversationId)
@@ -84,7 +85,7 @@ public class ConversationService {
     /** 当前患者的消息输出；归属校验与免责声明语义都在业务层完成。 */
     public List<MessageView> listMessagesForPatient(Long conversationId, Long patientId) {
         if (getForPatient(conversationId, patientId) == null) {
-            throw new ConversationNotFoundException();
+            throw notFound();
         }
         return listMessages(conversationId).stream()
                 .filter(message -> !Message.KIND_REPORT_CONTEXT.equals(message.getKind()))
@@ -151,6 +152,11 @@ public class ConversationService {
     private boolean isAiOutput(Message message) {
         return "assistant".equals(message.getRole())
                 && (Message.KIND_TEXT.equals(message.getKind()) || Message.isAiCardKind(message.getKind()));
+    }
+
+    /** 归属/不存在一律 404，不区分原因以免泄露存在性（对齐票 27 决策 3）。 */
+    private static ApiException notFound() {
+        return new ApiException(404, "会话不存在");
     }
 
     public record MessageView(

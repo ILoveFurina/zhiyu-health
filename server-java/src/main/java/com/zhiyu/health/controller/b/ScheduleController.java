@@ -1,11 +1,8 @@
 package com.zhiyu.health.controller.b;
 
-import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.service.ScheduleCapacityException;
 import com.zhiyu.health.service.ScheduleService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -24,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 排班管理：仅 admin 角色可操作（AdminInterceptor），404/409 由 service 抛 ApiException */
 @RestController
 @RequestMapping("/api/b/schedules")
 @RequiredArgsConstructor
@@ -38,62 +36,37 @@ public class ScheduleController {
             @NotNull @Positive Integer totalSlots) {}
 
     @GetMapping
-    public List<Schedule> list(HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public List<Schedule> list() {
         return scheduleService.listSchedules();
     }
 
     @GetMapping("/{id}")
-    public Schedule get(@PathVariable long id, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        Schedule schedule = scheduleService.getSchedule(id);
-        if (schedule == null) {
-            throw new ApiException(404, "排班不存在");
-        }
-        return schedule;
+    public Schedule get(@PathVariable long id) {
+        return scheduleService.getSchedule(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Schedule create(@Valid @RequestBody ScheduleInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        Schedule created = scheduleService.createSchedule(toEntity(input));
-        if (created == null) {
-            throw new ApiException(404, "医生不存在");
-        }
-        return created;
+    public Schedule create(@Valid @RequestBody ScheduleInput input) {
+        return scheduleService.createSchedule(toEntity(input));
     }
 
     @PutMapping("/{id}")
-    public Schedule update(@PathVariable long id, @Valid @RequestBody ScheduleInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public Schedule update(@PathVariable long id, @Valid @RequestBody ScheduleInput input) {
         Schedule changes = toEntity(input);
         changes.setId(id);
-        try {
-            Schedule updated = scheduleService.updateSchedule(changes);
-            if (updated == null) {
-                throw new ApiException(404, "排班或医生不存在");
-            }
-            return updated;
-        } catch (ScheduleCapacityException exception) {
-            throw new ApiException(409, exception.getMessage());
-        }
+        return scheduleService.updateSchedule(changes);
     }
 
     @PatchMapping("/{id}/disable")
-    public Schedule disable(@PathVariable long id, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        Schedule disabled = scheduleService.disableSchedule(id);
-        if (disabled == null) {
-            throw new ApiException(404, "排班不存在");
-        }
-        return disabled;
+    public Schedule disable(@PathVariable long id) {
+        return scheduleService.disableSchedule(id);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id, HttpServletRequest request) {
-        disable(id, request);
+    public void delete(@PathVariable long id) {
+        disable(id);
     }
 
     private Schedule toEntity(ScheduleInput input) {

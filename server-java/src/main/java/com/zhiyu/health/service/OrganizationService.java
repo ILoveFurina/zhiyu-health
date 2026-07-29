@@ -1,6 +1,7 @@
 package com.zhiyu.health.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Department;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.entity.Hospital;
@@ -11,7 +12,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** 组织管理（医院/科室/医生）：外键归属在写入前校验，缺失返回 null 由 HTTP 层映射 404 */
+/** 组织管理（医院/科室/医生）：外键归属在写入前校验，缺失即抛 404，由 ApiExceptionHandler 统一出口 */
 @Service
 @RequiredArgsConstructor
 public class OrganizationService {
@@ -31,14 +32,16 @@ public class OrganizationService {
 
     public Hospital updateHospital(Hospital hospital) {
         if (hospitalMapper.selectById(hospital.getId()) == null) {
-            return null;
+            throw new ApiException(404, "医院不存在");
         }
         hospitalMapper.updateById(hospital);
         return hospitalMapper.selectById(hospital.getId());
     }
 
-    public boolean deleteHospital(long hospitalId) {
-        return hospitalMapper.deleteById(hospitalId) > 0;
+    public void deleteHospital(long hospitalId) {
+        if (hospitalMapper.deleteById(hospitalId) == 0) {
+            throw new ApiException(404, "医院不存在");
+        }
     }
 
     public List<Department> listDepartments() {
@@ -47,7 +50,7 @@ public class OrganizationService {
 
     public Department createDepartment(Department department) {
         if (hospitalMapper.selectById(department.getHospitalId()) == null) {
-            return null;
+            throw new ApiException(404, "医院不存在");
         }
         departmentMapper.insert(department);
         return department;
@@ -56,14 +59,16 @@ public class OrganizationService {
     public Department updateDepartment(Department department) {
         if (departmentMapper.selectById(department.getId()) == null
                 || hospitalMapper.selectById(department.getHospitalId()) == null) {
-            return null;
+            throw new ApiException(404, "科室或医院不存在");
         }
         departmentMapper.updateById(department);
         return departmentMapper.selectById(department.getId());
     }
 
-    public boolean deleteDepartment(long departmentId) {
-        return departmentMapper.deleteById(departmentId) > 0;
+    public void deleteDepartment(long departmentId) {
+        if (departmentMapper.deleteById(departmentId) == 0) {
+            throw new ApiException(404, "科室不存在");
+        }
     }
 
     public List<Doctor> listDoctors() {
@@ -72,7 +77,7 @@ public class OrganizationService {
 
     public Doctor createDoctor(Doctor doctor) {
         if (departmentMapper.selectById(doctor.getDepartmentId()) == null) {
-            return null;
+            throw new ApiException(404, "科室不存在");
         }
         doctorMapper.insert(doctor);
         return doctor;
@@ -81,13 +86,15 @@ public class OrganizationService {
     public Doctor updateDoctor(Doctor doctor) {
         if (doctorMapper.selectById(doctor.getId()) == null
                 || departmentMapper.selectById(doctor.getDepartmentId()) == null) {
-            return null;
+            throw new ApiException(404, "医生或科室不存在");
         }
         doctorMapper.updateById(doctor);
         return doctorMapper.selectById(doctor.getId());
     }
 
-    public boolean deleteDoctor(long doctorId) {
-        return doctorMapper.deleteById(doctorId) > 0;
+    public void deleteDoctor(long doctorId) {
+        if (doctorMapper.deleteById(doctorId) == 0) {
+            throw new ApiException(404, "医生不存在");
+        }
     }
 }

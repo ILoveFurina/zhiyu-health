@@ -1,9 +1,7 @@
 package com.zhiyu.health.controller.b;
 
-import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Department;
 import com.zhiyu.health.service.OrganizationService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -21,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 科室管理：仅 admin 角色可操作，业务在 OrganizationService */
+/** 科室管理：仅 admin 角色可操作（AdminInterceptor），业务在 OrganizationService */
 @RestController
 @RequestMapping("/api/b/departments")
 @RequiredArgsConstructor
@@ -36,42 +34,27 @@ public class DepartmentController {
             @NotBlank @Size(max = 255) String location) {}
 
     @GetMapping
-    public List<Department> list(HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public List<Department> list() {
         return organizationService.listDepartments();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Department create(@Validated @RequestBody DepartmentInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        Department created = organizationService.createDepartment(toEntity(new Department(), input));
-        if (created == null) {
-            throw new ApiException(404, "医院不存在");
-        }
-        return created;
+    public Department create(@Validated @RequestBody DepartmentInput input) {
+        return organizationService.createDepartment(toEntity(new Department(), input));
     }
 
     @PutMapping("/{id}")
-    public Department update(
-            @PathVariable long id, @Validated @RequestBody DepartmentInput input, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
+    public Department update(@PathVariable long id, @Validated @RequestBody DepartmentInput input) {
         Department department = toEntity(new Department(), input);
         department.setId(id);
-        Department updated = organizationService.updateDepartment(department);
-        if (updated == null) {
-            throw new ApiException(404, "科室或医院不存在");
-        }
-        return updated;
+        return organizationService.updateDepartment(department);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id, HttpServletRequest request) {
-        AdminGuard.requireAdmin(request);
-        if (!organizationService.deleteDepartment(id)) {
-            throw new ApiException(404, "科室不存在");
-        }
+    public void delete(@PathVariable long id) {
+        organizationService.deleteDepartment(id);
     }
 
     private Department toEntity(Department department, DepartmentInput input) {

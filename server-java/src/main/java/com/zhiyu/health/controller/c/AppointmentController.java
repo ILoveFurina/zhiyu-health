@@ -22,16 +22,16 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     @GetMapping
-    public List<AppointmentOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
-        return appointmentService.listForPatient(Long.parseLong(patientId)).stream()
+    public List<AppointmentOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        return appointmentService.listForPatient(patientId).stream()
                 .map(AppointmentOut::from)
                 .toList();
     }
 
     @PostMapping("/{appointmentId}/cancel")
     public AppointmentOut cancel(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId, @PathVariable long appointmentId) {
-        return AppointmentOut.from(appointmentService.cancel(Long.parseLong(patientId), appointmentId));
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long appointmentId) {
+        return AppointmentOut.from(appointmentService.cancel(patientId, appointmentId));
     }
 
     public record AppointmentOut(

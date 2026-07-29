@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Hospital;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.service.OrganizationService;
@@ -13,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -93,7 +95,8 @@ class HospitalControllerTest {
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
-        when(organizationService.updateHospital(any(Hospital.class))).thenReturn(null);
+        when(organizationService.updateHospital(any(Hospital.class)))
+                .thenThrow(new ApiException(404, "医院不存在"));
 
         mockMvc.perform(put("/api/b/hospitals/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json").content(VALID_BODY))
@@ -103,15 +106,13 @@ class HospitalControllerTest {
 
     @Test
     void deleteReturns204() throws Exception {
-        when(organizationService.deleteHospital(1L)).thenReturn(true);
-
         mockMvc.perform(delete("/api/b/hospitals/1").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteReturns404WhenMissing() throws Exception {
-        when(organizationService.deleteHospital(99L)).thenReturn(false);
+        doThrow(new ApiException(404, "医院不存在")).when(organizationService).deleteHospital(99L);
 
         mockMvc.perform(delete("/api/b/hospitals/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())

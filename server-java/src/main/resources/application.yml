@@ -3,8 +3,9 @@ server:
 
 spring:
   config:
-    # 本地 Maven 启动时读取仓库根目录 .env；容器环境变量仍具有更高优先级。
-    import: optional:file:.env[.properties]
+    # 本地启动时读取仓库根目录 .env；容器环境变量仍具有更高优先级。
+    # file:.env 相对 JVM 工作目录：覆盖从仓库根（mvn -f）与 server-java/（IDE 运行）两种启动方式。
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
   application:
     name: zhiyu-server-java
   jackson:

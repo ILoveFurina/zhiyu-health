@@ -96,18 +96,12 @@ public class ReceptionService {
     }
 
     private AppointmentView toAppointmentView(Appointment appointment) {
-        String status =
-                switch (appointment.getStatus()) {
-                    case Appointment.STATUS_VISITED -> "已接诊";
-                    case Appointment.STATUS_CANCELLED -> "已取消";
-                    default -> "已约";
-                };
         return new AppointmentView(
                 appointment.getId(),
                 appointment.getScheduleId(),
                 appointment.getPatientNickname(),
                 appointment.getSequenceNumber(),
-                status,
+                Appointment.displayStatus(appointment.getStatus()),
                 appointment.getScheduleDate() == null
                         ? null
                         : appointment.getScheduleDate().toString(),

@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Department;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.service.OrganizationService;
@@ -13,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -76,7 +78,8 @@ class DepartmentControllerTest {
 
     @Test
     void createReturns404WhenHospitalMissing() throws Exception {
-        when(organizationService.createDepartment(any(Department.class))).thenReturn(null);
+        when(organizationService.createDepartment(any(Department.class)))
+                .thenThrow(new ApiException(404, "医院不存在"));
 
         mockMvc.perform(post("/api/b/departments").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json").content(VALID_BODY))
@@ -86,7 +89,8 @@ class DepartmentControllerTest {
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
-        when(organizationService.updateDepartment(any(Department.class))).thenReturn(null);
+        when(organizationService.updateDepartment(any(Department.class)))
+                .thenThrow(new ApiException(404, "科室或医院不存在"));
 
         mockMvc.perform(put("/api/b/departments/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json").content(VALID_BODY))
@@ -96,15 +100,13 @@ class DepartmentControllerTest {
 
     @Test
     void deleteReturns204() throws Exception {
-        when(organizationService.deleteDepartment(1L)).thenReturn(true);
-
         mockMvc.perform(delete("/api/b/departments/1").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteReturns404WhenMissing() throws Exception {
-        when(organizationService.deleteDepartment(99L)).thenReturn(false);
+        doThrow(new ApiException(404, "科室不存在")).when(organizationService).deleteDepartment(99L);
 
         mockMvc.perform(delete("/api/b/departments/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())

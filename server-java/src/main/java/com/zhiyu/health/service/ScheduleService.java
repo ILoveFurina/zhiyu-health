@@ -1,6 +1,7 @@
 package com.zhiyu.health.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
@@ -25,12 +26,16 @@ public class ScheduleService {
     }
 
     public Schedule getSchedule(long scheduleId) {
-        return scheduleMapper.selectById(scheduleId);
+        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            throw new ApiException(404, "排班不存在");
+        }
+        return schedule;
     }
 
     public Schedule createSchedule(Schedule schedule) {
         if (doctorMapper.selectById(schedule.getDoctorId()) == null) {
-            return null;
+            throw new ApiException(404, "医生不存在");
         }
         schedule.setRemainingSlots(schedule.getTotalSlots());
         schedule.setIsActive(true);
@@ -51,7 +56,7 @@ public class ScheduleService {
 
     public Schedule updateSchedule(Schedule changes) {
         if (doctorMapper.selectById(changes.getDoctorId()) == null) {
-            return null;
+            throw new ApiException(404, "排班或医生不存在");
         }
         AtomicBoolean counterAdjusted = new AtomicBoolean();
         AtomicInteger appliedDelta = new AtomicInteger();
@@ -60,15 +65,15 @@ public class ScheduleService {
                 // 锁必须覆盖读取与 delta 计算，使并发容量更新基于最新已提交总量。
                 Schedule current = scheduleMapper.selectByIdForUpdate(changes.getId());
                 if (current == null) {
-                    return null;
+                    throw new ApiException(404, "排班或医生不存在");
                 }
                 int usedSlots = current.getTotalSlots() - current.getRemainingSlots();
                 if (changes.getTotalSlots() < usedSlots) {
-                    throw new ScheduleCapacityException();
+                    throw new ApiException(409, "号源总数不能小于已使用号源数");
                 }
                 int capacityDelta = changes.getTotalSlots() - current.getTotalSlots();
                 if (scheduleMapper.adjustCapacity(changes) != 1) {
-                    throw new ScheduleCapacityException();
+                    throw new ApiException(409, "号源总数不能小于已使用号源数");
                 }
                 if (capacityDelta != 0) {
                     // INCRBY 与预约 DECR 可交换，避免用旧快照覆盖并发扣减。
@@ -90,7 +95,7 @@ public class ScheduleService {
     public Schedule disableSchedule(long scheduleId) {
         Schedule schedule = scheduleMapper.selectById(scheduleId);
         if (schedule == null) {
-            return null;
+            throw new ApiException(404, "排班不存在");
         }
         // 仅更新状态列，避免把查询后已被并发扣减的 remaining_slots 整行写回。
         scheduleMapper.disable(scheduleId);

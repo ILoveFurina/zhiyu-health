@@ -34,10 +34,10 @@ public class ChatController {
 
     @PostMapping("/chat")
     public SseEmitter chat(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId,
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @Validated @RequestBody ChatRequest request) {
         return chatService.chat(
-                Long.valueOf(patientId),
+                patientId,
                 request.conversationId(),
                 request.content(),
                 request.effort(),

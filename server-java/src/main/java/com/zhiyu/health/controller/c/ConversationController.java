@@ -30,23 +30,23 @@ public class ConversationController {
     public record ConversationOut(Long id, String title, @JsonProperty("last_active_at") String lastActiveAt) {}
 
     @GetMapping
-    public List<ConversationOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
-        return conversations.listForPatient(Long.valueOf(patientId)).stream()
+    public List<ConversationOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        return conversations.listForPatient(patientId).stream()
                 .map(s -> new ConversationOut(s.id(), s.title(), s.lastActiveAt()))
                 .toList();
     }
 
     @DeleteMapping("/{conversationId}")
     public ResponseEntity<Void> delete(
-            @PathVariable Long conversationId, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
-        conversations.deleteForPatient(conversationId, Long.valueOf(patientId));
+            @PathVariable Long conversationId, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        conversations.deleteForPatient(conversationId, patientId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{conversationId}/messages")
     public List<MessageOut> listMessages(
-            @PathVariable Long conversationId, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
-        return conversations.listMessagesForPatient(conversationId, Long.valueOf(patientId)).stream()
+            @PathVariable Long conversationId, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        return conversations.listMessagesForPatient(conversationId, patientId).stream()
                 .map(message -> new MessageOut(
                         message.id(),
                         message.role(),

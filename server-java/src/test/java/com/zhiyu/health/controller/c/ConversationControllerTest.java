@@ -1,8 +1,9 @@
 package com.zhiyu.health.controller.c;
 
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
-import com.zhiyu.health.service.ConversationNotFoundException;
 import com.zhiyu.health.service.ConversationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -91,7 +92,7 @@ class ConversationControllerTest {
     void deleteForeignOrMissingConversationReturns404() throws Exception {
         ConversationService conversations = mock(ConversationService.class);
         // 不区分“不是你的”与“不存在”，一律 404（决策 3）
-        doThrow(new ConversationNotFoundException())
+        doThrow(new ApiException(404, "会话不存在"))
                 .when(conversations).deleteForPatient(7L, 12L);
         MockMvc mvc = standalone(conversations);
 
@@ -100,9 +101,9 @@ class ConversationControllerTest {
     }
 
     private MockMvc standalone(ConversationService conversations) {
-        // 让 ConversationExceptionHandler 生效，覆盖 404 映射
+        // 挂上统一 advice，覆盖 ApiException → 404 映射
         return MockMvcBuilders.standaloneSetup(new ConversationController(conversations))
-                .setControllerAdvice(new com.zhiyu.health.controller.ConversationExceptionHandler())
+                .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }
 

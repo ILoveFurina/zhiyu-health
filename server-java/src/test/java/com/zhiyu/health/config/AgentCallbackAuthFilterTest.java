@@ -19,8 +19,18 @@ class AgentCallbackAuthFilterTest {
     }
 
     @Test
-    void nonPatientAgentReadsRemainAvailable() throws Exception {
-        assertThat(run("/api/agent/doctors/recommend", null)).isEqualTo(200);
+    void recommendationCallbacksRequireTheSameCredential() throws Exception {
+        // /api/agent/** 全量纳入保护：推荐类回调与挂号回调同一密钥
+        assertThat(run("/api/agent/doctors/recommend", null)).isEqualTo(401);
+        assertThat(run("/api/agent/doctors/recommend", "wrong")).isEqualTo(401);
+        assertThat(run("/api/agent/doctors/recommend", "shared-secret")).isEqualTo(200);
+        assertThat(run("/api/agent/hospitals/nearby", null)).isEqualTo(401);
+        assertThat(run("/api/agent/hospitals/nearby", "shared-secret")).isEqualTo(200);
+    }
+
+    @Test
+    void nonAgentPathsAreNotFiltered() throws Exception {
+        assertThat(run("/api/c/chat", null)).isEqualTo(200);
     }
 
     private int run(String path, String credential) throws Exception {
