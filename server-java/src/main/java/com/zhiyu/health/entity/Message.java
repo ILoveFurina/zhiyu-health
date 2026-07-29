@@ -35,6 +35,7 @@ public class Message {
     public static final String KIND_REPORT_INTERPRETATION =
             SSE_EVENTS.messageKinds().get(7);
     public static final String KIND_REPORT_CONTEXT = SSE_EVENTS.messageKinds().get(8);
+    public static final String KIND_CONTRAINDICATION = SSE_EVENTS.messageKinds().get(9);
 
     private static final Set<String> AI_CARD_KINDS = Set.copyOf(SSE_EVENTS.aiCardKinds());
 

@@ -15,19 +15,20 @@ def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
     assert events.stream_events == ["meta", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
-    assert len(events.card_events) == 5
+    assert len(events.card_events) == 6
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
         "find_hospitals": "hospital_recommendations",
         "create_appointment": "appointment",
         "get_appointment": "appointments",
+        "check_contraindication": "contraindication",
     }
-    assert len(events.message_kinds) == 9
+    assert len(events.message_kinds) == 10
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
-    assert len(events.ai_card_kinds) == 6
-    assert len(events.event_to_kind) == 6
+    assert len(events.ai_card_kinds) == 7
+    assert len(events.event_to_kind) == 7
 
 
 def test_vision_error_codes_and_messages_are_loaded() -> None:
@@ -75,6 +76,17 @@ def test_prescription_flow_values_are_loaded() -> None:
     }
     assert flow.decisions == {"approve": "APPROVE", "reject": "REJECT"}
     assert flow.message_types["consultation_summary"] == "CONSULTATION_SUMMARY"
+
+
+def test_contraindication_values_are_loaded() -> None:
+    contract = get_contracts().contraindication
+    assert contract.decisions == {
+        "safe": "SAFE",
+        "blocked": "BLOCKED",
+        "review_required": "REVIEW_REQUIRED",
+    }
+    assert contract.message_types["warning"] == "contraindication_warning"
+    assert "请咨询医生或药师" in contract.messages["blocked"]
 
 
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:

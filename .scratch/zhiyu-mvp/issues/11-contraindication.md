@@ -4,7 +4,7 @@
 
 **Blocked by:** 09 — 电子处方（medications 表）；21 — 健康档案（当前档案过敏史）（禁忌数据在 Neo4j，与 RAG 无关）
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Neo4j 禁忌子图 seed：药品—禁忌关系边及药品—药品相互作用关系边，并通过 `medication_id` 与 PostgreSQL medications 对齐；两端只共享稳定 ID，不双写药品业务字段
 - [ ] server-java 新增只读 Neo4j 禁忌事实访问 seam 与 `rule/` 确定性规则引擎；Neo4j 客户端不得进入 mapper 或 controller，规则结果、决定值和卡片消息类型从 `contracts/` 加载

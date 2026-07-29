@@ -42,5 +42,9 @@ zhiyu:
     base-url: ${SERVER_PY_BASE_URL:http://localhost:8000}
     # 无默认值：由同目录 application.properties 提供 test-only 固定值
     callback-secret: ${AGENT_CALLBACK_SECRET}
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    user: ${NEO4J_USER:neo4j}
+    password: ${NEO4J_PASSWORD:}
   rate-limit:
     permits-per-minute: 60

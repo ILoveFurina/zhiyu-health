@@ -76,6 +76,8 @@ function dispatch(events, handlers) {
       handlers.onAppointment(data)
     } else if (event === 'appointments') {
       handlers.onAppointments(data)
+    } else if (event === 'contraindication') {
+      handlers.onContraindication(data)
     } else if (event === 'red_flag') {
       handlers.onRedFlag(data)
       tokens = []

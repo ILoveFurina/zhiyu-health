@@ -59,6 +59,15 @@ async def _forward_post(
     return dict(await client.post(path, payload))
 
 
+def _normalize_medication_ids(medication_ids: list[int]) -> list[int]:
+    normalized_ids = list(dict.fromkeys(medication_ids))
+    if not normalized_ids or len(normalized_ids) > 20:
+        raise ValueError("medication_ids 必须包含 1 到 20 个药品 ID")
+    if any(not isinstance(medication_id, int) or medication_id <= 0 for medication_id in normalized_ids):
+        raise ValueError("medication_id 必须为正整数")
+    return normalized_ids
+
+
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
     """装配 Agent 可调用的业务工具；函数本身只校验参数并转发到业务后端。"""
 
@@ -120,10 +129,29 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             {"longitude": longitude, "latitude": latitude},
         )
 
+    @tool
+    async def check_contraindication(
+        medication_ids: list[int], runtime: ToolRuntime[AgentContext]
+    ) -> dict[str, Any]:
+        """在推荐候选药品前执行确定性禁忌检查；命中或无法可靠检查时必须停止推荐。
+
+        只传候选 medication_id；患者身份由可信运行时注入，禁止要求用户提供身份或过敏史。
+        """
+        normalized_ids = _normalize_medication_ids(medication_ids)
+        return await _forward_post(
+            client,
+            "/api/agent/contraindications/check",
+            {
+                "patient_id": runtime.context.patient_id,
+                "medication_ids": normalized_ids,
+            },
+        )
+
     return [
         recommend_doctors,
         get_doctor_slots,
         find_hospitals,
         create_appointment,
         get_appointment,
+        check_contraindication,
     ]

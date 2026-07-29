@@ -122,8 +122,9 @@ Page({
         onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
+        onContraindication: (data) => this.showContraindication(aiMsg.id, data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
-        onDone: () => {},
+        onDone: () => this.setData({ sending: false }),
         onError: (err) => this.failRound(aiMsg.id, err),
       },
     })
@@ -215,6 +216,17 @@ Page({
       streaming: false,
     }))
     this.setData({ redFlag: data, sending: false })
+  },
+
+  showContraindication(id, data) {
+    this.patchMessage(id, () => ({
+      id,
+      role: 'assistant',
+      kind: 'contraindication',
+      card: data,
+      disclaimer: data.disclaimer,
+      streaming: false,
+    }))
   },
 
   closeRedFlag() {

@@ -20,7 +20,8 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO medications (id, name, generic_name, specification, instructions) VALUES
     (1, '阿莫西林胶囊', '阿莫西林', '0.25g*24粒', '口服；青霉素过敏者禁用'),
     (2, '布洛芬缓释胶囊', '布洛芬', '0.3g*20粒', '口服；建议餐后服用'),
-    (3, '氯雷他定片', '氯雷他定', '10mg*12片', '口服；每日一次')
+    (3, '氯雷他定片', '氯雷他定', '10mg*12片', '口服；每日一次'),
+    (4, '华法林钠片', '华法林钠', '2.5mg*60片', '口服；须遵医嘱监测凝血指标')
 ON CONFLICT (id) DO NOTHING;
 
 -- 显式 id 不推进 identity 序列：对齐到当前 MAX(id)，避免后续业务写入撞主键
