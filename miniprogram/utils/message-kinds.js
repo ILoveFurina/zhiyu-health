@@ -6,6 +6,7 @@ const CARD_KINDS = [
   'hospital_recommendations',
   'appointment',
   'appointments',
+  'report_interpretation',
 ]
 
 function isCardKind(kind) {

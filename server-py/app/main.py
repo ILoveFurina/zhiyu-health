@@ -11,8 +11,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.runner import AgentRunner, LazySettingsAgentRunner
+from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.api.agent import router as agent_router
 from app.api.health import router as health_router
+from app.api.vision import router as vision_router
 from app.config import get_settings, get_web_settings
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
@@ -24,6 +26,7 @@ def create_app(
     health_service: HealthChecker | None = None,
     agent_runner: AgentRunner | None = None,
     agent_auth_secret: str | None = None,
+    vision_interpreter: VisionInterpreter | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -32,6 +35,7 @@ def create_app(
             app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret
+            app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
             yield
             return
         settings = get_settings()
@@ -45,6 +49,7 @@ def create_app(
             build_business_tools(app.state.business_client)
         )
         app.state.chat_service = AgentChatService(runner)
+        app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         try:
             yield
         finally:
@@ -61,6 +66,7 @@ def create_app(
     )
     application.include_router(health_router, prefix="/api")
     application.include_router(agent_router, prefix="/api")
+    application.include_router(vision_router, prefix="/api")
     return application
 
 

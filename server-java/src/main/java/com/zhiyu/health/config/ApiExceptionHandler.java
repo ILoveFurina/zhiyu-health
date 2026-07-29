@@ -12,8 +12,11 @@ import java.util.Map;
 public class ApiExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<Map<String, String>> handleApiException(ApiException e) {
-        return ResponseEntity.status(e.getStatus()).body(Map.of("detail", e.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleApiException(ApiException e) {
+        Object detail = e.getCode() == null
+                ? e.getMessage()
+                : Map.of("code", e.getCode(), "message", e.getMessage());
+        return ResponseEntity.status(e.getStatus()).body(Map.of("detail", detail));
     }
 
     /** @RequestParam 上的 @Validated 校验失败：与 @RequestBody 校验一致返回 400。 */

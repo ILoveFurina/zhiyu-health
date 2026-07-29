@@ -67,12 +67,37 @@ const drawerMethods = {
 
   /** 历史消息回放：原样渲染用户/红线/卡片，AI 文本定格为完整内容（不打字机）。 */
   replayMessage(m) {
+    if (m.kind === 'report_upload') {
+      let upload = {}
+      try {
+        upload = JSON.parse(m.content)
+      } catch (e) {
+        upload = {}
+      }
+      return {
+        id: ++this._msgSeq,
+        role: m.role,
+        kind: 'text',
+        content: upload.file_name ? `已上传报告：${upload.file_name}` : '已上传报告',
+        disclaimer: '',
+        streaming: false,
+      }
+    }
     if (isCardKind(m.kind)) {
       let card = m.content
       try {
         card = JSON.parse(m.content)
       } catch (e) {
         card = { raw: m.content }
+      }
+      if (m.kind === 'report_interpretation' && card.result) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: card.result,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
       }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }

@@ -89,6 +89,7 @@ public class ConversationService {
             throw new ConversationNotFoundException();
         }
         return listMessages(conversationId).stream()
+                .filter(message -> !Message.KIND_REPORT_CONTEXT.equals(message.getKind()))
                 .map(message -> new MessageView(
                         message.getId(),
                         message.getRole(),
@@ -103,7 +104,14 @@ public class ConversationService {
     @Transactional
     public Message appendMessage(Long conversationId, String role, String content,
                                  String kind, String effort) {
+        return appendMessage(conversationId, role, content, kind, effort, null);
+    }
+
+    @Transactional
+    public Message appendMessage(Long conversationId, String role, String content,
+                                 String kind, String effort, Long reportInterpretationId) {
         Message message = new Message(null, conversationId, role, kind, content, effort);
+        message.setReportInterpretationId(reportInterpretationId);
         messageMapper.insert(message);
         conversationMapper.update(null, new LambdaUpdateWrapper<Conversation>()
                 .eq(Conversation::getId, conversationId)
@@ -124,7 +132,8 @@ public class ConversationService {
                 .notIn(Message::getKind,
                         Message.KIND_DOCTOR_RECOMMENDATIONS, Message.KIND_DOCTOR_SLOTS,
                         Message.KIND_HOSPITAL_RECOMMENDATIONS,
-                        Message.KIND_APPOINTMENT, Message.KIND_APPOINTMENTS)
+                        Message.KIND_APPOINTMENT, Message.KIND_APPOINTMENTS,
+                        Message.KIND_REPORT_UPLOAD, Message.KIND_REPORT_INTERPRETATION)
                 .orderByDesc(Message::getId)
                 .last("LIMIT " + CONTEXT_MESSAGE_LIMIT));
         List<Message> chronological = new ArrayList<>(newestFirst);
