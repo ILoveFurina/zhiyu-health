@@ -69,15 +69,18 @@ public class ConversationService {
     }
 
     /**
-     * 硬删会话：依赖 messages FK ON DELETE CASCADE 连带删消息、appointments FK ON DELETE SET NULL
-     * 保留挂号单（见票 27 决策 2）。归属/不存在一律 404，不区分原因以免泄露存在性（决策 3）。
+     * 硬删会话：DELETE 同时限定 id 与 patient_id（幂等、并发安全，见票 27 决策 2/9）。
+     * 归属/不存在一律 404，不区分原因以免泄露存在性（决策 3）。依赖 messages FK
+     * ON DELETE CASCADE 连带删消息、appointments FK ON DELETE SET NULL 保留挂号单。
      */
     @Transactional
     public void deleteForPatient(Long conversationId, Long patientId) {
         if (getForPatient(conversationId, patientId) == null) {
             throw new ConversationNotFoundException();
         }
-        conversationMapper.deleteById(conversationId);
+        conversationMapper.delete(new LambdaQueryWrapper<Conversation>()
+                .eq(Conversation::getId, conversationId)
+                .eq(Conversation::getPatientId, patientId));
     }
 
     /** 当前患者的消息输出；归属校验与免责声明语义都在业务层完成。 */
