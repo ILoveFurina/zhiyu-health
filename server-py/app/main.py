@@ -31,12 +31,15 @@ def create_app(
     agent_auth_secret: str | None = None,
     vision_interpreter: VisionInterpreter | None = None,
     clinical_generator: ClinicalGenerator | None = None,
+    rag_available: bool = False,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if health_service is not None:
             # 注入装配路径（测试）：不触碰真实存储与 settings
-            app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
+            app.state.chat_service = AgentChatService(
+                agent_runner or LazySettingsAgentRunner(), rag_available=rag_available
+            )
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret
             app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()

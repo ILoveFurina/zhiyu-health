@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
+from app.tools.knowledge import KnowledgeChunk
 
 TEST_AGENT_SECRET = "test-only-agent-callback-secret"
 
@@ -40,6 +41,26 @@ class FakeAgentRunner:
         self.calls.append({"messages": messages, "effort": effort, "context": context})
         for token in self.tokens:
             yield AgentOutput("token", token)
+
+
+class FakeKnowledgeRetriever:
+    """检索 seam 的 fake：可控召回内容/空/异常，记录调用。"""
+
+    def __init__(
+        self,
+        chunks: list[KnowledgeChunk] | None = None,
+        *,
+        raises: bool = False,
+    ) -> None:
+        self._chunks = chunks or []
+        self._raises = raises
+        self.calls: list[str] = []
+
+    async def search(self, query: str) -> list[KnowledgeChunk]:
+        self.calls.append(query)
+        if self._raises:
+            raise RuntimeError("检索失败（fake）")
+        return list(self._chunks)
 
 
 @pytest.fixture

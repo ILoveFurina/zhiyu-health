@@ -4,17 +4,17 @@
 
 **Blocked by:** 31 - 票 04 拆分迁移
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `schema.sql` 增加 knowledge_chunks 表（含 department 列）、vector 字段与 pgvector HNSW cosine 索引；表结构仍由统一 schema 管理。向量维度路径 B：DDL 写死 `vector(1024)` + yml 配置默认值 + 启动校验一致性（维度实际值实现期连 endpoint 探测确认）
-- [ ] server-py 提供离线 embedding 生成工具，产出可审查、可版本化的 50 场景 seed（10 科室 × 5 症状，扩充 seed 科室至约 10 个、医生至约 15 个补齐 spec 欠账）；工具不得在运行时直写 pgvector，幂等入库由统一 seed 流程完成
-- [ ] server-py 的只读知识检索 service + `search_knowledge` 工具（`tools/knowledge.py`，工具范式）接入 Agent 导诊流程；server-py 运行时直连 pgvector 只读检索（embed query + Top-K + 阈值过滤），召回块以 `【标题·科室】正文` 格式进入 LLM 上下文；不得读取或写入业务实体
-- [ ] 在 `contracts/` 定义知识增强模式（`knowledge_source` 二态 rag/graph + 降级）；server-java 对话入口按契约向 server-py 透传，票 10 提供可测试的运行时 seam，B 端现场切换出口留给票 25
-- [ ] 知识源选择器模型 Y：默认 rag，非导诊场景（interpretation）默认 none；关闭增强时不注入 search_knowledge 工具（LLM 看不到即不检索，裸 LLM）；检索失败/空召回静默降级走裸 LLM；graph 票 13 接手，未实现视为 unavailable 降级；SSE `knowledge` 元事件暴露状态（source/status/count）
-- [ ] 固定 10 条典型症状查询集及期望知识块，Top-3 命中不少于 8 条方可通过（集成测试连真实 PG+pgvector+方舟，query 向量缓存）
-- [ ] TestClient 使用 fake embedding/检索替身断言"先检索、后生成"及关闭增强时不检索；fake 断言降级（空召回/失败走裸 LLM、knowledge 事件状态正确）；`ruff`、`mypy`、`lint-imports` 全部通过
-- [ ] 免责声明注入不变（token/message 事件带，召回块与 knowledge 元事件不带）
-- [ ] 胸痛伴冷汗等红线场景保留在库（红线规则在 server-java 先于一切执行，命中即中断不进检索，轻症仍可检索）
+- [x] `schema.sql` 增加 knowledge_chunks 表（含 department 列）、vector 字段与 pgvector HNSW cosine 索引；表结构仍由统一 schema 管理。向量维度路径 B：DDL 写死 `vector(1024)` + yml 配置默认值 + 启动校验一致性（维度实际值实现期连 endpoint 探测确认）
+- [x] server-py 提供离线 embedding 生成工具，产出可审查、可版本化的 50 场景 seed（10 科室 × 5 症状，扩充 seed 科室至约 10 个、医生至约 15 个补齐 spec 欠账）；工具不得在运行时直写 pgvector，幂等入库由统一 seed 流程完成
+- [x] server-py 的只读知识检索 service + `search_knowledge` 工具（`tools/knowledge.py`，工具范式）接入 Agent 导诊流程；server-py 运行时直连 pgvector 只读检索（embed query + Top-K + 阈值过滤），召回块以 `【标题·科室】正文` 格式进入 LLM 上下文；不得读取或写入业务实体
+- [x] 在 `contracts/` 定义知识增强模式（`knowledge_source` 二态 rag/graph + 降级）；server-java 对话入口按契约向 server-py 透传，票 10 提供可测试的运行时 seam，B 端现场切换出口留给票 25
+- [x] 知识源选择器模型 Y：默认 rag，非导诊场景（interpretation）默认 none；关闭增强时不注入 search_knowledge 工具（LLM 看不到即不检索，裸 LLM）；检索失败/空召回静默降级走裸 LLM；graph 票 13 接手，未实现视为 unavailable 降级；SSE `knowledge` 元事件暴露状态（source/status/count）
+- [ ] 固定 10 条典型症状查询集及期望知识块，Top-3 命中不少于 8 条方可通过（集成测试连真实 PG+pgvector+方舟，query 向量缓存）— 待人工：需真实凭据跑 seed_embeddings 产出向量后执行
+- [x] TestClient 使用 fake embedding/检索替身断言"先检索、后生成"及关闭增强时不检索；fake 断言降级（空召回/失败走裸 LLM、knowledge 事件状态正确）；`ruff`、`mypy`、`lint-imports` 全部通过
+- [x] 免责声明注入不变（token/message 事件带，召回块与 knowledge 元事件不带）
+- [x] 胸痛伴冷汗等红线场景保留在库（红线规则在 server-java 先于一切执行，命中即中断不进检索，轻症仍可检索）
 
 ## Grilling 决策记录
 
