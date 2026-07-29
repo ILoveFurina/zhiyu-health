@@ -6,6 +6,8 @@ venv/
 .uv-cache/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.import_linter_cache/
 
 # Node / 前端
 node_modules/
@@ -27,6 +29,7 @@ Thumbs.db
 .kimi-code/
 .claude/
 miniprogram_npm/
+/miniprogram/.mini-ide/
 
 # 微信开发者工具本地配置
 /project.config.json
@@ -34,3 +37,4 @@ miniprogram_npm/
 /miniprogram/project.private.config.json
 .worktrees/
 .scratch/*.log
+.scratch/reword/
