@@ -1,11 +1,7 @@
 const { listConversations, listMessages, deleteConversation } = require('../../services/conversations')
 const { formatRelativeTime } = require('../../utils/time')
-
-// 结构化卡片种类：历史回放时需把 JSON content 还原为 card 对象
-const CARD_KINDS = ['doctor_recommendations', 'doctor_slots', 'appointment', 'appointments']
-function isCardKind(kind) {
-  return CARD_KINDS.indexOf(kind) !== -1
-}
+const { ensureLogin } = require('../../utils/auth')
+const { isCardKind } = require('../../utils/message-kinds')
 
 /**
  * 对话记录抽屉逻辑（票 27 决策 6/9/13）。
@@ -15,7 +11,7 @@ const drawerMethods = {
   /** 打开抽屉拉取列表；抽屉为同页浮层，打开不打断 SSE（决策 9）。 */
   openDrawer() {
     this.setData({ drawerOpen: true, drawerLoading: true })
-    this.ensureLoginC()
+    ensureLogin()
       .then(() => listConversations())
       .then((conversations) => this.setConversations(conversations))
       .catch(() => my.showToast({ content: '对话记录加载失败', type: 'fail' }))

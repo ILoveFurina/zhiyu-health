@@ -49,18 +49,13 @@ Page({
 
   onLoad() {
     // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
-    this.ensureLoginC().catch(() =>
+    ensureLogin().catch(() =>
       my.showToast({ content: '登录失败，请检查后端服务', type: 'fail' })
     )
   },
 
   onUnload() {
     this.stopTypewriter()
-  },
-
-  /** 供 drawer 模块复用的登录 Promise。 */
-  ensureLoginC() {
-    return ensureLogin()
   },
 
   onInput(e) {
@@ -84,7 +79,7 @@ Page({
 
   sendText(content) {
     if (!content) return
-    this.ensureLoginC()
+    ensureLogin()
       .then(() => this.startRound(content))
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
   },
