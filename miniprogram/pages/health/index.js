@@ -28,18 +28,22 @@ Page({
     today: new Date().toISOString().slice(0, 10),
   },
 
+  onLoad(options) {
+    if (options && options.create === '1') this.setData({ showForm: true })
+  },
+
   onShow() {
     this.loadProfiles()
   },
 
   loadProfiles() {
     this.setData({ loading: true })
-    ensureLogin()
+    return ensureLogin()
       .then(() => listProfiles())
       .then((profiles) => {
         profiles = profiles.map((item) => ({ ...item, avatar: item.display_name.slice(0, 1) }))
         const activeProfile = profiles.find((item) => item.active) || null
-        this.setData({ profiles, activeProfile, showForm: profiles.length === 0 })
+        this.setData({ profiles, activeProfile, showForm: this.data.showForm || profiles.length === 0 })
         return activeProfile ? listTimeline(activeProfile.id) : []
       })
       .then((timeline) => this.setData({ timeline }))
@@ -56,7 +60,7 @@ Page({
   },
 
   onBirthDateChange(e) {
-    this.setData({ 'form.birth_date': e.detail.value })
+    this.setData({ 'form.birth_date': e.detail.value.replaceAll('/', '-') })
   },
 
   onGenderChange(e) {

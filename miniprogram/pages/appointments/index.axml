@@ -1,4 +1,11 @@
 <view class="page">
+  <view class="profile-banner" onTap="openHealthProfiles">
+    <view>
+      <view class="profile-label">当前服务对象</view>
+      <view class="profile-name">{{currentProfile ? currentProfile.display_name : '请先建立健康档案'}}</view>
+    </view>
+    <view class="profile-arrow">切换 ›</view>
+  </view>
   <view class="quick-links">
     <view class="quick-link" onTap="openPrescriptions">我的电子处方</view>
     <view class="quick-link" onTap="openMessages">站内消息</view>

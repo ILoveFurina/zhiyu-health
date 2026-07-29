@@ -104,6 +104,20 @@ def _content_blocks(document: PreparedDocument) -> list[dict[str, object]]:
             "text": "按页面顺序解读这一份报告，并输出约定 JSON。页面图像优先于机器抽取文本。",
         }
     ]
+    if document.health_profile is not None:
+        profile = document.health_profile
+        blocks.append(
+            {
+                "type": "text",
+                "text": (
+                    "当前服务对象："
+                    f"{profile.display_name}，性别 {profile.gender}，出生日期 {profile.birth_date}，"
+                    f"关系 {profile.relationship}，已知过敏史 "
+                    f"{', '.join(profile.allergies) if profile.allergies else '未提供，无法确认'}。"
+                    "解读时结合年龄、性别和过敏史，但不得擅自诊断或改变报告参考区间。"
+                ),
+            }
+        )
     for page in document.pages:
         blocks.append({"type": "text", "text": f"--- 第 {page.number} 页 ---"})
         if page.text:

@@ -4,7 +4,7 @@
 
 **Blocked by:** 09 — 电子处方；12 — 报告解读与视觉管道
 
-**Status:** claimed
+**Status:** done
 
 - [x] health_profiles 表与 patients 构成 1:N，基础信息和过敏史只存于 health_profiles；档案创建表单支持录入
 - [x] 未建档引导卡片出现在 AI 页
@@ -16,6 +16,6 @@
 
 ### 2026-07-29 — 实施与验证
 
-- server-java 全量 161 项测试、Spotless 与 ArchUnit 通过；server-py 全量 48 项测试、ruff、mypy、import-linter 通过。
+- server-java 全量 161 项测试、Spotless 与 ArchUnit 通过；server-py 全量 50 项测试、ruff、mypy、import-linter 通过。
 - miniprogram 依赖安装与本票 JS 语法检查通过。
-- 当前环境未发现支付宝小程序开发者工具，尚未完成人工“登录 → 建档 → 家人切换 → 时间线”与控制台验收，因此状态暂保留 `claimed`。
+- 支付宝小程序开发者工具中已走通“AI 页引导 → 一键建档 → 基础信息/过敏史 → 健康时间线”；页面无运行时错误，控制台仅有本机 HTTP 调试协议警告。验收使用内存假数据服务，结束后已关闭并恢复本机 8080 配置，未改动云端数据。

@@ -24,6 +24,7 @@ public class ReportInterpretationService {
     private final ReportUploadStagingService staging;
     // 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致）
     private final Contracts contracts;
+    private final HealthProfileService healthProfiles;
 
     public ReportView finalizeStaged(Long patientId, Long conversationId, String requestId) {
         ReportInterpretation existing = persistence.findByRequest(patientId, requestId);
@@ -53,7 +54,9 @@ public class ReportInterpretationService {
         }
         try {
             // 网络调用故意不在 @Transactional 方法内，避免长事务占用连接与锁。
-            AgentClient.VisionResponse response = agentClient.interpretVision(files);
+            HealthProfileService.AgentProfileContext profile =
+                    healthProfiles.agentContext(patientId, processing.getHealthProfileId());
+            AgentClient.VisionResponse response = agentClient.interpretVision(files, profile);
             String resultJson = objectMapper.writeValueAsString(response.result());
             String contextSummary = contextSummary(response.result());
             return toView(persistence.succeed(processing, response, resultJson, contextSummary));

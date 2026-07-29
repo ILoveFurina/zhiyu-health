@@ -2,7 +2,13 @@
   min-height: 100vh;
   padding: 24rpx;
   box-sizing: border-box;
+  background: linear-gradient(180deg, #e9f6f2 0%, #f4faf8 48%, #f8faf9 100%);
 }
+
+.profile-banner { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; padding: 24rpx 26rpx; border-radius: 24rpx; background: #e0f3ee; }
+.profile-label { color: #6f8581; font-size: 21rpx; }
+.profile-name { margin-top: 6rpx; color: #173f39; font-size: 29rpx; font-weight: 650; }
+.profile-arrow { color: #0e8a7d; font-size: 23rpx; }
 
 .state {
   padding-top: 180rpx;

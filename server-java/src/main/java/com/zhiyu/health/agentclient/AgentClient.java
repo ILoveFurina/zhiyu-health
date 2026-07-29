@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.service.HealthProfileService;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
@@ -100,10 +101,12 @@ public class AgentClient {
     }
 
     /** 同步报告解读；调用方确保该网络等待不处于数据库事务中。 */
-    public VisionResponse interpretVision(List<MultipartFile> files) {
+    public VisionResponse interpretVision(
+            List<MultipartFile> files, HealthProfileService.AgentProfileContext healthProfile) {
         MultipartBodyBuilder body = new MultipartBodyBuilder();
         body.part("scenario", "REPORT");
         try {
+            body.part("health_profile", objectMapper.writeValueAsString(healthProfile));
             for (MultipartFile file : files) {
                 String filename = file.getOriginalFilename() == null ? "report" : file.getOriginalFilename();
                 ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {

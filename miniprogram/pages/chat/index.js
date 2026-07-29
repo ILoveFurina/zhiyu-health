@@ -201,6 +201,10 @@ Page({
     my.navigateTo({ url: '/pages/health/index' })
   },
 
+  startHealthProfile() {
+    my.navigateTo({ url: '/pages/health/index?create=1' })
+  },
+
   showRedFlag(id, data) {
     this.patchMessage(id, () => ({
       id,

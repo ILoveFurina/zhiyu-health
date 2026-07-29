@@ -1,20 +1,24 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listAppointments, cancelAppointment } = require('../../services/appointments')
+const { currentProfile } = require('../../services/health-profiles')
 
 Page({
   data: {
     loading: true,
     appointments: [],
+    currentProfile: null,
   },
 
-  onLoad() {
+  onShow() {
     ensureLogin().then(() => this.loadAppointments())
   },
 
   loadAppointments() {
     this.setData({ loading: true })
-    listAppointments()
-      .then((appointments) => this.setData({ appointments }))
+    Promise.all([listAppointments(), currentProfile()])
+      .then(([appointments, profileResult]) =>
+        this.setData({ appointments, currentProfile: profileResult.profile })
+      )
       .catch(() => my.showToast({ content: '挂号记录加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
   },
@@ -37,4 +41,5 @@ Page({
   },
   openPrescriptions() { my.navigateTo({ url: '/pages/prescriptions/index' }) },
   openMessages() { my.navigateTo({ url: '/pages/messages/index' }) },
+  openHealthProfiles() { my.navigateTo({ url: '/pages/health/index' }) },
 })

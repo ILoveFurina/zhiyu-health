@@ -42,21 +42,18 @@ public class HealthProfileService extends ServiceImpl<HealthProfileMapper, Healt
 
     @Transactional
     public ProfileView create(CreateCommand command) {
+        // 清除旧当前档案、新建档案和过敏史必须同事务提交，任一步失败都恢复原服务对象。
         profileMapper.clearActive(command.patientId());
         HealthProfile profile = dtoMapper.toEntity(command);
         profileMapper.insert(profile);
-        for (String allergen : normalizeAllergies(command.allergies())) {
-            HealthProfileAllergy allergy = new HealthProfileAllergy();
-            allergy.setHealthProfileId(profile.getId());
-            allergy.setAllergen(allergen);
-            allergyMapper.insert(allergy);
-        }
+        insertAllergies(profile.getId(), command.allergies());
         return toView(profile);
     }
 
     @Transactional
     public ProfileView activate(long patientId, long profileId) {
         HealthProfile profile = requireOwned(patientId, profileId);
+        // 两步切换与“每位患者仅一个当前档案”的唯一约束同事务收敛，避免留下无当前对象状态。
         profileMapper.clearActive(patientId);
         if (profileMapper.activate(profileId, patientId) != 1) {
             throw new ApiException(409, "健康档案切换失败");
@@ -76,30 +73,33 @@ public class HealthProfileService extends ServiceImpl<HealthProfileMapper, Healt
     public List<TimelineView> timeline(long patientId, long profileId) {
         requireOwned(patientId, profileId);
         return profileMapper.selectTimeline(patientId, profileId).stream()
-                .map(item -> new TimelineView(
-                        item.getType(),
-                        item.getRecordId(),
-                        item.getTitle(),
-                        item.getSummary(),
-                        item.getOccurredAt() == null
-                                ? null
-                                : item.getOccurredAt().toString(),
-                        item.getDisclaimer()))
+                .map(dtoMapper::toTimelineView)
                 .toList();
     }
 
     @Transactional
     public ProfileView replaceAllergies(long patientId, long profileId, List<String> allergies) {
         HealthProfile profile = requireOwned(patientId, profileId);
+        // 删除与重建过敏史必须原子化，插入失败时保留原过敏史，避免安全信息被部分清空。
         allergyMapper.delete(
                 new LambdaQueryWrapper<HealthProfileAllergy>().eq(HealthProfileAllergy::getHealthProfileId, profileId));
-        for (String allergen : normalizeAllergies(allergies)) {
-            HealthProfileAllergy allergy = new HealthProfileAllergy();
-            allergy.setHealthProfileId(profileId);
-            allergy.setAllergen(allergen);
-            allergyMapper.insert(allergy);
-        }
+        insertAllergies(profileId, allergies);
         return toView(profile);
+    }
+
+    public AgentProfileContext agentContext(long patientId) {
+        ProfileView profile = current(patientId);
+        return profile == null ? null : dtoMapper.toAgentContext(profile);
+    }
+
+    public AgentProfileContext agentContext(long patientId, long profileId) {
+        return dtoMapper.toAgentContext(toView(requireOwned(patientId, profileId)));
+    }
+
+    private void insertAllergies(long profileId, List<String> allergies) {
+        for (String allergen : normalizeAllergies(allergies)) {
+            allergyMapper.insert(dtoMapper.toAllergy(profileId, allergen));
+        }
     }
 
     private HealthProfile requireOwned(long patientId, long profileId) {
@@ -151,4 +151,12 @@ public class HealthProfileService extends ServiceImpl<HealthProfileMapper, Healt
             String summary,
             @JsonProperty("occurred_at") String occurredAt,
             String disclaimer) {}
+
+    public record AgentProfileContext(
+            Long id,
+            @JsonProperty("display_name") String displayName,
+            String gender,
+            @JsonProperty("birth_date") LocalDate birthDate,
+            String relationship,
+            List<String> allergies) {}
 }

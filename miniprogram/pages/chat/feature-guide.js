@@ -10,7 +10,7 @@ const featureGuideMethods = {
     else if (action === 'report') {
       if (!this.data.currentProfile) {
         my.showToast({ content: '请先创建健康档案', type: 'none' })
-        this.openHealthProfiles()
+        this.startHealthProfile()
       } else this.openReportPicker()
     }
   },

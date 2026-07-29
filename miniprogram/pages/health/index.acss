@@ -1,4 +1,4 @@
-.page { height: 100vh; padding: 28rpx; box-sizing: border-box; background: #f2f8f6; }
+.page { min-height: 100vh; padding: 28rpx; box-sizing: border-box; background: linear-gradient(180deg, #e9f6f2 0%, #f4faf8 48%, #f8faf9 100%); }
 .hero { display: flex; justify-content: space-between; align-items: center; margin: 12rpx 4rpx 32rpx; }
 .hero-title { font-size: 42rpx; font-weight: 700; color: #163d38; }
 .hero-sub { margin-top: 8rpx; color: #6f8581; font-size: 24rpx; }

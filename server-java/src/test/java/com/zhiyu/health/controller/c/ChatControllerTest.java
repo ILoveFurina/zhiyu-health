@@ -156,9 +156,9 @@ class ChatControllerTest {
         when(conversations.recentContext(8L))
                 .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "帮我解读报告")));
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
-        when(healthProfiles.current(12L))
-                .thenReturn(new HealthProfileService.ProfileView(
-                        31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", true, java.util.List.of("青霉素")));
+        when(healthProfiles.agentContext(12L))
+                .thenReturn(new HealthProfileService.AgentProfileContext(
+                        31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", java.util.List.of("青霉素")));
         when(agentClient.chat(org.mockito.ArgumentMatchers.argThat(body -> "interpretation".equals(body.get("scenario"))
                         && body.get("health_profile").toString().contains("青霉素"))))
                 .thenReturn(Flux.just(

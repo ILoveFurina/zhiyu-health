@@ -108,7 +108,11 @@ def test_report_image_returns_structured_card_with_disclaimer() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/api/agent/vision/interpret",
-            data={"scenario": "REPORT"},
+            data={
+                "scenario": "REPORT",
+                "health_profile": """{"id":31,"display_name":"妈妈","gender":"女",
+                "birth_date":"1962-05-08","relationship":"母亲","allergies":["青霉素"]}""",
+            },
             files=[("files", ("report.png", _png(), "image/png"))],
             headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
         )
@@ -128,6 +132,64 @@ def test_report_image_returns_structured_card_with_disclaimer() -> None:
     prepared = fake.calls[0]
     assert prepared.scenario == "REPORT"
     assert prepared.page_count == 1
+    assert prepared.health_profile.display_name == "妈妈"
+    assert prepared.health_profile.allergies == ["青霉素"]
+
+
+def test_report_prompt_uses_bound_health_profile_context() -> None:
+    valid = """{"summary":"结合年龄关注","items":[],"actions":[],
+    "unreadable":[],"scope_supported":true}"""
+    model = FakeRawVisionModel([valid])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={
+                "scenario": "REPORT",
+                "health_profile": """{"id":31,"display_name":"妈妈","gender":"女",
+                "birth_date":"1962-05-08","relationship":"母亲","allergies":["青霉素"]}""",
+            },
+            files=[("files", ("report.png", _png(), "image/png"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+
+    assert response.status_code == 200
+    prompt_text = " ".join(str(block.get("text", "")) for block in model.calls[0])
+    assert "妈妈" in prompt_text
+    assert "青霉素" in prompt_text
+
+
+def test_report_prompt_does_not_treat_missing_allergies_as_confirmed_none() -> None:
+    valid = """{"summary":"结合年龄关注","items":[],"actions":[],
+    "unreadable":[],"scope_supported":true}"""
+    model = FakeRawVisionModel([valid])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={
+                "scenario": "REPORT",
+                "health_profile": """{"id":31,"display_name":"妈妈","gender":"女",
+                "birth_date":"1962-05-08","relationship":"母亲","allergies":[]}""",
+            },
+            files=[("files", ("report.png", _png(), "image/png"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+
+    assert response.status_code == 200
+    prompt_text = " ".join(str(block.get("text", "")) for block in model.calls[0])
+    assert "未提供，无法确认" in prompt_text
+    assert "已知过敏史 无" not in prompt_text
 
 
 def test_mixed_pdf_is_routed_per_page_in_original_order() -> None:

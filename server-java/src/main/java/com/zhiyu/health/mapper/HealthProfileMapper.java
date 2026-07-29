@@ -25,6 +25,7 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
             "UPDATE health_profiles SET active = TRUE, updated_at = now() WHERE id = #{id} AND patient_id = #{patientId}")
     int activate(@Param("id") long id, @Param("patientId") long patientId);
 
+    // 只读 UNION 将跨业务表记录投影成统一时间线；不双写聚合表，并以业务发生时间稳定倒序。
     @Select(
             """
             SELECT * FROM (

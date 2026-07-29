@@ -1,7 +1,10 @@
 package com.zhiyu.health.service.mapping;
 
 import com.zhiyu.health.entity.HealthProfile;
+import com.zhiyu.health.entity.HealthProfileAllergy;
+import com.zhiyu.health.entity.HealthTimelineEntry;
 import com.zhiyu.health.service.HealthProfileService;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -16,4 +19,15 @@ public interface HealthProfileDtoMapper {
     HealthProfile toEntity(HealthProfileService.CreateCommand command);
 
     HealthProfileService.ProfileView toView(HealthProfile profile, List<String> allergies);
+
+    @Mapping(target = "id", ignore = true)
+    HealthProfileAllergy toAllergy(long healthProfileId, String allergen);
+
+    HealthProfileService.TimelineView toTimelineView(HealthTimelineEntry entry);
+
+    HealthProfileService.AgentProfileContext toAgentContext(HealthProfileService.ProfileView profile);
+
+    default String map(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
 }

@@ -10,7 +10,7 @@
     <!-- 空状态：问候 + 3 个推荐提示词（导诊/用药注意/健康管理各一） -->
     <view a:if="{{messages.length === 0}}" class="empty">
       <view class="appointments-link" onTap="openAppointments">我的挂号</view>
-      <view a:if="{{profileLoaded && !currentProfile}}" class="profile-guide" onTap="openHealthProfiles">
+      <view a:if="{{profileLoaded && !currentProfile}}" class="profile-guide" onTap="startHealthProfile">
         <view class="profile-guide-icon">♡</view>
         <view class="profile-guide-copy">
           <view class="profile-guide-title">建立健康档案</view>

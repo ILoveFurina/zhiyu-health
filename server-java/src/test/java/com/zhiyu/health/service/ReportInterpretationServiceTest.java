@@ -43,7 +43,8 @@ class ReportInterpretationServiceTest {
                 agentClient,
                 objectMapper,
                 mock(ReportUploadStagingService.class),
-                TestContracts.instance());
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
         MultipartFile file = mock(MultipartFile.class);
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-001", List.of(file));
@@ -64,6 +65,7 @@ class ReportInterpretationServiceTest {
         processing.setConversationId(8L);
         processing.setRequestId("req-002");
         processing.setStatus("PROCESSING");
+        processing.setHealthProfileId(31L);
         when(persistence.findByRequest(12L, "req-002")).thenReturn(null);
         MultipartFile file = mock(MultipartFile.class);
         when(file.getContentType()).thenReturn("image/png");
@@ -78,7 +80,11 @@ class ReportInterpretationServiceTest {
                         """),
                 "仅供参考，不替代医生诊断",
                 1);
-        when(agentClient.interpretVision(List.of(file))).thenReturn(vision);
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
+                31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
+        when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
+        when(agentClient.interpretVision(List.of(file), profile)).thenReturn(vision);
         when(persistence.succeed(eq(processing), eq(vision), anyString(), anyString()))
                 .thenAnswer(invocation -> {
                     processing.setStatus("SUCCEEDED");
@@ -93,7 +99,8 @@ class ReportInterpretationServiceTest {
                 agentClient,
                 objectMapper,
                 mock(ReportUploadStagingService.class),
-                TestContracts.instance());
+                TestContracts.instance(),
+                healthProfiles);
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-002", List.of(file));
 
@@ -101,7 +108,7 @@ class ReportInterpretationServiceTest {
         assertThat(result.result().path("summary").asText()).isEqualTo("血红蛋白偏低");
         InOrder order = inOrder(persistence, agentClient);
         order.verify(persistence).start(12L, null, "req-002", List.of(file));
-        order.verify(agentClient).interpretVision(List.of(file));
+        order.verify(agentClient).interpretVision(List.of(file), profile);
         order.verify(persistence).succeed(eq(processing), eq(vision), anyString(), anyString());
     }
 
@@ -118,7 +125,12 @@ class ReportInterpretationServiceTest {
         stored.setDisclaimer("仅供参考，不替代医生诊断");
         when(persistence.findByRequest(12L, "req-retry")).thenReturn(stored);
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, new ObjectMapper(), staging, TestContracts.instance());
+                persistence,
+                agentClient,
+                new ObjectMapper(),
+                staging,
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
 
         ReportInterpretationService.ReportView result = service.finalizeStaged(12L, 8L, "req-retry");
 
@@ -135,15 +147,21 @@ class ReportInterpretationServiceTest {
         when(file.getContentType()).thenReturn("image/png");
         ReportInterpretation processing = new ReportInterpretation();
         processing.setStatus("PROCESSING");
+        processing.setHealthProfileId(31L);
         when(persistence.start(12L, null, "req-timeout", List.of(file))).thenReturn(processing);
-        when(agentClient.interpretVision(List.of(file)))
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
+                31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
+        when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
+        when(agentClient.interpretVision(List.of(file), profile))
                 .thenThrow(new AgentClient.VisionAgentException("VISION_MODEL_TIMEOUT", 504, "报告解读服务响应超时"));
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence,
                 agentClient,
                 new ObjectMapper(),
                 mock(ReportUploadStagingService.class),
-                TestContracts.instance());
+                TestContracts.instance(),
+                healthProfiles);
 
         assertThatThrownBy(() -> service.interpret(12L, null, "req-timeout", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {

@@ -10,6 +10,7 @@ from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 
 from app.core.contracts import get_contracts
+from app.schemas.chat import HealthProfilePayload
 
 # 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致，装配期取值缓存）
 _LIMITS = get_contracts().upload_limits
@@ -59,6 +60,7 @@ class PreparedPage:
 class PreparedDocument:
     scenario: Literal["REPORT"]
     pages: tuple[PreparedPage, ...]
+    health_profile: HealthProfilePayload | None = None
 
     @property
     def page_count(self) -> int:
