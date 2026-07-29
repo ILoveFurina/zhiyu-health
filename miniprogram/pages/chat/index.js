@@ -1,5 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 const { streamChat } = require('../../utils/chat-stream')
+const reportComposer = require('./report-composer')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -36,11 +37,15 @@ Page({
     conversationId: null,
     redFlag: null,
     anchorId: '',
+    pendingReport: null,
+    reportProgress: '',
   },
 
   _msgSeq: 0,
   _tokenQueue: [],
   _timer: null,
+
+  ...reportComposer,
 
   onLoad() {
     ensureLogin().catch(() =>

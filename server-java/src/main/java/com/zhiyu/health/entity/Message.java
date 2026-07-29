@@ -15,6 +15,9 @@ public class Message {
     public static final String KIND_DOCTOR_SLOTS = "doctor_slots";
     public static final String KIND_APPOINTMENT = "appointment";
     public static final String KIND_APPOINTMENTS = "appointments";
+    public static final String KIND_REPORT_UPLOAD = "report_upload";
+    public static final String KIND_REPORT_INTERPRETATION = "report_interpretation";
+    public static final String KIND_REPORT_CONTEXT = "report_context";
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -23,6 +26,7 @@ public class Message {
     private String kind;
     private String content;
     private String effort;
+    private Long reportInterpretationId;
     private OffsetDateTime createdAt;
 
     public Message() {
@@ -51,9 +55,14 @@ public class Message {
     public void setEffort(String effort) { this.effort = effort; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public Long getReportInterpretationId() { return reportInterpretationId; }
+    public void setReportInterpretationId(Long reportInterpretationId) {
+        this.reportInterpretationId = reportInterpretationId;
+    }
 
     public static boolean isAiCardKind(String kind) {
         return KIND_DOCTOR_RECOMMENDATIONS.equals(kind) || KIND_DOCTOR_SLOTS.equals(kind)
-                || KIND_APPOINTMENT.equals(kind) || KIND_APPOINTMENTS.equals(kind);
+                || KIND_APPOINTMENT.equals(kind) || KIND_APPOINTMENTS.equals(kind)
+                || KIND_REPORT_INTERPRETATION.equals(kind);
     }
 }

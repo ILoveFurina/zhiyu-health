@@ -48,6 +48,33 @@
         card="{{item.card}}"
       />
 
+      <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
+        <view class="report-card-title">报告解读</view>
+        <view class="report-summary">{{item.card.summary}}</view>
+        <view a:for="{{item.card.items}}" a:for-item="finding" a:key="index" class="finding">
+          <view class="finding-head">
+            <view a:if="{{finding.priority === 'red'}}" class="priority-label priority-red">尽快咨询（非急救）</view>
+            <view a:elif="{{finding.priority === 'yellow'}}" class="priority-label priority-yellow">重点关注</view>
+            <view a:elif="{{finding.priority === 'blue'}}" class="priority-label priority-blue">日常观察</view>
+            <view a:else class="priority-label priority-green">范围内</view>
+            <text class="finding-name">{{finding.name}}</text>
+            <text class="finding-value">{{finding.value}} {{finding.unit}}</text>
+          </view>
+          <view class="finding-ref">参考范围：{{finding.reference_range}} · 第 {{finding.page}} 页</view>
+          <view class="finding-text">{{finding.explanation}}</view>
+          <view class="finding-action">建议：{{finding.action}}</view>
+        </view>
+        <view a:if="{{item.card.actions.length}}" class="report-section">
+          <view class="report-section-title">下一步建议</view>
+          <view a:for="{{item.card.actions}}" a:key="index" class="report-line">• {{item}}</view>
+        </view>
+        <view a:if="{{item.card.unreadable.length}}" class="unreadable">
+          <view class="report-section-title">未能可靠识别</view>
+          <view a:for="{{item.card.unreadable}}" a:key="index" class="report-line">• {{item}}</view>
+        </view>
+        <ai-disclaimer text="{{item.disclaimer}}" />
+      </view>
+
       <view a:else class="bubble ai" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
@@ -56,6 +83,25 @@
     </view>
     <view id="thread-bottom" class="thread-tail"></view>
   </scroll-view>
+
+  <view a:if="{{pendingReport}}" class="pending-report">
+    <view class="pending-head">
+      <view>
+        <view class="pending-title">待发送的报告</view>
+        <view class="pending-tip">将发送至多模态模型；请先遮盖身份信息，原件不保存</view>
+      </view>
+      <view class="pending-count">{{pendingReport.items.length}} 个文件</view>
+    </view>
+    <view a:for="{{pendingReport.items}}" a:key="path" class="pending-item">
+      <view class="pending-index">{{index + 1}}</view>
+      <view class="pending-name">{{item.name}}</view>
+      <view a:if="{{!pendingReport.isPdf}}" class="order-btn" data-index="{{index}}" data-offset="-1" onTap="moveReportItem">↑</view>
+      <view a:if="{{!pendingReport.isPdf}}" class="order-btn" data-index="{{index}}" data-offset="1" onTap="moveReportItem">↓</view>
+      <view class="remove-btn" data-index="{{index}}" onTap="removeReportItem">×</view>
+    </view>
+    <view a:if="{{reportProgress}}" class="report-progress">{{reportProgress}}，正在安全处理…</view>
+    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingReport">发送并解读</view>
+  </view>
 
   <!-- 免责声明常驻细条（双保险之二） -->
   <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
@@ -72,6 +118,7 @@
         placeholder="发消息或按住说话…"
         disabled="{{sending}}"
       />
+      <view class="attach-btn {{sending ? 'attach-disabled' : ''}}" onTap="openReportPicker">+</view>
     </view>
     <view class="c-row2">
       <view class="cpill gear" onTap="cycleGear">{{gearLabel}} ▸</view>
