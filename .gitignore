@@ -19,6 +19,10 @@ dist/
 !.env.example
 *.local
 
+# 知识库向量 seed：由离线 embedding 工具连真实方舟产出，含向量不入库
+# （文本 seed 在 seed.sql 中；向量缺失时运行时检索降级走裸 LLM）
+server-java/src/main/resources/seed-knowledge.sql
+
 # IDE / OS
 .idea/
 .vscode/

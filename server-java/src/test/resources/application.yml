@@ -21,8 +21,9 @@ spring:
       # schema.sql + 幂等 seed.sql 启动执行（开发期 drop+recreate+seed 约定）
       # spring.sql.init 默认只读 classpath:schema.sql 与 classpath:data.sql，
       # 这里显式指定 data-locations，让 seed.sql 保持语义化文件名
+      # seed-knowledge.sql 含向量回填，缺失时 optional: 容忍不阻断启动
       mode: always
-      data-locations: classpath:seed.sql
+      data-locations: optional:classpath:seed-knowledge.sql,classpath:seed.sql
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -46,5 +47,7 @@ zhiyu:
     uri: ${NEO4J_URI:bolt://localhost:7687}
     user: ${NEO4J_USER:neo4j}
     password: ${NEO4J_PASSWORD:}
+  knowledge:
+    embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1024}
   rate-limit:
     permits-per-minute: 60
