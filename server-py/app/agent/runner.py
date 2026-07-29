@@ -29,12 +29,17 @@ class AgentContext:
 
     patient_id: int
     conversation_id: int
+    # 用户授权定位后的经纬度；拒绝授权时为 None，find_hospitals 据此降级。
+    # 不进 system prompt，避免模型誊抄坐标出错；工具直接从 context 取用。
+    longitude: float | None = None
+    latitude: float | None = None
 
 
 @dataclass(frozen=True)
 class AgentOutput:
     event: Literal[
-        "token", "doctor_recommendations", "doctor_slots", "appointment", "appointments"
+        "token", "doctor_recommendations", "doctor_slots",
+        "hospital_recommendations", "appointment", "appointments",
     ]
     data: str | dict[str, Any]
 
@@ -104,11 +109,19 @@ class LangGraphAgentRunner:
 
 def _tool_event(
     tool_name: str | None,
-) -> Literal["doctor_recommendations", "doctor_slots", "appointment", "appointments"] | None:
+) -> Literal[
+    "doctor_recommendations",
+    "doctor_slots",
+    "hospital_recommendations",
+    "appointment",
+    "appointments",
+] | None:
     if tool_name == "recommend_doctors":
         return "doctor_recommendations"
     if tool_name == "get_doctor_slots":
         return "doctor_slots"
+    if tool_name == "find_hospitals":
+        return "hospital_recommendations"
     if tool_name == "create_appointment":
         return "appointment"
     if tool_name == "get_appointment":

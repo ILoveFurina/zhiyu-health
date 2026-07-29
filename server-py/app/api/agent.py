@@ -40,6 +40,8 @@ async def chat(
         conversation_id=body.conversation_id,
         effort_choice=body.effort,
         scenario=body.scenario,
+        longitude=body.longitude,
+        latitude=body.latitude,
     )
 
     async def frame_stream() -> AsyncIterator[str]:
