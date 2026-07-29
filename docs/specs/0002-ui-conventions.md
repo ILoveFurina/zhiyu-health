@@ -1,7 +1,7 @@
 # UI 约定（Spec 0002）
 
 前端一切样式与命名的唯一标准。施工任何前端相关票（C 端小程序、B 端后台）前必读。
-来源：原型最终版（`.scratch/zhiyu-mvp/prototype/chat-page.html`，已验收，可作施工期视觉参照）+ 竞品参考（`docs/竞品图片/`）。
+来源：原型最终版（`.scratch/zhiyu-mvp/prototype/chat-page.html`，已验收，可作施工期视觉参照）。
 
 ## 色板（已定稿）
 

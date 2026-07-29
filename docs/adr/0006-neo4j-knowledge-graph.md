@@ -2,7 +2,7 @@
 
 Status: accepted
 
-团队要求使用真正的图数据库而非关系表模拟，决定引入 Neo4j 5（Docker Compose 第三个组件）承载医学知识图谱。数据为手工策划的数百条三元组（LLM 辅助生成 + 人工校对），LangChain 侧使用官方 `langchain-neo4j` 集成。图谱可视化（B 端 ECharts 力导向图）经后端 API 读取 Neo4j 渲染。
+团队要求使用真正的图数据库而非关系表模拟，决定引入 Neo4j 5（Docker Compose 第三个组件）承载医学知识图谱。数据为手工策划的数百条三元组（LLM 辅助生成 + 人工校对），LangChain 侧使用官方 `langchain-neo4j` 集成。图谱可视化由 B 端使用 AntV 力导向图渲染；浏览器仅访问 server-java 的已鉴权接口，由 server-java 转调 server-py 的只读知识接口获取 Neo4j 投影（ADR-0009、票 13）。
 
 **边界（本决策的核心）**：
 
