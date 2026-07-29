@@ -16,3 +16,27 @@
 - [ ] 断流回复由后端写完落库，历史会话中可见完整内容
 - [ ] 会话归属患者账号，不随健康档案切换过滤
 - [ ] fake LLM 测试：惰性创建时机、标题截断、列表倒序与上限、删除后列表与消息清除、续聊上下文保持
+
+---
+
+## 实施约束（grill-with-docs 沉淀，2026-07-29）
+
+13 条决策逐条对照施工，避免实施期返工。术语以 `CONTEXT.md`「会话 / 对话记录」为准。
+
+1. **列表硬上限 50 条、无分页**：`ORDER BY last_active_at DESC LIMIT 50`，不做"加载更多"；超出的旧会话对 demo 用户视为不存在。
+2. **硬删**：`DELETE FROM conversations WHERE id=? AND patient_id=?`，依赖既有 FK 级联（`messages.conversation_id` ON DELETE CASCADE 连带删消息；`appointments.conversation_id` ON DELETE SET NULL 保留挂号单，不碰业务实体）。
+3. **归属/存在性失败一律 404**：删/读别人的会话或已删除的会话，复用现有 `ConversationNotFoundException` → `ConversationExceptionHandler`，不区分"不存在"和"不是你的"。
+4. **标题 = 首条用户消息文本截断 20 字，无图片特判**：沿用 31 票 `ConversationService.getOrCreateForPatient` 既有逻辑，本票不动标题分支。**前向契约**：后续拍照票（12/15/16/17）须把场景名（"拍皮肤"/"拍药盒"等）作为用户消息的 `content` 发送，标题/列表/回放即自动正确。
+5. **删除手势：长按 → `my.showActionSheet`（"删除"）→ 二次 `my.confirm` → DELETE**，不实现左滑，不依赖未引入的 swipe 组件。
+6. **「新对话」= 纯前端态重置**：`messages=[]` / `conversationId=null` / 停打字机，不发请求、不建会话；未发首条消息就切走不留任何痕迹；抽屉顶部常驻「新对话」入口（非数据项），列表只显示发过消息的会话。
+7. **红线行为不变，保持 31 票口径**：只判本次单条 `content`，前置于会话写入与 Agent 调用。多轮红线检测（拼历史上下文判危险）是独立安全票职责，不在 27 票范围；本票只负责"把历史上下文（最近 20 条非卡片消息）灌进 Agent 让续聊上下文保持"。
+8. **标题截断 20 字即终态**：接口只返截断后的 `title`，前端原样渲染，不加省略号、不返回完整原文；超长由抽屉 CSS `text-overflow: ellipsis` 兜底。
+9. **抽屉入口与 SSE 并发**：入口为右上角 `my.setOptionMenu`"≡"按钮（支付宝左上角胶囊不让动，平台适配，代码注释说明）；抽屉为同页浮层，打开**不打断 SSE**（后台继续吐字，回来看已长好）；**正在 `sending` 的会话前端禁用删除**（标"对话中"或灰掉删除按钮）；后端 DELETE 接口不感知流状态、纯幂等按 id+patient 删，并发安全由 PG 事务 + FK 级联保证。
+10. **断流回复落库口径**：不改变 31 票"收到 Agent 完整 `message` 事件即 `appendMessage` 落库"语义；验收口径 = 只要 server-java 落库了完整消息，即使小程序侧断流，历史会话里也能看到完整回复。Agent 层自身崩溃（没吐完整 message 事件）属 server-py 可靠性票，不在本票范围；本票只在"进入历史会话回放消息"路径验证该能力确实工作。
+11. **相对时间格式化归前端**：列表接口只返 `last_active_at` 原始 ISO 时间戳，小程序写 `formatRelativeTime(ts)`（"刚刚"/"3 分钟前"/"昨天"等），server-java 不碰中文文案。
+12. **列表严格三字段** `{id, title, last_active_at}`：不加 `preview`/最后一条消息预览，信息密度对标票面契约即可，不镀金。
+13. **删除后前端同步**：本地从 `data.conversations` 移除该列表项（不重新拉取，避免顶部外条目顶上来与用户刚看到的不一致）；**若删的恰好是 chat 页当前会话，则重置 chat 为空态**（等同点了「新对话」），避免停留在已删除会话的消息上。
+
+### 文档与 ADR
+- 已更新 `CONTEXT.md`「会话」词条：补"账号级归属 vs 档案级个性化"解耦说明——会话挂在患者账号（登录身份）上不绑任何健康档案，无档案也能对话；会话列表对登录身份全部可见、切换档案不过滤；每轮对话里依赖档案的能力（过敏禁忌、报告解读个性化）只读"当前激活档案"，不把会话与档案绑定。
+- **不新增 ADR**：13 条决策逐条对照"hard-to-reverse / surprising-without-context / real-trade-off"三准则，无一条同时成立。Q2 改主意仅是加 `deleted_at` 列；Q7 是 scope 推迟而非架构选型；Q9 是支付宝平台适配（代码注释 + CONTEXT 足以解释）。
