@@ -7,6 +7,8 @@ import com.zhiyu.health.service.PrescriptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,17 @@ public class DoctorPrescriptionController {
 
     public record CreateInput(@Size(max = 1000) String notes, @NotEmpty @Size(max = 20) List<@Valid ItemInput> items) {}
 
+    public record SafetyCheckInput(
+            @JsonProperty("medication_ids") @NotEmpty @Size(max = 20) List<@NotNull @Positive Long> medicationIds) {}
+
+    public record SafetyCheckResponse(
+            String decision,
+            String messageType,
+            boolean blocked,
+            List<String> reasons,
+            String message,
+            String advice) {}
+
     @GetMapping("/medications")
     public List<PrescriptionService.MedicationView> medications(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
@@ -46,5 +59,15 @@ public class DoctorPrescriptionController {
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId,
             @Valid @RequestBody CreateInput input) {
         return service.create(inputMapper.toCommand(staffId, appointmentId, input));
+    }
+
+    /** 开方过程中的实时禁忌/相互作用检查；判定与提交侧强制复跑的是同一确定性规则。 */
+    @PostMapping("/appointments/{appointmentId}/contraindication-check")
+    public SafetyCheckResponse checkSafety(
+            @PathVariable long appointmentId,
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId,
+            @Valid @RequestBody SafetyCheckInput input) {
+        return inputMapper.toSafetyResponse(
+                service.checkSafety(inputMapper.toSafetyCommand(staffId, appointmentId, input)));
     }
 }

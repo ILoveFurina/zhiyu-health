@@ -4,15 +4,16 @@
 
 **Blocked by:** 09 — 电子处方；11 — 禁忌检测
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 开方表单实时调用 server-java 禁忌/相互作用检查接口；患者、档案、处方归属由 server-java 根据已鉴权医生与接诊关系校验
-- [ ] 红字警告组件（原因 + 建议）
-- [ ] 可选 LLM 解释与替代药建议必须展示免责声明标注；替代建议仍需重新经过同一确定性禁忌/相互作用检查后方可展示
-- [ ] 命中禁忌时 server-java 必须拒绝处方提交，不能只依赖前端禁用按钮
-- [ ] DTO/Entity/View 映射使用 MapStruct，状态与决定值从 `contracts/` 推导
-- [ ] server-java 规则/service 单测与 MockMvc 覆盖正常、危险、越权、绕过前端直接提交四类分支
+- [x] 开方表单实时调用 server-java 禁忌/相互作用检查接口；患者、档案、处方归属由 server-java 根据已鉴权医生与接诊关系校验
+- [x] 红字警告组件（原因 + 建议）
+- [ ] 可选 LLM 解释与替代药建议必须展示免责声明标注；替代建议仍需重新经过同一确定性禁忌/相互作用检查后方可展示（可选项，本票不实施，见 Comments）
+- [x] 命中禁忌时 server-java 必须拒绝处方提交，不能只依赖前端禁用按钮
+- [x] DTO/Entity/View 映射使用 MapStruct，状态与决定值从 `contracts/` 推导
+- [x] server-java 规则/service 单测与 MockMvc 覆盖正常、危险、越权、绕过前端直接提交四类分支
 
 ## Comments
 
 - 2026-07-29：明确票 23 复用的是 server-java 确定性规则能力；前端提示只是展示层，提交接口必须再次执行同一规则。
+- 2026-07-29：完成 B 端处方安全提醒。`POST /api/b/reception/appointments/{id}/contraindication-check` 由已鉴权医生名下挂号单派生患者上下文（取消挂号 409、他人挂号单 404、非医生 403），复用票 11 `ContraindicationService` 确定性规则；`PrescriptionService.create` 提交前强制复跑同一规则，BLOCKED/REVIEW_REQUIRED 均 409 且话术（`blocked_prescription`/`review_required_prescription`）新增入 `contracts/contraindication.json`，双栈兼容。admin 开方表单选药后 300ms 防抖调用检查，命中红字 Alert（原因+建议）并禁用提交，安全时绿色提示（有意的 UX 增强）；检查请求失败时前端放行、服务端 409 兜底。可选 LLM 解释与替代药建议为票面「可附带」项，本票不实施，避免越票；如后续实施须满足该勾选项全部条件。双轴 code-review 无硬违规，采纳修正：`safetyException` 命名、「。：」双标点、checkSafety 补齐取消挂号一致性校验。server-java 189 项、server-py 52 项测试与 spotless/typecheck/admin build 全绿；本地启动 server-java 连云数据库冒烟通过（启动 fail-fast 契约加载 + 未认证 401），但云库演示口令与 AGENTS.md 记录不符（doctor.lin/admin 均登录失败），浏览器走查待有效口令后进行。
