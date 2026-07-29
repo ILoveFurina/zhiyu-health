@@ -1,0 +1,32 @@
+<view class="card">
+  <view class="title">就近医院推荐</view>
+
+  <view a:if="{{card.need_location}}">
+    <view class="locate-tip">未获取到你的定位，无法按距离推荐。</view>
+    <view class="locate-tip">请授权定位，或在下方手动选择你想去的区域。</view>
+    <view class="locate-action" onTap="selectHospital" data-id="{{0}}" data-name="" data-address="">手动选择区域</view>
+  </view>
+
+  <view a:else>
+    <view a:for="{{card.hospitals}}" a:key="hospital_id" class="hospital">
+      <view class="hospital-main">
+        <view class="hospital-head">
+          <text class="name">{{item.name}}</text>
+          <text a:if="{{item.level}}" class="hospital-level">{{item.level}}</text>
+        </view>
+        <view class="address">{{item.address}}</view>
+        <view class="distance">距您约 {{item.distance_km}} km</view>
+      </view>
+      <view
+        class="choose"
+        data-id="{{item.hospital_id}}"
+        data-name="{{item.name}}"
+        data-address="{{item.address}}"
+        onTap="selectHospital"
+      >查看</view>
+    </view>
+    <view a:if="{{card.hospitals.length === 0}}" class="empty">暂时没有可推荐医院</view>
+  </view>
+
+  <ai-disclaimer text="{{card.disclaimer}}" />
+</view>
