@@ -42,6 +42,13 @@
         onSelectSlot="onSlotSelected"
       />
 
+      <hospital-card
+        a:elif="{{item.kind === 'hospital_recommendations'}}"
+        kind="{{item.kind}}"
+        card="{{item.card}}"
+        onSelectHospital="onHospitalSelected"
+      />
+
       <appointment-card
         a:elif="{{item.kind === 'appointment' || item.kind === 'appointments'}}"
         kind="{{item.kind}}"

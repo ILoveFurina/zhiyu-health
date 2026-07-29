@@ -6,6 +6,11 @@
     "backgroundColor": "#e9f6f2",
     "pullRefresh": false
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于按距离为你推荐就近医院"
+    }
+  },
   "usingComponents": {
     "ai-disclaimer": "/components/ai-disclaimer/index"
   }

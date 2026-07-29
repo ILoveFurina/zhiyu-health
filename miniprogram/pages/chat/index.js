@@ -17,11 +17,19 @@ const PROMPTS = [
 
 const INTERPRETATION_KEYWORDS = ['解读', '报告', '处方']
 
+// 触发就近医院推荐的意图关键词；命中后先尝试获取定位再发起对话
+const LOCATION_KEYWORDS = ['附近', '就近', '最近', '周边', '哪里有医院', '找医院']
+
 /** 自动档按意图分配：导诊 low，报告/处方解读 high。 */
 function scenarioFor(content) {
   return INTERPRETATION_KEYWORDS.some((keyword) => content.includes(keyword))
     ? 'interpretation'
     : 'triage'
+}
+
+/** 是否需要地理位置以提供就近医院推荐。 */
+function wantsNearbyHospital(content) {
+  return LOCATION_KEYWORDS.some((keyword) => content.includes(keyword))
 }
 
 Page({
@@ -74,11 +82,32 @@ Page({
   sendText(content) {
     if (!content) return
     ensureLogin()
-      .then(() => this.startRound(content))
+      .then(() => {
+        // 就近医院推荐需要定位；授权拿坐标，拒绝则降级为不带坐标的请求，
+        // 由 Agent 返回 need_location 卡片引导手动选区。
+        if (wantsNearbyHospital(content)) {
+          this._locateAndSend(content)
+          return
+        }
+        this.startRound(content)
+      })
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
   },
 
-  startRound(content) {
+  /** 获取定位后发起对话；拒绝授权也继续发送（无坐标走降级路径）。 */
+  _locateAndSend(content) {
+    my.getLocation({
+      type: 1, // WGS-84
+      success: (res) =>
+        this.startRound(content, { longitude: res.longitude, latitude: res.latitude }),
+      fail: () => {
+        my.showToast({ content: '未获取到定位，将按区域推荐', type: 'none' })
+        this.startRound(content, { longitude: undefined, latitude: undefined })
+      },
+    })
+  },
+
+  startRound(content, location) {
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content }
     const aiMsg = {
       id: ++this._msgSeq,
@@ -101,11 +130,14 @@ Page({
       conversationId: this.data.conversationId,
       effort: GEARS[this.data.gearIndex].key,
       scenario: scenarioFor(content),
+      longitude: location && location.longitude,
+      latitude: location && location.latitude,
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
         onAssistant: (data, tokens) => this.playAssistant(aiMsg.id, data, tokens),
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
+        onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
@@ -162,6 +194,16 @@ Page({
     this.sendText(
       `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}），请帮我完成挂号`
     )
+  },
+
+  onHospitalSelected(selection) {
+    const { hospitalId, name } = selection
+    if (!hospitalId) {
+      // 降级卡片的手动选区入口：引导用户说出区域或科室
+      this.sendText('我想找医院，请帮我看看附近有哪些科室')
+      return
+    }
+    this.sendText(`我对${name}感兴趣（hospital_id: ${hospitalId}），请帮我看看这家医院有哪些科室和医生`)
   },
 
   openAppointments() {

@@ -9,7 +9,7 @@ const { getToken } = require('./auth')
  * SSE 流后按事件序回放：token 交给页面打字机输出，其余事件即时分发。
  * 若未来支付宝支持分片回调，只需替换本文件内部实现。
  */
-function streamChat({ content, conversationId, effort, scenario, handlers }) {
+function streamChat({ content, conversationId, effort, scenario, longitude, latitude, handlers }) {
   my.request({
     url: `${apiBaseUrl}/c/chat`,
     method: 'POST',
@@ -21,6 +21,8 @@ function streamChat({ content, conversationId, effort, scenario, handlers }) {
       conversation_id: conversationId || undefined,
       effort,
       scenario,
+      longitude,
+      latitude,
     },
     headers: {
       'Content-Type': 'application/json',
@@ -68,6 +70,8 @@ function dispatch(events, handlers) {
       handlers.onDoctorRecommendations(data)
     } else if (event === 'doctor_slots') {
       handlers.onDoctorSlots(data)
+    } else if (event === 'hospital_recommendations') {
+      handlers.onHospitalRecommendations(data)
     } else if (event === 'appointment') {
       handlers.onAppointment(data)
     } else if (event === 'appointments') {
