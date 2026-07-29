@@ -4,9 +4,8 @@ from collections.abc import Awaitable, Callable
 from typing import Protocol
 
 from neo4j.exceptions import Neo4jError
-from psycopg import AsyncConnection
 
-from app.db.clients import KnowledgeClients
+from app.db.clients import KnowledgeClients, acquire_pg_connection
 
 
 class HealthChecker(Protocol):
@@ -35,11 +34,11 @@ class HealthService:
         await self._clients.neo4j.verify_connectivity()
 
     async def _check_pg(self) -> None:
-        # database_url 未配置时检索降级走裸 LLM，探活标 unavailable（不阻断整体）
+        # database_url 未配置时检索降级走裸 LLM，探活标 error（不阻断整体）
         dsn = self._clients.pg_dsn
         if dsn is None:
             raise OSError("pgvector 未配置")
-        conn = await AsyncConnection.connect(dsn, timeout=3)
+        conn = await acquire_pg_connection(dsn)
         try:
             await conn.execute("SELECT 1")
         finally:

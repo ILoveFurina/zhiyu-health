@@ -28,6 +28,8 @@ public class ChatController {
             @JsonProperty("conversation_id") Long conversationId,
             String effort,
             String scenario,
+            // 知识增强源（ADR-0010）：rag/graph/none；缺省时 server-py 按 scenario 默认
+            @JsonProperty("knowledge_source") String knowledgeSource,
             // 用户授权定位后回传的经纬度；拒绝授权时不传，由 Agent 降级提示手动选区
             @JsonProperty("longitude") @DecimalMin("-180") @DecimalMax("180") Double longitude,
             @JsonProperty("latitude") @DecimalMin("-90") @DecimalMax("90") Double latitude) {}
@@ -42,6 +44,7 @@ public class ChatController {
                 request.content(),
                 request.effort(),
                 request.scenario(),
+                request.knowledgeSource(),
                 request.longitude(),
                 request.latitude());
     }

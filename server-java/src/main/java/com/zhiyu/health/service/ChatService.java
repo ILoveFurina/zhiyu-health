@@ -41,6 +41,7 @@ public class ChatService {
             String content,
             String effort,
             String scenario,
+            String knowledgeSource,
             Double longitude,
             Double latitude) {
         // 安全门先于会话与消息写入，更先于 Agent 调用。
@@ -51,7 +52,7 @@ public class ChatService {
         if (hit != null) {
             return redFlagStream(conversation, hit);
         }
-        return agentStream(conversation, effort, scenario, longitude, latitude);
+        return agentStream(conversation, effort, scenario, knowledgeSource, longitude, latitude);
     }
 
     private SseEmitter redFlagStream(Conversation conversation, RedFlagHit hit) {
@@ -81,7 +82,12 @@ public class ChatService {
     }
 
     private SseEmitter agentStream(
-            Conversation conversation, String effort, String scenario, Double longitude, Double latitude) {
+            Conversation conversation,
+            String effort,
+            String scenario,
+            String knowledgeSource,
+            Double longitude,
+            Double latitude) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         Map<String, Object> body = new HashMap<>();
         body.put("messages", conversations.recentContext(conversation.getId()));
@@ -89,6 +95,10 @@ public class ChatService {
         body.put("conversation_id", conversation.getId());
         body.put("effort", blankToDefault(effort, contracts.chatDefaults().effortDefault()));
         body.put("scenario", blankToDefault(scenario, contracts.chatDefaults().scenarioDefault()));
+        // 知识增强源透传 server-py（ADR-0010）；缺省不传，由 server-py 按 scenario 默认
+        if (knowledgeSource != null && !knowledgeSource.isBlank()) {
+            body.put("knowledge_source", knowledgeSource);
+        }
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(conversation.getPatientId());
         if (profile != null) {
             body.put("health_profile", profile);
