@@ -2,7 +2,8 @@
 -- 由 spring.sql.init.data-locations 在启动时执行
 
 INSERT INTO hospitals (id, name, level, address, longitude, latitude) VALUES
-    (1, '智愈市人民医院', '三级甲等', '智愈市安康路 88 号', 121.4737, 31.2304)
+    (1, '智愈市人民医院', '三级甲等', '智愈市安康路 88 号', 121.4737, 31.2304),
+    (2, '智愈市第二医院', '三级乙等', '智愈市江宁路 200 号', 121.4901, 31.2486)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO departments (id, hospital_id, name, floor, location) VALUES

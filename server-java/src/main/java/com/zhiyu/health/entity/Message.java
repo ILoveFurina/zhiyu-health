@@ -13,6 +13,7 @@ public class Message {
     public static final String KIND_TEXT = "text";
     public static final String KIND_DOCTOR_RECOMMENDATIONS = "doctor_recommendations";
     public static final String KIND_DOCTOR_SLOTS = "doctor_slots";
+    public static final String KIND_HOSPITAL_RECOMMENDATIONS = "hospital_recommendations";
     public static final String KIND_APPOINTMENT = "appointment";
     public static final String KIND_APPOINTMENTS = "appointments";
 
@@ -54,6 +55,7 @@ public class Message {
 
     public static boolean isAiCardKind(String kind) {
         return KIND_DOCTOR_RECOMMENDATIONS.equals(kind) || KIND_DOCTOR_SLOTS.equals(kind)
+                || KIND_HOSPITAL_RECOMMENDATIONS.equals(kind)
                 || KIND_APPOINTMENT.equals(kind) || KIND_APPOINTMENTS.equals(kind);
     }
 }
