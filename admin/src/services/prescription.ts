@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { contraindicationDecisions, contraindicationMessageTypes } from '@/contracts/contraindication';
 import { prescriptionDecisions, prescriptionStatuses, prescriptionStatusLabels } from '@/contracts/prescription';
 
 type PrescriptionStatus = (typeof prescriptionStatusLabels)[keyof typeof prescriptionStatusLabels];
@@ -50,6 +51,23 @@ export const fetchMedications = () => request<Medication[]>('/api/b/reception/me
 export const createPrescription = (appointmentId: number, data: PrescriptionInput) =>
   request<Prescription>(`/api/b/reception/appointments/${appointmentId}/prescriptions`, {
     method: 'POST', data,
+  });
+
+export type SafetyDecision = (typeof contraindicationDecisions)[keyof typeof contraindicationDecisions];
+export type SafetyMessageType = (typeof contraindicationMessageTypes)[keyof typeof contraindicationMessageTypes];
+
+export interface SafetyCheckResult {
+  decision: SafetyDecision;
+  message_type: SafetyMessageType;
+  blocked: boolean;
+  reasons: string[];
+  message: string;
+  advice?: string | null;
+}
+
+export const checkPrescriptionSafety = (appointmentId: number, medicationIds: number[]) =>
+  request<SafetyCheckResult>(`/api/b/reception/appointments/${appointmentId}/contraindication-check`, {
+    method: 'POST', data: { medication_ids: medicationIds },
   });
 
 export const fetchPendingPrescriptions = () =>

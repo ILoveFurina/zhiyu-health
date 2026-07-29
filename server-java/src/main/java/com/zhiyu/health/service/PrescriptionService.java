@@ -14,6 +14,7 @@ import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.service.mapping.PrescriptionDtoMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +33,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     private final PrescriptionItemMapper itemMapper;
     private final TransactionTemplate transactionTemplate;
     private final AgentClient agentClient;
+    private final ContraindicationService contraindicationService;
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
@@ -43,21 +45,29 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                 .toList();
     }
 
+    public ContraindicationResult checkSafety(CheckSafetyCommand command) {
+        Appointment appointment = requirePrescribableAppointment(command.staffId(), command.appointmentId());
+        // 患者身份只来自已鉴权医生名下的挂号单，绝不接受请求体传入。
+        return contraindicationService.check(
+                new ContraindicationService.CheckCommand(appointment.getPatientId(), command.medicationIds()));
+    }
+
     public PrescriptionView create(CreateCommand command) {
-        long doctorId = requireDoctor(command.staffId());
-        Appointment appointment = receptionMapper.selectAppointment(command.appointmentId(), doctorId);
-        if (appointment == null) {
-            throw new ApiException(404, "挂号单不存在");
-        }
-        if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
-            throw new ApiException(409, "已取消挂号不可开方");
-        }
+        Appointment appointment = requirePrescribableAppointment(command.staffId(), command.appointmentId());
+        long doctorId = appointment.getDoctorId();
         if (prescriptionMapper.selectByAppointmentId(command.appointmentId()) != null) {
             throw new ApiException(409, "该挂号单已开具电子处方");
         }
         List<Medication> medications = command.items().stream()
                 .map(item -> requireMedication(item.medicationId()))
                 .toList();
+        // 提交侧强制复跑同一确定性规则：前端禁用按钮只是体验层，不能作为安全边界。
+        ContraindicationResult safety = contraindicationService.check(new ContraindicationService.CheckCommand(
+                appointment.getPatientId(),
+                command.items().stream().map(CreateItem::medicationId).toList()));
+        if (safety.blocked()) {
+            throw safetyException(safety);
+        }
         Long id = transactionTemplate.execute(status -> {
             Prescription prescription = dtoMapper.toPrescription(command, doctorId, status("pending"));
             prescriptionMapper.insert(prescription);
@@ -138,6 +148,34 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         return medication;
     }
 
+    /** 挂号单归属与可开方校验：医生只能操作自己排班下的挂号单，患者上下文由挂号单派生。 */
+    private Appointment requirePrescribableAppointment(long staffId, long appointmentId) {
+        long doctorId = requireDoctor(staffId);
+        Appointment appointment = receptionMapper.selectAppointment(appointmentId, doctorId);
+        if (appointment == null) {
+            throw new ApiException(404, "挂号单不存在");
+        }
+        if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
+            throw new ApiException(409, "已取消挂号不可开方");
+        }
+        return appointment;
+    }
+
+    /** 命中禁忌或数据不完整（fail closed）一律 409 拒绝提交；话术只取 contracts/。 */
+    private ApiException safetyException(ContraindicationResult safety) {
+        Contracts.Contraindication contract = contracts.contraindication();
+        String key = contract.decisions().get("blocked").equals(safety.decision())
+                ? "blocked_prescription"
+                : "review_required_prescription";
+        String message = contract.messages().get(key);
+        if (!safety.reasons().isEmpty()) {
+            // 契约话术以句号收尾，附原因前去掉避免“。：”双标点。
+            String base = message.endsWith("。") ? message.substring(0, message.length() - 1) : message;
+            message = base + "：" + String.join("；", safety.reasons());
+        }
+        return new ApiException(409, message);
+    }
+
     private long requireDoctor(long staffId) {
         StaffUser staff = staffUserMapper.selectById(staffId);
         if (staff == null || !StaffUser.ROLE_DOCTOR.equals(staff.getRole()) || staff.getDoctorId() == null) {
@@ -189,6 +227,8 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     public record CreateItem(long medicationId, String dosage, String frequency, String duration, String notes) {}
 
     public record CreateCommand(long staffId, long appointmentId, String notes, List<CreateItem> items) {}
+
+    public record CheckSafetyCommand(long staffId, long appointmentId, List<Long> medicationIds) {}
 
     public record ItemView(
             Long medicationId,

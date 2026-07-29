@@ -50,7 +50,8 @@ export default function ConsultationDrawer(props: Props) {
             {prescriptionCreated ? (
               <Alert type="success" showIcon message="电子处方已提交，等待管理员审核" />
             ) : (
-              <PrescriptionForm medications={medications} submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
+              <PrescriptionForm appointmentId={appointment.id} medications={medications}
+                submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
             )}
             {completed ? (
               <Descriptions title="接诊记录" column={1} bordered>

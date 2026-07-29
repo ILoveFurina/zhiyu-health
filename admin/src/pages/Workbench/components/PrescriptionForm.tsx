@@ -1,16 +1,52 @@
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Select, Space } from 'antd';
-import type { Medication, PrescriptionInput } from '@/services/prescription';
+import { Alert, Button, Form, Input, Select, Space, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import {
+  checkPrescriptionSafety,
+  type Medication,
+  type PrescriptionInput,
+  type SafetyCheckResult,
+} from '@/services/prescription';
 
 interface Props {
+  appointmentId: number;
   medications: Medication[];
   submitting: boolean;
   onSubmit: (values: PrescriptionInput) => Promise<void>;
 }
 
-export default function PrescriptionForm({ medications, submitting, onSubmit }: Props) {
+export default function PrescriptionForm({ appointmentId, medications, submitting, onSubmit }: Props) {
+  const [form] = Form.useForm<PrescriptionInput>();
+  const items = Form.useWatch('items', form) ?? [];
+  const idsKey = Array.from(new Set(
+    items.map((item) => item?.medication_id).filter((id): id is number => typeof id === 'number'),
+  )).join(',');
+  const [safety, setSafety] = useState<SafetyCheckResult>();
+  const [checking, setChecking] = useState(false);
+
+  // 选药变化后防抖调用 server-java 确定性禁忌检查；提交侧仍会复跑同一规则。
+  useEffect(() => {
+    if (!idsKey) {
+      setSafety(undefined);
+      setChecking(false);
+      return;
+    }
+    const medicationIds = idsKey.split(',').map(Number);
+    let stale = false;
+    setChecking(true);
+    const timer = setTimeout(() => {
+      checkPrescriptionSafety(appointmentId, medicationIds)
+        .then((result) => { if (!stale) setSafety(result); })
+        .catch(() => { if (!stale) setSafety(undefined); })
+        .finally(() => { if (!stale) setChecking(false); });
+    }, 300);
+    return () => { stale = true; clearTimeout(timer); };
+  }, [appointmentId, idsKey]);
+
+  const blocked = safety?.blocked === true;
+
   return (
-    <Form layout="vertical" onFinish={onSubmit} initialValues={{ items: [{}] }}>
+    <Form form={form} layout="vertical" onFinish={onSubmit} initialValues={{ items: [{}] }}>
       <Form.List name="items">
         {(fields, { add, remove }) => (
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -39,7 +75,21 @@ export default function PrescriptionForm({ medications, submitting, onSubmit }: 
         )}
       </Form.List>
       <Form.Item name="notes" label="电子处方备注" style={{ marginTop: 16 }}><Input.TextArea rows={2} /></Form.Item>
-      <Button type="primary" htmlType="submit" loading={submitting}>提交审核</Button>
+      {safety && (
+        <Alert
+          style={{ marginBottom: 16 }}
+          type={blocked ? 'error' : 'success'}
+          showIcon
+          message={safety.message}
+          description={blocked ? (
+            <Space direction="vertical" size={4}>
+              {safety.reasons.map((reason) => <Typography.Text key={reason} type="danger">{reason}</Typography.Text>)}
+              {safety.advice && <Typography.Text strong type="danger">{safety.advice}</Typography.Text>}
+            </Space>
+          ) : undefined}
+        />
+      )}
+      <Button type="primary" htmlType="submit" loading={submitting} disabled={blocked || checking}>提交审核</Button>
     </Form>
   );
 }
