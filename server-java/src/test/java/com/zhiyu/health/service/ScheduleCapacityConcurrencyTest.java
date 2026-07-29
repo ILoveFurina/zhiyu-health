@@ -5,6 +5,7 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -28,8 +29,10 @@ class ScheduleCapacityConcurrencyTest {
         Schedule current = schedule(20, 5);
         when(scheduleMapper.selectById(1L)).thenReturn(current);
         ScheduleService service = new ScheduleService(
-                scheduleMapper, mock(DoctorMapper.class), new InMemorySlotCounter(),
+                mock(DoctorMapper.class), new SlotAccounting(new InMemorySlotCounter()),
                 mock(TransactionTemplate.class));
+        // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
+        ReflectionTestUtils.setField(service, "baseMapper", scheduleMapper);
 
         assertThat(service.disableSchedule(1L).getIsActive()).isFalse();
         verify(scheduleMapper).disable(1L);
@@ -57,7 +60,9 @@ class ScheduleCapacityConcurrencyTest {
         slotCounter.initialize(1L, 5);
         Object rowLock = new Object();
         ScheduleService service = new ScheduleService(
-                scheduleMapper, doctorMapper, slotCounter, serializedTransaction(rowLock));
+                doctorMapper, new SlotAccounting(slotCounter), serializedTransaction(rowLock));
+        // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
+        ReflectionTestUtils.setField(service, "baseMapper", scheduleMapper);
         var executor = Executors.newFixedThreadPool(2);
         try {
             var first = executor.submit(() -> service.updateSchedule(schedule(24, null)));

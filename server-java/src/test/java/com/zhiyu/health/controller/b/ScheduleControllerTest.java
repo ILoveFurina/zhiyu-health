@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.b;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.controller.b.mapping.ScheduleInputMapperImpl;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.entity.TimeSlot;
@@ -9,6 +10,7 @@ import com.zhiyu.health.support.StaffTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ScheduleController.class)
+@Import(ScheduleInputMapperImpl.class)
 class ScheduleControllerTest {
 
     @Autowired

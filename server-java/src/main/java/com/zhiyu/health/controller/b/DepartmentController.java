@@ -1,7 +1,8 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.controller.b.mapping.DepartmentInputMapper;
 import com.zhiyu.health.entity.Department;
-import com.zhiyu.health.service.OrganizationService;
+import com.zhiyu.health.service.DepartmentAdminService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -19,13 +20,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 科室管理：仅 admin 角色可操作（AdminInterceptor），业务在 OrganizationService */
+/** 科室管理：仅 admin 角色可操作（AdminInterceptor），业务在 DepartmentAdminService */
 @RestController
 @RequestMapping("/api/b/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
 
-    private final OrganizationService organizationService;
+    private final DepartmentAdminService departmentAdminService;
+    private final DepartmentInputMapper departmentInputMapper;
 
     public record DepartmentInput(
             @NotNull Long hospitalId,
@@ -35,33 +37,25 @@ public class DepartmentController {
 
     @GetMapping
     public List<Department> list() {
-        return organizationService.listDepartments();
+        return departmentAdminService.listAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Department create(@Validated @RequestBody DepartmentInput input) {
-        return organizationService.createDepartment(toEntity(new Department(), input));
+        return departmentAdminService.create(departmentInputMapper.toEntity(input));
     }
 
     @PutMapping("/{id}")
     public Department update(@PathVariable long id, @Validated @RequestBody DepartmentInput input) {
-        Department department = toEntity(new Department(), input);
+        Department department = departmentInputMapper.toEntity(input);
         department.setId(id);
-        return organizationService.updateDepartment(department);
+        return departmentAdminService.update(department);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
-        organizationService.deleteDepartment(id);
-    }
-
-    private Department toEntity(Department department, DepartmentInput input) {
-        department.setHospitalId(input.hospitalId());
-        department.setName(input.name());
-        department.setFloor(input.floor());
-        department.setLocation(input.location());
-        return department;
+        departmentAdminService.delete(id);
     }
 }

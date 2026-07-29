@@ -136,7 +136,7 @@ class AppointmentServiceTest {
         });
 
         AppointmentService service = new AppointmentService(
-                appointmentMapper, scheduleMapper, slotCounter, transaction);
+                appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L))
                 .isInstanceOf(IllegalStateException.class);
@@ -180,7 +180,7 @@ class AppointmentServiceTest {
             TransactionCallback<?> callback = invocation.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
         });
-        return new AppointmentService(appointmentMapper, scheduleMapper, slotCounter, transaction);
+        return new AppointmentService(appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
     }
 
     private Schedule schedule(int total, int remaining) {

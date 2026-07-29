@@ -1,13 +1,15 @@
 package com.zhiyu.health.controller.b;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.controller.b.mapping.DoctorInputMapperImpl;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.OrganizationService;
+import com.zhiyu.health.service.DoctorAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,13 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** 医生 CRUD seam：photo_url snake_case 与科室外键 404 */
 @WebMvcTest(DoctorController.class)
+@Import(DoctorInputMapperImpl.class)
 class DoctorControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private OrganizationService organizationService;
+    private DoctorAdminService doctorAdminService;
 
     private static final String VALID_BODY = """
             {"department_id": 1, "name": "林知远", "title": "主任医师",
@@ -51,7 +54,7 @@ class DoctorControllerTest {
 
     @Test
     void listReturnsDoctors() throws Exception {
-        when(organizationService.listDoctors()).thenReturn(List.of(demoDoctor()));
+        when(doctorAdminService.listAll()).thenReturn(List.of(demoDoctor()));
 
         mockMvc.perform(get("/api/b/doctors").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
@@ -69,7 +72,7 @@ class DoctorControllerTest {
 
     @Test
     void createReturns201() throws Exception {
-        when(organizationService.createDoctor(any(Doctor.class))).thenReturn(demoDoctor());
+        when(doctorAdminService.create(any(Doctor.class))).thenReturn(demoDoctor());
 
         mockMvc.perform(post("/api/b/doctors").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json").content(VALID_BODY))
@@ -79,7 +82,7 @@ class DoctorControllerTest {
 
     @Test
     void createReturns404WhenDepartmentMissing() throws Exception {
-        when(organizationService.createDoctor(any(Doctor.class)))
+        when(doctorAdminService.create(any(Doctor.class)))
                 .thenThrow(new ApiException(404, "科室不存在"));
 
         mockMvc.perform(post("/api/b/doctors").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
@@ -90,7 +93,7 @@ class DoctorControllerTest {
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
-        when(organizationService.updateDoctor(any(Doctor.class)))
+        when(doctorAdminService.update(any(Doctor.class)))
                 .thenThrow(new ApiException(404, "医生或科室不存在"));
 
         mockMvc.perform(put("/api/b/doctors/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
@@ -107,7 +110,7 @@ class DoctorControllerTest {
 
     @Test
     void deleteReturns404WhenMissing() throws Exception {
-        doThrow(new ApiException(404, "医生不存在")).when(organizationService).deleteDoctor(99L);
+        doThrow(new ApiException(404, "医生不存在")).when(doctorAdminService).delete(99L);
 
         mockMvc.perform(delete("/api/b/doctors/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())

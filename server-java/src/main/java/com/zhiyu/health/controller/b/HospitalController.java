@@ -1,7 +1,8 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.controller.b.mapping.HospitalInputMapper;
 import com.zhiyu.health.entity.Hospital;
-import com.zhiyu.health.service.OrganizationService;
+import com.zhiyu.health.service.HospitalAdminService;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -21,13 +22,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 医院管理：仅 admin 角色可操作（AdminInterceptor），业务在 OrganizationService */
+/** 医院管理：仅 admin 角色可操作（AdminInterceptor），业务在 HospitalAdminService */
 @RestController
 @RequestMapping("/api/b/hospitals")
 @RequiredArgsConstructor
 public class HospitalController {
 
-    private final OrganizationService organizationService;
+    private final HospitalAdminService hospitalAdminService;
+    private final HospitalInputMapper hospitalInputMapper;
 
     public record HospitalInput(
             @NotBlank @Size(max = 100) String name,
@@ -38,34 +40,25 @@ public class HospitalController {
 
     @GetMapping
     public List<Hospital> list() {
-        return organizationService.listHospitals();
+        return hospitalAdminService.listAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Hospital create(@Validated @RequestBody HospitalInput input) {
-        return organizationService.createHospital(toEntity(new Hospital(), input));
+        return hospitalAdminService.create(hospitalInputMapper.toEntity(input));
     }
 
     @PutMapping("/{id}")
     public Hospital update(@PathVariable long id, @Validated @RequestBody HospitalInput input) {
-        Hospital hospital = toEntity(new Hospital(), input);
+        Hospital hospital = hospitalInputMapper.toEntity(input);
         hospital.setId(id);
-        return organizationService.updateHospital(hospital);
+        return hospitalAdminService.update(hospital);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
-        organizationService.deleteHospital(id);
-    }
-
-    private Hospital toEntity(Hospital hospital, HospitalInput input) {
-        hospital.setName(input.name());
-        hospital.setLevel(input.level());
-        hospital.setAddress(input.address());
-        hospital.setLongitude(input.longitude());
-        hospital.setLatitude(input.latitude());
-        return hospital;
+        hospitalAdminService.delete(id);
     }
 }

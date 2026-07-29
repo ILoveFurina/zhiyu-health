@@ -6,6 +6,7 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -74,8 +75,7 @@ class ScheduleServiceTest {
             callback.doInTransaction(mock(TransactionStatus.class));
             throw new IllegalStateException("模拟数据库提交失败");
         });
-        ScheduleService service = new ScheduleService(
-                scheduleMapper, doctorMapper, slotCounter, failingTransaction);
+        ScheduleService service = serviceWith(failingTransaction);
         Schedule input = new Schedule();
         input.setDoctorId(1L);
         input.setTotalSlots(8);
@@ -91,8 +91,7 @@ class ScheduleServiceTest {
         when(scheduleMapper.decrementRemainingSlots(1L)).thenAnswer(invocation ->
                 pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
         slotCounter.initialize(1L, 1);
-        ScheduleService service = new ScheduleService(
-                scheduleMapper, doctorMapper, slotCounter,
+        ScheduleService service = serviceWith(
                 transaction(callback -> callback.doInTransaction(mock(TransactionStatus.class))));
         AtomicInteger successes = new AtomicInteger();
 
@@ -223,8 +222,14 @@ class ScheduleServiceTest {
     }
 
     private ScheduleService serviceWithImmediateTransaction() {
-        return new ScheduleService(scheduleMapper, doctorMapper, slotCounter,
-                transaction(callback -> callback.doInTransaction(mock(TransactionStatus.class))));
+        return serviceWith(transaction(callback -> callback.doInTransaction(mock(TransactionStatus.class))));
+    }
+
+    private ScheduleService serviceWith(TransactionTemplate template) {
+        ScheduleService service = new ScheduleService(doctorMapper, new SlotAccounting(slotCounter), template);
+        // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
+        ReflectionTestUtils.setField(service, "baseMapper", scheduleMapper);
+        return service;
     }
 
     private TransactionTemplate transaction(TransactionExecutor executor) {

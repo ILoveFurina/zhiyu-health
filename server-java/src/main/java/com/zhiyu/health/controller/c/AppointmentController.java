@@ -2,8 +2,8 @@ package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
+import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.ChatService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,18 +49,19 @@ public class AppointmentController {
             @JsonProperty("created_at") String createdAt) {
 
         static AppointmentOut from(AppointmentService.AppointmentView value) {
+            AppointmentCardBase base = AppointmentCardBase.from(value);
             return new AppointmentOut(
-                    value.id(),
-                    value.scheduleId(),
-                    value.doctorId(),
-                    value.doctorName(),
-                    value.departmentName(),
-                    value.scheduleDate(),
-                    value.timeSlot(),
-                    value.sequenceNumber(),
-                    value.status(),
-                    value.conditionSummary(),
-                    value.conditionSummary() == null ? null : ChatService.DISCLAIMER,
+                    base.appointmentId(),
+                    base.scheduleId(),
+                    base.doctorId(),
+                    base.doctorName(),
+                    base.departmentName(),
+                    base.scheduleDate(),
+                    base.timeSlot(),
+                    base.sequenceNumber(),
+                    base.status(),
+                    base.conditionSummary(),
+                    base.summaryDisclaimer(),
                     value.createdAt());
         }
     }

@@ -1,13 +1,15 @@
 package com.zhiyu.health.controller.b;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.controller.b.mapping.DepartmentInputMapperImpl;
 import com.zhiyu.health.entity.Department;
 import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.OrganizationService;
+import com.zhiyu.health.service.DepartmentAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,13 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** 科室 CRUD seam：楼层/位置字段（就诊指引卡数据源）与医院外键 404 */
 @WebMvcTest(DepartmentController.class)
+@Import(DepartmentInputMapperImpl.class)
 class DepartmentControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private OrganizationService organizationService;
+    private DepartmentAdminService departmentAdminService;
 
     private static final String VALID_BODY = """
             {"hospital_id": 1, "name": "心血管内科", "floor": "门诊楼 3 层", "location": "东区 301 室"}
@@ -49,7 +52,7 @@ class DepartmentControllerTest {
 
     @Test
     void listReturnsDepartmentsWithFloorAndLocation() throws Exception {
-        when(organizationService.listDepartments()).thenReturn(List.of(demoDepartment()));
+        when(departmentAdminService.listAll()).thenReturn(List.of(demoDepartment()));
 
         mockMvc.perform(get("/api/b/departments").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
@@ -68,7 +71,7 @@ class DepartmentControllerTest {
 
     @Test
     void createReturns201() throws Exception {
-        when(organizationService.createDepartment(any(Department.class))).thenReturn(demoDepartment());
+        when(departmentAdminService.create(any(Department.class))).thenReturn(demoDepartment());
 
         mockMvc.perform(post("/api/b/departments").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json").content(VALID_BODY))
@@ -78,7 +81,7 @@ class DepartmentControllerTest {
 
     @Test
     void createReturns404WhenHospitalMissing() throws Exception {
-        when(organizationService.createDepartment(any(Department.class)))
+        when(departmentAdminService.create(any(Department.class)))
                 .thenThrow(new ApiException(404, "医院不存在"));
 
         mockMvc.perform(post("/api/b/departments").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
@@ -89,7 +92,7 @@ class DepartmentControllerTest {
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
-        when(organizationService.updateDepartment(any(Department.class)))
+        when(departmentAdminService.update(any(Department.class)))
                 .thenThrow(new ApiException(404, "科室或医院不存在"));
 
         mockMvc.perform(put("/api/b/departments/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
@@ -106,7 +109,7 @@ class DepartmentControllerTest {
 
     @Test
     void deleteReturns404WhenMissing() throws Exception {
-        doThrow(new ApiException(404, "科室不存在")).when(organizationService).deleteDepartment(99L);
+        doThrow(new ApiException(404, "科室不存在")).when(departmentAdminService).delete(99L);
 
         mockMvc.perform(delete("/api/b/departments/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())

@@ -47,7 +47,7 @@ class AppointmentConcurrencyTest {
         });
         redis.initialize(9L, 1);
         AppointmentService service = new AppointmentService(
-                appointments, schedules, redis, serializedTransaction());
+                appointments, schedules, new SlotAccounting(redis), serializedTransaction());
         AtomicInteger successes = new AtomicInteger();
         var executor = Executors.newFixedThreadPool(10);
         try {

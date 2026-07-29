@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.controller.b.mapping.ScheduleInputMapper;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.service.ScheduleService;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final ScheduleInputMapper scheduleInputMapper;
 
     public record ScheduleInput(
             @NotNull Long doctorId,
@@ -48,12 +50,12 @@ public class ScheduleController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Schedule create(@Valid @RequestBody ScheduleInput input) {
-        return scheduleService.createSchedule(toEntity(input));
+        return scheduleService.createSchedule(scheduleInputMapper.toEntity(input));
     }
 
     @PutMapping("/{id}")
     public Schedule update(@PathVariable long id, @Valid @RequestBody ScheduleInput input) {
-        Schedule changes = toEntity(input);
+        Schedule changes = scheduleInputMapper.toEntity(input);
         changes.setId(id);
         return scheduleService.updateSchedule(changes);
     }
@@ -67,14 +69,5 @@ public class ScheduleController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
         disable(id);
-    }
-
-    private Schedule toEntity(ScheduleInput input) {
-        Schedule schedule = new Schedule();
-        schedule.setDoctorId(input.doctorId());
-        schedule.setScheduleDate(input.scheduleDate());
-        schedule.setTimeSlot(input.timeSlot());
-        schedule.setTotalSlots(input.totalSlots());
-        return schedule;
     }
 }

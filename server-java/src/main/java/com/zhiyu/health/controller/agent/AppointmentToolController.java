@@ -1,8 +1,8 @@
 package com.zhiyu.health.controller.agent;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.ChatService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -76,19 +76,20 @@ public class AppointmentToolController {
             String notice) {
 
         static AppointmentCard from(AppointmentService.AppointmentView value) {
-            boolean summarySent = value.conditionSummary() != null;
+            AppointmentCardBase base = AppointmentCardBase.from(value);
+            boolean summarySent = base.conditionSummary() != null;
             return new AppointmentCard(
-                    value.id(),
-                    value.scheduleId(),
-                    value.doctorId(),
-                    value.doctorName(),
-                    value.departmentName(),
-                    value.scheduleDate(),
-                    value.timeSlot(),
-                    value.sequenceNumber(),
-                    value.status(),
-                    value.conditionSummary(),
-                    summarySent ? ChatService.DISCLAIMER : null,
+                    base.appointmentId(),
+                    base.scheduleId(),
+                    base.doctorId(),
+                    base.doctorName(),
+                    base.departmentName(),
+                    base.scheduleDate(),
+                    base.timeSlot(),
+                    base.sequenceNumber(),
+                    base.status(),
+                    base.conditionSummary(),
+                    base.summaryDisclaimer(),
                     summarySent,
                     summarySent ? "病情摘要已发送给医生" : "挂号成功，病情摘要暂未发送");
         }

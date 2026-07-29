@@ -6,7 +6,6 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -17,48 +16,37 @@ public class AppointmentService {
 
     private final AppointmentMapper appointmentMapper;
     private final ScheduleMapper scheduleMapper;
-    private final SlotCounter slotCounter;
+    private final SlotAccounting slotAccounting;
     private final TransactionTemplate transactionTemplate;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
-        AtomicBoolean redisDeducted = new AtomicBoolean();
-        Long appointmentId;
-        try {
-            appointmentId = transactionTemplate.execute(status -> {
-                // 排班行锁把幂等判断、序号分配与 PG 对账串成一个临界区，防止并发重复扣减或重号。
-                Schedule schedule = scheduleMapper.selectByIdForUpdate(scheduleId);
-                if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
-                    throw new ApiException(404, "排班不存在或已停用");
-                }
-                Appointment existing = appointmentMapper.selectForPatientAndSchedule(patientId, scheduleId);
-                if (existing != null) {
-                    return existing.getId();
-                }
-                long redisRemaining = slotCounter.decrement(scheduleId);
-                if (redisRemaining < 0) {
-                    slotCounter.increment(scheduleId);
-                    throw new ApiException(409, "号源已约满");
-                }
-                redisDeducted.set(true);
-                if (scheduleMapper.decrementRemainingSlots(scheduleId) != 1) {
-                    throw new ApiException(409, "号源已约满");
-                }
-                Appointment appointment = new Appointment();
-                appointment.setPatientId(patientId);
-                appointment.setConversationId(conversationId);
-                appointment.setScheduleId(scheduleId);
-                appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
-                appointment.setStatus(Appointment.STATUS_BOOKED);
-                appointmentMapper.insert(appointment);
-                return appointment.getId();
-            });
-        } catch (RuntimeException exception) {
-            if (redisDeducted.get()) {
-                // Redis 不参与 PG 事务；PG 回滚或提交失败时只回补本次已经成功的预扣。
-                slotCounter.increment(scheduleId);
-            }
-            throw exception;
-        }
+        // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
+        Long appointmentId = slotAccounting.withDeduction(
+                scheduleId,
+                deduction -> transactionTemplate.execute(status -> {
+                    // 排班行锁把幂等判断、序号分配与 PG 对账串成一个临界区，防止并发重复扣减或重号。
+                    Schedule schedule = scheduleMapper.selectByIdForUpdate(scheduleId);
+                    if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
+                        throw new ApiException(404, "排班不存在或已停用");
+                    }
+                    Appointment existing = appointmentMapper.selectForPatientAndSchedule(patientId, scheduleId);
+                    if (existing != null) {
+                        return existing.getId();
+                    }
+                    // 幂等检查通过后才预扣；售罄在此处抛 409 且 Redis 已被 SlotAccounting 回补。
+                    deduction.acquire();
+                    if (scheduleMapper.decrementRemainingSlots(scheduleId) != 1) {
+                        throw new ApiException(409, "号源已约满");
+                    }
+                    Appointment appointment = new Appointment();
+                    appointment.setPatientId(patientId);
+                    appointment.setConversationId(conversationId);
+                    appointment.setScheduleId(scheduleId);
+                    appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
+                    appointment.setStatus(Appointment.STATUS_BOOKED);
+                    appointmentMapper.insert(appointment);
+                    return appointment.getId();
+                }));
         return view(appointmentId);
     }
 
@@ -92,38 +80,26 @@ public class AppointmentService {
     }
 
     public AppointmentView cancel(long patientId, long appointmentId) {
-        AtomicBoolean redisRefunded = new AtomicBoolean();
-        java.util.concurrent.atomic.AtomicLong refundedScheduleId = new java.util.concurrent.atomic.AtomicLong();
-        Long resultId;
-        try {
-            resultId = transactionTemplate.execute(status -> {
-                // 挂号单行锁保证重复取消只让首次状态转换进入双存储回补分支。
-                Appointment appointment = appointmentMapper.selectByIdForUpdate(appointmentId, patientId);
-                if (appointment == null) {
-                    throw new ApiException(404, "挂号单不存在");
-                }
-                if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
-                    return appointment.getId();
-                }
-                if (!Appointment.STATUS_BOOKED.equals(appointment.getStatus())) {
-                    throw new ApiException(409, "当前状态不可取消");
-                }
-                if (appointmentMapper.markCancelled(appointmentId) != 1
-                        || scheduleMapper.incrementRemainingSlots(appointment.getScheduleId()) != 1) {
-                    throw new IllegalStateException("取消挂号的 PostgreSQL 回补失败");
-                }
-                slotCounter.increment(appointment.getScheduleId());
-                refundedScheduleId.set(appointment.getScheduleId());
-                redisRefunded.set(true);
-                return appointment.getId();
-            });
-        } catch (RuntimeException exception) {
-            if (redisRefunded.get()) {
-                // 提交失败时撤销 Redis 回补，避免 PG 已回滚而号源池被重复增加。
-                slotCounter.decrement(refundedScheduleId.get());
+        // withRefund 的补偿范围覆盖整个事务（含提交失败）：已退还未提交即撤销退还。
+        Long resultId = slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
+            // 挂号单行锁保证重复取消只让首次状态转换进入双存储回补分支。
+            Appointment appointment = appointmentMapper.selectByIdForUpdate(appointmentId, patientId);
+            if (appointment == null) {
+                throw new ApiException(404, "挂号单不存在");
             }
-            throw exception;
-        }
+            if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
+                return appointment.getId();
+            }
+            if (!Appointment.STATUS_BOOKED.equals(appointment.getStatus())) {
+                throw new ApiException(409, "当前状态不可取消");
+            }
+            if (appointmentMapper.markCancelled(appointmentId) != 1
+                    || scheduleMapper.incrementRemainingSlots(appointment.getScheduleId()) != 1) {
+                throw new IllegalStateException("取消挂号的 PostgreSQL 回补失败");
+            }
+            refund.grant(appointment.getScheduleId());
+            return appointment.getId();
+        }));
         return view(resultId);
     }
 
