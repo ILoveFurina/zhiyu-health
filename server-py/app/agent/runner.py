@@ -29,6 +29,7 @@ from app.core.contracts import get_contracts
 from app.core.lazy import LazyDelegate
 from app.core.llm import build_chat_model
 from app.services.reasoning import ReasoningEffort
+from app.tools.knowledge import KnowledgeRetriever, build_knowledge_tool
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,9 @@ class AgentContext:
     # 不进 system prompt，避免模型誊抄坐标出错；工具直接从 context 取用。
     longitude: float | None = None
     latitude: float | None = None
+    # 知识增强源（ADR-0010）：rag 注入 search_knowledge 工具；none 不注入（裸 LLM）。
+    # graph 不识别 graph 态（票 13 接手），由选择器在外层映射为 rag/none。
+    knowledge_source: str = "none"
 
 
 # 卡片事件名：Literal 无法从契约 JSON 动态生成，保留显式字面量，
@@ -109,33 +113,47 @@ class AgentRunner(Protocol):
 class LangGraphAgentRunner:
     """langchain 1.x create_agent：空工具列表时即纯模型节点的对话循环。
 
-    后续票（05/07 等）在此注入业务工具；映射后的 reasoning_effort 只有
-    low/high 两档，因此按档位缓存编译图。
+    业务工具（挂号、排班查询等）在构造期注入；search_knowledge 知识检索工具按
+    context.knowledge_source 动态拼装（rag 注入、none 不注入=裸 LLM）。
+    图按 (effort, knowledge_source) 缓存，避免不同工具集共用编译图。
     """
 
     def __init__(
         self,
         model_factory: Callable[[ReasoningEffort], BaseChatModel],
         tools: Sequence[BaseTool] | None = None,
+        knowledge_retriever: KnowledgeRetriever | None = None,
     ) -> None:
         self._model_factory = model_factory
-        self._tools = list(tools or [])
-        self._graphs: dict[str, CompiledStateGraph[Any, Any, Any, Any]] = {}
+        self._base_tools = list(tools or [])
+        self._knowledge_retriever = knowledge_retriever
+        self._knowledge_tools = (
+            build_knowledge_tool(knowledge_retriever) if knowledge_retriever is not None else []
+        )
+        # 缓存键 (effort, knowledge_source)：工具集随知识增强开关变化
+        self._graphs: dict[tuple[str, str], CompiledStateGraph[Any, Any, Any, Any]] = {}
 
-    def _graph(self, effort: ReasoningEffort) -> CompiledStateGraph[Any, Any, Any, Any]:
-        if effort not in self._graphs:
-            self._graphs[effort] = create_agent(
+    def _tools_for(self, knowledge_source: str) -> list[BaseTool]:
+        # rag 态注入 search_knowledge；none/其他不注入（LLM 看不到即不检索）
+        if knowledge_source == "rag" and self._knowledge_tools:
+            return [*self._base_tools, *self._knowledge_tools]
+        return list(self._base_tools)
+
+    def _graph(self, effort: ReasoningEffort, knowledge_source: str) -> CompiledStateGraph[Any, Any, Any, Any]:
+        key = (effort, knowledge_source)
+        if key not in self._graphs:
+            self._graphs[key] = create_agent(
                 self._model_factory(effort),
-                tools=self._tools,
+                tools=self._tools_for(knowledge_source),
                 system_prompt=SYSTEM_PROMPT,
                 context_schema=AgentContext,
             )
-        return self._graphs[effort]
+        return self._graphs[key]
 
     async def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
-        graph = self._graph(effort)
+        graph = self._graph(effort, context.knowledge_source)
         lc_messages = _to_lc_messages(messages, context)
         model_turn = _ModelTurnBuffer([])
         async for item in graph.astream(
@@ -205,20 +223,26 @@ def _to_lc_messages(messages: list[dict[str, str]], context: AgentContext) -> li
 
 
 def build_langgraph_agent_runner(
-    settings: Settings, tools: Sequence[BaseTool] | None = None
+    settings: Settings,
+    tools: Sequence[BaseTool] | None = None,
+    knowledge_retriever: KnowledgeRetriever | None = None,
 ) -> LangGraphAgentRunner:
     def model_factory(effort: ReasoningEffort) -> BaseChatModel:
         return build_chat_model(settings, reasoning_effort=effort)
 
-    return LangGraphAgentRunner(model_factory, tools=tools)
+    return LangGraphAgentRunner(model_factory, tools=tools, knowledge_retriever=knowledge_retriever)
 
 
 class LazySettingsAgentRunner:
     """首次调用时才从 settings 构建生产 runner（语义与动机见 core.lazy.LazyDelegate）。"""
 
-    def __init__(self, tools: Sequence[BaseTool] | None = None) -> None:
+    def __init__(
+        self,
+        tools: Sequence[BaseTool] | None = None,
+        knowledge_retriever: KnowledgeRetriever | None = None,
+    ) -> None:
         self._lazy: LazyDelegate[LangGraphAgentRunner] = LazyDelegate(
-            lambda: build_langgraph_agent_runner(get_settings(), tools)
+            lambda: build_langgraph_agent_runner(get_settings(), tools, knowledge_retriever)
         )
 
     async def astream_reply(
