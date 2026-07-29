@@ -3,14 +3,38 @@ package com.zhiyu.health.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zhiyu.health.entity.Message;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /** 契约消费一致性：代码实际使用值与 contracts/*.json 一致，重点钉死 Message 的 KIND_* 兼容壳。 */
 class ContractsConsistencyTest {
 
     private final Contracts contracts = Contracts.load(Contracts.resolveDir());
+
+    @Test
+    void messageKindsFitDatabaseColumn() throws Exception {
+        // 票 33：doctor_recommendations(22)/hospital_recommendations(24) 超出 messages.kind
+        // VARCHAR(20)，卡片落库失败曾直接掐断 SSE 中继；契约 kind 必须始终装得下列宽。
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Matcher matcher = Pattern.compile("kind\\s+VARCHAR\\((\\d+)\\)").matcher(schema);
+        assertThat(matcher.find()).as("schema.sql 必须存在 kind VARCHAR(n) 列定义").isTrue();
+        int columnWidth = Integer.parseInt(matcher.group(1));
+        for (String kind : contracts.sseEvents().messageKinds()) {
+            assertThat(kind.length())
+                    .as("契约 kind %s 长度必须装进 messages.kind VARCHAR(%d)", kind, columnWidth)
+                    .isLessThanOrEqualTo(columnWidth);
+        }
+        // red_flag 是规则引擎本地产物（不在契约 messageKinds 内），同样落 messages.kind
+        assertThat(contracts.sseEvents().redFlagEvent().length()).isLessThanOrEqualTo(columnWidth);
+    }
 
     @Test
     void messageKindConstantsMatchContractOrder() {

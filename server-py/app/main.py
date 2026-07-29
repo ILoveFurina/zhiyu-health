@@ -18,6 +18,7 @@ from app.api.clinical import router as clinical_router
 from app.api.health import router as health_router
 from app.api.vision import router as vision_router
 from app.config import get_settings, get_web_settings
+from app.core.logging import configure_logging
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
 from app.services.health import HealthChecker, HealthService
@@ -31,6 +32,9 @@ def create_app(
     vision_interpreter: VisionInterpreter | None = None,
     clinical_generator: ClinicalGenerator | None = None,
 ) -> FastAPI:
+    # uvicorn 只配置自身 logger；app.* 的流生命周期日志需显式接管（票 33）
+    configure_logging()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if health_service is not None:

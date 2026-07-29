@@ -3,24 +3,17 @@
 端侧不直连本接口：请求一律由 server-java 鉴权/审计后转发，token 逐跳透传。
 """
 
-import json
-from collections.abc import AsyncIterator
-
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import AgentCallbackAuth
+from app.api.sse import SseStreamContext, log_sse_stream
 from app.schemas.chat import AgentChatRequest
 from app.agent.runner import HealthProfileContext
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
-
-
-def _sse_frame(event: str, data: object) -> str:
-    payload = json.dumps(data, ensure_ascii=False)
-    return f"event: {event}\ndata: {payload}\n\n"
 
 
 @router.post("/chat")
@@ -45,8 +38,17 @@ async def chat(
         latitude=body.latitude,
     )
 
-    async def frame_stream() -> AsyncIterator[str]:
-        async for event in events:
-            yield _sse_frame(event["event"], event["data"])  # type: ignore[arg-type]
-
-    return StreamingResponse(frame_stream(), media_type="text/event-stream", headers=_SSE_HEADERS)
+    return StreamingResponse(
+        # 生命周期日志集中在 SSE 出口（票 33：断流时必须能定位流走到哪、在哪断）
+        log_sse_stream(
+            events,
+            context=SseStreamContext(
+                conversation_id=body.conversation_id,
+                patient_id=body.patient_id,
+                effort=body.effort,
+                scenario=body.scenario,
+            ),
+        ),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )

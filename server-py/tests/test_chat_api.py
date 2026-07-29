@@ -487,3 +487,73 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
     assert b"allerg" not in requests[0].content
     assert all("先吃一粒阿莫西林" not in str(event) for event in events)
     assert all("布洛芬" not in str(event) for event in events)
+
+
+def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_stream() -> None:
+    """票 33 回归：业务回调失败（409 售罄）必须回到模型解释，不得掐断 SSE 流。
+
+    ToolNode 默认只兜参数校验错误，执行期异常穿透图会在响应中途掐断连接
+    （server-java 侧表现为 PrematureCloseException）；工具须把失败规整为错误文本，
+    由模型向用户解释，且不投影卡片。
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/recommend"):
+            return httpx.Response(200, json={"doctors": [{
+                "doctor_id": 2, "name": "周安宁", "title": "副主任医师",
+                "specialty": "胸痛评估、心力衰竭", "photo_url": "https://example.com/demo/zhou.jpg",
+                "remaining_slots": 0,
+            }]})
+        if request.url.path.endswith("/slots"):
+            return httpx.Response(200, json={
+                "doctor_id": 2,
+                "slots": [{"schedule_id": 9, "schedule_date": "2026-07-29",
+                           "time_slot": "上午", "remaining_slots": 0}],
+            })
+        # 号源售罄：server-java 确定性业务拒绝（ApiErrorBody 形状 {"detail": ...}）
+        return httpx.Response(409, json={"detail": "号源已约满"})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="recommend_doctors", args={"department_name": "心血管内科"}, id="call-1")
+        ]),
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="get_doctor_slots", args={"doctor_id": 2}, id="call-2")
+        ]),
+        AIMessage(content="", tool_calls=[ToolCall(
+            name="create_appointment",
+            args={"schedule_id": 9, "condition_summary": "主诉胸闷两天"},
+            id="call-3",
+        )]),
+        "今天上午的号已约满，建议改约下午或其他医生。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
+            events = _post_chat(
+                client, {"messages": [{"role": "user", "content": "帮我挂周安宁医生今天上午的号"}]}
+            )
+    finally:
+        asyncio.run(callback.aclose())
+
+    # 流完整到达 done；失败的预约不投影 appointment 卡片，模型解释替代
+    assert [event["event"] for event in events] == [
+        "meta", "doctor_recommendations", "doctor_slots", "token", "message", "done"
+    ]
+    assert events[-2]["data"]["content"] == "今天上午的号已约满，建议改约下午或其他医生。"
+    assert events[-2]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
