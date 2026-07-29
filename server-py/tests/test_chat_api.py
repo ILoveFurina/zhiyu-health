@@ -304,3 +304,104 @@ def test_get_appointment_tool_uses_hidden_patient_context() -> None:
     assert requests[0].url.path == "/api/agent/appointments"
     assert requests[0].url.params["patient_id"] == "12"
     assert events[1]["event"] == "appointments"
+
+
+def test_find_hospitals_threads_coordinates_from_request_to_nearby_endpoint() -> None:
+    """经纬度由请求体注入 -> AgentContext -> find_hospitals -> server-java /nearby。"""
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"hospitals": [{
+            "hospital_id": 1,
+            "name": "智愈市人民医院",
+            "level": "三级甲等",
+            "address": "智愈市安康路 88 号",
+            "distance_km": 3.21,
+        }]})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[ToolCall(name="find_hospitals", args={}, id="call-h")]),
+        "已为你找到附近的医院。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
+            events = _post_chat(client, {
+                "messages": [{"role": "user", "content": "附近有什么医院"}],
+                "longitude": 121.4737,
+                "latitude": 31.2304,
+            })
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert requests[0].url.path == "/api/agent/hospitals/nearby"
+    assert requests[0].url.params["longitude"] == "121.4737"
+    assert requests[0].url.params["latitude"] == "31.2304"
+    assert [event["event"] for event in events] == [
+        "meta", "hospital_recommendations", "token", "message", "done"
+    ]
+    assert events[1]["data"]["hospitals"][0]["name"] == "智愈市人民医院"
+    assert events[1]["data"]["hospitals"][0]["distance_km"] == 3.21
+    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert events[-2]["data"]["content"] == "已为你找到附近的医院。"
+
+
+def test_find_hospitals_degrades_without_coordinates() -> None:
+    """拒绝定位（不传坐标）时不回调 server-java，返回降级提示卡片。"""
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"hospitals": []})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[ToolCall(name="find_hospitals", args={}, id="call-h")]),
+        "请授权定位或手动选择区域。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
+            events = _post_chat(client, {
+                "messages": [{"role": "user", "content": "附近医院"}],
+                # 故意不传 longitude/latitude
+            })
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert requests == []  # 未授权定位不查库
+    assert events[1]["event"] == "hospital_recommendations"
+    assert events[1]["data"]["need_location"] is True
+    assert events[1]["data"]["hospitals"] == []
