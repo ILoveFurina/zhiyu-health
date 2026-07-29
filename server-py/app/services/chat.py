@@ -13,7 +13,9 @@ from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
 
 # SSE 流事件名唯一事实源是 contracts/sse-events.json；协议顺序固定，
 # 由 tests/test_contract_consumption.py 与 java 侧 ContractsConsistencyTest 双端钉死。
-EVENT_META, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = get_contracts().sse_events.stream_events
+EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
+    get_contracts().sse_events.stream_events
+)
 
 
 class AgentChatService:

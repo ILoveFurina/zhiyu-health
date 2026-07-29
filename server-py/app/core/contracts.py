@@ -79,6 +79,20 @@ class ContraindicationContract(BaseModel):
     advice: str
 
 
+class KnowledgeContract(BaseModel):
+    """知识增强模式：知识源二态 rag/graph + 自动降级、向量检索参数（ADR-0010）。"""
+
+    knowledge_sources: list[str]
+    none_source: str
+    default_by_scenario: dict[str, str]
+    knowledge_meta_event: str
+    knowledge_status: list[str]
+    embedding_dimension: int
+    vector_column: str
+    search_top_k: int
+    similarity_threshold: float
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -87,6 +101,7 @@ class Contracts(BaseModel):
     chat_defaults: ChatDefaultsContract
     prescription_flow: PrescriptionFlowContract
     contraindication: ContraindicationContract
+    knowledge: KnowledgeContract
 
 
 def _contracts_dir() -> Path:
@@ -128,6 +143,7 @@ def _load(dir_path: Path) -> Contracts:
             contraindication=ContraindicationContract.model_validate(
                 _read_json(dir_path, "contraindication.json")
             ),
+            knowledge=KnowledgeContract.model_validate(_read_json(dir_path, "knowledge.json")),
         )
     except ValidationError as exc:
         raise RuntimeError(f"跨栈契约结构校验失败（需双栈同步检查 contracts/）: {exc}") from exc

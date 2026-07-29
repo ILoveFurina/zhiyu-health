@@ -34,6 +34,7 @@ def test_stream_event_constants_match_contract() -> None:
     events = get_contracts().sse_events.stream_events
     assert [
         chat_service.EVENT_META,
+        chat_service.EVENT_KNOWLEDGE,
         chat_service.EVENT_TOKEN,
         chat_service.EVENT_MESSAGE,
         chat_service.EVENT_DONE,

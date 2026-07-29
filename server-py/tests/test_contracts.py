@@ -13,7 +13,7 @@ def test_disclaimer_matches_authoritative_text() -> None:
 
 def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
-    assert events.stream_events == ["meta", "token", "message", "done"]
+    assert events.stream_events == ["meta", "knowledge", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
     assert len(events.card_events) == 6
     assert events.tool_to_event == {
@@ -87,6 +87,19 @@ def test_contraindication_values_are_loaded() -> None:
     }
     assert contract.message_types["warning"] == "contraindication_warning"
     assert "请咨询医生或药师" in contract.messages["blocked"]
+
+
+def test_knowledge_contract_values_are_loaded() -> None:
+    knowledge = get_contracts().knowledge
+    assert knowledge.knowledge_sources == ["rag", "graph"]
+    assert knowledge.none_source == "none"
+    assert knowledge.default_by_scenario == {"triage": "rag", "interpretation": "none"}
+    assert knowledge.knowledge_meta_event == "knowledge"
+    assert knowledge.knowledge_status == ["ok", "degraded", "unavailable"]
+    assert knowledge.embedding_dimension == 1024
+    assert knowledge.vector_column == "vector"
+    assert knowledge.search_top_k == 3
+    assert knowledge.similarity_threshold == 0.3
 
 
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:
