@@ -1,0 +1,46 @@
+# 测试专用配置：类路径同名文件完全遮蔽 main 的 application.yml。
+# 与 main/resources/application.yml 同步维护——唯一的刻意差异是去掉
+# spring.config.import 的 .env 导入，保证测试对仓库根 .env 完全免疫
+# （.env 里的 JWT_SECRET 等值渗入会让 @WebMvcTest 的 AuthFilter 密钥与
+# 测试签名密钥不一致，controller/b/ 曾因此全部 401）。
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zhiyu-server-java
+  jackson:
+    # 接口字段与票 02 Python 原件一致（snake_case，如 doctor_id / photo_url）
+    property-naming-strategy: SNAKE_CASE
+  datasource:
+    url: ${DATABASE_JDBC_URL:jdbc:postgresql://localhost:5432/zhiyu}
+    username: ${DATABASE_USER:zhiyu}
+    password: ${POSTGRES_PASSWORD:}
+  sql:
+    init:
+      # schema.sql + 幂等 seed.sql 启动执行（开发期 drop+recreate+seed 约定）
+      # spring.sql.init 默认只读 classpath:schema.sql 与 classpath:data.sql，
+      # 这里显式指定 data-locations，让 seed.sql 保持语义化文件名
+      mode: always
+      data-locations: classpath:seed.sql
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+zhiyu:
+  # 测试固定使用演示占位默认值（与 src/test/java 中 StaffTokens/AuthFilterTest 的签名密钥一致）；
+  # 生产真实值一律走 .env 注入，本文件永不导入 .env（硬规则：密钥不入库）
+  jwt-secret: ${JWT_SECRET:zhiyu-dev-only-placeholder-secret}
+  jwt-expire-minutes: ${JWT_EXPIRE_MINUTES:480}
+  # staff_users 演示账号密码由 StaffUserSeed 从 .env 读取，缺省跳过
+  seed:
+    admin-password: ${SEED_ADMIN_PASSWORD:}
+    doctor-password: ${SEED_DOCTOR_PASSWORD:}
+  agent:
+    base-url: ${SERVER_PY_BASE_URL:http://localhost:8000}
+    # 无默认值：由同目录 application.properties 提供 test-only 固定值
+    callback-secret: ${AGENT_CALLBACK_SECRET}
+  rate-limit:
+    permits-per-minute: 60
