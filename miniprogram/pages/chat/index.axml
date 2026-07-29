@@ -65,6 +65,11 @@
         card="{{item.card}}"
       />
 
+      <contraindication-card
+        a:elif="{{item.kind === 'contraindication'}}"
+        card="{{item.card}}"
+      />
+
       <view a:elif="{{item.kind === 'feature_guide' && item.card}}" class="guide-card">
         <view a:if="{{item.card.feature === 'hospital'}}" class="guide-hospital">
           <view class="guide-title">找医院</view>

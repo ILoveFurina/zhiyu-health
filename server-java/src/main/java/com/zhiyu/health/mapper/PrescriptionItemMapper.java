@@ -16,4 +16,16 @@ public interface PrescriptionItemMapper extends BaseMapper<PrescriptionItem> {
             WHERE pi.prescription_id = #{prescriptionId} ORDER BY pi.id
             """)
     List<PrescriptionItem> selectDetailed(@Param("prescriptionId") long prescriptionId);
+
+    @Select(
+            """
+            SELECT DISTINCT pi.medication_id
+            FROM prescription_items pi
+            JOIN prescriptions p ON p.id = pi.prescription_id
+            JOIN appointments a ON a.id = p.appointment_id
+            WHERE a.health_profile_id = #{healthProfileId} AND p.status = #{status}
+            ORDER BY pi.medication_id
+            """)
+    List<Long> selectMedicationIdsByHealthProfileAndStatus(
+            @Param("healthProfileId") long healthProfileId, @Param("status") String status);
 }

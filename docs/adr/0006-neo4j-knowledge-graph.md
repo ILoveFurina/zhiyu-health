@@ -9,6 +9,7 @@ Status: accepted
 - Neo4j 只存医学知识节点：症状、疾病、科室、药品、禁忌 + 关系边；其中 PG `medications` 是药品业务信息唯一权威来源，Neo4j 药品节点只保留 `medication_id` 与名称快照作为图谱关联键，禁忌/相互作用等医学关系只存在 Neo4j；
 - 业务实体（医生、排班、号源、挂号单）全部留在 PostgreSQL，"科室→医生"的最后一跳由 Agent 工具查 PG 完成；
 - 业务字段与医学关系不双写，图谱中不建医生影子节点；药品名称快照不作为业务读取源，seed 时按 `medication_id` 对齐——避免双写一致性事故。
+- Neo4j 读取按用途分流：server-py 只读检索医学知识；server-java 仅通过 `rule/` 下的只读事实 seam 获取禁忌与药品相互作用，由确定性规则引擎作安全决定。Neo4j 驱动不得进入 controller、mapper 或其他业务 service，写入仍只允许人工 seed/维护流程。这样既保持禁忌事实单一来源，也避免把安全裁决交给 LLM 或 Agent 层。
 
 被否决的方案：PostgreSQL 两张表（kg_nodes/kg_edges）模拟图（团队要求真图数据库）；Neo4j 原生向量索引（向量检索维持 pgvector，形成"pgvector 向量召回 + Neo4j 一跳扩展"的双层 GraphRAG 叙事）。
 

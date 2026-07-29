@@ -10,6 +10,7 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.zhiyu.health.service.SlotAccounting;
 import com.zhiyu.health.service.SlotCounter;
+import org.neo4j.driver.Driver;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /**
@@ -36,6 +37,15 @@ class ArchitectureTest {
             .should()
             .dependOnClassesThat()
             .areAssignableTo(RedisTemplate.class);
+
+    /** Neo4j 只允许 rule/ 的事实适配器访问；入口与业务 mapper 不得绕过确定性规则 seam。 */
+    @ArchTest
+    static final ArchRule controller和mapper不依赖Neo4j驱动 = noClasses()
+            .that()
+            .resideInAnyPackage("..controller..", "..mapper..")
+            .should()
+            .dependOnClassesThat()
+            .areAssignableTo(Driver.class);
 
     /** 分层单向：service 不得反向依赖入口层。 */
     @ArchTest

@@ -22,19 +22,21 @@ class ContractsTest {
         Contracts.SseEvents events = contracts.sseEvents();
         assertThat(events.streamEvents()).containsExactly("meta", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
-        assertThat(events.cardEvents()).hasSize(5);
+        assertThat(events.cardEvents()).hasSize(6);
         assertThat(events.toolToEvent())
-                .hasSize(5)
+                .hasSize(6)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
                 .containsEntry("find_hospitals", "hospital_recommendations")
                 .containsEntry("create_appointment", "appointment")
-                .containsEntry("get_appointment", "appointments");
-        assertThat(events.messageKinds()).hasSize(9).contains("text", "report_interpretation");
-        assertThat(events.aiCardKinds()).hasSize(6);
+                .containsEntry("get_appointment", "appointments")
+                .containsEntry("check_contraindication", "contraindication");
+        assertThat(events.messageKinds()).hasSize(10).contains("text", "report_interpretation", "contraindication");
+        assertThat(events.aiCardKinds()).hasSize(7);
         assertThat(events.eventToKind())
-                .hasSize(6)
-                .containsEntry("hospital_recommendations", "hospital_recommendations");
+                .hasSize(7)
+                .containsEntry("hospital_recommendations", "hospital_recommendations")
+                .containsEntry("contraindication", "contraindication");
     }
 
     @Test
@@ -91,6 +93,17 @@ class ContractsTest {
     }
 
     @Test
+    void contraindicationDecisionsAndMessagesAreLoaded() {
+        Contracts.Contraindication contraindication = contracts.contraindication();
+        assertThat(contraindication.decisions())
+                .containsEntry("safe", "SAFE")
+                .containsEntry("blocked", "BLOCKED")
+                .containsEntry("review_required", "REVIEW_REQUIRED");
+        assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
+        assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
+    }
+
+    @Test
     void contractsDirCanBeOverridden() {
         // 解析顺序：系统属性 > 环境变量 > 默认 ../contracts；此处只断言默认值可用。
         assertThat(contracts.sseEvents().toolToEvent())
@@ -99,7 +112,8 @@ class ContractsTest {
                         "get_doctor_slots", "doctor_slots",
                         "find_hospitals", "hospital_recommendations",
                         "create_appointment", "appointment",
-                        "get_appointment", "appointments"));
+                        "get_appointment", "appointments",
+                        "check_contraindication", "contraindication"));
         assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));
     }
 }

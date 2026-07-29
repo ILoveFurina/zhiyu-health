@@ -5,6 +5,8 @@ server-java 统一入口的回调通道，地址经 SERVER_JAVA_BASE_URL 配置�
 具体业务工具（挂号、排班查询等）由后续票在此薄壳上逐个实现。
 """
 
+import hashlib
+import hmac
 from typing import Any
 
 import httpx
@@ -29,6 +31,7 @@ class BusinessCallbackClient:
             transport=transport,
             headers={"X-Agent-Callback-Token": callback_secret} if callback_secret else None,
         )
+        self._callback_secret = callback_secret
 
     async def _request_json(self, method: str, path: str, **kwargs: Any) -> Any:
         response = await self._client.request(method, path, **kwargs)
@@ -40,6 +43,23 @@ class BusinessCallbackClient:
 
     async def post(self, path: str, payload: dict[str, Any]) -> Any:
         return await self._request_json("POST", path, json=payload)
+
+    async def post_for_patient(
+        self, path: str, patient_id: int, payload: dict[str, Any]
+    ) -> Any:
+        patient_id_text = str(patient_id)
+        signature = hmac.new(
+            self._callback_secret.encode(), patient_id_text.encode(), hashlib.sha256
+        ).hexdigest()
+        return await self._request_json(
+            "POST",
+            path,
+            json=payload,
+            headers={
+                "X-Agent-Patient-Id": patient_id_text,
+                "X-Agent-Patient-Signature": signature,
+            },
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -57,6 +77,15 @@ async def _forward_post(
 ) -> dict[str, Any]:
     """POST 转发并规整为 dict：LLM 工具出参必须可 JSON 序列化。"""
     return dict(await client.post(path, payload))
+
+
+def _normalize_medication_ids(medication_ids: list[int]) -> list[int]:
+    normalized_ids = list(dict.fromkeys(medication_ids))
+    if not normalized_ids or len(normalized_ids) > 20:
+        raise ValueError("medication_ids 必须包含 1 到 20 个药品 ID")
+    if any(not isinstance(medication_id, int) or medication_id <= 0 for medication_id in normalized_ids):
+        raise ValueError("medication_id 必须为正整数")
+    return normalized_ids
 
 
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
@@ -120,10 +149,26 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             {"longitude": longitude, "latitude": latitude},
         )
 
+    @tool
+    async def check_contraindication(
+        medication_ids: list[int], runtime: ToolRuntime[AgentContext]
+    ) -> dict[str, Any]:
+        """在推荐候选药品前执行确定性禁忌检查；命中或无法可靠检查时必须停止推荐。
+
+        只传候选 medication_id；患者身份由可信运行时注入，禁止要求用户提供身份或过敏史。
+        """
+        normalized_ids = _normalize_medication_ids(medication_ids)
+        return dict(await client.post_for_patient(
+            "/api/agent/contraindications/check",
+            runtime.context.patient_id,
+            {"medication_ids": normalized_ids},
+        ))
+
     return [
         recommend_doctors,
         get_doctor_slots,
         find_hospitals,
         create_appointment,
         get_appointment,
+        check_contraindication,
     ]

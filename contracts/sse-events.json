@@ -7,14 +7,16 @@
     "doctor_slots",
     "hospital_recommendations",
     "appointment",
-    "appointments"
+    "appointments",
+    "contraindication"
   ],
   "tool_to_event": {
     "recommend_doctors": "doctor_recommendations",
     "get_doctor_slots": "doctor_slots",
     "find_hospitals": "hospital_recommendations",
     "create_appointment": "appointment",
-    "get_appointment": "appointments"
+    "get_appointment": "appointments",
+    "check_contraindication": "contraindication"
   },
   "message_kinds": [
     "text",
@@ -25,7 +27,8 @@
     "appointments",
     "report_upload",
     "report_interpretation",
-    "report_context"
+    "report_context",
+    "contraindication"
   ],
   "ai_card_kinds": [
     "doctor_recommendations",
@@ -33,7 +36,8 @@
     "hospital_recommendations",
     "appointment",
     "appointments",
-    "report_interpretation"
+    "report_interpretation",
+    "contraindication"
   ],
   "event_to_kind": {
     "doctor_recommendations": "doctor_recommendations",
@@ -41,6 +45,7 @@
     "hospital_recommendations": "hospital_recommendations",
     "appointment": "appointment",
     "appointments": "appointments",
-    "report_interpretation": "report_interpretation"
+    "report_interpretation": "report_interpretation",
+    "contraindication": "contraindication"
   }
 }

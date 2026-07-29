@@ -26,6 +26,7 @@ public class Contracts {
     private final UploadLimits uploadLimits;
     private final ChatDefaults chatDefaults;
     private final PrescriptionFlow prescriptionFlow;
+    private final Contraindication contraindication;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -43,6 +44,7 @@ public class Contracts {
         this.uploadLimits = read(mapper, dir, "upload-limits.json", UploadLimits.class);
         this.chatDefaults = read(mapper, dir, "chat-defaults.json", ChatDefaults.class);
         this.prescriptionFlow = read(mapper, dir, "prescription-flow.json", PrescriptionFlow.class);
+        this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -91,6 +93,10 @@ public class Contracts {
 
     public PrescriptionFlow prescriptionFlow() {
         return prescriptionFlow;
+    }
+
+    public Contraindication contraindication() {
+        return contraindication;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -196,6 +202,18 @@ public class Contracts {
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
             messageTypes = Map.copyOf(messageTypes);
+        }
+    }
+
+    public record Contraindication(
+            Map<String, String> decisions,
+            Map<String, String> messageTypes,
+            Map<String, String> messages,
+            String advice) {
+        public Contraindication {
+            decisions = Map.copyOf(decisions);
+            messageTypes = Map.copyOf(messageTypes);
+            messages = Map.copyOf(messages);
         }
     }
 }

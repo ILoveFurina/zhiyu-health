@@ -1,0 +1,32 @@
+.warning-card {
+  margin: 18rpx 24rpx;
+  padding: 26rpx;
+  border: 2rpx solid #ef9a9a;
+  border-radius: 20rpx;
+  background: #fff4f4;
+  color: #7f1d1d;
+}
+
+.warning-title {
+  margin-bottom: 14rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.warning-message,
+.warning-reason,
+.warning-advice {
+  font-size: 27rpx;
+  line-height: 1.65;
+}
+
+.warning-reason {
+  margin-top: 8rpx;
+}
+
+.warning-advice {
+  margin-top: 16rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid #f3b8b8;
+  font-weight: 600;
+}

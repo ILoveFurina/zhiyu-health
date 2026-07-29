@@ -26,7 +26,8 @@ class ContractsConsistencyTest {
                         "appointments",
                         "report_upload",
                         "report_interpretation",
-                        "report_context");
+                        "report_context",
+                        "contraindication");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -39,6 +40,8 @@ class ContractsConsistencyTest {
         assertThat(Message.KIND_REPORT_INTERPRETATION)
                 .isEqualTo(events.messageKinds().get(7));
         assertThat(Message.KIND_REPORT_CONTEXT).isEqualTo(events.messageKinds().get(8));
+        assertThat(Message.KIND_CONTRAINDICATION)
+                .isEqualTo(events.messageKinds().get(9));
     }
 
     @Test
@@ -77,6 +80,7 @@ class ContractsConsistencyTest {
                         "appointment",
                         "appointments",
                         "report_interpretation",
+                        "contraindication",
                         "report_upload");
     }
 

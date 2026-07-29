@@ -1,0 +1,18 @@
+{
+  "_doc": "禁忌确定性规则的决定、卡片类型与固定话术。两端只消费这些契约值，LLM 不得改写规则决定。",
+  "decisions": {
+    "safe": "SAFE",
+    "blocked": "BLOCKED",
+    "review_required": "REVIEW_REQUIRED"
+  },
+  "message_types": {
+    "warning": "contraindication_warning",
+    "result": "contraindication_result"
+  },
+  "messages": {
+    "blocked": "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
+    "review_required": "暂时无法完成可靠的禁忌检查，已停止药品推荐。请咨询医生或药师后再用药。",
+    "safe": "未发现当前健康档案与候选药品之间的已知禁忌。"
+  },
+  "advice": "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。"
+}

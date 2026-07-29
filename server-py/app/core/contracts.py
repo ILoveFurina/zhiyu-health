@@ -72,6 +72,13 @@ class PrescriptionFlowContract(BaseModel):
     message_types: dict[str, str]
 
 
+class ContraindicationContract(BaseModel):
+    decisions: dict[str, str]
+    message_types: dict[str, str]
+    messages: dict[str, str]
+    advice: str
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -79,6 +86,7 @@ class Contracts(BaseModel):
     upload_limits: UploadLimitsContract
     chat_defaults: ChatDefaultsContract
     prescription_flow: PrescriptionFlowContract
+    contraindication: ContraindicationContract
 
 
 def _contracts_dir() -> Path:
@@ -116,6 +124,9 @@ def _load(dir_path: Path) -> Contracts:
             ),
             prescription_flow=PrescriptionFlowContract.model_validate(
                 _read_json(dir_path, "prescription-flow.json")
+            ),
+            contraindication=ContraindicationContract.model_validate(
+                _read_json(dir_path, "contraindication.json")
             ),
         )
     except ValidationError as exc:

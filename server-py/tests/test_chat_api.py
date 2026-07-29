@@ -4,6 +4,8 @@
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 from collections.abc import Callable, Iterator, Sequence
 from types import SimpleNamespace
@@ -417,3 +419,71 @@ def test_find_hospitals_degrades_without_coordinates() -> None:
     assert events[1]["event"] == "hospital_recommendations"
     assert events[1]["data"]["need_location"] is True
     assert events[1]["data"]["hospitals"] == []
+
+
+def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommendation() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={
+            "decision": "BLOCKED",
+            "message_type": "contraindication_warning",
+            "blocked": True,
+            "reasons": ["过敏史“青霉素”与药品 1 的成分/禁忌项匹配"],
+            "message": "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
+            "advice": "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。",
+        })
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="先吃一粒阿莫西林。", tool_calls=[ToolCall(
+            name="check_contraindication",
+            args={"medication_ids": [1]},
+            id="call-contraindication",
+        )]),
+        "可以改用未经复检的布洛芬。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        app = create_app(
+            health_service=StubHealthService(),
+            agent_runner=runner,
+            agent_auth_secret=TEST_AGENT_SECRET,
+        )
+        with TestClient(app) as client:
+            events = _post_chat(client, {
+                "messages": [{"role": "user", "content": "我青霉素过敏，能吃阿莫西林吗"}],
+                "health_profile": {
+                    "id": 31,
+                    "display_name": "本人",
+                    "gender": "女",
+                    "birth_date": "1990-01-01",
+                    "relationship": "本人",
+                    "allergies": ["青霉素"],
+                },
+            })
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert [event["event"] for event in events] == ["meta", "contraindication", "done"]
+    assert events[1]["data"]["blocked"] is True
+    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert json.loads(requests[0].content) == {"medication_ids": [1]}
+    assert requests[0].headers["X-Agent-Patient-Id"] == "12"
+    assert requests[0].headers["X-Agent-Patient-Signature"] == hmac.new(
+        b"shared-secret", b"12", hashlib.sha256
+    ).hexdigest()
+    assert b"allerg" not in requests[0].content
+    assert all("先吃一粒阿莫西林" not in str(event) for event in events)
+    assert all("布洛芬" not in str(event) for event in events)
