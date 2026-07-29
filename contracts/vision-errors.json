@@ -1,0 +1,29 @@
+{
+  "_doc": "报告解读错误码与用户可见文案。错误码集合是 server-py 产出、server-java 白名单放行的跨栈协议；用户可见文案以 server-java 出口为准（server-py 侧文案允许不同，以本文件为准消费）。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "codes": [
+    "VISION_FILE_UNREADABLE",
+    "VISION_FILE_TOO_LARGE",
+    "VISION_FILE_TYPE_INVALID",
+    "VISION_FILE_COUNT_INVALID",
+    "VISION_PDF_ENCRYPTED",
+    "VISION_PDF_PAGE_LIMIT",
+    "VISION_IMAGE_PIXELS_EXCEEDED",
+    "VISION_OUTPUT_INVALID",
+    "VISION_MODEL_TIMEOUT",
+    "VISION_SCENARIO_UNSUPPORTED",
+    "VISION_REPORT_SCOPE_UNSUPPORTED"
+  ],
+  "messages": {
+    "VISION_FILE_UNREADABLE": "报告文件无法可靠读取，请检查后重试",
+    "VISION_FILE_TOO_LARGE": "报告文件超出处理限制，请拆分或压缩后上传",
+    "VISION_FILE_TYPE_INVALID": "报告文件无法可靠读取，请检查后重试",
+    "VISION_FILE_COUNT_INVALID": "报告文件无法可靠读取，请检查后重试",
+    "VISION_PDF_ENCRYPTED": "报告文件无法可靠读取，请检查后重试",
+    "VISION_PDF_PAGE_LIMIT": "报告文件无法可靠读取，请检查后重试",
+    "VISION_IMAGE_PIXELS_EXCEEDED": "报告文件超出处理限制，请拆分或压缩后上传",
+    "VISION_OUTPUT_INVALID": "本次未能生成可靠的结构化解读，请重试",
+    "VISION_MODEL_TIMEOUT": "报告解读服务响应超时",
+    "VISION_SCENARIO_UNSUPPORTED": "报告文件无法可靠读取，请检查后重试",
+    "VISION_REPORT_SCOPE_UNSUPPORTED": "请上传报告文字页，暂不支持原始医学影像诊断"
+  }
+}

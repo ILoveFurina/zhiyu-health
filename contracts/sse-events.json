@@ -1,0 +1,46 @@
+{
+  "_doc": "SSE 事件协议：流事件名、工具名→事件名映射、消息 kind 清单与事件→kind 映射。server-py 产出事件，server-java 透传并按 kind 持久化。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "stream_events": ["meta", "token", "message", "done"],
+  "red_flag_event": "red_flag",
+  "card_events": [
+    "doctor_recommendations",
+    "doctor_slots",
+    "hospital_recommendations",
+    "appointment",
+    "appointments"
+  ],
+  "tool_to_event": {
+    "recommend_doctors": "doctor_recommendations",
+    "get_doctor_slots": "doctor_slots",
+    "find_hospitals": "hospital_recommendations",
+    "create_appointment": "appointment",
+    "get_appointment": "appointments"
+  },
+  "message_kinds": [
+    "text",
+    "doctor_recommendations",
+    "doctor_slots",
+    "hospital_recommendations",
+    "appointment",
+    "appointments",
+    "report_upload",
+    "report_interpretation",
+    "report_context"
+  ],
+  "ai_card_kinds": [
+    "doctor_recommendations",
+    "doctor_slots",
+    "hospital_recommendations",
+    "appointment",
+    "appointments",
+    "report_interpretation"
+  ],
+  "event_to_kind": {
+    "doctor_recommendations": "doctor_recommendations",
+    "doctor_slots": "doctor_slots",
+    "hospital_recommendations": "hospital_recommendations",
+    "appointment": "appointment",
+    "appointments": "appointments",
+    "report_interpretation": "report_interpretation"
+  }
+}

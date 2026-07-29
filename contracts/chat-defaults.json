@@ -1,0 +1,11 @@
+{
+  "_doc": "对话默认值与经纬度校验范围：effort/scenario 的请求缺省值与可选枚举，以及两端一致的经纬度边界。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "effort_default": "auto",
+  "scenario_default": "triage",
+  "effort_choices": ["auto", "quick", "deep"],
+  "scenarios": ["triage", "interpretation"],
+  "longitude_min": -180,
+  "longitude_max": 180,
+  "latitude_min": -90,
+  "latitude_max": 90
+}
