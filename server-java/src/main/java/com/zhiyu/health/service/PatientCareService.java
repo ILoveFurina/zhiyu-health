@@ -18,11 +18,13 @@ public class PatientCareService {
     private final InAppMessageMapper messageMapper;
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
+    private final HealthProfileService healthProfiles;
 
     public List<PatientPrescriptionView> approvedPrescriptions(long patientId) {
         // 查询层显式限定 APPROVED，是患者可见性的最后一道确定性边界。
         String approved = contracts.prescriptionFlow().statuses().get("approved");
-        return prescriptionMapper.selectApprovedForPatient(patientId, approved).stream()
+        long profileId = healthProfiles.requireActive(patientId).getId();
+        return prescriptionMapper.selectApprovedForProfile(patientId, profileId, approved).stream()
                 .map(this::toPrescriptionView)
                 .toList();
     }

@@ -18,8 +18,10 @@ public class AppointmentService {
     private final ScheduleMapper scheduleMapper;
     private final SlotAccounting slotAccounting;
     private final TransactionTemplate transactionTemplate;
+    private final HealthProfileService healthProfiles;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
+        long profileId = healthProfiles.requireActive(patientId).getId();
         // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
         Long appointmentId = slotAccounting.withDeduction(
                 scheduleId,
@@ -29,7 +31,8 @@ public class AppointmentService {
                     if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
                         throw new ApiException(404, "排班不存在或已停用");
                     }
-                    Appointment existing = appointmentMapper.selectForPatientAndSchedule(patientId, scheduleId);
+                    Appointment existing =
+                            appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
                     if (existing != null) {
                         return existing.getId();
                     }
@@ -40,6 +43,7 @@ public class AppointmentService {
                     }
                     Appointment appointment = new Appointment();
                     appointment.setPatientId(patientId);
+                    appointment.setHealthProfileId(profileId);
                     appointment.setConversationId(conversationId);
                     appointment.setScheduleId(scheduleId);
                     appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
@@ -51,7 +55,8 @@ public class AppointmentService {
     }
 
     public List<AppointmentView> listForPatient(long patientId) {
-        return appointmentMapper.selectViewsByPatient(patientId).stream()
+        long profileId = healthProfiles.requireActive(patientId).getId();
+        return appointmentMapper.selectViewsByProfile(patientId, profileId).stream()
                 .map(this::toView)
                 .toList();
     }
@@ -72,18 +77,22 @@ public class AppointmentService {
 
     public AppointmentView saveConditionSummary(
             long patientId, long conversationId, long appointmentId, String summary) {
+        long profileId = healthProfiles.requireActive(patientId).getId();
         // 摘要只存纯内容；免责声明在响应装配时由 DisclaimerService 挂载，不入库。
-        if (appointmentMapper.updateConditionSummary(appointmentId, patientId, conversationId, summary.trim()) != 1) {
+        if (appointmentMapper.updateConditionSummary(
+                        appointmentId, patientId, profileId, conversationId, summary.trim())
+                != 1) {
             throw new ApiException(404, "挂号单不存在");
         }
         return view(appointmentId);
     }
 
     public AppointmentView cancel(long patientId, long appointmentId) {
+        long profileId = healthProfiles.requireActive(patientId).getId();
         // withRefund 的补偿范围覆盖整个事务（含提交失败）：已退还未提交即撤销退还。
         Long resultId = slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
             // 挂号单行锁保证重复取消只让首次状态转换进入双存储回补分支。
-            Appointment appointment = appointmentMapper.selectByIdForUpdate(appointmentId, patientId);
+            Appointment appointment = appointmentMapper.selectByIdForUpdate(appointmentId, patientId, profileId);
             if (appointment == null) {
                 throw new ApiException(404, "挂号单不存在");
             }

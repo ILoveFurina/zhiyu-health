@@ -13,10 +13,10 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     String DETAIL_COLUMNS =
             """
             SELECT pr.*, d.name AS doctor_name, dep.name AS department_name,
-                   pa.nickname AS patient_nickname, pa.id AS patient_id, s.schedule_date
+                   hp.display_name AS patient_nickname, a.patient_id, s.schedule_date
             FROM prescriptions pr
             JOIN appointments a ON a.id = pr.appointment_id
-            JOIN patients pa ON pa.id = a.patient_id
+            JOIN health_profiles hp ON hp.id = a.health_profile_id
             JOIN doctors d ON d.id = pr.doctor_id
             JOIN departments dep ON dep.id = d.department_id
             JOIN schedules s ON s.id = a.schedule_id
@@ -31,8 +31,11 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE pr.status = #{status} ORDER BY pr.created_at DESC")
     List<Prescription> selectForReview(@Param("status") String status);
 
-    @Select(DETAIL_COLUMNS + " WHERE pa.id = #{patientId} AND pr.status = #{status} ORDER BY pr.reviewed_at DESC")
-    List<Prescription> selectApprovedForPatient(@Param("patientId") long patientId, @Param("status") String status);
+    @Select(DETAIL_COLUMNS
+            + " WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}"
+            + " AND pr.status = #{status} ORDER BY pr.reviewed_at DESC")
+    List<Prescription> selectApprovedForProfile(
+            @Param("patientId") long patientId, @Param("profileId") long profileId, @Param("status") String status);
 
     @Update(
             """

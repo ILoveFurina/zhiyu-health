@@ -70,7 +70,15 @@ def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None
                 {"role": "user", "content": "我咳嗽三天了"},
                 {"role": "assistant", "content": "有发烧吗"},
                 {"role": "user", "content": "还开始发烧了"},
-            ]
+            ],
+            "health_profile": {
+                "id": 31,
+                "display_name": "妈妈",
+                "gender": "女",
+                "birth_date": "1962-05-08",
+                "relationship": "母亲",
+                "allergies": ["青霉素"],
+            },
         },
     )
 
@@ -82,6 +90,8 @@ def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None
     ]
     assert harness.agent.calls[0]["context"].patient_id == 12
     assert harness.agent.calls[0]["context"].conversation_id == 7
+    assert harness.agent.calls[0]["context"].health_profile.display_name == "妈妈"
+    assert harness.agent.calls[0]["context"].health_profile.allergies == ["青霉素"]
 
 
 def test_effort_choice_is_mapped_by_backend(harness: SimpleNamespace) -> None:

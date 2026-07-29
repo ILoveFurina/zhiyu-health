@@ -4,6 +4,8 @@ const { drawerMethods } = require('./drawer')
 const reportComposer = require('./report-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
+const { currentProfile } = require('../../services/health-profiles')
+const { featureGuideMethods } = require('./feature-guide')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -18,9 +20,6 @@ const PROMPTS = [
   '高血压老人用药应该注意什么',
   '为我推荐 28 天健康减肥食谱计划',
 ]
-
-// AI 诊室气泡点击插入的客户端引导语（D6）：不经 SSE、不持久化、不带免责声明
-const TRIAGE_GREETING = '请描述您的不适，我帮您判断该挂什么科'
 
 Page({
   data: {
@@ -41,6 +40,8 @@ Page({
     conversations: [],
     pendingReport: null,
     reportProgress: '',
+    profileLoaded: false,
+    currentProfile: null,
   },
 
   _msgSeq: 0,
@@ -49,12 +50,20 @@ Page({
 
   ...reportComposer,
   ...hospitalRoutingMethods,
+  ...featureGuideMethods,
 
   onLoad() {
     // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
     ensureLogin().catch(() =>
       my.showToast({ content: '登录失败，请检查后端服务', type: 'fail' })
     )
+  },
+
+  onShow() {
+    ensureLogin()
+      .then(() => currentProfile())
+      .then((result) => this.setData({ currentProfile: result.profile, profileLoaded: true }))
+      .catch(() => this.setData({ currentProfile: null, profileLoaded: true }))
   },
 
   onUnload() {
@@ -73,83 +82,6 @@ Page({
 
   sendPrompt(e) {
     this.sendText(e.currentTarget.dataset.text)
-  },
-
-  /** 功能入口气泡点击分发（D5）。action 标识见 feature-bubbles.js。 */
-  onBubbleTap(e) {
-    if (this.data.sending) return
-    const action = e.currentTarget.dataset.action
-    if (action === 'triage') this.enterTriage()
-    else if (action === 'hospital') this.enterHospitalGuide()
-    else if (action === 'report') this.openReportPicker()
-  },
-
-  /** AI 诊室（D6）：插客户端欢迎语 + 聚焦输入框，不调 SSE、不持久化。 */
-  enterTriage() {
-    const message = {
-      id: ++this._msgSeq,
-      role: 'assistant',
-      kind: 'feature_guide',
-      content: TRIAGE_GREETING,
-      disclaimer: '',
-    }
-    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
-  },
-
-  /** 找医院（D2/D7）：出 feature_guide 卡片，内嵌授权定位按钮。 */
-  enterHospitalGuide() {
-    const message = {
-      id: ++this._msgSeq,
-      role: 'assistant',
-      kind: 'feature_guide',
-      card: { feature: 'hospital', mode: 'locate' },
-      disclaimer: '',
-    }
-    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
-  },
-
-  /** feature_guide 卡片内「授权定位」按钮（D7）。 */
-  onGuideLocate() {
-    my.getLocation({
-      type: 1,
-      success: (res) => this._afterGuideLocate({ longitude: res.longitude, latitude: res.latitude }),
-      fail: () => this._degradeGuide(),
-    })
-  },
-
-  /** 授权成功（D7）：删引导卡片 + 发对话。坐标已拿到，直接 startRound 不再走定位。 */
-  _afterGuideLocate(location) {
-    this._removeLastGuide()
-    this.startRound('帮我找附近的医院', location)
-  },
-
-  /** 拒绝授权（D7）：卡片改降级态文案，按钮行为改区域查找。 */
-  _degradeGuide() {
-    this.patchMessage(this._lastGuideId(), (msg) => ({
-      ...msg,
-      card: { feature: 'hospital', mode: 'manual' },
-    }))
-    my.showToast({ content: '未获取到定位，可点击按区域查找', type: 'none' })
-  },
-
-  /** 降级态「按区域查找」按钮（D7）。 */
-  onGuideManual() {
-    this._removeLastGuide()
-    this.sendText('我想找医院，请帮我看看附近有哪些科室')
-  },
-
-  _lastGuideId() {
-    const msgs = this.data.messages
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].kind === 'feature_guide') return msgs[i].id
-    }
-    return null
-  },
-
-  _removeLastGuide() {
-    const id = this._lastGuideId()
-    if (id === null) return
-    this.setData({ messages: this.data.messages.filter((m) => m.id !== id) })
   },
 
   send() {
@@ -263,6 +195,10 @@ Page({
 
   openAppointments() {
     my.navigateTo({ url: '/pages/appointments/index' })
+  },
+
+  openHealthProfiles() {
+    my.navigateTo({ url: '/pages/health/index' })
   },
 
   showRedFlag(id, data) {

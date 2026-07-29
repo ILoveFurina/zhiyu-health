@@ -1,11 +1,83 @@
-<view class="page">
-  <view class="card">
-    <view class="title">后端与存储连通性</view>
-    <view class="overall">总体状态：{{overall}}</view>
-    <view a:for="{{services}}" a:key="name" class="row">
-      <view class="label">{{item.label}}</view>
-      <ant-tag color="{{item.status === 'ok' ? 'green' : 'red'}}">{{item.status}}</ant-tag>
+<scroll-view class="page" scroll-y>
+  <view class="hero">
+    <view>
+      <view class="hero-title">健康档案</view>
+      <view class="hero-sub">为本人或家人管理健康信息</view>
     </view>
-    <ant-button type="primary" loading="{{loading}}" onTap="refreshHealth">重新检测</ant-button>
+    <view class="add-button" onTap="toggleForm">＋ 新建</view>
   </view>
-</view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+
+  <view a:if="{{showForm}}" class="card form-card">
+    <view class="section-title">创建服务对象</view>
+    <input class="field" placeholder="姓名或称呼" value="{{form.display_name}}" data-field="display_name" onInput="onFormInput" />
+    <picker mode="selector" range="{{genders}}" value="{{genderIndex}}" onChange="onGenderChange">
+      <view class="field picker-field">性别：{{genders[genderIndex]}} <text>›</text></view>
+    </picker>
+    <picker mode="date" value="{{form.birth_date}}" end="{{today}}" onChange="onBirthDateChange">
+      <view class="field picker-field">出生日期：{{form.birth_date || '请选择'}} <text>›</text></view>
+    </picker>
+    <picker mode="selector" range="{{relationships}}" value="{{relationshipIndex}}" onChange="onRelationshipChange">
+      <view class="field picker-field">与我的关系：{{relationships[relationshipIndex]}} <text>›</text></view>
+    </picker>
+    <view class="allergy-editor">
+      <input class="allergy-input" placeholder="过敏药品或成分（没有可不填）" value="{{allergyInput}}" onInput="onAllergyInput" />
+      <view class="small-button" onTap="addDraftAllergy">添加</view>
+    </view>
+    <view class="chips">
+      <view a:for="{{draftAllergies}}" a:key="*this" class="chip danger" data-value="{{item}}" onTap="removeDraftAllergy">{{item}} ×</view>
+    </view>
+    <view class="submit" onTap="submitProfile">保存并设为当前档案</view>
+  </view>
+
+  <view a:if="{{profiles.length}}" class="section">
+    <view class="section-title">选择服务对象</view>
+    <scroll-view class="profile-strip" scroll-x>
+      <view class="profile-row">
+        <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}}" data-id="{{item.id}}" onTap="switchProfile">
+          <view class="avatar">{{item.avatar}}</view>
+          <view>
+            <view class="profile-name">{{item.display_name}}</view>
+            <view class="profile-relation">{{item.relationship}}{{item.active ? ' · 当前' : ''}}</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view a:if="{{activeProfile}}" class="card profile-card">
+    <view class="section-title">基础资料</view>
+    <view class="info-row"><text>姓名</text><text>{{activeProfile.display_name}}</text></view>
+    <view class="info-row"><text>性别</text><text>{{activeProfile.gender}}</text></view>
+    <view class="info-row"><text>出生日期</text><text>{{activeProfile.birth_date}}</text></view>
+    <view class="info-row"><text>关系</text><text>{{activeProfile.relationship}}</text></view>
+  </view>
+
+  <view a:if="{{activeProfile}}" class="card">
+    <view class="section-title">过敏史</view>
+    <view class="safe-note">用于确定性用药禁忌检查；信息不完整时系统不会声称已完成个性化检查。</view>
+    <view class="chips">
+      <view a:for="{{activeProfile.allergies}}" a:key="*this" class="chip danger" data-value="{{item}}" onTap="removeExistingAllergy">{{item}} ×</view>
+      <view a:if="{{activeProfile.allergies.length === 0}}" class="empty-inline">暂未填写</view>
+    </view>
+    <view class="allergy-editor">
+      <input class="allergy-input" placeholder="新增药品或成分" value="{{existingAllergyInput}}" onInput="onExistingAllergyInput" />
+      <view class="small-button" onTap="addExistingAllergy">添加</view>
+    </view>
+  </view>
+
+  <view a:if="{{activeProfile}}" class="section">
+    <view class="section-title">健康时间线</view>
+    <view a:if="{{timeline.length === 0}}" class="card state">暂无挂号、处方或报告解读记录</view>
+    <view a:for="{{timeline}}" a:key="record_id" class="timeline-item">
+      <view class="timeline-dot"></view>
+      <view class="timeline-card">
+        <view class="timeline-type">{{item.title}}</view>
+        <view class="timeline-summary">{{item.summary}}</view>
+        <view class="timeline-time">{{item.occurred_at}}</view>
+        <ai-disclaimer a:if="{{item.disclaimer}}" text="{{item.disclaimer}}" />
+      </view>
+    </view>
+  </view>
+</scroll-view>

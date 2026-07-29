@@ -24,6 +24,7 @@ public class ReportInterpretationPersistence {
     private final ConversationService conversations;
     private final ObjectMapper objectMapper;
     private final DisclaimerService disclaimers;
+    private final HealthProfileService healthProfiles;
 
     public ReportInterpretation findByRequest(Long patientId, String requestId) {
         return mapper.selectOne(new LambdaQueryWrapper<ReportInterpretation>()
@@ -37,6 +38,7 @@ public class ReportInterpretationPersistence {
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, "看报告");
         ReportInterpretation record = new ReportInterpretation();
         record.setPatientId(patientId);
+        record.setHealthProfileId(healthProfiles.requireActive(patientId).getId());
         record.setConversationId(conversation.getId());
         record.setRequestId(requestId);
         record.setFileType(isPdf(files) ? "PDF" : "IMAGE");

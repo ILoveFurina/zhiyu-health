@@ -1,0 +1,42 @@
+.profile-guide {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 26rpx;
+  padding: 22rpx;
+  border: 1rpx solid #b9ded6;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #fff 0%, #e8f7f3 100%);
+  text-align: left;
+}
+
+.profile-guide-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 18rpx;
+  background: #0e8a7d;
+  color: #fff;
+  font-size: 32rpx;
+}
+
+.profile-guide-copy { flex: 1; }
+.profile-guide-title { color: #174840; font-size: 27rpx; font-weight: 650; }
+.profile-guide-text { margin-top: 6rpx; color: #718b86; font-size: 21rpx; line-height: 1.45; }
+.profile-guide-arrow { color: #0e8a7d; font-size: 38rpx; }
+.cpill.profile { max-width: 260rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.drawer-my-title { padding: 20rpx 28rpx 6rpx; color: #8b9b98; font-size: 22rpx; }
+.drawer-entry {
+  display: flex;
+  justify-content: space-between;
+  margin: 8rpx 24rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  color: #294b46;
+  font-size: 27rpx;
+}

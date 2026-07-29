@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.deps import AgentCallbackAuth
 from app.schemas.chat import AgentChatRequest
+from app.agent.runner import HealthProfileContext
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -33,6 +34,11 @@ async def chat(
         messages=[{"role": m.role, "content": m.content} for m in body.messages],
         patient_id=body.patient_id,
         conversation_id=body.conversation_id,
+        health_profile=(
+            HealthProfileContext(**body.health_profile.model_dump())
+            if body.health_profile is not None
+            else None
+        ),
         effort_choice=body.effort,
         scenario=body.scenario,
         longitude=body.longitude,

@@ -7,7 +7,7 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 
 from collections.abc import AsyncIterator
 
-from app.agent.runner import AgentContext, AgentRunner
+from app.agent.runner import AgentContext, AgentRunner, HealthProfileContext
 from app.core.contracts import get_contracts
 from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
 
@@ -29,6 +29,7 @@ class AgentChatService:
         messages: list[dict[str, str]],
         patient_id: int,
         conversation_id: int,
+        health_profile: HealthProfileContext | None = None,
         effort_choice: EffortChoice,
         scenario: Scenario,
         longitude: float | None = None,
@@ -41,6 +42,7 @@ class AgentChatService:
         context = AgentContext(
             patient_id=patient_id,
             conversation_id=conversation_id,
+            health_profile=health_profile,
             longitude=longitude,
             latitude=latitude,
         )

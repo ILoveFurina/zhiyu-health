@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
@@ -45,8 +46,14 @@ class AppointmentConcurrencyTest {
             return appointment;
         });
         redis.initialize(9L, 1);
-        AppointmentService service =
-                new AppointmentService(appointments, schedules, new SlotAccounting(redis), serializedTransaction());
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        when(healthProfiles.requireActive(any(Long.class))).thenAnswer(invocation -> {
+            HealthProfile profile = new HealthProfile();
+            profile.setId(invocation.<Long>getArgument(0));
+            return profile;
+        });
+        AppointmentService service = new AppointmentService(
+                appointments, schedules, new SlotAccounting(redis), serializedTransaction(), healthProfiles);
         AtomicInteger successes = new AtomicInteger();
         var executor = Executors.newFixedThreadPool(10);
         try {

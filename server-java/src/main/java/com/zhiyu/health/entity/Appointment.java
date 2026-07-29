@@ -33,6 +33,7 @@ public class Appointment {
     private Long id;
 
     private Long patientId;
+    private Long healthProfileId;
     private Long conversationId;
     private Long scheduleId;
     private Integer sequenceNumber;

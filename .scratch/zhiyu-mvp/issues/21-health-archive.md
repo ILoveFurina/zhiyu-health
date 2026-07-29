@@ -4,10 +4,18 @@
 
 **Blocked by:** 09 — 电子处方；12 — 报告解读与视觉管道
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] health_profiles 表与 patients 构成 1:N，基础信息和过敏史只存于 health_profiles；档案创建表单支持录入
-- [ ] 未建档引导卡片出现在 AI 页
-- [ ] 时间线视图聚合三类记录
-- [ ] 将挂号单、电子处方和既有 report_interpretations 关联到当前 health_profile，切换档案后只查询该档案记录
-- [ ] 家庭档案：多档案创建与切换，过敏史等随当前档案生效
+- [x] health_profiles 表与 patients 构成 1:N，基础信息和过敏史只存于 health_profiles；档案创建表单支持录入
+- [x] 未建档引导卡片出现在 AI 页
+- [x] 时间线视图聚合三类记录
+- [x] 将挂号单、电子处方和既有 report_interpretations 关联到当前 health_profile，切换档案后只查询该档案记录
+- [x] 家庭档案：多档案创建与切换，过敏史等随当前档案生效
+
+## Comments
+
+### 2026-07-29 — 实施与验证
+
+- server-java 全量 161 项测试、Spotless 与 ArchUnit 通过；server-py 全量 48 项测试、ruff、mypy、import-linter 通过。
+- miniprogram 依赖安装与本票 JS 语法检查通过。
+- 当前环境未发现支付宝小程序开发者工具，尚未完成人工“登录 → 建档 → 家人切换 → 时间线”与控制台验收，因此状态暂保留 `claimed`。

@@ -1,7 +1,6 @@
 {
-  "defaultTitle": "智愈 · 服务自检",
+  "defaultTitle": "健康档案",
   "usingComponents": {
-    "ant-button": "antd-mini/es/Button/index",
-    "ant-tag": "antd-mini/es/Tag/index"
+    "ai-disclaimer": "/components/ai-disclaimer/index"
   }
 }

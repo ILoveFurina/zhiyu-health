@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
@@ -24,6 +25,7 @@ class AppointmentServiceTest {
     private final AppointmentMapper appointmentMapper = mock(AppointmentMapper.class);
     private final ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
+    private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -49,13 +51,15 @@ class AppointmentServiceTest {
         assertThat(created.sequenceNumber()).isEqualTo(1);
         assertThat(created.conditionSummary()).isNull();
         assertThat(inserted.get().getConditionSummary()).isNull();
+        assertThat(inserted.get().getHealthProfileId()).isEqualTo(31L);
         assertThat(slotCounter.values.get(9L)).hasValue(2);
     }
 
     @Test
     void savesGeneratedSummaryOnlyForOwningPatientAndConversation() {
         // 摘要纯内容直存，不再拼接免责文案；标注在响应装配时挂载。
-        when(appointmentMapper.updateConditionSummary(21L, 12L, 7L, "主诉胸闷两天")).thenReturn(1);
+        when(appointmentMapper.updateConditionSummary(21L, 12L, 31L, 7L, "主诉胸闷两天"))
+                .thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
         AppointmentService.AppointmentView updated = service().saveConditionSummary(12L, 7L, 21L, "主诉胸闷两天");
@@ -67,7 +71,7 @@ class AppointmentServiceTest {
     void duplicateReturnsExistingAppointmentWithoutDeductingAgain() {
         Appointment existing = appointment(21L, "BOOKED");
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForPatientAndSchedule(12L, 9L)).thenReturn(existing);
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(existing);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
         slotCounter.initialize(9L, 2);
 
@@ -81,13 +85,14 @@ class AppointmentServiceTest {
     @Test
     void duplicateWithSummaryReturnsExistingResultWithoutRewritingFromNewConversation() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForPatientAndSchedule(12L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
         AppointmentService.AppointmentView result = service().createWithSummary(12L, 99L, 9L, "新会话摘要");
 
         assertThat(result.conditionSummary()).isEqualTo("主诉胸闷两天");
-        verify(appointmentMapper, never()).updateConditionSummary(anyLong(), anyLong(), anyLong(), any(String.class));
+        verify(appointmentMapper, never())
+                .updateConditionSummary(anyLong(), anyLong(), anyLong(), anyLong(), any(String.class));
     }
 
     @Test
@@ -103,7 +108,7 @@ class AppointmentServiceTest {
         Appointment withoutSummary = view("BOOKED", 1);
         withoutSummary.setConditionSummary(null);
         when(appointmentMapper.selectViewById(21L)).thenReturn(withoutSummary);
-        when(appointmentMapper.updateConditionSummary(anyLong(), anyLong(), anyLong(), any(String.class)))
+        when(appointmentMapper.updateConditionSummary(anyLong(), anyLong(), anyLong(), anyLong(), any(String.class)))
                 .thenThrow(new IllegalStateException("摘要存储失败"));
         slotCounter.initialize(9L, 1);
 
@@ -128,8 +133,12 @@ class AppointmentServiceTest {
             throw new IllegalStateException("模拟提交失败");
         });
 
-        AppointmentService service =
-                new AppointmentService(appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
+        AppointmentService service = new AppointmentService(
+                appointmentMapper,
+                scheduleMapper,
+                new SlotAccounting(slotCounter),
+                transaction,
+                activeProfileService());
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
@@ -139,7 +148,7 @@ class AppointmentServiceTest {
     void repeatedCancellationRefundsOnlyOnce() {
         Appointment booked = appointment(21L, "BOOKED");
         Appointment cancelled = appointment(21L, "CANCELLED");
-        when(appointmentMapper.selectByIdForUpdate(21L, 12L)).thenReturn(booked, cancelled);
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked, cancelled);
         when(appointmentMapper.markCancelled(21L)).thenReturn(1);
         when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
@@ -172,7 +181,19 @@ class AppointmentServiceTest {
             TransactionCallback<?> callback = invocation.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
         });
-        return new AppointmentService(appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
+        return new AppointmentService(
+                appointmentMapper,
+                scheduleMapper,
+                new SlotAccounting(slotCounter),
+                transaction,
+                activeProfileService());
+    }
+
+    private HealthProfileService activeProfileService() {
+        HealthProfile profile = new HealthProfile();
+        profile.setId(31L);
+        when(healthProfiles.requireActive(anyLong())).thenReturn(profile);
+        return healthProfiles;
     }
 
     private Schedule schedule(int total, int remaining) {

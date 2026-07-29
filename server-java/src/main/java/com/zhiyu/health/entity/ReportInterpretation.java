@@ -17,6 +17,7 @@ public class ReportInterpretation {
     private Long id;
 
     private Long patientId;
+    private Long healthProfileId;
     private Long conversationId;
     private String requestId;
     private String fileType;

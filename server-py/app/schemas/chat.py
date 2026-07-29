@@ -23,12 +23,22 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1)
 
 
+class HealthProfilePayload(BaseModel):
+    id: PositiveInt
+    display_name: str = Field(min_length=1, max_length=50)
+    gender: str = Field(min_length=1, max_length=10)
+    birth_date: str
+    relationship: str = Field(min_length=1, max_length=20)
+    allergies: list[str] = Field(default_factory=list, max_length=30)
+
+
 class AgentChatRequest(BaseModel):
     """Agent 对话入参：消息历史由 server-java 组装（会话持久化在它那边）。"""
 
     messages: list[ChatMessage] = Field(min_length=1)
     patient_id: PositiveInt
     conversation_id: PositiveInt
+    health_profile: HealthProfilePayload | None = None
     effort: EffortChoice = Field(default_factory=_effort_default)
     scenario: Scenario = Field(default_factory=_scenario_default)
     # 用户授权定位后的经纬度；拒绝授权时不传，find_hospitals 据此降级

@@ -33,6 +33,7 @@ public class ChatService {
     private final DisclaimerService disclaimers;
     // SSE 事件名与 effort/scenario 默认值唯一事实源是 contracts/*.json
     private final Contracts contracts;
+    private final HealthProfileService healthProfiles;
 
     public SseEmitter chat(
             Long patientId,
@@ -88,6 +89,17 @@ public class ChatService {
         body.put("conversation_id", conversation.getId());
         body.put("effort", blankToDefault(effort, contracts.chatDefaults().effortDefault()));
         body.put("scenario", blankToDefault(scenario, contracts.chatDefaults().scenarioDefault()));
+        HealthProfileService.ProfileView profile = healthProfiles.current(conversation.getPatientId());
+        if (profile != null) {
+            Map<String, Object> profileContext = new HashMap<>();
+            profileContext.put("id", profile.id());
+            profileContext.put("display_name", profile.displayName());
+            profileContext.put("gender", profile.gender());
+            profileContext.put("birth_date", profile.birthDate().toString());
+            profileContext.put("relationship", profile.relationship());
+            profileContext.put("allergies", profile.allergies());
+            body.put("health_profile", profileContext);
+        }
         // 经纬度来自用户授权定位；拒绝授权时不传，server-py 的 find_hospitals 据此降级。
         if (longitude != null && latitude != null) {
             body.put("longitude", longitude);

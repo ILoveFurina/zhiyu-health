@@ -2,6 +2,7 @@
 @import "./redflag.acss";
 @import "./drawer.acss";
 @import "./feature-bubbles.acss";
+@import "./health-profile.acss";
 
 /* 聊天页（演示主画面），视觉对齐 docs/specs/0002-ui-conventions.md */
 .page {

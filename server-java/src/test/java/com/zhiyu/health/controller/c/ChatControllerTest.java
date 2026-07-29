@@ -20,6 +20,7 @@ import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
 import com.zhiyu.health.service.ChatService;
 import com.zhiyu.health.service.ConversationService;
+import com.zhiyu.health.service.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.nio.charset.StandardCharsets;
@@ -49,7 +50,8 @@ class ChatControllerTest {
                 new RedFlagRuleEngine(),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                TestContracts.instance());
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -113,7 +115,8 @@ class ChatControllerTest {
                 new RedFlagRuleEngine(),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                TestContracts.instance());
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 // 对齐生产：Boot 自动配置的 StringHttpMessageConverter 默认 UTF-8，
                 // standalone MockMvc 的默认转换器是 ISO-8859-1，需显式指定
@@ -152,8 +155,12 @@ class ChatControllerTest {
         when(conversations.getOrCreateForPatient(12L, null, "帮我解读报告")).thenReturn(new Conversation(8L, 12L, "帮我解读报告"));
         when(conversations.recentContext(8L))
                 .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "帮我解读报告")));
-        when(agentClient.chat(
-                        org.mockito.ArgumentMatchers.argThat(body -> "interpretation".equals(body.get("scenario")))))
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        when(healthProfiles.current(12L))
+                .thenReturn(new HealthProfileService.ProfileView(
+                        31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", true, java.util.List.of("青霉素")));
+        when(agentClient.chat(org.mockito.ArgumentMatchers.argThat(body -> "interpretation".equals(body.get("scenario"))
+                        && body.get("health_profile").toString().contains("青霉素"))))
                 .thenReturn(Flux.just(
                         ServerSentEvent.builder("{\"effort\":\"high\"}")
                                 .event("meta")
@@ -165,7 +172,8 @@ class ChatControllerTest {
                 new RedFlagRuleEngine(),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                TestContracts.instance());
+                TestContracts.instance(),
+                healthProfiles);
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -216,7 +224,8 @@ class ChatControllerTest {
                 new RedFlagRuleEngine(),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                TestContracts.instance());
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -264,7 +273,8 @@ class ChatControllerTest {
                 new RedFlagRuleEngine(),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                TestContracts.instance());
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
