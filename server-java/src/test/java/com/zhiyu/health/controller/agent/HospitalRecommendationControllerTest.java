@@ -1,21 +1,20 @@
 package com.zhiyu.health.controller.agent;
 
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.service.HospitalRecommendationService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
-
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Agent 业务工具回调 seam：按距离排序返回就近医院。 */
 @WebMvcTest(HospitalRecommendationController.class)
@@ -33,11 +32,12 @@ class HospitalRecommendationControllerTest {
 
     @Test
     void returnsNearbyHospitalsSortedByDistance() throws Exception {
-        when(recommendationService.recommendNearby(121.4737, 31.2304)).thenReturn(List.of(
-                new HospitalRecommendationService.HospitalRecommendation(
-                        1L, "智愈市人民医院", "三级甲等", "智愈市安康路 88 号", 0.0),
-                new HospitalRecommendationService.HospitalRecommendation(
-                        2L, "智愈市第二医院", "三级乙等", "智愈市江宁路 200 号", 2.4)));
+        when(recommendationService.recommendNearby(121.4737, 31.2304))
+                .thenReturn(List.of(
+                        new HospitalRecommendationService.HospitalRecommendation(
+                                1L, "智愈市人民医院", "三级甲等", "智愈市安康路 88 号", 0.0),
+                        new HospitalRecommendationService.HospitalRecommendation(
+                                2L, "智愈市第二医院", "三级乙等", "智愈市江宁路 200 号", 2.4)));
 
         mockMvc.perform(get("/api/agent/hospitals/nearby")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)

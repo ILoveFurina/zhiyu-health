@@ -1,25 +1,24 @@
 package com.zhiyu.health.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.agentclient.AgentClient;
-import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.support.TestContracts;
-import com.zhiyu.health.entity.ReportInterpretation;
-import org.junit.jupiter.api.Test;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhiyu.health.agentclient.AgentClient;
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.entity.ReportInterpretation;
+import com.zhiyu.health.support.TestContracts;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.springframework.web.multipart.MultipartFile;
 
 /** 报告解读编排：幂等命中时不得重复调用模型。 */
 class ReportInterpretationServiceTest {
@@ -40,12 +39,14 @@ class ReportInterpretationServiceTest {
         stored.setDisclaimer("仅供参考，不替代医生诊断");
         when(persistence.findByRequest(12L, "req-001")).thenReturn(stored);
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class),
+                persistence,
+                agentClient,
+                objectMapper,
+                mock(ReportUploadStagingService.class),
                 TestContracts.instance());
         MultipartFile file = mock(MultipartFile.class);
 
-        ReportInterpretationService.ReportView result = service.interpret(
-                12L, null, "req-001", List.of(file));
+        ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-001", List.of(file));
 
         assertThat(result.reportInterpretationId()).isEqualTo(31L);
         assertThat(result.result().path("summary").asText()).isEqualTo("已保存的解读");
@@ -68,7 +69,8 @@ class ReportInterpretationServiceTest {
         when(file.getContentType()).thenReturn("image/png");
         when(persistence.start(12L, null, "req-002", List.of(file))).thenReturn(processing);
         AgentClient.VisionResponse vision = new AgentClient.VisionResponse(
-                objectMapper.readTree("""
+                objectMapper.readTree(
+                        """
                         {"summary":"血红蛋白偏低","items":[{"name":"血红蛋白",
                          "value":"108","reference_range":"115-150","unit":"g/L",
                          "priority":"yellow","explanation":"低于参考范围",
@@ -87,11 +89,13 @@ class ReportInterpretationServiceTest {
                     return processing;
                 });
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class),
+                persistence,
+                agentClient,
+                objectMapper,
+                mock(ReportUploadStagingService.class),
                 TestContracts.instance());
 
-        ReportInterpretationService.ReportView result = service.interpret(
-                12L, null, "req-002", List.of(file));
+        ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-002", List.of(file));
 
         assertThat(result.status()).isEqualTo("SUCCEEDED");
         assertThat(result.result().path("summary").asText()).isEqualTo("血红蛋白偏低");
@@ -116,8 +120,7 @@ class ReportInterpretationServiceTest {
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence, agentClient, new ObjectMapper(), staging, TestContracts.instance());
 
-        ReportInterpretationService.ReportView result = service.finalizeStaged(
-                12L, 8L, "req-retry");
+        ReportInterpretationService.ReportView result = service.finalizeStaged(12L, 8L, "req-retry");
 
         assertThat(result.reportInterpretationId()).isEqualTo(33L);
         verify(staging).discard(12L, "req-retry");
@@ -133,15 +136,16 @@ class ReportInterpretationServiceTest {
         ReportInterpretation processing = new ReportInterpretation();
         processing.setStatus("PROCESSING");
         when(persistence.start(12L, null, "req-timeout", List.of(file))).thenReturn(processing);
-        when(agentClient.interpretVision(List.of(file))).thenThrow(
-                new AgentClient.VisionAgentException(
-                        "VISION_MODEL_TIMEOUT", 504, "报告解读服务响应超时"));
+        when(agentClient.interpretVision(List.of(file)))
+                .thenThrow(new AgentClient.VisionAgentException("VISION_MODEL_TIMEOUT", 504, "报告解读服务响应超时"));
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, new ObjectMapper(), mock(ReportUploadStagingService.class),
+                persistence,
+                agentClient,
+                new ObjectMapper(),
+                mock(ReportUploadStagingService.class),
                 TestContracts.instance());
 
-        assertThatThrownBy(() -> service.interpret(
-                12L, null, "req-timeout", List.of(file)))
+        assertThatThrownBy(() -> service.interpret(12L, null, "req-timeout", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {
                     assertThat(error.getStatus()).isEqualTo(504);
                     assertThat(error.getCode()).isEqualTo("VISION_MODEL_TIMEOUT");

@@ -1,20 +1,5 @@
 package com.zhiyu.health.controller.b;
 
-import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.HospitalInputMapperImpl;
-import com.zhiyu.health.entity.Hospital;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.HospitalAdminService;
-import com.zhiyu.health.support.StaffTokens;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.List;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -24,6 +9,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.controller.b.mapping.HospitalInputMapperImpl;
+import com.zhiyu.health.entity.Hospital;
+import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.service.HospitalAdminService;
+import com.zhiyu.health.support.StaffTokens;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 /** 医院 CRUD seam：admin 角色门、404 分支、snake_case 字段 */
 @WebMvcTest(HospitalController.class)
@@ -36,7 +35,8 @@ class HospitalControllerTest {
     @MockitoBean
     private HospitalAdminService hospitalAdminService;
 
-    private static final String VALID_BODY = """
+    private static final String VALID_BODY =
+            """
             {"name": "智愈市人民医院", "level": "三级甲等", "address": "智愈市安康路 88 号",
              "longitude": 121.4737, "latitude": 31.2304}
             """;
@@ -73,23 +73,28 @@ class HospitalControllerTest {
     void createReturns201() throws Exception {
         when(hospitalAdminService.create(any(Hospital.class))).thenReturn(demoHospital());
 
-        mockMvc.perform(post("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
-                        .contentType("application/json").content(VALID_BODY))
+        mockMvc.perform(post("/api/b/hospitals")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                        .contentType("application/json")
+                        .content(VALID_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("智愈市人民医院"));
     }
 
     @Test
     void createRejectsDoctorRole() throws Exception {
-        mockMvc.perform(post("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_DOCTOR))
-                        .contentType("application/json").content(VALID_BODY))
+        mockMvc.perform(post("/api/b/hospitals")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_DOCTOR))
+                        .contentType("application/json")
+                        .content(VALID_BODY))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("仅管理员可操作"));
     }
 
     @Test
     void createRejectsOutOfRangeLongitude() throws Exception {
-        mockMvc.perform(post("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+        mockMvc.perform(post("/api/b/hospitals")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
                         .content("{\"name\": \"x\", \"level\": \"y\", \"address\": \"z\", "
                                 + "\"longitude\": 200.0, \"latitude\": 31.0}"))
@@ -98,11 +103,12 @@ class HospitalControllerTest {
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
-        when(hospitalAdminService.update(any(Hospital.class)))
-                .thenThrow(new ApiException(404, "医院不存在"));
+        when(hospitalAdminService.update(any(Hospital.class))).thenThrow(new ApiException(404, "医院不存在"));
 
-        mockMvc.perform(put("/api/b/hospitals/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
-                        .contentType("application/json").content(VALID_BODY))
+        mockMvc.perform(put("/api/b/hospitals/99")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                        .contentType("application/json")
+                        .content(VALID_BODY))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("医院不存在"));
     }

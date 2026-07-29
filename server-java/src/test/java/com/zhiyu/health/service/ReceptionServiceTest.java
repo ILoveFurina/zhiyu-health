@@ -1,5 +1,13 @@
 package com.zhiyu.health.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.ConsultationRecord;
@@ -9,24 +17,15 @@ import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.support.TestDisclaimers;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.function.Consumer;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ReceptionServiceTest {
 
@@ -38,14 +37,16 @@ class ReceptionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ReceptionService(staffUserMapper, receptionMapper,
-                consultationMapper, transactionTemplate, TestDisclaimers.instance());
+        service = new ReceptionService(
+                staffUserMapper, receptionMapper, consultationMapper, transactionTemplate, TestDisclaimers.instance());
         doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Consumer<TransactionStatus> callback = invocation.getArgument(0);
-            callback.accept(mock(TransactionStatus.class));
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+                    @SuppressWarnings("unchecked")
+                    Consumer<TransactionStatus> callback = invocation.getArgument(0);
+                    callback.accept(mock(TransactionStatus.class));
+                    return null;
+                })
+                .when(transactionTemplate)
+                .executeWithoutResult(any());
     }
 
     @Test
@@ -76,8 +77,7 @@ class ReceptionServiceTest {
     @Test
     void completionPersistsRecordBeforeBookedAppointmentBecomesVisited() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
-        when(receptionMapper.selectAppointmentForUpdate(21L, 7L))
-                .thenReturn(appointment(Appointment.STATUS_BOOKED));
+        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(appointment(Appointment.STATUS_BOOKED));
         when(receptionMapper.markVisited(21L)).thenReturn(1);
         Appointment visited = appointment(Appointment.STATUS_VISITED);
         when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(visited);
@@ -87,8 +87,7 @@ class ReceptionServiceTest {
         saved.setCreatedAt(OffsetDateTime.now());
         when(consultationMapper.selectByAppointmentId(21L)).thenReturn(saved);
 
-        ReceptionService.AppointmentDetail result = service.complete(
-                8L, 21L, " 上呼吸道感染 ", " 按需复诊 ");
+        ReceptionService.AppointmentDetail result = service.complete(8L, 21L, " 上呼吸道感染 ", " 按需复诊 ");
 
         ArgumentCaptor<ConsultationRecord> captor = ArgumentCaptor.forClass(ConsultationRecord.class);
         verify(consultationMapper).insert(captor.capture());

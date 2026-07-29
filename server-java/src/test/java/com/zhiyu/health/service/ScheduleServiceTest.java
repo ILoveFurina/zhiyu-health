@@ -1,20 +1,5 @@
 package com.zhiyu.health.service;
 
-import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Doctor;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.mapper.DoctorMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +7,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.entity.Doctor;
+import com.zhiyu.health.entity.Schedule;
+import com.zhiyu.health.mapper.DoctorMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class ScheduleServiceTest {
 
@@ -80,19 +79,18 @@ class ScheduleServiceTest {
         input.setDoctorId(1L);
         input.setTotalSlots(8);
 
-        assertThatThrownBy(() -> service.createSchedule(input))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.createSchedule(input)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values).isEmpty();
     }
 
     @Test
     void concurrentDecrementOfLastSlotSucceedsExactlyOnceWithoutOverselling() throws Exception {
         AtomicInteger pgRemaining = new AtomicInteger(1);
-        when(scheduleMapper.decrementRemainingSlots(1L)).thenAnswer(invocation ->
-                pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
+        when(scheduleMapper.decrementRemainingSlots(1L))
+                .thenAnswer(invocation -> pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
         slotCounter.initialize(1L, 1);
-        ScheduleService service = serviceWith(
-                transaction(callback -> callback.doInTransaction(mock(TransactionStatus.class))));
+        ScheduleService service =
+                serviceWith(transaction(callback -> callback.doInTransaction(mock(TransactionStatus.class))));
         AtomicInteger successes = new AtomicInteger();
 
         var executor = Executors.newFixedThreadPool(10);
@@ -128,12 +126,10 @@ class ScheduleServiceTest {
     @Test
     void postgresFailureRefundsRedisPredecrement() {
         slotCounter.initialize(1L, 1);
-        when(scheduleMapper.decrementRemainingSlots(1L))
-                .thenThrow(new IllegalStateException("模拟 PG 失败"));
+        when(scheduleMapper.decrementRemainingSlots(1L)).thenThrow(new IllegalStateException("模拟 PG 失败"));
         ScheduleService service = serviceWithImmediateTransaction();
 
-        assertThatThrownBy(() -> service.tryDecrementSlot(1L))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.tryDecrementSlot(1L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(1L)).hasValue(1);
     }
 
@@ -176,12 +172,11 @@ class ScheduleServiceTest {
         AtomicInteger pgTotal = new AtomicInteger(20);
         AtomicInteger pgRemaining = new AtomicInteger(1);
         when(doctorMapper.selectById(1L)).thenReturn(new Doctor());
-        when(scheduleMapper.selectByIdForUpdate(1L)).thenAnswer(invocation ->
-                schedule(1L, pgTotal.get(), pgRemaining.get()));
-        when(scheduleMapper.selectById(1L)).thenAnswer(invocation ->
-                schedule(1L, pgTotal.get(), pgRemaining.get()));
-        when(scheduleMapper.decrementRemainingSlots(1L)).thenAnswer(invocation ->
-                pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
+        when(scheduleMapper.selectByIdForUpdate(1L))
+                .thenAnswer(invocation -> schedule(1L, pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.selectById(1L)).thenAnswer(invocation -> schedule(1L, pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.decrementRemainingSlots(1L))
+                .thenAnswer(invocation -> pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
         when(scheduleMapper.adjustCapacity(any(Schedule.class))).thenAnswer(invocation -> {
             Schedule changes = invocation.getArgument(0);
             int delta = changes.getTotalSlots() - pgTotal.getAndSet(changes.getTotalSlots());
@@ -245,5 +240,4 @@ class ScheduleServiceTest {
     private interface TransactionExecutor {
         Object execute(TransactionCallback<?> callback);
     }
-
 }

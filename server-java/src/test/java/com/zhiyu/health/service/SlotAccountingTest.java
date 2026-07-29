@@ -1,11 +1,11 @@
 package com.zhiyu.health.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.zhiyu.health.config.ApiException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** 号源记账：五个命令的成功路径与失败补偿（Redis 与 PG 双写一致性收口） */
 class SlotAccountingTest {

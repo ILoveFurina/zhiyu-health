@@ -1,5 +1,14 @@
 package com.zhiyu.health.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Schedule;
@@ -9,15 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class AppointmentServiceTest {
 
@@ -55,12 +55,10 @@ class AppointmentServiceTest {
     @Test
     void savesGeneratedSummaryOnlyForOwningPatientAndConversation() {
         // 摘要纯内容直存，不再拼接免责文案；标注在响应装配时挂载。
-        when(appointmentMapper.updateConditionSummary(21L, 12L, 7L, "主诉胸闷两天"))
-                .thenReturn(1);
+        when(appointmentMapper.updateConditionSummary(21L, 12L, 7L, "主诉胸闷两天")).thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
-        AppointmentService.AppointmentView updated = service().saveConditionSummary(
-                12L, 7L, 21L, "主诉胸闷两天");
+        AppointmentService.AppointmentView updated = service().saveConditionSummary(12L, 7L, 21L, "主诉胸闷两天");
 
         assertThat(updated.conditionSummary()).isEqualTo("主诉胸闷两天");
     }
@@ -83,16 +81,13 @@ class AppointmentServiceTest {
     @Test
     void duplicateWithSummaryReturnsExistingResultWithoutRewritingFromNewConversation() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForPatientAndSchedule(12L, 9L))
-                .thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectForPatientAndSchedule(12L, 9L)).thenReturn(appointment(21L, "BOOKED"));
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
-        AppointmentService.AppointmentView result = service().createWithSummary(
-                12L, 99L, 9L, "新会话摘要");
+        AppointmentService.AppointmentView result = service().createWithSummary(12L, 99L, 9L, "新会话摘要");
 
         assertThat(result.conditionSummary()).isEqualTo("主诉胸闷两天");
-        verify(appointmentMapper, never()).updateConditionSummary(
-                anyLong(), anyLong(), anyLong(), any(String.class));
+        verify(appointmentMapper, never()).updateConditionSummary(anyLong(), anyLong(), anyLong(), any(String.class));
     }
 
     @Test
@@ -108,13 +103,11 @@ class AppointmentServiceTest {
         Appointment withoutSummary = view("BOOKED", 1);
         withoutSummary.setConditionSummary(null);
         when(appointmentMapper.selectViewById(21L)).thenReturn(withoutSummary);
-        when(appointmentMapper.updateConditionSummary(
-                anyLong(), anyLong(), anyLong(), any(String.class)))
+        when(appointmentMapper.updateConditionSummary(anyLong(), anyLong(), anyLong(), any(String.class)))
                 .thenThrow(new IllegalStateException("摘要存储失败"));
         slotCounter.initialize(9L, 1);
 
-        AppointmentService.AppointmentView result = service().createWithSummary(
-                12L, 7L, 9L, "主诉胸闷两天");
+        AppointmentService.AppointmentView result = service().createWithSummary(12L, 7L, 9L, "主诉胸闷两天");
 
         assertThat(result.id()).isEqualTo(21L);
         assertThat(result.conditionSummary()).isNull();
@@ -135,11 +128,10 @@ class AppointmentServiceTest {
             throw new IllegalStateException("模拟提交失败");
         });
 
-        AppointmentService service = new AppointmentService(
-                appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
+        AppointmentService service =
+                new AppointmentService(appointmentMapper, scheduleMapper, new SlotAccounting(slotCounter), transaction);
 
-        assertThatThrownBy(() -> service.create(12L, 7L, 9L))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
     }
 

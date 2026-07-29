@@ -1,25 +1,24 @@
 package com.zhiyu.health.service;
 
-import com.zhiyu.health.entity.Doctor;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.mapper.DoctorMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.zhiyu.health.entity.Doctor;
+import com.zhiyu.health.entity.Schedule;
+import com.zhiyu.health.mapper.DoctorMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class ScheduleCapacityConcurrencyTest {
 
@@ -29,7 +28,8 @@ class ScheduleCapacityConcurrencyTest {
         Schedule current = schedule(20, 5);
         when(scheduleMapper.selectById(1L)).thenReturn(current);
         ScheduleService service = new ScheduleService(
-                mock(DoctorMapper.class), new SlotAccounting(new InMemorySlotCounter()),
+                mock(DoctorMapper.class),
+                new SlotAccounting(new InMemorySlotCounter()),
                 mock(TransactionTemplate.class));
         // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
         ReflectionTestUtils.setField(service, "baseMapper", scheduleMapper);
@@ -47,10 +47,9 @@ class ScheduleCapacityConcurrencyTest {
         AtomicInteger pgTotal = new AtomicInteger(20);
         AtomicInteger pgRemaining = new AtomicInteger(5);
         when(doctorMapper.selectById(1L)).thenReturn(new Doctor());
-        when(scheduleMapper.selectByIdForUpdate(1L)).thenAnswer(invocation ->
-                schedule(pgTotal.get(), pgRemaining.get()));
-        when(scheduleMapper.selectById(1L)).thenAnswer(invocation ->
-                schedule(pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.selectByIdForUpdate(1L))
+                .thenAnswer(invocation -> schedule(pgTotal.get(), pgRemaining.get()));
+        when(scheduleMapper.selectById(1L)).thenAnswer(invocation -> schedule(pgTotal.get(), pgRemaining.get()));
         when(scheduleMapper.adjustCapacity(any(Schedule.class))).thenAnswer(invocation -> {
             Schedule changes = invocation.getArgument(0);
             int delta = changes.getTotalSlots() - pgTotal.getAndSet(changes.getTotalSlots());
@@ -59,8 +58,8 @@ class ScheduleCapacityConcurrencyTest {
         });
         slotCounter.initialize(1L, 5);
         Object rowLock = new Object();
-        ScheduleService service = new ScheduleService(
-                doctorMapper, new SlotAccounting(slotCounter), serializedTransaction(rowLock));
+        ScheduleService service =
+                new ScheduleService(doctorMapper, new SlotAccounting(slotCounter), serializedTransaction(rowLock));
         // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
         ReflectionTestUtils.setField(service, "baseMapper", scheduleMapper);
         var executor = Executors.newFixedThreadPool(2);

@@ -1,23 +1,22 @@
 package com.zhiyu.health.service;
 
-import com.zhiyu.health.entity.Appointment;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.mapper.AppointmentMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.Schedule;
+import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class AppointmentConcurrencyTest {
 
@@ -30,8 +29,8 @@ class AppointmentConcurrencyTest {
         AtomicInteger inserts = new AtomicInteger();
         ConcurrentHashMap<Long, Appointment> saved = new ConcurrentHashMap<>();
         when(schedules.selectByIdForUpdate(9L)).thenAnswer(invocation -> schedule(pgRemaining.get()));
-        when(schedules.decrementRemainingSlots(9L)).thenAnswer(invocation ->
-                pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
+        when(schedules.decrementRemainingSlots(9L))
+                .thenAnswer(invocation -> pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
@@ -46,8 +45,8 @@ class AppointmentConcurrencyTest {
             return appointment;
         });
         redis.initialize(9L, 1);
-        AppointmentService service = new AppointmentService(
-                appointments, schedules, new SlotAccounting(redis), serializedTransaction());
+        AppointmentService service =
+                new AppointmentService(appointments, schedules, new SlotAccounting(redis), serializedTransaction());
         AtomicInteger successes = new AtomicInteger();
         var executor = Executors.newFixedThreadPool(10);
         try {

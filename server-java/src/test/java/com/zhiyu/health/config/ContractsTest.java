@@ -1,12 +1,11 @@
 package com.zhiyu.health.config;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Test;
 
 /** 跨栈契约基座：加载仓库根 contracts/（与 server-py 共享同一 JSON），核对关键值。 */
 class ContractsTest {
@@ -24,7 +23,8 @@ class ContractsTest {
         assertThat(events.streamEvents()).containsExactly("meta", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.cardEvents()).hasSize(5);
-        assertThat(events.toolToEvent()).hasSize(5)
+        assertThat(events.toolToEvent())
+                .hasSize(5)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
                 .containsEntry("find_hospitals", "hospital_recommendations")
@@ -32,7 +32,8 @@ class ContractsTest {
                 .containsEntry("get_appointment", "appointments");
         assertThat(events.messageKinds()).hasSize(9).contains("text", "report_interpretation");
         assertThat(events.aiCardKinds()).hasSize(6);
-        assertThat(events.eventToKind()).hasSize(6)
+        assertThat(events.eventToKind())
+                .hasSize(6)
                 .containsEntry("hospital_recommendations", "hospital_recommendations");
     }
 
@@ -40,7 +41,8 @@ class ContractsTest {
     void visionErrorCodesAndMessagesAreLoaded() {
         Contracts.VisionErrors errors = contracts.visionErrors();
         assertThat(errors.codes()).hasSize(11);
-        assertThat(errors.messages()).hasSize(11)
+        assertThat(errors.messages())
+                .hasSize(11)
                 .containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时")
                 .containsEntry("VISION_OUTPUT_INVALID", "本次未能生成可靠的结构化解读，请重试")
                 .containsEntry("VISION_REPORT_SCOPE_UNSUPPORTED", "请上传报告文字页，暂不支持原始医学影像诊断")
@@ -56,8 +58,7 @@ class ContractsTest {
         assertThat(limits.maxTotalBytes()).isEqualTo(20L * 1024 * 1024);
         assertThat(limits.minFiles()).isEqualTo(1);
         assertThat(limits.maxFiles()).isEqualTo(5);
-        assertThat(limits.allowedTypes())
-                .containsExactly("image/jpeg", "image/png", "application/pdf");
+        assertThat(limits.allowedTypes()).containsExactly("image/jpeg", "image/png", "application/pdf");
         assertThat(limits.pdfSingleFile()).isTrue();
     }
 
@@ -99,7 +100,6 @@ class ContractsTest {
                         "find_hospitals", "hospital_recommendations",
                         "create_appointment", "appointment",
                         "get_appointment", "appointments"));
-        assertThat(contracts.chatDefaults().effortChoices())
-                .isEqualTo(List.of("auto", "quick", "deep"));
+        assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));
     }
 }

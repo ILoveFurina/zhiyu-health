@@ -1,11 +1,11 @@
 package com.zhiyu.health.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** 免责声明挂载语义：文案取自契约、SSE 出口兜底幂等、独立字段按内容有无挂载。 */
 class DisclaimerServiceTest {

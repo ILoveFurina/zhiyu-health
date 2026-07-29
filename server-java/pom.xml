@@ -95,6 +95,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 架构护栏：分层与号源收口规则（arch/ArchitectureTest），版本不随 Boot BOM 需自钉 -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.4.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -135,9 +142,10 @@
                     <!-- 只约束相对 main 有改动的文件，避免全仓格式化 churn -->
                     <ratchetFrom>main</ratchetFrom>
                     <java>
-                        <!-- 本阶段只约束 main 源集：测试源不在本阶段改动范围，避免越权格式化 -->
+                        <!-- main 与 test 源集统一格式化 -->
                         <includes>
                             <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
                         </includes>
                         <!-- palantirJavaFormat 为 4 空格缩进，最接近本仓既有风格 -->
                         <palantirJavaFormat/>

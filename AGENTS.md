@@ -22,11 +22,13 @@
 ```bash
 mvn -f server-java/pom.xml spring-boot:run
 mvn -f server-java/pom.xml test
+mvn -f server-java/pom.xml spotless:check
 uv sync --frozen --dev
 uv run uvicorn app.main:app --app-dir server-py --reload
 uv run pytest
 uv run ruff check server-py
 uv run mypy server-py/app
+uv run lint-imports
 npm --prefix admin ci
 npm --prefix admin run dev
 npm --prefix admin run typecheck
@@ -45,6 +47,8 @@ npm --prefix miniprogram ci
 ## 4. Conventions
 
 - server-java 以 MockMvc 测 HTTP 外部行为；规则引擎单测必须覆盖危险输入触发和正常输入不误触
+- server-java 异常只抛 `ApiException`（controller 零 try-catch，统一 advice 出口）；号源只经 `SlotAccounting`（ArchUnit 强制）；契约值只从 `contracts/` 加载；B 端新 CRUD 继承 MyBatis-Plus `ServiceImpl`；DTO 映射用 MapStruct
+- 测试配置隔离：`src/test/resources/application.yml` 与 main 同步维护，不导入 `.env`
 - server-py 以 TestClient 测 Agent HTTP 接口；用 fake 替换 LLM 和业务回调，断言工具调用顺序
 - 前端不写自动化测试，但必须浏览器实测无控制台错误，并人工走通“登录 → 主要页面”；仅编译或 API 冒烟不算验收
 - 按 `.scratch/zhiyu-mvp/issues/` 票单施工，一票一个分支，完成后合入 `main`

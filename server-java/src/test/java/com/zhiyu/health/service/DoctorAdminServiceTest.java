@@ -1,18 +1,18 @@
 package com.zhiyu.health.service;
 
-import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Doctor;
-import com.zhiyu.health.mapper.DepartmentMapper;
-import com.zhiyu.health.mapper.DoctorMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.entity.Doctor;
+import com.zhiyu.health.mapper.DepartmentMapper;
+import com.zhiyu.health.mapper.DoctorMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /** B 端医生管理：科室外键校验，缺失不落库并抛 404（ApiExceptionHandler 统一出口） */
 class DoctorAdminServiceTest {

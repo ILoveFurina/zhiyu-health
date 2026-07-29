@@ -20,13 +20,23 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2>=2,<3",
+    "import-linter>=2.13",
     "mypy>=1.17,<2",
     "pytest>=8,<10",
     "ruff>=0.12,<1",
 ]
 
+# 以 editable 方式安装 app 包（源码在 server-py/）：lint-imports（grimp find_spec）等
+# 工具要求包可导入；uv sync 自动维护 editable 链接，pytest 的 pythonpath 作为冗余兜底保留
 [tool.uv]
-package = false
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["server-py/app"]
 
 [tool.pytest.ini_options]
 pythonpath = ["server-py"]
@@ -36,3 +46,47 @@ testpaths = ["server-py/tests"]
 line-length = 100
 src = ["server-py"]
 target-version = "py312"
+
+[tool.ruff.lint]
+# 在原默认集（E4/E7/E9/F）上收紧：B=flake8-bugbear，C90=mccabe 圈复杂度
+select = ["E4", "E7", "E9", "F", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+# 现状最大复杂度已 ≤10，取收紧区间下限
+max-complexity = 10
+
+# 分层护栏：与 server-java 的 ArchUnit（arch/ArchitectureTest）互为双栈镜像。
+# layers 只放存在干净单向依赖的三层；app.agent 与 app.services 存在包级双向
+# （runner 用 ReasoningEffort、chat 用 AgentRunner），tools 经 agent.runner 传递依赖
+# services，纳入 layers 会误报，故这两处用 forbidden 表达硬约束。
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "api > services > db 单向分层"
+type = "layers"
+layers = [
+    "app.api",
+    "app.services",
+    "app.db",
+]
+
+[[tool.importlinter.contracts]]
+# 硬约束只禁"直接 import"：api 经 services 间接编排 db 是架构允许的，故放开间接
+name = "api 不直接 import db"
+type = "forbidden"
+source_modules = "app.api"
+forbidden_modules = "app.db"
+allow_indirect_imports = "true"
+
+[[tool.importlinter.contracts]]
+# 业务读写只能 HTTP 回调 server-java：tools 不得直接触碰存储与业务服务；
+# 经 agent.runner 传递的类型依赖（ReasoningEffort 等枚举）不构成读写，故放开间接
+name = "tools 不 import db / services"
+type = "forbidden"
+source_modules = "app.tools"
+forbidden_modules = [
+    "app.db",
+    "app.services",
+]
+allow_indirect_imports = "true"
