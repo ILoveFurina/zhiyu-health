@@ -1,9 +1,7 @@
 package com.zhiyu.health.service;
 
 import com.zhiyu.health.config.ApiException;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
+import com.zhiyu.health.config.Contracts;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,32 +11,44 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 /** 适配小程序单文件上传：原件仅在内存短暂存在，提交解读后立即移除。 */
 @Service
 public class ReportUploadStagingService {
 
-    private static final long MAX_TOTAL_BYTES = 20L * 1024 * 1024;
-    private static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
     private static final Duration EXPIRES_AFTER = Duration.ofMinutes(5);
+    // 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致）
+    private final Contracts contracts;
     private final Map<UploadKey, Batch> batches = new HashMap<>();
 
-    // synchronized 让清理、同批次页替换与总量校验成为一个原子步骤，避免并发页上传破坏批次。
-    public synchronized UploadProgress add(Long patientId, String requestId, int pageIndex,
-                                           int totalFiles, MultipartFile file) {
-        return add(patientId, requestId, pageIndex, totalFiles, file,
-                file == null ? null : file.getContentType());
+    public ReportUploadStagingService(Contracts contracts) {
+        this.contracts = contracts;
     }
 
-    public synchronized UploadProgress add(Long patientId, String requestId, int pageIndex,
-                                           int totalFiles, MultipartFile file, String mediaType) {
+    // synchronized 让清理、同批次页替换与总量校验成为一个原子步骤，避免并发页上传破坏批次。
+    public synchronized UploadProgress add(
+            Long patientId, String requestId, int pageIndex, int totalFiles, MultipartFile file) {
+        return add(patientId, requestId, pageIndex, totalFiles, file, file == null ? null : file.getContentType());
+    }
+
+    public synchronized UploadProgress add(
+            Long patientId, String requestId, int pageIndex, int totalFiles, MultipartFile file, String mediaType) {
         purgeExpired();
-        if (requestId == null || requestId.isBlank() || requestId.length() > 64
-                || totalFiles < 1 || totalFiles > 5 || pageIndex < 0 || pageIndex >= totalFiles
-                || file == null || file.isEmpty() || file.getSize() > MAX_FILE_BYTES
-                || !("image/jpeg".equals(mediaType) || "image/png".equals(mediaType)
-                || "application/pdf".equals(mediaType))
-                || ("application/pdf".equals(mediaType) && totalFiles != 1)) {
+        Contracts.UploadLimits limits = contracts.uploadLimits();
+        if (requestId == null
+                || requestId.isBlank()
+                || requestId.length() > 64
+                || totalFiles < limits.minFiles()
+                || totalFiles > limits.maxFiles()
+                || pageIndex < 0
+                || pageIndex >= totalFiles
+                || file == null
+                || file.isEmpty()
+                || file.getSize() > limits.maxFileBytes()
+                || !limits.allowedTypes().contains(mediaType)
+                || (limits.pdfType().equals(mediaType) && totalFiles != 1)) {
             throw new ApiException(422, "报告上传参数无效");
         }
         UploadKey key = new UploadKey(patientId, requestId);
@@ -53,13 +63,14 @@ public class ReportUploadStagingService {
         } catch (IOException e) {
             throw new ApiException(422, "无法读取上传的报告");
         }
-        long totalBytes = batch.files.values().stream().mapToLong(item -> item.content.length).sum();
-        if (totalBytes > MAX_TOTAL_BYTES) {
+        long totalBytes = batch.files.values().stream()
+                .mapToLong(item -> item.content.length)
+                .sum();
+        if (totalBytes > limits.maxTotalBytes()) {
             batches.remove(key);
             throw new ApiException(422, "报告文件总量不能超过 20MB");
         }
-        return new UploadProgress(batch.files.size(), totalFiles,
-                batch.files.size() == totalFiles);
+        return new UploadProgress(batch.files.size(), totalFiles, batch.files.size() == totalFiles);
     }
 
     // 取出时先从共享表移除：之后即使模型失败，原文件也不会残留或被另一请求重复消费。
@@ -86,11 +97,9 @@ public class ReportUploadStagingService {
         batches.entrySet().removeIf(entry -> entry.getValue().updatedAt.isBefore(threshold));
     }
 
-    public record UploadProgress(int uploaded, int total, boolean ready) {
-    }
+    public record UploadProgress(int uploaded, int total, boolean ready) {}
 
-    private record UploadKey(Long patientId, String requestId) {
-    }
+    private record UploadKey(Long patientId, String requestId) {}
 
     private static final class Batch {
         private final int totalFiles;
@@ -113,14 +122,43 @@ public class ReportUploadStagingService {
             this.content = content;
         }
 
-        @Override public String getName() { return "files"; }
-        @Override public String getOriginalFilename() { return originalFilename; }
-        @Override public String getContentType() { return contentType; }
-        @Override public boolean isEmpty() { return content.length == 0; }
-        @Override public long getSize() { return content.length; }
-        @Override public byte[] getBytes() { return content.clone(); }
-        @Override public InputStream getInputStream() { return new ByteArrayInputStream(content); }
-        @Override public void transferTo(java.io.File dest) throws IOException {
+        @Override
+        public String getName() {
+            return "files";
+        }
+
+        @Override
+        public String getOriginalFilename() {
+            return originalFilename;
+        }
+
+        @Override
+        public String getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return content.length == 0;
+        }
+
+        @Override
+        public long getSize() {
+            return content.length;
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return content.clone();
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return new ByteArrayInputStream(content);
+        }
+
+        @Override
+        public void transferTo(java.io.File dest) throws IOException {
             java.nio.file.Files.write(dest.toPath(), content);
         }
     }

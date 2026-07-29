@@ -127,6 +127,8 @@ def test_chat_rejects_calls_without_java_service_credential(harness: SimpleNames
     )
 
     assert response.status_code == 401
+    # 文案与 server-java 的 AgentCallbackAuthFilter 保持一致
+    assert response.json()["detail"] == "Agent 回调认证失败"
 
 
 def test_http_agent_streams_structured_cards_from_business_tools_in_call_order() -> None:

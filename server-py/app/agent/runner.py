@@ -8,18 +8,19 @@ reasoning_effort 作为扁平参数随 chat completions 请求体发送（ADR-00
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from langchain_openai import ChatOpenAI
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import SecretStr
 
 from app.agent.prompts import SYSTEM_PROMPT
 from app.config import Settings, get_settings
+from app.core.contracts import get_contracts
+from app.core.lazy import LazyDelegate
+from app.core.llm import build_chat_model
 from app.services.reasoning import ReasoningEffort
 
 
@@ -35,12 +36,17 @@ class AgentContext:
     latitude: float | None = None
 
 
+# 卡片事件名：Literal 无法从契约 JSON 动态生成，保留显式字面量，
+# 与 contracts/sse-events.json 的一致性由 tests/test_contract_consumption.py 钉死。
+CardEvent = Literal[
+    "doctor_recommendations", "doctor_slots", "hospital_recommendations",
+    "appointment", "appointments",
+]
+
+
 @dataclass(frozen=True)
 class AgentOutput:
-    event: Literal[
-        "token", "doctor_recommendations", "doctor_slots",
-        "hospital_recommendations", "appointment", "appointments",
-    ]
+    event: Literal["token"] | CardEvent
     data: str | dict[str, Any]
 
 
@@ -107,26 +113,12 @@ class LangGraphAgentRunner:
                 yield AgentOutput("token", content)
 
 
-def _tool_event(
-    tool_name: str | None,
-) -> Literal[
-    "doctor_recommendations",
-    "doctor_slots",
-    "hospital_recommendations",
-    "appointment",
-    "appointments",
-] | None:
-    if tool_name == "recommend_doctors":
-        return "doctor_recommendations"
-    if tool_name == "get_doctor_slots":
-        return "doctor_slots"
-    if tool_name == "find_hospitals":
-        return "hospital_recommendations"
-    if tool_name == "create_appointment":
-        return "appointment"
-    if tool_name == "get_appointment":
-        return "appointments"
-    return None
+def _tool_event(tool_name: str | None) -> CardEvent | None:
+    if tool_name is None:
+        return None
+    # 工具名→事件名映射唯一事实源是 contracts/sse-events.json
+    event = get_contracts().sse_events.tool_to_event.get(tool_name)
+    return cast(CardEvent, event) if event is not None else None
 
 
 def _to_lc_messages(messages: list[dict[str, str]]) -> list[BaseMessage]:
@@ -143,31 +135,21 @@ def build_langgraph_agent_runner(
     settings: Settings, tools: Sequence[BaseTool] | None = None
 ) -> LangGraphAgentRunner:
     def model_factory(effort: ReasoningEffort) -> BaseChatModel:
-        return ChatOpenAI(
-            model=settings.doubao_chat_model,
-            base_url=settings.ark_base_url,
-            api_key=SecretStr(settings.ark_api_key),
-            reasoning_effort=effort,
-        )
+        return build_chat_model(settings, reasoning_effort=effort)
 
     return LangGraphAgentRunner(model_factory, tools=tools)
 
 
 class LazySettingsAgentRunner:
-    """首次调用时才从 settings 构建生产 runner。
-
-    让注入装配路径（测试用 SQLite + 不配置方舟环境变量）不依赖 settings，
-    只有真正命中对话接口才读取方舟配置。
-    """
+    """首次调用时才从 settings 构建生产 runner（语义与动机见 core.lazy.LazyDelegate）。"""
 
     def __init__(self, tools: Sequence[BaseTool] | None = None) -> None:
-        self._runner: LangGraphAgentRunner | None = None
-        self._tools = tools
+        self._lazy: LazyDelegate[LangGraphAgentRunner] = LazyDelegate(
+            lambda: build_langgraph_agent_runner(get_settings(), tools)
+        )
 
     async def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
     ) -> AsyncIterator[AgentOutput]:
-        if self._runner is None:
-            self._runner = build_langgraph_agent_runner(get_settings(), self._tools)
-        async for output in self._runner.astream_reply(messages, effort, context):
+        async for output in self._lazy.get().astream_reply(messages, effort, context):
             yield output

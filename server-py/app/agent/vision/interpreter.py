@@ -5,12 +5,13 @@ import json
 from typing import Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr, ValidationError
+from pydantic import ValidationError
 
 from app.agent.vision.document import PreparedDocument
 from app.agent.vision.scenarios import policy_for
 from app.config import Settings, get_settings
+from app.core.lazy import LazyDelegate
+from app.core.llm import build_chat_model
 from app.schemas.vision import ReportInterpretation
 
 
@@ -57,9 +58,9 @@ class StructuredVisionInterpreter:
             try:
                 result = policy.result_model.model_validate_json(raw)
                 if not isinstance(result, ReportInterpretation):
-                    raise VisionOutputError("VISION_OUTPUT_TYPE_INVALID")
+                    raise VisionOutputError("模型输出了非报告解读结构")
                 if not result.scope_supported:
-                    raise VisionScopeError("VISION_REPORT_SCOPE_UNSUPPORTED")
+                    raise VisionScopeError("报告范围不受支持")
                 return result
             except ValidationError as exc:
                 validation_hint = json.dumps(
@@ -69,19 +70,12 @@ class StructuredVisionInterpreter:
             except ValueError:
                 validation_hint = "返回内容不是合法 JSON"
                 continue
-        raise VisionOutputError("VISION_OUTPUT_INVALID")
+        raise VisionOutputError("两次输出均未通过结构校验")
 
 
 class ChatOpenAIVisionModel:
     def __init__(self, settings: Settings) -> None:
-        model = ChatOpenAI(
-            model=settings.doubao_chat_model,
-            base_url=settings.ark_base_url,
-            api_key=SecretStr(settings.ark_api_key),
-            reasoning_effort="high",
-            timeout=150,
-            max_retries=0,
-        )
+        model = build_chat_model(settings, reasoning_effort="high", timeout=150, max_retries=0)
         self._model = model.bind(response_format={"type": "json_object"})
 
     async def ainvoke(self, content: list[dict[str, object]], system_prompt: str) -> str:
@@ -92,13 +86,15 @@ class ChatOpenAIVisionModel:
 
 
 class LazyVisionInterpreter:
+    """首次调用时才从 settings 构建生产 interpreter（语义见 core.lazy.LazyDelegate）。"""
+
     def __init__(self) -> None:
-        self._delegate: StructuredVisionInterpreter | None = None
+        self._lazy: LazyDelegate[StructuredVisionInterpreter] = LazyDelegate(
+            lambda: StructuredVisionInterpreter(ChatOpenAIVisionModel(get_settings()))
+        )
 
     async def interpret(self, document: PreparedDocument) -> ReportInterpretation:
-        if self._delegate is None:
-            self._delegate = StructuredVisionInterpreter(ChatOpenAIVisionModel(get_settings()))
-        return await self._delegate.interpret(document)
+        return await self._lazy.get().interpret(document)
 
 
 def _content_blocks(document: PreparedDocument) -> list[dict[str, object]]:

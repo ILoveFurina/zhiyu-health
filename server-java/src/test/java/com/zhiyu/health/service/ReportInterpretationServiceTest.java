@@ -3,6 +3,7 @@ package com.zhiyu.health.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.entity.ReportInterpretation;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,7 +40,8 @@ class ReportInterpretationServiceTest {
         stored.setDisclaimer("仅供参考，不替代医生诊断");
         when(persistence.findByRequest(12L, "req-001")).thenReturn(stored);
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class));
+                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class),
+                TestContracts.instance());
         MultipartFile file = mock(MultipartFile.class);
 
         ReportInterpretationService.ReportView result = service.interpret(
@@ -85,7 +87,8 @@ class ReportInterpretationServiceTest {
                     return processing;
                 });
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class));
+                persistence, agentClient, objectMapper, mock(ReportUploadStagingService.class),
+                TestContracts.instance());
 
         ReportInterpretationService.ReportView result = service.interpret(
                 12L, null, "req-002", List.of(file));
@@ -111,7 +114,7 @@ class ReportInterpretationServiceTest {
         stored.setDisclaimer("仅供参考，不替代医生诊断");
         when(persistence.findByRequest(12L, "req-retry")).thenReturn(stored);
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, new ObjectMapper(), staging);
+                persistence, agentClient, new ObjectMapper(), staging, TestContracts.instance());
 
         ReportInterpretationService.ReportView result = service.finalizeStaged(
                 12L, 8L, "req-retry");
@@ -134,7 +137,8 @@ class ReportInterpretationServiceTest {
                 new AgentClient.VisionAgentException(
                         "VISION_MODEL_TIMEOUT", 504, "报告解读服务响应超时"));
         ReportInterpretationService service = new ReportInterpretationService(
-                persistence, agentClient, new ObjectMapper(), mock(ReportUploadStagingService.class));
+                persistence, agentClient, new ObjectMapper(), mock(ReportUploadStagingService.class),
+                TestContracts.instance());
 
         assertThatThrownBy(() -> service.interpret(
                 12L, null, "req-timeout", List.of(file)))

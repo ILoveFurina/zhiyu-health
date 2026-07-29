@@ -9,8 +9,16 @@ import pymupdf
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 
-MAX_FILE_BYTES = 10 * 1024 * 1024
-MAX_IMAGE_TOTAL_BYTES = 20 * 1024 * 1024
+from app.core.contracts import get_contracts
+
+# 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致，装配期取值缓存）
+_LIMITS = get_contracts().upload_limits
+MAX_FILE_BYTES = _LIMITS.max_file_bytes
+MAX_IMAGE_TOTAL_BYTES = _LIMITS.max_total_bytes
+_MIN_FILES = _LIMITS.min_files
+_MAX_FILES = _LIMITS.max_files
+# 允许类型中的图片子集；PDF 走独立分支，不进图片校验
+_IMAGE_TYPES = frozenset(t for t in _LIMITS.allowed_types if t.startswith("image/"))
 MAX_PDF_PAGES = 20
 MAX_IMAGE_EDGE = 2048
 MAX_IMAGE_PIXELS = 40_000_000
@@ -28,6 +36,14 @@ class VisionInputError(ValueError):
     def __init__(self, code: str, detail: str) -> None:
         super().__init__(detail)
         self.code = code
+
+
+def _input_error(code: str) -> VisionInputError:
+    """按契约错误码构造输入错误；用户文案以 vision-errors.json（java 出口版）为准。"""
+    messages = get_contracts().vision_errors.messages
+    if code not in messages:
+        raise RuntimeError(f"错误码未在 contracts/vision-errors.json 登记: {code}")
+    return VisionInputError(code, messages[code])
 
 
 @dataclass(frozen=True)
@@ -51,13 +67,13 @@ class PreparedDocument:
 
 async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDocument:
     if scenario != "REPORT":
-        raise VisionInputError("VISION_SCENARIO_UNSUPPORTED", "暂不支持该视觉场景")
-    if not 1 <= len(files) <= 5:
-        raise VisionInputError("VISION_FILE_COUNT_INVALID", "请选择 1 至 5 张报告图片")
+        raise _input_error("VISION_SCENARIO_UNSUPPORTED")
+    if not _MIN_FILES <= len(files) <= _MAX_FILES:
+        raise _input_error("VISION_FILE_COUNT_INVALID")
 
     if any(upload.content_type == "application/pdf" for upload in files):
         if len(files) != 1:
-            raise VisionInputError("VISION_FILE_COUNT_INVALID", "PDF 每次只能上传一个文件")
+            raise _input_error("VISION_FILE_COUNT_INVALID")
         data = await files[0].read()
         return _prepare_pdf(data)
 
@@ -67,11 +83,11 @@ async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDo
         data = await upload.read()
         total_bytes += len(data)
         if len(data) > MAX_FILE_BYTES:
-            raise VisionInputError("VISION_FILE_TOO_LARGE", "单张报告图片不能超过 10MB")
+            raise _input_error("VISION_FILE_TOO_LARGE")
         if total_bytes > MAX_IMAGE_TOTAL_BYTES:
-            raise VisionInputError("VISION_FILE_TOO_LARGE", "报告图片总量不能超过 20MB")
-        if upload.content_type not in {"image/jpeg", "image/png"}:
-            raise VisionInputError("VISION_FILE_TYPE_INVALID", "仅支持 JPEG、PNG 或 PDF")
+            raise _input_error("VISION_FILE_TOO_LARGE")
+        if upload.content_type not in _IMAGE_TYPES:
+            raise _input_error("VISION_FILE_TYPE_INVALID")
         normalized = _normalize_image(data)
         pages.append(
             PreparedPage(
@@ -86,21 +102,21 @@ async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDo
 
 def _prepare_pdf(data: bytes) -> PreparedDocument:
     if len(data) > MAX_FILE_BYTES:
-        raise VisionInputError("VISION_FILE_TOO_LARGE", "PDF 不能超过 10MB")
+        raise _input_error("VISION_FILE_TOO_LARGE")
     try:
         document = pymupdf.open(stream=data, filetype="pdf")
     except (pymupdf.FileDataError, RuntimeError) as exc:
-        raise VisionInputError("VISION_FILE_UNREADABLE", "PDF 无法读取") from exc
+        raise _input_error("VISION_FILE_UNREADABLE") from exc
     try:
         if document.needs_pass:
-            raise VisionInputError("VISION_PDF_ENCRYPTED", "不支持加密 PDF")
+            raise _input_error("VISION_PDF_ENCRYPTED")
         if not 1 <= document.page_count <= MAX_PDF_PAGES:
-            raise VisionInputError("VISION_PDF_PAGE_LIMIT", "PDF 须为 1 至 20 页")
+            raise _input_error("VISION_PDF_PAGE_LIMIT")
         if not any(
             _pdf_page_has_content(document.load_page(index))
             for index in range(document.page_count)
         ):
-            raise VisionInputError("VISION_FILE_UNREADABLE", "PDF 内容为空")
+            raise _input_error("VISION_FILE_UNREADABLE")
         pages = tuple(
             _prepare_pdf_page(document.load_page(index), index + 1)
             for index in range(document.page_count)
@@ -163,7 +179,7 @@ def _normalize_image(data: bytes) -> bytes:
     try:
         with Image.open(BytesIO(data)) as image:
             if image.width * image.height > MAX_IMAGE_PIXELS:
-                raise VisionInputError("VISION_IMAGE_PIXELS_EXCEEDED", "报告图片像素过大")
+                raise _input_error("VISION_IMAGE_PIXELS_EXCEEDED")
             normalized = image.convert("RGB")
             normalized.thumbnail((MAX_IMAGE_EDGE, MAX_IMAGE_EDGE), Image.Resampling.LANCZOS)
             output = BytesIO()
@@ -172,4 +188,4 @@ def _normalize_image(data: bytes) -> bytes:
     except VisionInputError:
         raise
     except (UnidentifiedImageError, OSError) as exc:
-        raise VisionInputError("VISION_FILE_UNREADABLE", "报告图片无法读取") from exc
+        raise _input_error("VISION_FILE_UNREADABLE") from exc

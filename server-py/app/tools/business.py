@@ -30,18 +30,33 @@ class BusinessCallbackClient:
             headers={"X-Agent-Callback-Token": callback_secret} if callback_secret else None,
         )
 
-    async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
-        response = await self._client.get(path, params=params)
+    async def _request_json(self, method: str, path: str, **kwargs: Any) -> Any:
+        response = await self._client.request(method, path, **kwargs)
         response.raise_for_status()
         return response.json()
 
+    async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        return await self._request_json("GET", path, params=params)
+
     async def post(self, path: str, payload: dict[str, Any]) -> Any:
-        response = await self._client.post(path, json=payload)
-        response.raise_for_status()
-        return response.json()
+        return await self._request_json("POST", path, json=payload)
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+async def _forward_get(
+    client: BusinessCallbackClient, path: str, params: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """GET 转发并规整为 dict：LLM 工具出参必须可 JSON 序列化。"""
+    return dict(await client.get(path, params))
+
+
+async def _forward_post(
+    client: BusinessCallbackClient, path: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """POST 转发并规整为 dict：LLM 工具出参必须可 JSON 序列化。"""
+    return dict(await client.post(path, payload))
 
 
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
@@ -50,16 +65,14 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
     @tool
     async def recommend_doctors(department_name: str) -> dict[str, Any]:
         """按科室名称查询当前仍有号源的医生，用于导诊后的医生推荐。"""
-        result = await client.get(
-            "/api/agent/doctors/recommend", {"department_name": department_name}
+        return await _forward_get(
+            client, "/api/agent/doctors/recommend", {"department_name": department_name}
         )
-        return dict(result)
 
     @tool
     async def get_doctor_slots(doctor_id: int) -> dict[str, Any]:
         """按医生 ID 查询当前可预约的日期、时段和剩余号源。"""
-        result = await client.get(f"/api/agent/doctors/{doctor_id}/slots")
-        return dict(result)
+        return await _forward_get(client, f"/api/agent/doctors/{doctor_id}/slots")
 
     @tool
     async def create_appointment(
@@ -72,7 +85,8 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             raise ValueError("schedule_id 必须为正整数")
         if not condition_summary.strip():
             raise ValueError("condition_summary 不能为空")
-        result = await client.post(
+        return await _forward_post(
+            client,
             "/api/agent/appointments",
             {
                 "patient_id": runtime.context.patient_id,
@@ -81,15 +95,13 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
                 "condition_summary": condition_summary.strip(),
             },
         )
-        return dict(result)
 
     @tool
     async def get_appointment(runtime: ToolRuntime[AgentContext]) -> dict[str, Any]:
         """查询当前患者自己的挂号列表。"""
-        result = await client.get(
-            "/api/agent/appointments", {"patient_id": runtime.context.patient_id}
+        return await _forward_get(
+            client, "/api/agent/appointments", {"patient_id": runtime.context.patient_id}
         )
-        return dict(result)
 
     @tool
     async def find_hospitals(runtime: ToolRuntime[AgentContext]) -> dict[str, Any]:
@@ -102,11 +114,11 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
         latitude = runtime.context.latitude
         if longitude is None or latitude is None:
             return {"hospitals": [], "need_location": True}
-        result = await client.get(
+        return await _forward_get(
+            client,
             "/api/agent/hospitals/nearby",
             {"longitude": longitude, "latitude": latitude},
         )
-        return dict(result)
 
     return [
         recommend_doctors,

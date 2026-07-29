@@ -204,8 +204,9 @@ def test_two_invalid_model_outputs_return_stable_error_without_raw_content() -> 
         )
 
     assert response.status_code == 502
+    # 文案以 contracts/vision-errors.json（java 出口版）为准
     assert response.json() == {
-        "detail": {"code": "VISION_OUTPUT_INVALID", "message": "报告解读结果格式无效"}
+        "detail": {"code": "VISION_OUTPUT_INVALID", "message": "本次未能生成可靠的结构化解读，请重试"}
     }
     assert "患者原文" not in response.text
     assert len(model.calls) == 2

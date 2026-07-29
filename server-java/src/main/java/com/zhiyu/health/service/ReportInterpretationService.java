@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.ReportInterpretation;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -18,14 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class ReportInterpretationService {
 
-    private static final long TEN_MB = 10L * 1024 * 1024;
-    private static final long TWENTY_MB = 20L * 1024 * 1024;
-    private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png");
-
     private final ReportInterpretationPersistence persistence;
     private final AgentClient agentClient;
     private final ObjectMapper objectMapper;
     private final ReportUploadStagingService staging;
+    // 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致）
+    private final Contracts contracts;
 
     public ReportView finalizeStaged(Long patientId, Long conversationId, String requestId) {
         ReportInterpretation existing = persistence.findByRequest(patientId, requestId);
@@ -73,18 +71,21 @@ public class ReportInterpretationService {
     }
 
     private void validate(List<MultipartFile> files, String requestId) {
-        if (requestId.length() > 64 || files.isEmpty() || files.size() > 5) {
+        Contracts.UploadLimits limits = contracts.uploadLimits();
+        if (requestId.length() > 64 || files.size() < limits.minFiles() || files.size() > limits.maxFiles()) {
             throw new ApiException(422, "报告上传参数无效");
         }
-        boolean pdf = files.size() == 1 && "application/pdf".equals(files.get(0).getContentType());
+        boolean pdf = files.size() == 1 && limits.pdfType().equals(files.get(0).getContentType());
         long total = 0;
         for (MultipartFile file : files) {
             total += file.getSize();
-            if (file.isEmpty() || file.getSize() > TEN_MB || (!pdf && !IMAGE_TYPES.contains(file.getContentType()))) {
+            if (file.isEmpty()
+                    || file.getSize() > limits.maxFileBytes()
+                    || (!pdf && !limits.imageTypes().contains(file.getContentType()))) {
                 throw new ApiException(422, "仅支持规定大小的 JPEG、PNG 或 PDF 报告");
             }
         }
-        if (!pdf && total > TWENTY_MB) {
+        if (!pdf && total > limits.maxTotalBytes()) {
             throw new ApiException(422, "报告图片总量不能超过 20MB");
         }
     }

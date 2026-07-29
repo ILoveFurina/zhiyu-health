@@ -3,25 +3,40 @@ package com.zhiyu.health.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.zhiyu.health.config.Contracts;
 import java.time.OffsetDateTime;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 会话消息；red_flag 是规则引擎产物，不属于 AI 产出。 */
+/**
+ * 会话消息；red_flag 是规则引擎产物，不属于 AI 产出。
+ * kind 字符串唯一事实源是 contracts/sse-events.json；实体无法注入 Spring Bean，
+ * 故静态加载同一契约赋值（兼容壳），取值与契约的一致由 ContractsConsistencyTest 钉死。
+ */
 @Getter
 @Setter
 @TableName("messages")
 public class Message {
 
-    public static final String KIND_TEXT = "text";
-    public static final String KIND_DOCTOR_RECOMMENDATIONS = "doctor_recommendations";
-    public static final String KIND_DOCTOR_SLOTS = "doctor_slots";
-    public static final String KIND_HOSPITAL_RECOMMENDATIONS = "hospital_recommendations";
-    public static final String KIND_APPOINTMENT = "appointment";
-    public static final String KIND_APPOINTMENTS = "appointments";
-    public static final String KIND_REPORT_UPLOAD = "report_upload";
-    public static final String KIND_REPORT_INTERPRETATION = "report_interpretation";
-    public static final String KIND_REPORT_CONTEXT = "report_context";
+    private static final Contracts.SseEvents SSE_EVENTS =
+            Contracts.load(Contracts.resolveDir()).sseEvents();
+
+    // 与契约 messageKinds 的顺序一一对应
+    public static final String KIND_TEXT = SSE_EVENTS.messageKinds().get(0);
+    public static final String KIND_DOCTOR_RECOMMENDATIONS =
+            SSE_EVENTS.messageKinds().get(1);
+    public static final String KIND_DOCTOR_SLOTS = SSE_EVENTS.messageKinds().get(2);
+    public static final String KIND_HOSPITAL_RECOMMENDATIONS =
+            SSE_EVENTS.messageKinds().get(3);
+    public static final String KIND_APPOINTMENT = SSE_EVENTS.messageKinds().get(4);
+    public static final String KIND_APPOINTMENTS = SSE_EVENTS.messageKinds().get(5);
+    public static final String KIND_REPORT_UPLOAD = SSE_EVENTS.messageKinds().get(6);
+    public static final String KIND_REPORT_INTERPRETATION =
+            SSE_EVENTS.messageKinds().get(7);
+    public static final String KIND_REPORT_CONTEXT = SSE_EVENTS.messageKinds().get(8);
+
+    private static final Set<String> AI_CARD_KINDS = Set.copyOf(SSE_EVENTS.aiCardKinds());
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -46,11 +61,6 @@ public class Message {
     }
 
     public static boolean isAiCardKind(String kind) {
-        return KIND_DOCTOR_RECOMMENDATIONS.equals(kind)
-                || KIND_DOCTOR_SLOTS.equals(kind)
-                || KIND_HOSPITAL_RECOMMENDATIONS.equals(kind)
-                || KIND_APPOINTMENT.equals(kind)
-                || KIND_APPOINTMENTS.equals(kind)
-                || KIND_REPORT_INTERPRETATION.equals(kind);
+        return AI_CARD_KINDS.contains(kind);
     }
 }

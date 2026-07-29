@@ -1,6 +1,7 @@
 package com.zhiyu.health.service;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.support.TestContracts;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -11,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ReportUploadStagingServiceTest {
 
-    private final ReportUploadStagingService staging = new ReportUploadStagingService();
+    private final ReportUploadStagingService staging = new ReportUploadStagingService(TestContracts.instance());
 
     @Test
     void keepsPagesInClientOrderAndConsumesThemOnce() {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.agentclient.AgentClient;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.rule.RedFlagHit;
@@ -30,6 +31,8 @@ public class ChatService {
     private final RedFlagRuleEngine redFlagRules;
     private final ObjectMapper objectMapper;
     private final DisclaimerService disclaimers;
+    // SSE 事件名与 effort/scenario 默认值唯一事实源是 contracts/*.json
+    private final Contracts contracts;
 
     public SseEmitter chat(
             Long patientId,
@@ -52,18 +55,23 @@ public class ChatService {
 
     private SseEmitter redFlagStream(Conversation conversation, RedFlagHit hit) {
         String warning = RED_FLAG_TEMPLATE.formatted(hit.ruleName(), hit.advice());
+        // red_flag 是规则引擎产物（不属于契约 message_kinds 的 AI 产出），kind 保留本地字面量
         Message saved = conversations.appendMessage(conversation.getId(), "assistant", warning, "red_flag", null);
+        Contracts.SseEvents sse = contracts.sseEvents();
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         try {
-            send(emitter, "meta", objectMapper.createObjectNode().put("conversation_id", conversation.getId()));
+            send(
+                    emitter,
+                    sse.metaEvent(),
+                    objectMapper.createObjectNode().put("conversation_id", conversation.getId()));
             ObjectNode data = objectMapper
                     .createObjectNode()
                     .put("message_id", saved.getId())
                     .put("rule", hit.ruleName())
                     .put("content", warning)
                     .put("advice", hit.advice());
-            send(emitter, "red_flag", data);
-            send(emitter, "done", objectMapper.createObjectNode());
+            send(emitter, sse.redFlagEvent(), data);
+            send(emitter, sse.doneEvent(), objectMapper.createObjectNode());
             emitter.complete();
         } catch (IOException e) {
             emitter.completeWithError(e);
@@ -78,8 +86,8 @@ public class ChatService {
         body.put("messages", conversations.recentContext(conversation.getId()));
         body.put("patient_id", conversation.getPatientId());
         body.put("conversation_id", conversation.getId());
-        body.put("effort", blankToDefault(effort, "auto"));
-        body.put("scenario", blankToDefault(scenario, "triage"));
+        body.put("effort", blankToDefault(effort, contracts.chatDefaults().effortDefault()));
+        body.put("scenario", blankToDefault(scenario, contracts.chatDefaults().scenarioDefault()));
         // 经纬度来自用户授权定位；拒绝授权时不传，server-py 的 find_hospitals 据此降级。
         if (longitude != null && latitude != null) {
             body.put("longitude", longitude);
@@ -97,11 +105,12 @@ public class ChatService {
 
     private void forwardAgentEvent(SseEmitter emitter, Long conversationId, ServerSentEvent<String> event) {
         try {
+            Contracts.SseEvents sse = contracts.sseEvents();
             String eventName = event.event();
             JsonNode data = parseData(event.data());
-            if ("meta".equals(eventName) && data instanceof ObjectNode object) {
+            if (sse.metaEvent().equals(eventName) && data instanceof ObjectNode object) {
                 object.put("conversation_id", conversationId);
-            } else if ("message".equals(eventName) && data instanceof ObjectNode object) {
+            } else if (sse.messageEvent().equals(eventName) && data instanceof ObjectNode object) {
                 disclaimers.mount(object);
                 Message saved = conversations.appendMessage(
                         conversationId,

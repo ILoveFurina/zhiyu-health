@@ -108,6 +108,24 @@ public class Contracts {
             toolToEvent = Map.copyOf(toolToEvent);
             eventToKind = Map.copyOf(eventToKind);
         }
+
+        // 流事件名按契约顺序固定为 [meta, token, message, done]，
+        // 顺序由 ContractsTest.sseEventProtocolIsComplete 钉死。
+        public String metaEvent() {
+            return streamEvents.get(0);
+        }
+
+        public String tokenEvent() {
+            return streamEvents.get(1);
+        }
+
+        public String messageEvent() {
+            return streamEvents.get(2);
+        }
+
+        public String doneEvent() {
+            return streamEvents.get(3);
+        }
     }
 
     /** 报告解读错误码集合与用户可见文案（文案以 server-java 出口为准）。 */
@@ -128,6 +146,21 @@ public class Contracts {
             boolean pdfSingleFile) {
         public UploadLimits {
             allowedTypes = List.copyOf(allowedTypes);
+        }
+
+        /** 允许清单中的 PDF 类型（唯一非图片项）。 */
+        public String pdfType() {
+            return allowedTypes.stream()
+                    .filter(type -> !type.startsWith("image/"))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("契约 upload-limits.json 缺少 PDF 类型"));
+        }
+
+        /** 允许清单中的图片子集（PDF 走独立校验分支）。 */
+        public List<String> imageTypes() {
+            return allowedTypes.stream()
+                    .filter(type -> type.startsWith("image/"))
+                    .toList();
         }
     }
 

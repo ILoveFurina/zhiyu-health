@@ -4,12 +4,12 @@
 """
 
 import json
-import secrets
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from app.api.deps import AgentCallbackAuth
 from app.schemas.chat import AgentChatRequest
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -26,13 +26,8 @@ def _sse_frame(event: str, data: object) -> str:
 async def chat(
     body: AgentChatRequest,
     request: Request,
-    x_agent_callback_token: str | None = Header(default=None),
+    _: AgentCallbackAuth,
 ) -> StreamingResponse:
-    expected = request.app.state.agent_callback_secret
-    if not expected or x_agent_callback_token is None or not secrets.compare_digest(
-        expected, x_agent_callback_token
-    ):
-        raise HTTPException(status_code=401, detail="Agent 调用认证失败")
     chat_service = request.app.state.chat_service
     events = chat_service.stream(
         messages=[{"role": m.role, "content": m.content} for m in body.messages],

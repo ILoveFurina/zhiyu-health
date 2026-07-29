@@ -3,6 +3,7 @@ package com.zhiyu.health.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.mapper.ConversationMapper;
@@ -29,6 +30,7 @@ public class ConversationService {
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
     private final DisclaimerService disclaimers;
+    private final Contracts contracts;
 
     @Transactional
     public Conversation getOrCreateForPatient(Long patientId, Long conversationId, String firstText) {
@@ -132,15 +134,7 @@ public class ConversationService {
         List<Message> newestFirst = messageMapper.selectList(new LambdaQueryWrapper<Message>()
                 .eq(Message::getConversationId, conversationId)
                 // 卡片 JSON 用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文。
-                .notIn(
-                        Message::getKind,
-                        Message.KIND_DOCTOR_RECOMMENDATIONS,
-                        Message.KIND_DOCTOR_SLOTS,
-                        Message.KIND_HOSPITAL_RECOMMENDATIONS,
-                        Message.KIND_APPOINTMENT,
-                        Message.KIND_APPOINTMENTS,
-                        Message.KIND_REPORT_UPLOAD,
-                        Message.KIND_REPORT_INTERPRETATION)
+                .notIn(Message::getKind, contextExcludedKinds())
                 .orderByDesc(Message::getId)
                 .last("LIMIT " + CONTEXT_MESSAGE_LIMIT));
         List<Message> chronological = new ArrayList<>(newestFirst);
@@ -148,6 +142,13 @@ public class ConversationService {
         return chronological.stream()
                 .map(message -> Map.of("role", message.getRole(), "content", message.getContent()))
                 .toList();
+    }
+
+    /** LLM 上下文排除集 = 契约 ai_card_kinds + report_upload（上传记录同样不是自然语言）。 */
+    private List<String> contextExcludedKinds() {
+        List<String> excluded = new ArrayList<>(contracts.sseEvents().aiCardKinds());
+        excluded.add(Message.KIND_REPORT_UPLOAD);
+        return excluded;
     }
 
     private boolean isAiOutput(Message message) {

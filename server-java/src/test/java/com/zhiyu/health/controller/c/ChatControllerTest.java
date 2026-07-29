@@ -6,6 +6,7 @@ import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
 import com.zhiyu.health.service.ChatService;
 import com.zhiyu.health.service.ConversationService;
+import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class ChatControllerTest {
                 eq("red_flag"), isNull())).thenReturn(warning);
         ChatService service = new ChatService(
                 agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(), TestContracts.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -102,7 +103,7 @@ class ChatControllerTest {
         ));
         ChatService service = new ChatService(
                 agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(), TestContracts.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 // 对齐生产：Boot 自动配置的 StringHttpMessageConverter 默认 UTF-8，
                 // standalone MockMvc 的默认转换器是 ISO-8859-1，需显式指定
@@ -148,7 +149,7 @@ class ChatControllerTest {
                         ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
                 agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(), TestContracts.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -193,7 +194,7 @@ class ChatControllerTest {
                         ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
                 agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(), TestContracts.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -232,7 +233,7 @@ class ChatControllerTest {
                 .thenReturn(Flux.just(ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
                 agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(), TestContracts.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
