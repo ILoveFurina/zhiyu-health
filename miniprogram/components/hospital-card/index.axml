@@ -15,7 +15,7 @@
           <text a:if="{{item.level}}" class="hospital-level">{{item.level}}</text>
         </view>
         <view class="address">{{item.address}}</view>
-        <view class="distance">距您约 {{item.distance_km}} km</view>
+        <view class="distance">距您约 {{item.distance_text}} km</view>
       </view>
       <view
         class="choose"
