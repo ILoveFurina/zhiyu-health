@@ -1,6 +1,7 @@
 @import "./report.acss";
 @import "./redflag.acss";
 @import "./drawer.acss";
+@import "./feature-bubbles.acss";
 
 /* 聊天页（演示主画面），视觉对齐 docs/specs/0002-ui-conventions.md */
 .page {

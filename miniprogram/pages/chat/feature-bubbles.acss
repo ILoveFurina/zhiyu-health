@@ -1,0 +1,72 @@
+/* 功能入口气泡栏（票 19 D4）：常驻输入框上方，唯一功能入口 */
+.bubble-bar {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  padding: 14rpx 20rpx;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bubble-chip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 30rpx;
+  background: #e5f4f1;
+  color: #0e8a7d;
+  font-size: 25rpx;
+}
+
+.bubble-chip-disabled {
+  opacity: 0.45;
+}
+
+.bubble-icon {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.bubble-label {
+  font-size: 25rpx;
+  white-space: nowrap;
+}
+
+/* 引导卡片（feature_guide，D2/D7）：客户端渲染，不带免责声明 */
+.guide-card {
+  margin: 16rpx 0;
+}
+
+.guide-hospital {
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.guide-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2d2b;
+}
+
+.guide-desc {
+  margin-top: 10rpx;
+  font-size: 25rpx;
+  color: #52615f;
+  line-height: 1.55;
+}
+
+.guide-btn {
+  margin-top: 18rpx;
+  padding: 14rpx;
+  border-radius: 28rpx;
+  background: #0e8a7d;
+  color: #fff;
+  text-align: center;
+  font-size: 25rpx;
+}

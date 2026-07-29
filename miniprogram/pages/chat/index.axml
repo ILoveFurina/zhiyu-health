@@ -57,6 +57,26 @@
         card="{{item.card}}"
       />
 
+      <view a:elif="{{item.kind === 'feature_guide' && item.card}}" class="guide-card">
+        <view a:if="{{item.card.feature === 'hospital'}}" class="guide-hospital">
+          <view class="guide-title">找医院</view>
+          <view a:if="{{item.card.mode === 'locate'}}" class="guide-desc">授权定位后，为您推荐就近医院</view>
+          <view a:if="{{item.card.mode === 'manual'}}" class="guide-desc">未获取到定位，点击按区域查找</view>
+          <view
+            a:if="{{item.card.mode === 'locate'}}"
+            class="guide-btn"
+            data-action="locate"
+            onTap="onGuideLocate"
+          >授权定位</view>
+          <view
+            a:if="{{item.card.mode === 'manual'}}"
+            class="guide-btn"
+            data-action="manual"
+            onTap="onGuideManual"
+          >按区域查找</view>
+        </view>
+      </view>
+
       <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
         <view class="report-card-title">报告解读</view>
         <view class="report-summary">{{item.card.summary}}</view>
@@ -115,6 +135,20 @@
   <!-- 免责声明常驻细条（双保险之二） -->
   <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
 
+  <!-- 功能入口气泡栏（D4）：常驻输入框上方，唯一功能入口；+ 按钮已拆除 -->
+  <view class="bubble-bar">
+    <view
+      a:for="{{bubbles}}"
+      a:key="key"
+      class="bubble-chip {{sending ? 'bubble-chip-disabled' : ''}}"
+      data-action="{{item.action}}"
+      onTap="onBubbleTap"
+    >
+      <view class="bubble-icon">{{item.icon}}</view>
+      <view class="bubble-label">{{item.label}}</view>
+    </view>
+  </view>
+
   <!-- 输入栏（双行结构） -->
   <view class="composer">
     <view class="c-row1">
@@ -127,7 +161,6 @@
         placeholder="发消息或按住说话…"
         disabled="{{sending}}"
       />
-      <view class="attach-btn {{sending ? 'attach-disabled' : ''}}" onTap="openReportPicker">+</view>
     </view>
     <view class="c-row2">
       <view class="cpill gear" onTap="cycleGear">{{gearLabel}} ▸</view>
