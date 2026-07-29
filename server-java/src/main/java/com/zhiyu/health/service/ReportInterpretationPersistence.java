@@ -23,6 +23,7 @@ public class ReportInterpretationPersistence {
     private final ReportInterpretationMapper mapper;
     private final ConversationService conversations;
     private final ObjectMapper objectMapper;
+    private final DisclaimerService disclaimers;
 
     public ReportInterpretation findByRequest(Long patientId, String requestId) {
         return mapper.selectOne(new LambdaQueryWrapper<ReportInterpretation>()
@@ -41,7 +42,7 @@ public class ReportInterpretationPersistence {
         record.setFileType(isPdf(files) ? "PDF" : "IMAGE");
         record.setFileName(isPdf(files) ? "报告.pdf" : "报告图片（" + files.size() + "张）");
         record.setStatus("PROCESSING");
-        record.setDisclaimer(ChatService.DISCLAIMER);
+        record.setDisclaimer(disclaimers.text());
         mapper.insert(record);
 
         ObjectNode upload = objectMapper
@@ -68,14 +69,14 @@ public class ReportInterpretationPersistence {
         record.setErrorCode(null);
         record.setUpdatedAt(OffsetDateTime.now());
         // server-java 在出口固定兜底，避免 Agent 层漏传或篡改法定提示语。
-        record.setDisclaimer(ChatService.DISCLAIMER);
+        record.setDisclaimer(disclaimers.text());
         mapper.updateById(record);
 
         ObjectNode card = objectMapper
                 .createObjectNode()
                 .put("report_interpretation_id", record.getId())
                 .put("page_count", response.pageCount())
-                .put("disclaimer", ChatService.DISCLAIMER)
+                .put("disclaimer", disclaimers.text())
                 .set("result", response.result());
         conversations.appendMessage(
                 record.getConversationId(),

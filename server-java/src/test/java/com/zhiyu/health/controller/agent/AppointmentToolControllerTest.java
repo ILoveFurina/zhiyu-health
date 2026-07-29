@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.agent;
 
 import com.zhiyu.health.service.AppointmentService;
+import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,7 +23,7 @@ class AppointmentToolControllerTest {
         AppointmentService service = mock(AppointmentService.class);
         when(service.createWithSummary(12L, 7L, 9L, "主诉胸闷两天"))
                 .thenReturn(appointmentWithoutSummary());
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
+        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance())).build();
 
         mvc.perform(post("/api/agent/appointments")
                         .contentType("application/json")
@@ -40,7 +41,7 @@ class AppointmentToolControllerTest {
     void getToolReturnsOnlyTrustedRuntimePatientsAppointments() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
         when(service.listForPatient(12L)).thenReturn(List.of(appointment()));
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
+        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance())).build();
 
         mvc.perform(get("/api/agent/appointments").param("patient_id", "12"))
                 .andExpect(status().isOk())
@@ -52,7 +53,7 @@ class AppointmentToolControllerTest {
         AppointmentService service = mock(AppointmentService.class);
         when(service.saveConditionSummary(12L, 7L, 21L, "主诉胸闷两天"))
                 .thenReturn(appointment());
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service)).build();
+        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance())).build();
 
         mvc.perform(post("/api/agent/appointments/21/summary")
                         .contentType("application/json")
@@ -68,7 +69,7 @@ class AppointmentToolControllerTest {
     private AppointmentService.AppointmentView appointment() {
         return new AppointmentService.AppointmentView(
                 21L, 9L, 2L, "周安宁", "心血管内科", "2026-07-29", "上午",
-                1, "已约", "主诉胸闷两天。仅供参考，不替代医生诊断",
+                1, "已约", "主诉胸闷两天",
                 "2026-07-28T10:00:00+08:00");
     }
 

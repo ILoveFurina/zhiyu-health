@@ -72,8 +72,8 @@ public class AppointmentService {
 
     public AppointmentView saveConditionSummary(
             long patientId, long conversationId, long appointmentId, String summary) {
-        String safeSummary = ensureDisclaimer(summary);
-        if (appointmentMapper.updateConditionSummary(appointmentId, patientId, conversationId, safeSummary) != 1) {
+        // 摘要只存纯内容；免责声明在响应装配时由 DisclaimerService 挂载，不入库。
+        if (appointmentMapper.updateConditionSummary(appointmentId, patientId, conversationId, summary.trim()) != 1) {
             throw new ApiException(404, "挂号单不存在");
         }
         return view(appointmentId);
@@ -114,18 +114,6 @@ public class AppointmentService {
         return toView(appointment);
     }
 
-    private String ensureDisclaimer(String summary) {
-        String trimmed = summary.trim();
-        if (trimmed.contains(ChatService.DISCLAIMER)) {
-            return trimmed;
-        }
-        String separator =
-                trimmed.endsWith("。") || trimmed.endsWith("！") || trimmed.endsWith("？") || trimmed.endsWith(".")
-                        ? ""
-                        : "。";
-        return trimmed + separator + ChatService.DISCLAIMER;
-    }
-
     private AppointmentView toView(Appointment appointment) {
         return new AppointmentView(
                 appointment.getId(),
@@ -141,18 +129,10 @@ public class AppointmentService {
                         : appointment.getTimeSlot().getValue(),
                 appointment.getSequenceNumber(),
                 Appointment.displayStatus(appointment.getStatus()),
-                summaryWithoutDisclaimer(appointment.getConditionSummary()),
+                appointment.getConditionSummary(),
                 appointment.getCreatedAt() == null
                         ? null
                         : appointment.getCreatedAt().toString());
-    }
-
-    private String summaryWithoutDisclaimer(String summary) {
-        if (summary == null) {
-            return null;
-        }
-        String content = summary.replace(ChatService.DISCLAIMER, "").trim();
-        return content.endsWith("。") ? content.substring(0, content.length() - 1) : content;
     }
 
     public record AppointmentView(

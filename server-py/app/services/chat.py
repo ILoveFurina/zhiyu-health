@@ -8,7 +8,7 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 from collections.abc import AsyncIterator
 
 from app.agent.runner import AgentContext, AgentRunner
-from app.core.constants import DISCLAIMER
+from app.core.contracts import get_contracts
 from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
 
 # SSE 事件类型（与后续工具调用可视化同通道扩展）
@@ -21,6 +21,9 @@ EVENT_DONE = "done"
 class AgentChatService:
     def __init__(self, agent_runner: AgentRunner) -> None:
         self._agent_runner = agent_runner
+        # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
+        # 装配期取出缓存，禁止在本地另立文案常量。
+        self._disclaimer = get_contracts().disclaimer.text
 
     async def stream(
         self,
@@ -50,14 +53,14 @@ class AgentChatService:
             elif isinstance(output.data, dict):
                 yield {
                     "event": output.event,
-                    "data": {**output.data, "disclaimer": DISCLAIMER},
+                    "data": {**output.data, "disclaimer": self._disclaimer},
                 }
         yield {
             "event": EVENT_MESSAGE,
             "data": {
                 "role": "assistant",
                 "content": "".join(parts),
-                "disclaimer": DISCLAIMER,
+                "disclaimer": self._disclaimer,
                 "effort": effort,
             },
         }

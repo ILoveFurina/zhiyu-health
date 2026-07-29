@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.service.AppointmentService;
+import com.zhiyu.health.service.DisclaimerService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,18 +21,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final DisclaimerService disclaimers;
 
     @GetMapping
     public List<AppointmentOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
         return appointmentService.listForPatient(patientId).stream()
-                .map(AppointmentOut::from)
+                .map(view -> AppointmentOut.from(view, disclaimers))
                 .toList();
     }
 
     @PostMapping("/{appointmentId}/cancel")
     public AppointmentOut cancel(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long appointmentId) {
-        return AppointmentOut.from(appointmentService.cancel(patientId, appointmentId));
+        return AppointmentOut.from(appointmentService.cancel(patientId, appointmentId), disclaimers);
     }
 
     public record AppointmentOut(
@@ -48,8 +50,8 @@ public class AppointmentController {
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("created_at") String createdAt) {
 
-        static AppointmentOut from(AppointmentService.AppointmentView value) {
-            AppointmentCardBase base = AppointmentCardBase.from(value);
+        static AppointmentOut from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
+            AppointmentCardBase base = AppointmentCardBase.from(value, disclaimers);
             return new AppointmentOut(
                     base.appointmentId(),
                     base.scheduleId(),

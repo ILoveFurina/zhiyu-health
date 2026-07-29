@@ -22,6 +22,7 @@ public class ReceptionService {
     private final ReceptionMapper receptionMapper;
     private final ConsultationRecordMapper consultationRecordMapper;
     private final TransactionTemplate transactionTemplate;
+    private final DisclaimerService disclaimers;
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
@@ -108,16 +109,9 @@ public class ReceptionService {
                 appointment.getTimeSlot() == null
                         ? null
                         : appointment.getTimeSlot().getValue(),
-                summaryWithoutDisclaimer(appointment.getConditionSummary()),
-                ChatService.DISCLAIMER);
-    }
-
-    private String summaryWithoutDisclaimer(String summary) {
-        if (summary == null) {
-            return null;
-        }
-        String content = summary.replace(ChatService.DISCLAIMER, "").trim();
-        return content.endsWith("。") ? content.substring(0, content.length() - 1) : content;
+                // 库存纯内容直接透传；免责声明维持接诊台既有语义：独立字段恒挂载。
+                appointment.getConditionSummary(),
+                disclaimers.text());
     }
 
     public record ReceptionDashboard(String date, List<ScheduleView> schedules, List<AppointmentView> appointments) {}

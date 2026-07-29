@@ -8,6 +8,7 @@ import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -38,7 +39,7 @@ class ReceptionServiceTest {
     @BeforeEach
     void setUp() {
         service = new ReceptionService(staffUserMapper, receptionMapper,
-                consultationMapper, transactionTemplate);
+                consultationMapper, transactionTemplate, TestDisclaimers.instance());
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             Consumer<TransactionStatus> callback = invocation.getArgument(0);
@@ -113,7 +114,7 @@ class ReceptionServiceTest {
         appointment.setStatus(status);
         appointment.setScheduleDate(LocalDate.now());
         appointment.setTimeSlot(TimeSlot.MORNING);
-        appointment.setConditionSummary("咳嗽两天。仅供参考，不替代医生诊断");
+        appointment.setConditionSummary("咳嗽两天");
         return appointment;
     }
 }

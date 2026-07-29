@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.c;
 
 import com.zhiyu.health.service.AppointmentService;
+import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,7 +25,7 @@ class AppointmentControllerTest {
         AppointmentService.AppointmentView cancelled = appointment("已取消");
         when(service.listForPatient(12L)).thenReturn(List.of(booked));
         when(service.cancel(12L, 21L)).thenReturn(cancelled);
-        MockMvc mvc = standaloneSetup(new AppointmentController(service)).build();
+        MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance())).build();
 
         mvc.perform(get("/api/c/appointments").requestAttr("authSubject", "12"))
                 .andExpect(status().isOk())

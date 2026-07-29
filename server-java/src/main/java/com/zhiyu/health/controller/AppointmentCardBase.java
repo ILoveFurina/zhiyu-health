@@ -1,11 +1,11 @@
 package com.zhiyu.health.controller;
 
 import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.ChatService;
+import com.zhiyu.health.service.DisclaimerService;
 
 /**
  * AppointmentView → 卡片公共字段转换：C 端 AppointmentOut 与 Agent AppointmentCard 共用，
- * 字段复制与免责声明挂载判断只写一遍（挂载语义本身由 P5 统一重构，此处仅去重）。
+ * 字段复制与免责声明挂载判断只写一遍（挂载语义已收敛进 DisclaimerService）。
  */
 public record AppointmentCardBase(
         Long appointmentId,
@@ -20,7 +20,7 @@ public record AppointmentCardBase(
         String conditionSummary,
         String summaryDisclaimer) {
 
-    public static AppointmentCardBase from(AppointmentService.AppointmentView value) {
+    public static AppointmentCardBase from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
         return new AppointmentCardBase(
                 value.id(),
                 value.scheduleId(),
@@ -33,6 +33,6 @@ public record AppointmentCardBase(
                 value.status(),
                 value.conditionSummary(),
                 // 免责声明挂载判断只留这一处：有摘要才挂载
-                value.conditionSummary() == null ? null : ChatService.DISCLAIMER);
+                disclaimers.mountIfPresent(value.conditionSummary()));
     }
 }

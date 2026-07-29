@@ -3,6 +3,7 @@ package com.zhiyu.health.controller.agent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.service.AppointmentService;
+import com.zhiyu.health.service.DisclaimerService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -26,24 +27,32 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppointmentToolController {
 
     private final AppointmentService appointmentService;
+    private final DisclaimerService disclaimers;
 
     @PostMapping
     public AppointmentCard create(@Valid @RequestBody CreateAppointmentRequest request) {
-        return AppointmentCard.from(appointmentService.createWithSummary(
-                request.patientId(), request.conversationId(), request.scheduleId(), request.conditionSummary()));
+        return AppointmentCard.from(
+                appointmentService.createWithSummary(
+                        request.patientId(),
+                        request.conversationId(),
+                        request.scheduleId(),
+                        request.conditionSummary()),
+                disclaimers);
     }
 
     @PostMapping("/{appointmentId}/summary")
     public AppointmentCard saveSummary(
             @PathVariable @Positive long appointmentId, @Valid @RequestBody SaveSummaryRequest request) {
-        return AppointmentCard.from(appointmentService.saveConditionSummary(
-                request.patientId(), request.conversationId(), appointmentId, request.conditionSummary()));
+        return AppointmentCard.from(
+                appointmentService.saveConditionSummary(
+                        request.patientId(), request.conversationId(), appointmentId, request.conditionSummary()),
+                disclaimers);
     }
 
     @GetMapping
     public AppointmentList getAppointments(@RequestParam("patient_id") @Positive long patientId) {
         return new AppointmentList(appointmentService.listForPatient(patientId).stream()
-                .map(AppointmentCard::from)
+                .map(view -> AppointmentCard.from(view, disclaimers))
                 .toList());
     }
 
@@ -75,8 +84,8 @@ public class AppointmentToolController {
             @JsonProperty("summary_sent") boolean summarySent,
             String notice) {
 
-        static AppointmentCard from(AppointmentService.AppointmentView value) {
-            AppointmentCardBase base = AppointmentCardBase.from(value);
+        static AppointmentCard from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
+            AppointmentCardBase base = AppointmentCardBase.from(value, disclaimers);
             boolean summarySent = base.conditionSummary() != null;
             return new AppointmentCard(
                     base.appointmentId(),

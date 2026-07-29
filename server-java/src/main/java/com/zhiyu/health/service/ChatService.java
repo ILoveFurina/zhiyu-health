@@ -22,7 +22,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class ChatService {
 
-    public static final String DISCLAIMER = "仅供参考，不替代医生诊断";
     private static final long EMITTER_TIMEOUT_MS = 60_000L;
     private static final String RED_FLAG_TEMPLATE = "检测到紧急危险信号：%s。%s。导诊已中断。";
 
@@ -30,6 +29,7 @@ public class ChatService {
     private final ConversationService conversations;
     private final RedFlagRuleEngine redFlagRules;
     private final ObjectMapper objectMapper;
+    private final DisclaimerService disclaimers;
 
     public SseEmitter chat(
             Long patientId,
@@ -102,7 +102,7 @@ public class ChatService {
             if ("meta".equals(eventName) && data instanceof ObjectNode object) {
                 object.put("conversation_id", conversationId);
             } else if ("message".equals(eventName) && data instanceof ObjectNode object) {
-                ensureDisclaimer(object);
+                disclaimers.mount(object);
                 Message saved = conversations.appendMessage(
                         conversationId,
                         "assistant",
@@ -111,7 +111,7 @@ public class ChatService {
                         nullableText(object.get("effort")));
                 object.put("message_id", saved.getId());
             } else if (Message.isAiCardKind(eventName) && data instanceof ObjectNode object) {
-                ensureDisclaimer(object);
+                disclaimers.mount(object);
                 Message saved = conversations.appendMessage(
                         conversationId, "assistant", objectMapper.writeValueAsString(object), eventName, null);
                 object.put("message_id", saved.getId());
@@ -124,12 +124,6 @@ public class ChatService {
 
     private JsonNode parseData(String data) throws JsonProcessingException {
         return data == null || data.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(data);
-    }
-
-    private void ensureDisclaimer(ObjectNode message) {
-        if (!DISCLAIMER.equals(message.path("disclaimer").asText())) {
-            message.put("disclaimer", DISCLAIMER);
-        }
     }
 
     private void send(SseEmitter emitter, String event, JsonNode data) throws IOException {

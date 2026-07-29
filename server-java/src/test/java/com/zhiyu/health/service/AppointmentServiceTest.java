@@ -54,8 +54,8 @@ class AppointmentServiceTest {
 
     @Test
     void savesGeneratedSummaryOnlyForOwningPatientAndConversation() {
-        when(appointmentMapper.updateConditionSummary(
-                21L, 12L, 7L, "主诉胸闷两天。仅供参考，不替代医生诊断"))
+        // 摘要纯内容直存，不再拼接免责文案；标注在响应装配时挂载。
+        when(appointmentMapper.updateConditionSummary(21L, 12L, 7L, "主诉胸闷两天"))
                 .thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
@@ -211,7 +211,7 @@ class AppointmentServiceTest {
         appointment.setScheduleDate(java.time.LocalDate.parse("2026-07-29"));
         appointment.setTimeSlot(com.zhiyu.health.entity.TimeSlot.MORNING);
         appointment.setSequenceNumber(sequence);
-        appointment.setConditionSummary("主诉胸闷两天。仅供参考，不替代医生诊断");
+        appointment.setConditionSummary("主诉胸闷两天");
         appointment.setCreatedAt(java.time.OffsetDateTime.parse("2026-07-28T10:00:00+08:00"));
         return appointment;
     }

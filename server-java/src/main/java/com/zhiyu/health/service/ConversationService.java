@@ -28,6 +28,7 @@ public class ConversationService {
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
+    private final DisclaimerService disclaimers;
 
     @Transactional
     public Conversation getOrCreateForPatient(Long patientId, Long conversationId, String firstText) {
@@ -95,7 +96,7 @@ public class ConversationService {
                         message.getKind(),
                         message.getContent(),
                         message.getEffort(),
-                        isAiOutput(message) ? ChatService.DISCLAIMER : null,
+                        isAiOutput(message) ? disclaimers.text() : null,
                         message.getCreatedAt() == null
                                 ? null
                                 : message.getCreatedAt().toString()))

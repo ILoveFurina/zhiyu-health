@@ -6,6 +6,7 @@ import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
 import com.zhiyu.health.service.ChatService;
 import com.zhiyu.health.service.ConversationService;
+import com.zhiyu.health.support.TestDisclaimers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.codec.ServerSentEvent;
@@ -45,7 +46,8 @@ class ChatControllerTest {
         when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(),
                 eq("red_flag"), isNull())).thenReturn(warning);
         ChatService service = new ChatService(
-                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
+                TestDisclaimers.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -99,7 +101,8 @@ class ChatControllerTest {
                 ServerSentEvent.builder("{}").event("done").build()
         ));
         ChatService service = new ChatService(
-                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
+                TestDisclaimers.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 // 对齐生产：Boot 自动配置的 StringHttpMessageConverter 默认 UTF-8，
                 // standalone MockMvc 的默认转换器是 ISO-8859-1，需显式指定
@@ -144,7 +147,8 @@ class ChatControllerTest {
                         ServerSentEvent.builder("{\"effort\":\"high\"}").event("meta").build(),
                         ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
-                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
+                TestDisclaimers.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -188,7 +192,8 @@ class ChatControllerTest {
                                 .event("hospital_recommendations").build(),
                         ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
-                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
+                TestDisclaimers.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
@@ -226,7 +231,8 @@ class ChatControllerTest {
                         && body.toString().contains("这个指标需要复查吗"))))
                 .thenReturn(Flux.just(ServerSentEvent.builder("{}").event("done").build()));
         ChatService service = new ChatService(
-                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper(),
+                TestDisclaimers.instance());
         MockMvc mvc = standaloneSetup(new ChatController(service))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),

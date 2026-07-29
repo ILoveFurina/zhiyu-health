@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-DISCLAIMER = "仅供参考，不替代医生诊断"
+from app.core.contracts import get_contracts
 
 
 class ReportItem(BaseModel):
@@ -33,5 +33,6 @@ class ReportInterpretation(BaseModel):
 
 class VisionResponse(BaseModel):
     result: ReportInterpretation
-    disclaimer: str = DISCLAIMER
+    # 文案以跨栈契约为唯一事实源；default_factory 在实例化时取值，避免 import 期副作用。
+    disclaimer: str = Field(default_factory=lambda: get_contracts().disclaimer.text)
     page_count: int = Field(ge=1)
