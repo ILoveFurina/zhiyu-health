@@ -31,15 +31,15 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE pr.status = #{status} ORDER BY pr.created_at DESC")
     List<Prescription> selectForReview(@Param("status") String status);
 
-    @Select(DETAIL_COLUMNS + " WHERE pa.id = #{patientId} AND pr.status = 'APPROVED' ORDER BY pr.reviewed_at DESC")
-    List<Prescription> selectApprovedForPatient(@Param("patientId") long patientId);
+    @Select(DETAIL_COLUMNS + " WHERE pa.id = #{patientId} AND pr.status = #{status} ORDER BY pr.reviewed_at DESC")
+    List<Prescription> selectApprovedForPatient(@Param("patientId") long patientId, @Param("status") String status);
 
     @Update(
             """
             UPDATE prescriptions SET status = #{status}, review_reason = #{reason},
               reviewed_by = #{reviewerId}, interpretation = #{interpretation},
               disclaimer = #{disclaimer}, reviewed_at = now()
-            WHERE id = #{id} AND status = 'PENDING'
+            WHERE id = #{id} AND status = #{expectedStatus}
             """)
     int review(
             @Param("id") long id,
@@ -47,5 +47,6 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             @Param("reason") String reason,
             @Param("reviewerId") long reviewerId,
             @Param("interpretation") String interpretation,
-            @Param("disclaimer") String disclaimer);
+            @Param("disclaimer") String disclaimer,
+            @Param("expectedStatus") String expectedStatus);
 }

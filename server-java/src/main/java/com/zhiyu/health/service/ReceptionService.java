@@ -2,6 +2,7 @@ package com.zhiyu.health.service;
 
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.ConsultationRecord;
 import com.zhiyu.health.entity.InAppMessage;
@@ -28,6 +29,7 @@ public class ReceptionService {
     private final TransactionTemplate transactionTemplate;
     private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
+    private final Contracts contracts;
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
@@ -93,7 +95,7 @@ public class ReceptionService {
             consultationRecordMapper.insert(record);
             InAppMessage message = new InAppMessage();
             message.setPatientId(appointment.getPatientId());
-            message.setType(InAppMessage.TYPE_CONSULTATION_SUMMARY);
+            message.setType(contracts.prescriptionFlow().messageTypes().get("consultation_summary"));
             message.setTitle("就诊小结");
             message.setContent(summary.content());
             // server-java 出口不信任模型返回的免责声明字段，始终以统一契约兜底。

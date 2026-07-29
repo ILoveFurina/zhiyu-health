@@ -25,7 +25,7 @@ public class PrescriptionReviewController {
     public record ReviewInput(@NotBlank String decision, @Size(max = 1000) String reason) {}
 
     @GetMapping
-    public List<PrescriptionService.PrescriptionView> list(@RequestParam(defaultValue = "PENDING") String status) {
+    public List<PrescriptionService.PrescriptionView> list(@RequestParam(required = false) String status) {
         return service.listForReview(status);
     }
 

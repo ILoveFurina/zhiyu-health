@@ -16,9 +16,12 @@ import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.service.mapping.PrescriptionDtoMapper;
+import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.transaction.support.TransactionTemplate;
 
 class PrescriptionServiceTest {
@@ -33,12 +36,14 @@ class PrescriptionServiceTest {
             itemMapper,
             mock(TransactionTemplate.class),
             agentClient,
-            TestDisclaimers.instance());
+            TestDisclaimers.instance(),
+            TestContracts.instance(),
+            Mappers.getMapper(PrescriptionDtoMapper.class));
 
     @Test
     void approvalGeneratesExplanationThenPublishesWithJavaDisclaimer() {
-        Prescription pending = prescription(31L, Prescription.STATUS_PENDING);
-        Prescription approved = prescription(31L, Prescription.STATUS_APPROVED);
+        Prescription pending = prescription(31L, "PENDING");
+        Prescription approved = prescription(31L, "APPROVED");
         approved.setInterpretation("按医生给出的频次服用。");
         approved.setDisclaimer("仅供参考，不替代医生诊断");
         PrescriptionItem item = new PrescriptionItem();
@@ -51,7 +56,7 @@ class PrescriptionServiceTest {
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item));
         when(agentClient.explainPrescription(anyList()))
                 .thenReturn(new AgentClient.ClinicalResponse("按医生给出的频次服用。", "不可信文案"));
-        when(prescriptionMapper.review(31L, Prescription.STATUS_APPROVED, null, 1L, "按医生给出的频次服用。", "仅供参考，不替代医生诊断"))
+        when(prescriptionMapper.review(31L, "APPROVED", null, 1L, "按医生给出的频次服用。", "仅供参考，不替代医生诊断", "PENDING"))
                 .thenReturn(1);
 
         PrescriptionService.PrescriptionView result = service.review(1L, 31L, "APPROVE", null);
@@ -63,7 +68,7 @@ class PrescriptionServiceTest {
 
     @Test
     void rejectionRequiresReasonBeforeStateChange() {
-        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, Prescription.STATUS_PENDING));
+        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, "PENDING"));
 
         ApiException error = assertThrows(ApiException.class, () -> service.review(1L, 31L, "REJECT", " "));
 

@@ -1,7 +1,9 @@
 package com.zhiyu.health.service;
 
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.entity.Prescription;
@@ -12,6 +14,7 @@ import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.service.mapping.PrescriptionDtoMapper;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
-public class PrescriptionService {
+public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescription> {
     private final StaffUserMapper staffUserMapper;
     private final ReceptionMapper receptionMapper;
     private final MedicationMapper medicationMapper;
@@ -30,11 +33,13 @@ public class PrescriptionService {
     private final TransactionTemplate transactionTemplate;
     private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
+    private final Contracts contracts;
+    private final PrescriptionDtoMapper dtoMapper;
 
     public List<MedicationView> listMedications(long staffId) {
         requireDoctor(staffId);
         return medicationMapper.selectActive().stream()
-                .map(this::toMedicationView)
+                .map(dtoMapper::toMedicationView)
                 .toList();
     }
 
@@ -57,7 +62,7 @@ public class PrescriptionService {
             Prescription prescription = new Prescription();
             prescription.setAppointmentId(command.appointmentId());
             prescription.setDoctorId(doctorId);
-            prescription.setStatus(Prescription.STATUS_PENDING);
+            prescription.setStatus(status("pending"));
             prescription.setNotes(trimToNull(command.notes()));
             prescriptionMapper.insert(prescription);
             for (CreateItem input : command.items()) {
@@ -77,15 +82,14 @@ public class PrescriptionService {
             created = new Prescription();
             created.setId(id);
             created.setAppointmentId(command.appointmentId());
-            created.setStatus(Prescription.STATUS_PENDING);
+            created.setStatus(status("pending"));
         }
         return toView(created, pairItems(command.items(), medications));
     }
 
     public List<PrescriptionView> listForReview(String status) {
-        String normalized = status == null || status.isBlank() ? Prescription.STATUS_PENDING : status;
-        if (!List.of(Prescription.STATUS_PENDING, Prescription.STATUS_APPROVED, Prescription.STATUS_REJECTED)
-                .contains(normalized)) {
+        String normalized = status == null || status.isBlank() ? status("pending") : status;
+        if (!contracts.prescriptionFlow().statuses().containsValue(normalized)) {
             throw new ApiException(400, "审核状态无效");
         }
         return prescriptionMapper.selectForReview(normalized).stream()
@@ -98,30 +102,32 @@ public class PrescriptionService {
         if (prescription == null) {
             throw new ApiException(404, "电子处方不存在");
         }
-        if (!Prescription.STATUS_PENDING.equals(prescription.getStatus())) {
+        if (!status("pending").equals(prescription.getStatus())) {
             throw new ApiException(409, "电子处方已审核");
         }
         String target;
         String interpretation = null;
         String disclaimer = null;
-        if ("APPROVE".equals(decision)) {
+        if (decision("approve").equals(decision)) {
             List<PrescriptionItem> items = itemMapper.selectDetailed(id);
             AgentClient.ClinicalResponse generated = agentClient.explainPrescription(
                     items.stream().map(this::toAgentFact).toList());
-            target = Prescription.STATUS_APPROVED;
+            target = status("approved");
             interpretation = generated.content();
             // 患者可见出口使用 Java 侧统一契约，模型字段仅作传输兼容。
             disclaimer = disclaimers.text();
-        } else if ("REJECT".equals(decision)) {
+        } else if (decision("reject").equals(decision)) {
             if (reason == null || reason.isBlank()) {
                 throw new ApiException(400, "驳回时必须填写原因");
             }
-            target = Prescription.STATUS_REJECTED;
+            target = status("rejected");
         } else {
             throw new ApiException(400, "审核决定无效");
         }
         // 条件更新保证并发审核只有一个决定生效，避免先通过后被另一请求覆盖为驳回。
-        if (prescriptionMapper.review(id, target, trimToNull(reason), reviewerId, interpretation, disclaimer) != 1) {
+        if (prescriptionMapper.review(
+                        id, target, trimToNull(reason), reviewerId, interpretation, disclaimer, status("pending"))
+                != 1) {
             throw new ApiException(409, "电子处方已审核");
         }
         return toView(prescriptionMapper.selectDetailedById(id));
@@ -132,14 +138,7 @@ public class PrescriptionService {
                 .mapToObj(i -> {
                     CreateItem input = inputs.get(i);
                     Medication medication = medications.get(i);
-                    return new ItemView(
-                            medication.getId(),
-                            medication.getName(),
-                            medication.getSpecification(),
-                            input.dosage(),
-                            input.frequency(),
-                            input.duration(),
-                            input.notes());
+                    return dtoMapper.toCreatedItem(input, medication);
                 })
                 .toList();
     }
@@ -171,44 +170,27 @@ public class PrescriptionService {
         return fact;
     }
 
-    private MedicationView toMedicationView(Medication medication) {
-        return new MedicationView(
-                medication.getId(),
-                medication.getName(),
-                medication.getGenericName(),
-                medication.getSpecification(),
-                medication.getInstructions());
-    }
-
     private PrescriptionView toView(Prescription prescription) {
-        return toView(
-                prescription,
-                itemMapper.selectDetailed(prescription.getId()).stream()
-                        .map(item -> new ItemView(
-                                item.getMedicationId(),
-                                item.getMedicationName(),
-                                item.getSpecification(),
-                                item.getDosage(),
-                                item.getFrequency(),
-                                item.getDuration(),
-                                item.getNotes()))
-                        .toList());
+        return toView(prescription, dtoMapper.toItemViews(itemMapper.selectDetailed(prescription.getId())));
     }
 
     private PrescriptionView toView(Prescription prescription, List<ItemView> items) {
-        return new PrescriptionView(
-                prescription.getId(),
-                prescription.getAppointmentId(),
-                Prescription.displayStatus(prescription.getStatus()),
-                prescription.getNotes(),
-                prescription.getInterpretation(),
-                prescription.getDisclaimer(),
-                prescription.getPatientNickname(),
-                prescription.getDoctorName(),
-                prescription.getScheduleDate() == null
-                        ? null
-                        : prescription.getScheduleDate().toString(),
-                items);
+        String date = prescription.getScheduleDate() == null
+                ? null
+                : prescription.getScheduleDate().toString();
+        String label = contracts
+                .prescriptionFlow()
+                .statusLabels()
+                .getOrDefault(prescription.getStatus(), prescription.getStatus());
+        return dtoMapper.toPrescriptionView(prescription, label, date, items);
+    }
+
+    private String status(String name) {
+        return contracts.prescriptionFlow().statuses().get(name);
+    }
+
+    private String decision(String name) {
+        return contracts.prescriptionFlow().decisions().get(name);
     }
 
     private String trimToNull(String value) {

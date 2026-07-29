@@ -1,0 +1,19 @@
+{
+  "statuses": {
+    "pending": "PENDING",
+    "approved": "APPROVED",
+    "rejected": "REJECTED"
+  },
+  "status_labels": {
+    "PENDING": "待审核",
+    "APPROVED": "已通过",
+    "REJECTED": "已驳回"
+  },
+  "decisions": {
+    "approve": "APPROVE",
+    "reject": "REJECT"
+  },
+  "message_types": {
+    "consultation_summary": "CONSULTATION_SUMMARY"
+  }
+}

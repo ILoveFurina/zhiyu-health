@@ -11,8 +11,6 @@ import lombok.Setter;
 @Setter
 @TableName("in_app_messages")
 public class InAppMessage {
-    public static final String TYPE_CONSULTATION_SUMMARY = "CONSULTATION_SUMMARY";
-
     @TableId(type = IdType.AUTO)
     private Long id;
 

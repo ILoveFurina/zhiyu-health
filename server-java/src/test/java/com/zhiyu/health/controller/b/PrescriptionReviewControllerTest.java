@@ -44,4 +44,15 @@ class PrescriptionReviewControllerTest {
                 .andExpect(jsonPath("$.status").value("已通过"));
         verify(service).review(1L, 31L, "APPROVE", null);
     }
+
+    @Test
+    void doctorCannotAccessPrescriptionReviewApi() throws Exception {
+        mockMvc.perform(get("/api/b/prescriptions").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/b/prescriptions/31/review")
+                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR))
+                        .contentType("application/json")
+                        .content("{\"decision\":\"APPROVE\"}"))
+                .andExpect(status().isForbidden());
+    }
 }

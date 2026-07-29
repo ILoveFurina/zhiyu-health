@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.b;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
+import com.zhiyu.health.controller.b.mapping.PrescriptionInputMapper;
 import com.zhiyu.health.service.PrescriptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class DoctorPrescriptionController {
     private final PrescriptionService service;
+    private final PrescriptionInputMapper inputMapper;
 
     public record ItemInput(
             @JsonProperty("medication_id") long medicationId,
@@ -43,10 +45,6 @@ public class DoctorPrescriptionController {
             @PathVariable long appointmentId,
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId,
             @Valid @RequestBody CreateInput input) {
-        List<PrescriptionService.CreateItem> items = input.items().stream()
-                .map(item -> new PrescriptionService.CreateItem(
-                        item.medicationId(), item.dosage(), item.frequency(), item.duration(), item.notes()))
-                .toList();
-        return service.create(new PrescriptionService.CreateCommand(staffId, appointmentId, input.notes(), items));
+        return service.create(inputMapper.toCommand(staffId, appointmentId, input));
     }
 }

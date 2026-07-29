@@ -66,6 +66,17 @@ def test_chat_defaults_and_geo_ranges_are_loaded() -> None:
     assert defaults.latitude_max == 90
 
 
+def test_prescription_flow_values_are_loaded() -> None:
+    flow = get_contracts().prescription_flow
+    assert flow.statuses == {
+        "pending": "PENDING",
+        "approved": "APPROVED",
+        "rejected": "REJECTED",
+    }
+    assert flow.decisions == {"approve": "APPROVE", "reject": "REJECT"}
+    assert flow.message_types["consultation_summary"] == "CONSULTATION_SUMMARY"
+
+
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="跨栈契约加载失败"):
         _load(tmp_path / "missing")

@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.b;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.zhiyu.health.controller.b.mapping.PrescriptionInputMapper;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.service.PrescriptionService;
 import com.zhiyu.health.support.StaffTokens;
@@ -27,6 +29,9 @@ class DoctorPrescriptionControllerTest {
     @MockitoBean
     private PrescriptionService service;
 
+    @MockitoBean
+    private PrescriptionInputMapper inputMapper;
+
     @Test
     void doctorListsMedicationsAndCreatesPendingPrescription() throws Exception {
         when(service.listMedications(8L))
@@ -34,6 +39,12 @@ class DoctorPrescriptionControllerTest {
         when(service.create(any()))
                 .thenReturn(new PrescriptionService.PrescriptionView(
                         31L, 21L, "待审核", null, null, null, "小愈", "林知远", "2026-07-29", List.of()));
+        when(inputMapper.toCommand(anyLong(), anyLong(), any()))
+                .thenReturn(new PrescriptionService.CreateCommand(
+                        8L,
+                        21L,
+                        "足疗程服用",
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", "饭后服用"))));
 
         mockMvc.perform(get("/api/b/reception/medications").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isOk())

@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { prescriptionDecisions, prescriptionStatuses } from '@/contracts/prescription';
 
 export interface Medication {
   id: number;
@@ -49,10 +50,12 @@ export const createPrescription = (appointmentId: number, data: PrescriptionInpu
     method: 'POST', data,
   });
 
-export const fetchPrescriptions = (status: string) =>
-  request<Prescription[]>('/api/b/prescriptions', { params: { status } });
+export const fetchPendingPrescriptions = () =>
+  request<Prescription[]>('/api/b/prescriptions', { params: { status: prescriptionStatuses.pending } });
 
-export const reviewPrescription = (id: number, decision: 'APPROVE' | 'REJECT', reason?: string) =>
+export type ReviewDecision = typeof prescriptionDecisions.approve | typeof prescriptionDecisions.reject;
+
+export const reviewPrescription = (id: number, decision: ReviewDecision, reason?: string) =>
   request<Prescription>(`/api/b/prescriptions/${id}/review`, {
     method: 'POST', data: { decision, reason },
   });

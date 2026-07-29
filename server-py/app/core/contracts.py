@@ -65,12 +65,20 @@ class ChatDefaultsContract(BaseModel):
     latitude_max: float
 
 
+class PrescriptionFlowContract(BaseModel):
+    statuses: dict[str, str]
+    status_labels: dict[str, str]
+    decisions: dict[str, str]
+    message_types: dict[str, str]
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
     vision_errors: VisionErrorsContract
     upload_limits: UploadLimitsContract
     chat_defaults: ChatDefaultsContract
+    prescription_flow: PrescriptionFlowContract
 
 
 def _contracts_dir() -> Path:
@@ -105,6 +113,9 @@ def _load(dir_path: Path) -> Contracts:
             ),
             chat_defaults=ChatDefaultsContract.model_validate(
                 _read_json(dir_path, "chat-defaults.json")
+            ),
+            prescription_flow=PrescriptionFlowContract.model_validate(
+                _read_json(dir_path, "prescription-flow.json")
             ),
         )
     except ValidationError as exc:

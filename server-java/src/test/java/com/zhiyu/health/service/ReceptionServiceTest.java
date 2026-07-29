@@ -19,6 +19,7 @@ import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -49,7 +50,8 @@ class ReceptionServiceTest {
                 messageMapper,
                 transactionTemplate,
                 agentClient,
-                TestDisclaimers.instance());
+                TestDisclaimers.instance(),
+                TestContracts.instance());
         doAnswer(invocation -> {
                     @SuppressWarnings("unchecked")
                     Consumer<TransactionStatus> callback = invocation.getArgument(0);

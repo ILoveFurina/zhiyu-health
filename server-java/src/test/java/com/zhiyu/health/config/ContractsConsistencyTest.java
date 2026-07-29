@@ -95,4 +95,15 @@ class ContractsConsistencyTest {
                 .doesNotContain("VISION_AGENT_UNAVAILABLE");
         assertThat(contracts.visionErrors().messages()).containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时");
     }
+
+    @Test
+    void prescriptionFlowValuesAreLoaded() {
+        Contracts.PrescriptionFlow flow = contracts.prescriptionFlow();
+        assertThat(flow.statuses())
+                .containsEntry("pending", "PENDING")
+                .containsEntry("approved", "APPROVED")
+                .containsEntry("rejected", "REJECTED");
+        assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
+        assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
+    }
 }
