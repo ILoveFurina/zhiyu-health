@@ -1,0 +1,7 @@
+.page { min-height: 100vh; padding: 24rpx; box-sizing: border-box; background: #f3f7f6; }
+.state { padding-top: 180rpx; text-align: center; color: #999; }
+.card { margin-bottom: 20rpx; padding: 26rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,.06); }
+.head { display: flex; align-items: center; }
+.title { flex: 1; color: #173f3a; font-size: 30rpx; font-weight: 700; }
+.time { color: #999; font-size: 20rpx; }
+.content { margin-top: 18rpx; color: #344845; font-size: 26rpx; line-height: 1.75; }

@@ -1,11 +1,14 @@
 package com.zhiyu.health.service;
 
+import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.ConsultationRecord;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import java.time.LocalDate;
@@ -21,7 +24,9 @@ public class ReceptionService {
     private final StaffUserMapper staffUserMapper;
     private final ReceptionMapper receptionMapper;
     private final ConsultationRecordMapper consultationRecordMapper;
+    private final InAppMessageMapper messageMapper;
     private final TransactionTemplate transactionTemplate;
+    private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
 
     public ReceptionDashboard today(long staffId) {
@@ -54,6 +59,20 @@ public class ReceptionService {
 
     public AppointmentDetail complete(long staffId, long appointmentId, String diagnosis, String advice) {
         long doctorId = requireDoctor(staffId);
+        String normalizedDiagnosis = diagnosis.trim();
+        String normalizedAdvice = advice.trim();
+        Appointment preview = receptionMapper.selectAppointment(appointmentId, doctorId);
+        if (preview == null) {
+            throw new ApiException(404, "挂号单不存在");
+        }
+        if (Appointment.STATUS_VISITED.equals(preview.getStatus())) {
+            return detail(staffId, appointmentId);
+        }
+        if (!Appointment.STATUS_BOOKED.equals(preview.getStatus())) {
+            throw new ApiException(409, "当前状态不可接诊");
+        }
+        // 模型调用放在事务外，且只传医生填写的两项内容，避免带入病情摘要或其他患者原文。
+        AgentClient.ClinicalResponse summary = agentClient.summarizeConsultation(normalizedDiagnosis, normalizedAdvice);
         transactionTemplate.executeWithoutResult(status -> {
             // 挂号单行锁将诊断落库与状态流转绑定为一个事务，避免重复接诊生成两份记录。
             Appointment appointment = receptionMapper.selectAppointmentForUpdate(appointmentId, doctorId);
@@ -69,9 +88,18 @@ public class ReceptionService {
             ConsultationRecord record = new ConsultationRecord();
             record.setAppointmentId(appointmentId);
             record.setDoctorId(doctorId);
-            record.setDiagnosis(diagnosis.trim());
-            record.setAdvice(advice.trim());
+            record.setDiagnosis(normalizedDiagnosis);
+            record.setAdvice(normalizedAdvice);
             consultationRecordMapper.insert(record);
+            InAppMessage message = new InAppMessage();
+            message.setPatientId(appointment.getPatientId());
+            message.setType(InAppMessage.TYPE_CONSULTATION_SUMMARY);
+            message.setTitle("就诊小结");
+            message.setContent(summary.content());
+            // server-java 出口不信任模型返回的免责声明字段，始终以统一契约兜底。
+            message.setDisclaimer(disclaimers.text());
+            message.setRelatedAppointmentId(appointmentId);
+            messageMapper.insert(message);
             if (receptionMapper.markVisited(appointmentId) != 1) {
                 throw new IllegalStateException("接诊状态流转失败");
             }

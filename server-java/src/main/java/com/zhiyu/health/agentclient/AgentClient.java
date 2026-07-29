@@ -66,6 +66,39 @@ public class AgentClient {
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {});
     }
 
+    public ClinicalResponse explainPrescription(List<Map<String, String>> items) {
+        return clinicalText("/api/agent/clinical/prescription-explanation", Map.of("items", items));
+    }
+
+    public ClinicalResponse summarizeConsultation(String diagnosis, String advice) {
+        return clinicalText(
+                "/api/agent/clinical/consultation-summary", Map.of("diagnosis", diagnosis, "advice", advice));
+    }
+
+    private ClinicalResponse clinicalText(String uri, Map<String, ?> body) {
+        try {
+            ClinicalResponse response = webClient
+                    .post()
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(ClinicalResponse.class)
+                    .block(Duration.ofSeconds(70));
+            if (response == null
+                    || response.content() == null
+                    || response.content().isBlank()) {
+                throw new ApiException(502, "AI 内容生成暂不可用");
+            }
+            return response;
+        } catch (ApiException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ApiException(502, "AI 内容生成暂不可用");
+        }
+    }
+
     /** 同步报告解读；调用方确保该网络等待不处于数据库事务中。 */
     public VisionResponse interpretVision(List<MultipartFile> files) {
         MultipartBodyBuilder body = new MultipartBodyBuilder();
@@ -153,6 +186,8 @@ public class AgentClient {
     }
 
     public record VisionResponse(JsonNode result, String disclaimer, @JsonProperty("page_count") Integer pageCount) {}
+
+    public record ClinicalResponse(String content, String disclaimer) {}
 
     public static final class VisionAgentException extends RuntimeException {
         private final String code;

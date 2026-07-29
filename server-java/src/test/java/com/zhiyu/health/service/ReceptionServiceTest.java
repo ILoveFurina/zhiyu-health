@@ -8,12 +8,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.ConsultationRecord;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -33,12 +36,20 @@ class ReceptionServiceTest {
     private final ReceptionMapper receptionMapper = mock(ReceptionMapper.class);
     private final ConsultationRecordMapper consultationMapper = mock(ConsultationRecordMapper.class);
     private final TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+    private final AgentClient agentClient = mock(AgentClient.class);
+    private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
     private ReceptionService service;
 
     @BeforeEach
     void setUp() {
         service = new ReceptionService(
-                staffUserMapper, receptionMapper, consultationMapper, transactionTemplate, TestDisclaimers.instance());
+                staffUserMapper,
+                receptionMapper,
+                consultationMapper,
+                messageMapper,
+                transactionTemplate,
+                agentClient,
+                TestDisclaimers.instance());
         doAnswer(invocation -> {
                     @SuppressWarnings("unchecked")
                     Consumer<TransactionStatus> callback = invocation.getArgument(0);
@@ -77,10 +88,13 @@ class ReceptionServiceTest {
     @Test
     void completionPersistsRecordBeforeBookedAppointmentBecomesVisited() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
-        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(appointment(Appointment.STATUS_BOOKED));
+        Appointment booked = appointment(Appointment.STATUS_BOOKED);
+        booked.setPatientId(5L);
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(booked, appointment(Appointment.STATUS_VISITED));
+        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(booked);
         when(receptionMapper.markVisited(21L)).thenReturn(1);
-        Appointment visited = appointment(Appointment.STATUS_VISITED);
-        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(visited);
+        when(agentClient.summarizeConsultation("上呼吸道感染", "按需复诊"))
+                .thenReturn(new AgentClient.ClinicalResponse("本次诊断为上呼吸道感染，请按需复诊。", "模型错误文案"));
         ConsultationRecord saved = new ConsultationRecord();
         saved.setDiagnosis("上呼吸道感染");
         saved.setAdvice("按需复诊");
@@ -94,6 +108,12 @@ class ReceptionServiceTest {
         assertEquals(7L, captor.getValue().getDoctorId());
         assertEquals("上呼吸道感染", captor.getValue().getDiagnosis());
         verify(receptionMapper).markVisited(21L);
+        ArgumentCaptor<InAppMessage> messageCaptor = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(messageMapper).insert(messageCaptor.capture());
+        assertEquals(5L, messageCaptor.getValue().getPatientId());
+        assertEquals("本次诊断为上呼吸道感染，请按需复诊。", messageCaptor.getValue().getContent());
+        assertEquals("仅供参考，不替代医生诊断", messageCaptor.getValue().getDisclaimer());
+        verify(agentClient).summarizeConsultation("上呼吸道感染", "按需复诊");
         assertEquals("已接诊", result.appointment().status());
     }
 

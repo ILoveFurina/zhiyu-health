@@ -1,5 +1,7 @@
-import { Alert, Button, Descriptions, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Descriptions, Divider, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
 import type { AppointmentDetail } from '@/services/reception';
+import type { Medication, PrescriptionInput } from '@/services/prescription';
+import PrescriptionForm from './PrescriptionForm';
 
 interface Props {
   open: boolean;
@@ -8,15 +10,20 @@ interface Props {
   detail?: AppointmentDetail;
   onClose: () => void;
   onSubmit: (values: { diagnosis: string; advice: string }) => Promise<void>;
+  medications: Medication[];
+  prescriptionSubmitting: boolean;
+  prescriptionCreated: boolean;
+  onPrescribe: (values: PrescriptionInput) => Promise<void>;
 }
 
 export default function ConsultationDrawer(props: Props) {
-  const { open, loading, submitting, detail, onClose, onSubmit } = props;
+  const { open, loading, submitting, detail, onClose, onSubmit, medications,
+    prescriptionSubmitting, prescriptionCreated, onPrescribe } = props;
   const appointment = detail?.appointment;
   const completed = appointment?.status === '已接诊';
 
   return (
-    <Drawer title="接诊详情" width={560} open={open} onClose={onClose} destroyOnClose>
+    <Drawer title="接诊详情" width={560} open={open} onClose={onClose} destroyOnHidden>
       <Spin spinning={loading}>
         {appointment && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -39,6 +46,12 @@ export default function ConsultationDrawer(props: Props) {
                 </Space>
               }
             />
+            <Divider orientation="left">开具电子处方</Divider>
+            {prescriptionCreated ? (
+              <Alert type="success" showIcon message="电子处方已提交，等待管理员审核" />
+            ) : (
+              <PrescriptionForm medications={medications} submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
+            )}
             {completed ? (
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>

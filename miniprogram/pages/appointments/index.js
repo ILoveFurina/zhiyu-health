@@ -35,4 +35,6 @@ Page({
       },
     })
   },
+  openPrescriptions() { my.navigateTo({ url: '/pages/prescriptions/index' }) },
+  openMessages() { my.navigateTo({ url: '/pages/messages/index' }) },
 })

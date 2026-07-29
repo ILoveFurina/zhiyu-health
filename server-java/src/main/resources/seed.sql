@@ -17,7 +17,14 @@ INSERT INTO doctors (id, department_id, name, title, specialty, photo_url) VALUE
     (3, 2, '陈清禾', '主治医师', '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg')
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO medications (id, name, generic_name, specification, instructions) VALUES
+    (1, '阿莫西林胶囊', '阿莫西林', '0.25g*24粒', '口服；青霉素过敏者禁用'),
+    (2, '布洛芬缓释胶囊', '布洛芬', '0.3g*20粒', '口服；建议餐后服用'),
+    (3, '氯雷他定片', '氯雷他定', '10mg*12片', '口服；每日一次')
+ON CONFLICT (id) DO NOTHING;
+
 -- 显式 id 不推进 identity 序列：对齐到当前 MAX(id)，避免后续业务写入撞主键
 SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
 SELECT setval('departments_id_seq', (SELECT MAX(id) FROM departments));
 SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors));
+SELECT setval('medications_id_seq', (SELECT MAX(id) FROM medications));

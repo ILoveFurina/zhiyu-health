@@ -19,5 +19,6 @@ export default [
     component: './Doctor',
     access: 'canAdmin',
   },
+  { name: '电子处方审核', path: '/prescriptions', component: './Prescription', access: 'canAdmin' },
   { name: '接诊台', path: '/workbench', component: './Workbench', access: 'canDoctor' },
 ];

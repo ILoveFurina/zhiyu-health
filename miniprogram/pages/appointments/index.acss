@@ -11,6 +11,9 @@
   text-align: center;
 }
 
+.quick-links { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
+.quick-link { flex: 1; padding: 20rpx; border-radius: 18rpx; background: #fff; color: #0e8a7d; font-size: 25rpx; text-align: center; box-shadow: 0 2rpx 8rpx rgba(0,0,0,.06); }
+
 .card {
   margin-bottom: 20rpx;
   padding: 26rpx;

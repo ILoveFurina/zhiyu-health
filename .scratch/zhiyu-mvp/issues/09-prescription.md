@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 — B 端接诊台
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] prescriptions / prescription_items / medications 三表
 - [ ] 开方表单（选药 + 用法用量 + 备注）

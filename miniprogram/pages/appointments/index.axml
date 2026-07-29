@@ -1,4 +1,8 @@
 <view class="page">
+  <view class="quick-links">
+    <view class="quick-link" onTap="openPrescriptions">我的电子处方</view>
+    <view class="quick-link" onTap="openMessages">站内消息</view>
+  </view>
   <view a:if="{{loading}}" class="state">正在加载…</view>
   <view a:elif="{{appointments.length === 0}}" class="state">暂无挂号</view>
 

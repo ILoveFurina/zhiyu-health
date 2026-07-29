@@ -1,0 +1,9 @@
+<view class="page">
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{messages.length === 0}}" class="state">暂无站内消息</view>
+  <view a:for="{{messages}}" a:key="id" class="card">
+    <view class="head"><view class="title">{{item.title}}</view><view class="time">{{item.created_at}}</view></view>
+    <view class="content">{{item.content}}</view>
+    <ai-disclaimer text="{{item.disclaimer}}" />
+  </view>
+</view>

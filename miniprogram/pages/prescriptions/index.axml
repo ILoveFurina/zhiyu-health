@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="mock-note">购药入口为演示 Mock，不会创建真实订单或支付。</view>
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{prescriptions.length === 0}}" class="state">暂无已审核通过的电子处方</view>
+  <view a:for="{{prescriptions}}" a:key="id" class="card">
+    <view class="title">电子处方 #{{item.id}}</view>
+    <view class="meta">{{item.department_name}} · {{item.doctor_name}}医生 · {{item.date}}</view>
+    <view a:for="{{item.items}}" a:for-item="drug" a:key="name" class="drug">
+      <view class="drug-name">{{drug.name}} {{drug.specification}}</view>
+      <view>{{drug.dosage}} · {{drug.frequency}} · {{drug.duration}}</view>
+      <view a:if="{{drug.notes}}">备注：{{drug.notes}}</view>
+    </view>
+    <view class="interpretation-title">通俗解读</view>
+    <view class="interpretation">{{item.interpretation}}</view>
+    <ai-disclaimer text="{{item.disclaimer}}" />
+    <view class="pharmacy">推荐药店（Mock）：智愈安心药房 · 配送约 30 分钟</view>
+    <button class="order" data-id="{{item.id}}" loading="{{orderingId === item.id}}"
+      disabled="{{orderedId === item.id}}" onTap="order">
+      {{orderedId === item.id ? 'Mock 下单成功' : 'Mock 立即购药'}}
+    </button>
+  </view>
+</view>

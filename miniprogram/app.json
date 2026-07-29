@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/chat/index", "pages/appointments/index", "pages/health/index"],
+  "pages": ["pages/chat/index", "pages/appointments/index", "pages/health/index", "pages/prescriptions/index", "pages/messages/index"],
   "window": {
     "defaultTitle": "智愈",
     "titleBarColor": "#e9f6f2",

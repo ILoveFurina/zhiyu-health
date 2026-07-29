@@ -15,7 +15,7 @@ export default defineConfig({
   history: { type: 'hash' },
   proxy: {
     '/api': {
-      target: 'http://localhost:8080',
+      target: process.env.SERVER_JAVA_BASE_URL || 'http://localhost:8080',
       changeOrigin: true,
     },
   },

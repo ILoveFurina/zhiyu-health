@@ -9,6 +9,7 @@ import {
   type ReceptionDashboard,
 } from '@/services/reception';
 import ConsultationDrawer from './components/ConsultationDrawer';
+import { createPrescription, fetchMedications, type Medication, type PrescriptionInput } from '@/services/prescription';
 import ReceptionQueue from './components/ReceptionQueue';
 import ScheduleOverview from './components/ScheduleOverview';
 
@@ -19,6 +20,9 @@ export default function WorkbenchPage() {
   const [open, setOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
+  const [prescriptionCreated, setPrescriptionCreated] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setDashboard(await fetchReceptionDashboard());
@@ -30,10 +34,27 @@ export default function WorkbenchPage() {
     setOpen(true);
     setDetail(undefined);
     setLoadingDetail(true);
+    setPrescriptionCreated(false);
     try {
-      setDetail(await fetchAppointmentDetail(id));
+      const [appointment, medicationOptions] = await Promise.all([
+        fetchAppointmentDetail(id), fetchMedications(),
+      ]);
+      setDetail(appointment);
+      setMedications(medicationOptions);
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  const prescribe = async (values: PrescriptionInput) => {
+    if (!detail) return;
+    setPrescriptionSubmitting(true);
+    try {
+      await createPrescription(detail.appointment.id, values);
+      setPrescriptionCreated(true);
+      message.success('电子处方已提交审核');
+    } finally {
+      setPrescriptionSubmitting(false);
     }
   };
 
@@ -57,7 +78,9 @@ export default function WorkbenchPage() {
         <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
       </Space>
       <ConsultationDrawer open={open} loading={loadingDetail} submitting={submitting}
-        detail={detail} onClose={() => setOpen(false)} onSubmit={complete} />
+        detail={detail} medications={medications} prescriptionSubmitting={prescriptionSubmitting}
+        prescriptionCreated={prescriptionCreated} onPrescribe={prescribe}
+        onClose={() => setOpen(false)} onSubmit={complete} />
     </PageContainer>
   );
 }
