@@ -4,12 +4,12 @@
 
 **Blocked by:** 31 - 票 04 拆分迁移；06 - 找医院与地理位置；12 - 报告解读与视觉管道
 
-**Status:** ready-for-agent
+**Status:** done（分支 `codex/issue-19-feature-entries`，commits `cf85090`、`2eb449f`、`c43ca3f`、`f5963ce`）
 
-- [ ] 入口气泡栏组件（`feature-bubbles.js` 数组 + `enabled` 开关 + `a:for` 渲染，常驻输入框上方）
-- [ ] `feature_guide` 客户端渲染消息类型：仅找医院使用，内嵌授权定位按钮，授权后删卡片发对话、拒绝转降级态；不持久化、不带免责声明
-- [ ] 至少 AI 诊室 + 找医院 + 看报告三个入口可用：AI诊室发客户端欢迎语聚焦输入框；找医院出引导卡片；看报告复用 `report-composer` ActionSheet
-- [ ] 未落地功能（拍药盒/皮肤/饮食/舌苔）入口按 `enabled:false` 隐藏
+- [x] 入口气泡栏组件（`feature-bubbles.js` 数组 + `enabled` 开关 + `a:for` 渲染，常驻输入框上方）
+- [x] `feature_guide` 客户端渲染消息类型：仅找医院使用，内嵌授权定位按钮，授权后删卡片发对话、拒绝转降级态；不持久化、不带免责声明
+- [x] 至少 AI 诊室 + 找医院 + 看报告三个入口可用：AI诊室发客户端欢迎语聚焦输入框；找医院出引导卡片；看报告复用 `report-composer` ActionSheet
+- [x] 未落地功能（拍药盒/皮肤/饮食/舌苔）入口按 `enabled:false` 隐藏
 
 ## Comments
 
@@ -26,3 +26,12 @@
 - **D7 找医院行为**：点击出 `feature_guide` 卡片，内嵌「授权定位」按钮，复用 `hospital-routing._locateAndSend`。授权成功：**删卡片** + 插 user 消息「帮我找附近的医院」+ `startRound`(带坐标) -> Agent 回 `hospital_recommendations`（正常 SSE、持久化）。拒绝授权：卡片不删，改文案为降级态「未获取定位，点击按区域查找」，按钮行为改发「我想找医院，请帮我看看附近有哪些科室」，走无坐标 Agent 降级返回 `need_location` 路径。
 - **D8 `+` 按钮拆除**为隐含验收项：输入栏仅剩文本输入 + 发送，功能入口全部上移气泡栏。
 - **文档落点**：本轮不新增 CONTEXT.md 术语（`feature_guide` 为实现细节、气泡为 UI 元素，均非 ubiquitous language）；不新增 ADR（"客户端渲染而非 Agent 发出"不难逆转、不令人意外、非真实权衡，三判据不全真，跳过）。
+
+### 2026-07-29 - 实施验收
+
+- 落地范围：纯 C 端改动，新增 `feature-bubbles.js`/`feature-bubbles.acss`，改 `index.js`/`index.axml`/`index.acss`/`report.acss`；**后端零改动**（feature_guide 不进 SSE、不进 DB，D3 天然成立，`Message.isAiCardKind` 与前端 `CARD_KINDS` 白名单均不纳入）。
+- D7 实现偏离决策措辞：决策写"复用 `hospital-routing._locateAndSend`"，实际新写 `onGuideLocate`。原因：`_locateAndSend` 语义是"发文本触发定位"（先定位再发文本），而 D7 是"卡片按钮触发定位 -> 删卡片 -> 直接 startRound"，流程不同。两者均用 `my.getLocation({type:1})` WGS-84，坐标透传路径一致。
+- AI 诊室欢迎语（D6）落到 axml `a:else` 文本气泡分支：它 `kind` 为 `feature_guide` 但无 `card`，不命中 `feature_guide && item.card` 分支，自然落到文本气泡；`disclaimer` 为空故不渲染免责声明，符合 D6。它不经 SSE、后端无记录，刷新/切走即消失。
+- 验证：5 个 chat JS 文件 `node -c` 语法全过；`visibleBubbles()` 返回 3 项（triage/hospital/report）、4 项隐藏（pillbox/skin/diet/tongue）逻辑自检通过。支付宝小程序无独立编译命令（由开发者工具编译），未执行开发者工具实测--属待人工验收项。
+- 双轴 code-review：Standards 无硬违反（分层、免责声明、支付宝原生、可插拔均符合）；Spec 四条 checkbox 全对齐。index.js 约 290 行接近 250 行红线但未超，暂不拆分。
+- 待人工验收：开发者工具实测气泡栏渲染、三入口点击行为、找医院授权/降级流程、控制台无错误。
