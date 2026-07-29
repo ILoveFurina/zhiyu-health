@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,25 +21,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /** 科室管理：仅 admin 角色可操作，业务在 OrganizationService */
 @RestController
 @RequestMapping("/api/b/departments")
+@RequiredArgsConstructor
 public class DepartmentController {
 
     private final OrganizationService organizationService;
-
-    public DepartmentController(OrganizationService organizationService) {
-        this.organizationService = organizationService;
-    }
 
     public record DepartmentInput(
             @NotNull Long hospitalId,
             @NotBlank @Size(max = 100) String name,
             @NotBlank @Size(max = 30) String floor,
-            @NotBlank @Size(max = 255) String location) {
-    }
+            @NotBlank @Size(max = 255) String location) {}
 
     @GetMapping
     public List<Department> list(HttpServletRequest request) {
@@ -57,9 +53,8 @@ public class DepartmentController {
     }
 
     @PutMapping("/{id}")
-    public Department update(@PathVariable long id,
-                             @Validated @RequestBody DepartmentInput input,
-                             HttpServletRequest request) {
+    public Department update(
+            @PathVariable long id, @Validated @RequestBody DepartmentInput input, HttpServletRequest request) {
         AdminGuard.requireAdmin(request);
         Department department = toEntity(new Department(), input);
         department.setId(id);

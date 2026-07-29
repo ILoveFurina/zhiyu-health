@@ -6,17 +6,18 @@ import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.mapper.ConversationMapper;
 import com.zhiyu.health.mapper.MessageMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 会话与消息持久化；业务后端是唯一写入方。 */
 @Service
+@RequiredArgsConstructor
 public class ConversationService {
 
     public static final int TITLE_MAX_LENGTH = 20;
@@ -26,11 +27,6 @@ public class ConversationService {
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
-
-    public ConversationService(ConversationMapper conversationMapper, MessageMapper messageMapper) {
-        this.conversationMapper = conversationMapper;
-        this.messageMapper = messageMapper;
-    }
 
     @Transactional
     public Conversation getOrCreateForPatient(Long patientId, Long conversationId, String firstText) {
@@ -57,10 +53,12 @@ public class ConversationService {
 
     /** 当前患者的对话记录列表；最近活跃倒序，硬上限 50 条，只返三字段（见票 27 决策 1/12）。 */
     public List<ConversationSummary> listForPatient(Long patientId) {
-        return conversationMapper.selectList(new LambdaQueryWrapper<Conversation>()
+        return conversationMapper
+                .selectList(new LambdaQueryWrapper<Conversation>()
                         .eq(Conversation::getPatientId, patientId)
                         .orderByDesc(Conversation::getLastActiveAt)
-                        .last("LIMIT " + LIST_LIMIT)).stream()
+                        .last("LIMIT " + LIST_LIMIT))
+                .stream()
                 .map(c -> new ConversationSummary(
                         c.getId(),
                         c.getTitle(),
@@ -97,25 +95,28 @@ public class ConversationService {
                         message.getContent(),
                         message.getEffort(),
                         isAiOutput(message) ? ChatService.DISCLAIMER : null,
-                        message.getCreatedAt() == null ? null : message.getCreatedAt().toString()))
+                        message.getCreatedAt() == null
+                                ? null
+                                : message.getCreatedAt().toString()))
                 .toList();
     }
 
     @Transactional
-    public Message appendMessage(Long conversationId, String role, String content,
-                                 String kind, String effort) {
+    public Message appendMessage(Long conversationId, String role, String content, String kind, String effort) {
         return appendMessage(conversationId, role, content, kind, effort, null);
     }
 
     @Transactional
-    public Message appendMessage(Long conversationId, String role, String content,
-                                 String kind, String effort, Long reportInterpretationId) {
+    public Message appendMessage(
+            Long conversationId, String role, String content, String kind, String effort, Long reportInterpretationId) {
         Message message = new Message(null, conversationId, role, kind, content, effort);
         message.setReportInterpretationId(reportInterpretationId);
         messageMapper.insert(message);
-        conversationMapper.update(null, new LambdaUpdateWrapper<Conversation>()
-                .eq(Conversation::getId, conversationId)
-                .set(Conversation::getLastActiveAt, OffsetDateTime.now()));
+        conversationMapper.update(
+                null,
+                new LambdaUpdateWrapper<Conversation>()
+                        .eq(Conversation::getId, conversationId)
+                        .set(Conversation::getLastActiveAt, OffsetDateTime.now()));
         return message;
     }
 
@@ -129,11 +130,15 @@ public class ConversationService {
         List<Message> newestFirst = messageMapper.selectList(new LambdaQueryWrapper<Message>()
                 .eq(Message::getConversationId, conversationId)
                 // 卡片 JSON 用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文。
-                .notIn(Message::getKind,
-                        Message.KIND_DOCTOR_RECOMMENDATIONS, Message.KIND_DOCTOR_SLOTS,
+                .notIn(
+                        Message::getKind,
+                        Message.KIND_DOCTOR_RECOMMENDATIONS,
+                        Message.KIND_DOCTOR_SLOTS,
                         Message.KIND_HOSPITAL_RECOMMENDATIONS,
-                        Message.KIND_APPOINTMENT, Message.KIND_APPOINTMENTS,
-                        Message.KIND_REPORT_UPLOAD, Message.KIND_REPORT_INTERPRETATION)
+                        Message.KIND_APPOINTMENT,
+                        Message.KIND_APPOINTMENTS,
+                        Message.KIND_REPORT_UPLOAD,
+                        Message.KIND_REPORT_INTERPRETATION)
                 .orderByDesc(Message::getId)
                 .last("LIMIT " + CONTEXT_MESSAGE_LIMIT));
         List<Message> chronological = new ArrayList<>(newestFirst);
@@ -145,24 +150,12 @@ public class ConversationService {
 
     private boolean isAiOutput(Message message) {
         return "assistant".equals(message.getRole())
-                && (Message.KIND_TEXT.equals(message.getKind())
-                || Message.isAiCardKind(message.getKind()));
+                && (Message.KIND_TEXT.equals(message.getKind()) || Message.isAiCardKind(message.getKind()));
     }
 
     public record MessageView(
-            Long id,
-            String role,
-            String kind,
-            String content,
-            String effort,
-            String disclaimer,
-            String createdAt) {
-    }
+            Long id, String role, String kind, String content, String effort, String disclaimer, String createdAt) {}
 
     /** 对话记录列表项；严格三字段，不加预览（见票 27 决策 11/12）。 */
-    public record ConversationSummary(
-            Long id,
-            String title,
-            String lastActiveAt) {
-    }
+    public record ConversationSummary(Long id, String title, String lastActiveAt) {}
 }

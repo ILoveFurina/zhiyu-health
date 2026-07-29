@@ -7,6 +7,7 @@ import com.zhiyu.health.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,25 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 /** B 端认证：登录与当前员工资料，只做参数校验与装配 */
 @RestController
 @RequestMapping("/api/b/auth")
+@RequiredArgsConstructor
 public class BAuthController {
 
     private final AuthService authService;
 
-    public BAuthController(AuthService authService) {
-        this.authService = authService;
-    }
+    public record LoginRequest(@NotBlank @Size(max = 50) String username, @NotBlank @Size(max = 128) String password) {}
 
-    public record LoginRequest(
-            @NotBlank @Size(max = 50) String username,
-            @NotBlank @Size(max = 128) String password) {
-    }
-
-    public record TokenResponse(String accessToken, String tokenType) {
-    }
+    public record TokenResponse(String accessToken, String tokenType) {}
 
     /** 员工资料：不含 passwordHash */
-    public record StaffProfile(String username, String role, Long doctorId) {
-    }
+    public record StaffProfile(String username, String role, Long doctorId) {}
 
     @PostMapping("/login")
     public TokenResponse login(@Validated @RequestBody LoginRequest request) {

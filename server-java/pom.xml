@@ -19,6 +19,8 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- Spring Boot BOM 只托管 lombok，mapstruct 需自行钉版本 -->
+        <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
 
     <dependencies>
@@ -76,6 +78,18 @@
             <version>0.12.7</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- 消灭 getter/setter 与纯赋值构造器样板；optional 不传递依赖 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- 本阶段仅接基础设施，mapper 接口在 P4 阶段引入 -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -88,6 +102,47 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- 注解处理器顺序固定：lombok 先行展开，binding 协调两者，mapstruct 最后读 Lombok 产物 -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>2.46.1</version>
+                <configuration>
+                    <!-- 只约束相对 main 有改动的文件，避免全仓格式化 churn -->
+                    <ratchetFrom>main</ratchetFrom>
+                    <java>
+                        <!-- 本阶段只约束 main 源集：测试源不在本阶段改动范围，避免越权格式化 -->
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                        </includes>
+                        <!-- palantirJavaFormat 为 4 空格缩进，最接近本仓既有风格 -->
+                        <palantirJavaFormat/>
+                    </java>
+                </configuration>
             </plugin>
         </plugins>
     </build>

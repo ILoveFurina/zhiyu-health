@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.ChatService;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,22 +13,16 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /** C 端“我的挂号”接口，只做患者身份装配。 */
 @RestController
 @RequestMapping("/api/c/appointments")
+@RequiredArgsConstructor
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
-    public AppointmentController(AppointmentService appointmentService) {
-        this.appointmentService = appointmentService;
-    }
-
     @GetMapping
-    public List<AppointmentOut> list(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
+    public List<AppointmentOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId) {
         return appointmentService.listForPatient(Long.parseLong(patientId)).stream()
                 .map(AppointmentOut::from)
                 .toList();
@@ -34,10 +30,8 @@ public class AppointmentController {
 
     @PostMapping("/{appointmentId}/cancel")
     public AppointmentOut cancel(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId,
-            @PathVariable long appointmentId) {
-        return AppointmentOut.from(
-                appointmentService.cancel(Long.parseLong(patientId), appointmentId));
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) String patientId, @PathVariable long appointmentId) {
+        return AppointmentOut.from(appointmentService.cancel(Long.parseLong(patientId), appointmentId));
     }
 
     public record AppointmentOut(
@@ -56,9 +50,16 @@ public class AppointmentController {
 
         static AppointmentOut from(AppointmentService.AppointmentView value) {
             return new AppointmentOut(
-                    value.id(), value.scheduleId(), value.doctorId(), value.doctorName(),
-                    value.departmentName(), value.scheduleDate(), value.timeSlot(),
-                    value.sequenceNumber(), value.status(), value.conditionSummary(),
+                    value.id(),
+                    value.scheduleId(),
+                    value.doctorId(),
+                    value.doctorName(),
+                    value.departmentName(),
+                    value.scheduleDate(),
+                    value.timeSlot(),
+                    value.sequenceNumber(),
+                    value.status(),
+                    value.conditionSummary(),
                     value.conditionSummary() == null ? null : ChatService.DISCLAIMER,
                     value.createdAt());
         }

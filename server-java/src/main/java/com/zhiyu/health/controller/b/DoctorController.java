@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,26 +21,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /** 医生管理：仅 admin 角色可操作，业务在 OrganizationService */
 @RestController
 @RequestMapping("/api/b/doctors")
+@RequiredArgsConstructor
 public class DoctorController {
 
     private final OrganizationService organizationService;
-
-    public DoctorController(OrganizationService organizationService) {
-        this.organizationService = organizationService;
-    }
 
     public record DoctorInput(
             @NotNull Long departmentId,
             @NotBlank @Size(max = 50) String name,
             @NotBlank @Size(max = 50) String title,
             @NotBlank String specialty,
-            @NotBlank @Size(max = 500) String photoUrl) {
-    }
+            @NotBlank @Size(max = 500) String photoUrl) {}
 
     @GetMapping
     public List<Doctor> list(HttpServletRequest request) {
@@ -58,9 +54,7 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
-    public Doctor update(@PathVariable long id,
-                         @Validated @RequestBody DoctorInput input,
-                         HttpServletRequest request) {
+    public Doctor update(@PathVariable long id, @Validated @RequestBody DoctorInput input, HttpServletRequest request) {
         AdminGuard.requireAdmin(request);
         Doctor doctor = toEntity(new Doctor(), input);
         doctor.setId(id);

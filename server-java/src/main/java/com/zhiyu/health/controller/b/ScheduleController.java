@@ -3,12 +3,15 @@ package com.zhiyu.health.controller.b;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.service.ScheduleService;
 import com.zhiyu.health.service.ScheduleCapacityException;
+import com.zhiyu.health.service.ScheduleService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,25 +24,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/b/schedules")
+@RequiredArgsConstructor
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
-
-    public ScheduleController(ScheduleService scheduleService) {
-        this.scheduleService = scheduleService;
-    }
 
     public record ScheduleInput(
             @NotNull Long doctorId,
             @NotNull LocalDate scheduleDate,
             @NotNull TimeSlot timeSlot,
-            @NotNull @Positive Integer totalSlots) {
-    }
+            @NotNull @Positive Integer totalSlots) {}
 
     @GetMapping
     public List<Schedule> list(HttpServletRequest request) {
@@ -69,9 +65,7 @@ public class ScheduleController {
     }
 
     @PutMapping("/{id}")
-    public Schedule update(@PathVariable long id,
-                           @Valid @RequestBody ScheduleInput input,
-                           HttpServletRequest request) {
+    public Schedule update(@PathVariable long id, @Valid @RequestBody ScheduleInput input, HttpServletRequest request) {
         AdminGuard.requireAdmin(request);
         Schedule changes = toEntity(input);
         changes.setId(id);

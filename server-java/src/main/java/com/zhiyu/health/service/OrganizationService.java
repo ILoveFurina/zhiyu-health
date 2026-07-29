@@ -7,25 +7,18 @@ import com.zhiyu.health.entity.Hospital;
 import com.zhiyu.health.mapper.DepartmentMapper;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.HospitalMapper;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 /** 组织管理（医院/科室/医生）：外键归属在写入前校验，缺失返回 null 由 HTTP 层映射 404 */
 @Service
+@RequiredArgsConstructor
 public class OrganizationService {
 
     private final HospitalMapper hospitalMapper;
     private final DepartmentMapper departmentMapper;
     private final DoctorMapper doctorMapper;
-
-    public OrganizationService(HospitalMapper hospitalMapper,
-                               DepartmentMapper departmentMapper,
-                               DoctorMapper doctorMapper) {
-        this.hospitalMapper = hospitalMapper;
-        this.departmentMapper = departmentMapper;
-        this.doctorMapper = doctorMapper;
-    }
 
     public List<Hospital> listHospitals() {
         return hospitalMapper.selectList(new QueryWrapper<Hospital>().orderByAsc("id"));

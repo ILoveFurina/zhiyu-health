@@ -3,12 +3,11 @@ package com.zhiyu.health.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.springframework.stereotype.Component;
 
 /**
  * 跨栈契约基座：仓库根 contracts/ 是 server-java 与 server-py 共享常量的单一事实源。
@@ -64,8 +63,7 @@ public class Contracts {
         try {
             return mapper.readValue(file.toFile(), type);
         } catch (IOException e) {
-            throw new IllegalStateException(
-                    "跨栈契约加载失败（检查 contracts/ 是否随仓库完整部署）: " + file, e);
+            throw new IllegalStateException("跨栈契约加载失败（检查 contracts/ 是否随仓库完整部署）: " + file, e);
         }
     }
 
@@ -90,8 +88,7 @@ public class Contracts {
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
-    public record Disclaimer(String text) {
-    }
+    public record Disclaimer(String text) {}
 
     /** SSE 事件协议：流事件名、工具名→事件名、消息 kind 与事件→kind 映射。 */
     public record SseEvents(

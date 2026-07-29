@@ -1,16 +1,14 @@
 package com.zhiyu.health.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class RedisSlotCounter implements SlotCounter {
 
     private final StringRedisTemplate redisTemplate;
-
-    public RedisSlotCounter(StringRedisTemplate redisTemplate) {
-        this.redisTemplate = redisTemplate;
-    }
 
     @Override
     public void initialize(long scheduleId, int remainingSlots) {

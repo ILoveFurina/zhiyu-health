@@ -9,17 +9,17 @@ import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
 import com.zhiyu.health.rule.RedFlagHit;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /** 对话主干：持久化 → 红线前置 → Agent SSE → 出口兜底。 */
 @Service
+@RequiredArgsConstructor
 public class ChatService {
 
     public static final String DISCLAIMER = "仅供参考，不替代医生诊断";
@@ -31,17 +31,14 @@ public class ChatService {
     private final RedFlagRuleEngine redFlagRules;
     private final ObjectMapper objectMapper;
 
-    public ChatService(AgentClient agentClient, ConversationService conversations,
-                       RedFlagRuleEngine redFlagRules, ObjectMapper objectMapper) {
-        this.agentClient = agentClient;
-        this.conversations = conversations;
-        this.redFlagRules = redFlagRules;
-        this.objectMapper = objectMapper;
-    }
-
-    public SseEmitter chat(Long patientId, Long conversationId, String content,
-                           String effort, String scenario,
-                           Double longitude, Double latitude) {
+    public SseEmitter chat(
+            Long patientId,
+            Long conversationId,
+            String content,
+            String effort,
+            String scenario,
+            Double longitude,
+            Double latitude) {
         // 安全门先于会话与消息写入，更先于 Agent 调用。
         RedFlagHit hit = redFlagRules.judge(content);
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, content);
@@ -55,13 +52,12 @@ public class ChatService {
 
     private SseEmitter redFlagStream(Conversation conversation, RedFlagHit hit) {
         String warning = RED_FLAG_TEMPLATE.formatted(hit.ruleName(), hit.advice());
-        Message saved = conversations.appendMessage(
-                conversation.getId(), "assistant", warning, "red_flag", null);
+        Message saved = conversations.appendMessage(conversation.getId(), "assistant", warning, "red_flag", null);
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         try {
-            send(emitter, "meta", objectMapper.createObjectNode()
-                    .put("conversation_id", conversation.getId()));
-            ObjectNode data = objectMapper.createObjectNode()
+            send(emitter, "meta", objectMapper.createObjectNode().put("conversation_id", conversation.getId()));
+            ObjectNode data = objectMapper
+                    .createObjectNode()
                     .put("message_id", saved.getId())
                     .put("rule", hit.ruleName())
                     .put("content", warning)
@@ -75,8 +71,8 @@ public class ChatService {
         return emitter;
     }
 
-    private SseEmitter agentStream(Conversation conversation, String effort, String scenario,
-                                   Double longitude, Double latitude) {
+    private SseEmitter agentStream(
+            Conversation conversation, String effort, String scenario, Double longitude, Double latitude) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         Map<String, Object> body = new HashMap<>();
         body.put("messages", conversations.recentContext(conversation.getId()));
@@ -90,15 +86,16 @@ public class ChatService {
             body.put("latitude", latitude);
         }
 
-        agentClient.chat(body).subscribe(
-                event -> forwardAgentEvent(emitter, conversation.getId(), event),
-                emitter::completeWithError,
-                emitter::complete);
+        agentClient
+                .chat(body)
+                .subscribe(
+                        event -> forwardAgentEvent(emitter, conversation.getId(), event),
+                        emitter::completeWithError,
+                        emitter::complete);
         return emitter;
     }
 
-    private void forwardAgentEvent(SseEmitter emitter, Long conversationId,
-                                   ServerSentEvent<String> event) {
+    private void forwardAgentEvent(SseEmitter emitter, Long conversationId, ServerSentEvent<String> event) {
         try {
             String eventName = event.event();
             JsonNode data = parseData(event.data());
@@ -116,11 +113,7 @@ public class ChatService {
             } else if (Message.isAiCardKind(eventName) && data instanceof ObjectNode object) {
                 ensureDisclaimer(object);
                 Message saved = conversations.appendMessage(
-                        conversationId,
-                        "assistant",
-                        objectMapper.writeValueAsString(object),
-                        eventName,
-                        null);
+                        conversationId, "assistant", objectMapper.writeValueAsString(object), eventName, null);
                 object.put("message_id", saved.getId());
             }
             send(emitter, eventName, data);
@@ -130,9 +123,7 @@ public class ChatService {
     }
 
     private JsonNode parseData(String data) throws JsonProcessingException {
-        return data == null || data.isBlank()
-                ? objectMapper.createObjectNode()
-                : objectMapper.readTree(data);
+        return data == null || data.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(data);
     }
 
     private void ensureDisclaimer(ObjectNode message) {

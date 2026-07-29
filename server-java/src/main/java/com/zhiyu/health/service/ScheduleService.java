@@ -4,14 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
-
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
+@RequiredArgsConstructor
 public class ScheduleService {
 
     private final ScheduleMapper scheduleMapper;
@@ -19,19 +20,8 @@ public class ScheduleService {
     private final SlotCounter slotCounter;
     private final TransactionTemplate transactionTemplate;
 
-    public ScheduleService(ScheduleMapper scheduleMapper,
-                           DoctorMapper doctorMapper,
-                           SlotCounter slotCounter,
-                           TransactionTemplate transactionTemplate) {
-        this.scheduleMapper = scheduleMapper;
-        this.doctorMapper = doctorMapper;
-        this.slotCounter = slotCounter;
-        this.transactionTemplate = transactionTemplate;
-    }
-
     public List<Schedule> listSchedules() {
-        return scheduleMapper.selectList(new QueryWrapper<Schedule>()
-                .orderByAsc("schedule_date", "time_slot", "id"));
+        return scheduleMapper.selectList(new QueryWrapper<Schedule>().orderByAsc("schedule_date", "time_slot", "id"));
     }
 
     public Schedule getSchedule(long scheduleId) {
@@ -115,8 +105,8 @@ public class ScheduleService {
             return false;
         }
         try {
-            Boolean decremented = transactionTemplate.execute(status ->
-                    scheduleMapper.decrementRemainingSlots(scheduleId) == 1);
+            Boolean decremented =
+                    transactionTemplate.execute(status -> scheduleMapper.decrementRemainingSlots(scheduleId) == 1);
             if (!Boolean.TRUE.equals(decremented)) {
                 slotCounter.increment(scheduleId);
                 return false;

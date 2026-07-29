@@ -4,16 +4,17 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * demo 级单机内存限流：固定窗口 60 秒，key 为已认证 subject（无则退回 remoteAddr）。
  * 由 WebConfig 装配（order 30，在 AuthFilter 之后，保证 subject 可读）。
  */
+@RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final long WINDOW_MS = 60_000L;
@@ -21,13 +22,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final int permitsPerMinute;
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(int permitsPerMinute) {
-        this.permitsPerMinute = permitsPerMinute;
-    }
-
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         Object subject = request.getAttribute(AuthFilter.ATTR_AUTH_SUBJECT);
         String key = subject != null ? subject.toString() : request.getRemoteAddr();
 

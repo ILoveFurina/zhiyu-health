@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,17 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/b/reception")
+@RequiredArgsConstructor
 public class ReceptionController {
 
     private final ReceptionService receptionService;
 
-    public ReceptionController(ReceptionService receptionService) {
-        this.receptionService = receptionService;
-    }
-
     public record CompleteInput(
-            @NotBlank @Size(max = 2000) String diagnosis,
-            @NotBlank @Size(max = 2000) String advice) { }
+            @NotBlank @Size(max = 2000) String diagnosis, @NotBlank @Size(max = 2000) String advice) {}
 
     @GetMapping
     public ReceptionService.ReceptionDashboard today(HttpServletRequest request) {
@@ -33,15 +30,13 @@ public class ReceptionController {
     }
 
     @GetMapping("/appointments/{id}")
-    public ReceptionService.AppointmentDetail detail(@PathVariable long id,
-                                                     HttpServletRequest request) {
+    public ReceptionService.AppointmentDetail detail(@PathVariable long id, HttpServletRequest request) {
         return receptionService.detail(staffId(request), id);
     }
 
     @PostMapping("/appointments/{id}/complete")
     public ReceptionService.AppointmentDetail complete(
-            @PathVariable long id, @Valid @RequestBody CompleteInput input,
-            HttpServletRequest request) {
+            @PathVariable long id, @Valid @RequestBody CompleteInput input, HttpServletRequest request) {
         return receptionService.complete(staffId(request), id, input.diagnosis(), input.advice());
     }
 

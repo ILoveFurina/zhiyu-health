@@ -5,27 +5,20 @@ import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 @Service
+@RequiredArgsConstructor
 public class AppointmentService {
 
     private final AppointmentMapper appointmentMapper;
     private final ScheduleMapper scheduleMapper;
     private final SlotCounter slotCounter;
     private final TransactionTemplate transactionTemplate;
-
-    public AppointmentService(AppointmentMapper appointmentMapper, ScheduleMapper scheduleMapper,
-                              SlotCounter slotCounter, TransactionTemplate transactionTemplate) {
-        this.appointmentMapper = appointmentMapper;
-        this.scheduleMapper = scheduleMapper;
-        this.slotCounter = slotCounter;
-        this.transactionTemplate = transactionTemplate;
-    }
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         AtomicBoolean redisDeducted = new AtomicBoolean();
@@ -37,8 +30,7 @@ public class AppointmentService {
                 if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
                     throw new ApiException(404, "排班不存在或已停用");
                 }
-                Appointment existing = appointmentMapper.selectForPatientAndSchedule(
-                        patientId, scheduleId);
+                Appointment existing = appointmentMapper.selectForPatientAndSchedule(patientId, scheduleId);
                 if (existing != null) {
                     return existing.getId();
                 }
@@ -71,11 +63,12 @@ public class AppointmentService {
     }
 
     public List<AppointmentView> listForPatient(long patientId) {
-        return appointmentMapper.selectViewsByPatient(patientId).stream().map(this::toView).toList();
+        return appointmentMapper.selectViewsByPatient(patientId).stream()
+                .map(this::toView)
+                .toList();
     }
 
-    public AppointmentView createWithSummary(long patientId, long conversationId,
-                                             long scheduleId, String summary) {
+    public AppointmentView createWithSummary(long patientId, long conversationId, long scheduleId, String summary) {
         AppointmentView created = create(patientId, conversationId, scheduleId);
         if (created.conditionSummary() != null) {
             // 幂等重试返回已有完整挂号单，保留原会话摘要，禁止被新会话覆盖或误报为发送失败。
@@ -89,11 +82,10 @@ public class AppointmentService {
         }
     }
 
-    public AppointmentView saveConditionSummary(long patientId, long conversationId,
-                                                long appointmentId, String summary) {
+    public AppointmentView saveConditionSummary(
+            long patientId, long conversationId, long appointmentId, String summary) {
         String safeSummary = ensureDisclaimer(summary);
-        if (appointmentMapper.updateConditionSummary(
-                appointmentId, patientId, conversationId, safeSummary) != 1) {
+        if (appointmentMapper.updateConditionSummary(appointmentId, patientId, conversationId, safeSummary) != 1) {
             throw new ApiException(404, "挂号单不存在");
         }
         return view(appointmentId);
@@ -101,14 +93,12 @@ public class AppointmentService {
 
     public AppointmentView cancel(long patientId, long appointmentId) {
         AtomicBoolean redisRefunded = new AtomicBoolean();
-        java.util.concurrent.atomic.AtomicLong refundedScheduleId =
-                new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicLong refundedScheduleId = new java.util.concurrent.atomic.AtomicLong();
         Long resultId;
         try {
             resultId = transactionTemplate.execute(status -> {
                 // 挂号单行锁保证重复取消只让首次状态转换进入双存储回补分支。
-                Appointment appointment = appointmentMapper.selectByIdForUpdate(
-                        appointmentId, patientId);
+                Appointment appointment = appointmentMapper.selectByIdForUpdate(appointmentId, patientId);
                 if (appointment == null) {
                     throw new ApiException(404, "挂号单不存在");
                 }
@@ -153,25 +143,38 @@ public class AppointmentService {
         if (trimmed.contains(ChatService.DISCLAIMER)) {
             return trimmed;
         }
-        String separator = trimmed.endsWith("。") || trimmed.endsWith("！")
-                || trimmed.endsWith("？") || trimmed.endsWith(".") ? "" : "。";
+        String separator =
+                trimmed.endsWith("。") || trimmed.endsWith("！") || trimmed.endsWith("？") || trimmed.endsWith(".")
+                        ? ""
+                        : "。";
         return trimmed + separator + ChatService.DISCLAIMER;
     }
 
     private AppointmentView toView(Appointment appointment) {
-        String displayStatus = switch (appointment.getStatus()) {
-            case Appointment.STATUS_VISITED -> "已接诊";
-            case Appointment.STATUS_CANCELLED -> "已取消";
-            default -> "已约";
-        };
+        String displayStatus =
+                switch (appointment.getStatus()) {
+                    case Appointment.STATUS_VISITED -> "已接诊";
+                    case Appointment.STATUS_CANCELLED -> "已取消";
+                    default -> "已约";
+                };
         return new AppointmentView(
-                appointment.getId(), appointment.getScheduleId(), appointment.getDoctorId(),
-                appointment.getDoctorName(), appointment.getDepartmentName(),
-                appointment.getScheduleDate() == null ? null : appointment.getScheduleDate().toString(),
-                appointment.getTimeSlot() == null ? null : appointment.getTimeSlot().getValue(),
-                appointment.getSequenceNumber(), displayStatus,
+                appointment.getId(),
+                appointment.getScheduleId(),
+                appointment.getDoctorId(),
+                appointment.getDoctorName(),
+                appointment.getDepartmentName(),
+                appointment.getScheduleDate() == null
+                        ? null
+                        : appointment.getScheduleDate().toString(),
+                appointment.getTimeSlot() == null
+                        ? null
+                        : appointment.getTimeSlot().getValue(),
+                appointment.getSequenceNumber(),
+                displayStatus,
                 summaryWithoutDisclaimer(appointment.getConditionSummary()),
-                appointment.getCreatedAt() == null ? null : appointment.getCreatedAt().toString());
+                appointment.getCreatedAt() == null
+                        ? null
+                        : appointment.getCreatedAt().toString());
     }
 
     private String summaryWithoutDisclaimer(String summary) {
@@ -183,8 +186,15 @@ public class AppointmentService {
     }
 
     public record AppointmentView(
-            Long id, Long scheduleId, Long doctorId, String doctorName, String departmentName,
-            String scheduleDate, String timeSlot, Integer sequenceNumber, String status,
-            String conditionSummary, String createdAt) {
-    }
+            Long id,
+            Long scheduleId,
+            Long doctorId,
+            String doctorName,
+            String departmentName,
+            String scheduleDate,
+            String timeSlot,
+            Integer sequenceNumber,
+            String status,
+            String conditionSummary,
+            String createdAt) {}
 }
