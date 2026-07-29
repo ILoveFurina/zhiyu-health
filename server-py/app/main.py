@@ -21,6 +21,7 @@ from app.config import get_settings, get_web_settings
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
 from app.services.health import HealthChecker, HealthService
+from app.services.knowledge import build_knowledge_retriever
 from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
@@ -49,10 +50,14 @@ def create_app(
         app.state.business_client = BusinessCallbackClient(
             settings.server_java_base_url, callback_secret=settings.agent_callback_secret
         )
+        # 知识检索器（ADR-0010）：database_url/embedding 未配置时为 None，运行时检索降级
+        knowledge_retriever = build_knowledge_retriever(settings)
         runner = agent_runner or LazySettingsAgentRunner(
-            build_business_tools(app.state.business_client)
+            build_business_tools(app.state.business_client), knowledge_retriever
         )
-        app.state.chat_service = AgentChatService(runner)
+        app.state.chat_service = AgentChatService(
+            runner, rag_available=knowledge_retriever is not None
+        )
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
         try:

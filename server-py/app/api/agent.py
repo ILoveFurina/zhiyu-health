@@ -41,6 +41,7 @@ async def chat(
         ),
         effort_choice=body.effort,
         scenario=body.scenario,
+        knowledge_source=body.knowledge_source,
         longitude=body.longitude,
         latitude=body.latitude,
     )

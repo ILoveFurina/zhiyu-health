@@ -65,10 +65,14 @@ CardEvent = Literal[
     "appointment", "appointments", "contraindication",
 ]
 
+# search_knowledge 工具名：工具不投影成卡片（tool_to_event 不含），但其结果
+# 投影成 knowledge 元事件（携带 source/status/count，ADR-0010）。
+KNOWLEDGE_TOOL = "search_knowledge"
+
 
 @dataclass(frozen=True)
 class AgentOutput:
-    event: Literal["token"] | CardEvent
+    event: Literal["token", "knowledge"] | CardEvent
     data: str | dict[str, Any]
 
 
@@ -177,15 +181,31 @@ class LangGraphAgentRunner:
 
 
 def _tool_output(message: ToolMessage) -> AgentOutput | None:
-    event = _tool_event(message.name)
-    if event is None or not isinstance(message.content, str):
+    """工具结果投影：卡片事件（tool_to_event）或 knowledge 元事件（search_knowledge）。
+
+    search_knowledge 不在 tool_to_event（不投影成卡片），其结果投影成 knowledge
+    元事件，携带 source/status/count（空召回标 degraded，ADR-0010）。
+    """
+    if not isinstance(message.content, str):
         return None
     try:
         payload = json.loads(message.content)
     except json.JSONDecodeError:
         # 工具错误仍会回到模型解释；只有成功的结构化结果才投影成卡片。
         return None
-    return AgentOutput(event, payload) if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    if message.name == KNOWLEDGE_TOOL:
+        count = int(payload.get("count", 0))
+        return AgentOutput("knowledge", {
+            "source": "rag",
+            "status": "ok" if count > 0 else "degraded",
+            "count": count,
+        })
+    event = _tool_event(message.name)
+    if event is None:
+        return None
+    return AgentOutput(event, payload)
 
 
 def _tool_event(tool_name: str | None) -> CardEvent | None:

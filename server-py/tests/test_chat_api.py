@@ -26,7 +26,8 @@ from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
 def _post_chat(client, payload: dict) -> list[dict]:
-    payload = {"patient_id": 12, "conversation_id": 7, **payload}
+    # 默认关闭知识增强：既有用例聚焦业务工具卡片流，knowledge 路径由 test_knowledge 覆盖
+    payload = {"knowledge_source": "none", "patient_id": 12, "conversation_id": 7, **payload}
     with client.stream(
         "POST",
         "/api/agent/chat",
