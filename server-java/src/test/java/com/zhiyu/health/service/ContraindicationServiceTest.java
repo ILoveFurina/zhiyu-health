@@ -11,10 +11,13 @@ import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.HealthProfileMapper;
 import com.zhiyu.health.mapper.MedicationMapper;
+import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.rule.ContraindicationFactRepository;
 import com.zhiyu.health.rule.ContraindicationFacts;
+import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.rule.ContraindicationRuleEngine;
 import com.zhiyu.health.rule.MedicationContraindicationFact;
+import com.zhiyu.health.rule.MedicationInteractionFact;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,13 +27,16 @@ class ContraindicationServiceTest {
     private final HealthProfileMapper profileMapper = mock(HealthProfileMapper.class);
     private final HealthProfileAllergyMapper allergyMapper = mock(HealthProfileAllergyMapper.class);
     private final MedicationMapper medicationMapper = mock(MedicationMapper.class);
+    private final PrescriptionItemMapper prescriptionItemMapper = mock(PrescriptionItemMapper.class);
     private final ContraindicationFactRepository facts = mock(ContraindicationFactRepository.class);
     private final ContraindicationService service = new ContraindicationService(
             profileMapper,
             allergyMapper,
             medicationMapper,
+            prescriptionItemMapper,
             facts,
-            new ContraindicationRuleEngine(TestContracts.instance()));
+            new ContraindicationRuleEngine(TestContracts.instance()),
+            TestContracts.instance());
 
     @Test
     void checksCurrentProfilesAllergiesAgainstValidatedMedicationIds() {
@@ -79,6 +85,26 @@ class ContraindicationServiceTest {
         ContraindicationService.CheckCommand command = new ContraindicationService.CheckCommand(12L, List.of(1L));
         assertThat(service.check(command).decision()).isEqualTo("REVIEW_REQUIRED");
         assertThat(service.check(command).blocked()).isTrue();
+    }
+
+    @Test
+    void checksCandidateAgainstCurrentApprovedPrescription() {
+        when(profileMapper.selectActive(12L)).thenReturn(profile(31L));
+        when(allergyMapper.selectAllergens(31L)).thenReturn(List.of());
+        when(medicationMapper.selectByIds(List.of(2L))).thenReturn(List.of(medication(2L)));
+        when(prescriptionItemMapper.selectMedicationIdsByHealthProfileAndStatus(31L, "APPROVED"))
+                .thenReturn(List.of(4L));
+        when(facts.load(List.of(2L, 4L)))
+                .thenReturn(new ContraindicationFacts(
+                        List.of(
+                                new MedicationContraindicationFact(2L, List.of("布洛芬"), List.of()),
+                                new MedicationContraindicationFact(4L, List.of("华法林"), List.of())),
+                        List.of(new MedicationInteractionFact(2L, 4L, "合用可能增加出血风险")),
+                        true));
+
+        ContraindicationResult result = service.check(new ContraindicationService.CheckCommand(12L, List.of(2L)));
+
+        assertThat(result.decision()).isEqualTo("BLOCKED");
     }
 
     private HealthProfile profile(long id) {

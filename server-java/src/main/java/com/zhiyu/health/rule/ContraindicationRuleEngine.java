@@ -40,8 +40,11 @@ public class ContraindicationRuleEngine {
             }
         }
         for (MedicationInteractionFact interaction : facts.interactions()) {
-            if (candidates.contains(interaction.leftMedicationId())
-                    && candidates.contains(interaction.rightMedicationId())) {
+            boolean involvesCandidate = candidates.contains(interaction.leftMedicationId())
+                    || candidates.contains(interaction.rightMedicationId());
+            if (involvesCandidate
+                    && factMedicationIds.contains(interaction.leftMedicationId())
+                    && factMedicationIds.contains(interaction.rightMedicationId())) {
                 reasons.add("药品 %d 与药品 %d：%s"
                         .formatted(
                                 interaction.leftMedicationId(), interaction.rightMedicationId(), interaction.reason()));

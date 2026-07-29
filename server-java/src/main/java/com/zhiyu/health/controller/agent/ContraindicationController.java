@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.agent;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.controller.agent.mapping.ContraindicationDtoMapper;
 import com.zhiyu.health.service.ContraindicationService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,12 +27,13 @@ public class ContraindicationController {
     private final ContraindicationDtoMapper dtoMapper;
 
     @PostMapping("/check")
-    public CheckResponse check(@Valid @RequestBody CheckRequest request) {
-        return dtoMapper.toResponse(service.check(dtoMapper.toCommand(request)));
+    public CheckResponse check(
+            @RequestAttribute(AgentCallbackAuthFilter.ATTR_PATIENT_ID) Long patientId,
+            @Valid @RequestBody CheckRequest request) {
+        return dtoMapper.toResponse(service.check(dtoMapper.toCommand(patientId, request)));
     }
 
     public record CheckRequest(
-            @JsonProperty("patient_id") @NotNull @Positive Long patientId,
             @JsonProperty("medication_ids") @NotEmpty @Size(max = 20) List<@NotNull @Positive Long> medicationIds) {}
 
     public record CheckResponse(

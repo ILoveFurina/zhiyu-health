@@ -53,6 +53,21 @@ class ContraindicationRuleEngineTest {
     }
 
     @Test
+    void blocksWhenCandidateInteractsWithCurrentApprovedMedication() {
+        ContraindicationFacts facts = new ContraindicationFacts(
+                List.of(
+                        new MedicationContraindicationFact(2L, List.of("布洛芬"), List.of()),
+                        new MedicationContraindicationFact(4L, List.of("华法林"), List.of())),
+                List.of(new MedicationInteractionFact(2L, 4L, "合用可能增加出血风险")),
+                true);
+
+        ContraindicationResult result = engine.judge(List.of(), List.of(2L), facts);
+
+        assertThat(result.decision()).isEqualTo("BLOCKED");
+        assertThat(result.reasons()).containsExactly("药品 2 与药品 4：合用可能增加出血风险");
+    }
+
+    @Test
     void requiresHumanReviewWhenFactsAreMissing() {
         ContraindicationFacts facts = new ContraindicationFacts(
                 List.of(new MedicationContraindicationFact(1L, List.of("阿莫西林"), List.of("青霉素"))), List.of(), false);

@@ -124,7 +124,7 @@ Page({
         onAppointments: (data) => this.appendCard('appointments', data),
         onContraindication: (data) => this.showContraindication(aiMsg.id, data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
-        onDone: () => this.setData({ sending: false }),
+        onDone: () => {},
         onError: (err) => this.failRound(aiMsg.id, err),
       },
     })
@@ -227,6 +227,7 @@ Page({
       disclaimer: data.disclaimer,
       streaming: false,
     }))
+    this.setData({ sending: false })
   },
 
   closeRedFlag() {

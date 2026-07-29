@@ -1,11 +1,13 @@
 package com.zhiyu.health.service;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.HealthProfileMapper;
 import com.zhiyu.health.mapper.MedicationMapper;
+import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.rule.ContraindicationFactRepository;
 import com.zhiyu.health.rule.ContraindicationFacts;
 import com.zhiyu.health.rule.ContraindicationResult;
@@ -24,8 +26,10 @@ public class ContraindicationService {
     private final HealthProfileMapper profileMapper;
     private final HealthProfileAllergyMapper allergyMapper;
     private final MedicationMapper medicationMapper;
+    private final PrescriptionItemMapper prescriptionItemMapper;
     private final ContraindicationFactRepository factRepository;
     private final ContraindicationRuleEngine ruleEngine;
+    private final Contracts contracts;
 
     public ContraindicationResult check(CheckCommand command) {
         List<Long> medicationIds = List.copyOf(new LinkedHashSet<>(command.medicationIds()));
@@ -46,9 +50,13 @@ public class ContraindicationService {
         }
 
         List<String> allergies = allergyMapper.selectAllergens(profile.getId());
+        List<Long> approvedMedicationIds = prescriptionItemMapper.selectMedicationIdsByHealthProfileAndStatus(
+                profile.getId(), contracts.prescriptionFlow().statuses().get("approved"));
+        LinkedHashSet<Long> checkedMedicationIds = new LinkedHashSet<>(medicationIds);
+        checkedMedicationIds.addAll(approvedMedicationIds);
         ContraindicationFacts facts;
         try {
-            facts = factRepository.load(medicationIds);
+            facts = factRepository.load(List.copyOf(checkedMedicationIds));
         } catch (RuntimeException unavailable) {
             // 医学事实源不可用时必须 fail closed：不猜测安全，也不把异常细节或患者数据写入日志。
             facts = new ContraindicationFacts(List.of(), List.of(), false);

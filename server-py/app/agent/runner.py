@@ -12,7 +12,14 @@ from typing import Any, Literal, Protocol, cast
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import BaseTool
 from langgraph.graph.state import CompiledStateGraph
 
@@ -61,6 +68,36 @@ class AgentOutput:
     data: str | dict[str, Any]
 
 
+@dataclass
+class _ModelTurnBuffer:
+    """模型调用工具前不下发草稿，避免确定性安全门尚未判定时泄漏用药建议。"""
+
+    tokens: list[str]
+    calls_tool: bool = False
+
+    def accept(self, chunk: BaseMessage) -> list[AgentOutput]:
+        if isinstance(chunk.content, str) and chunk.content:
+            self.tokens.append(chunk.content)
+        if isinstance(chunk, (AIMessage, AIMessageChunk)) and (
+            chunk.tool_calls
+            or (isinstance(chunk, AIMessageChunk) and chunk.tool_call_chunks)
+        ):
+            self.calls_tool = True
+        complete = isinstance(chunk, AIMessage) or (
+            isinstance(chunk, AIMessageChunk) and chunk.chunk_position == "last"
+        )
+        return self.flush() if complete else []
+
+    def discard(self) -> None:
+        self.tokens.clear()
+        self.calls_tool = False
+
+    def flush(self) -> list[AgentOutput]:
+        outputs = [] if self.calls_tool else [AgentOutput("token", token) for token in self.tokens]
+        self.discard()
+        return outputs
+
+
 class AgentRunner(Protocol):
     def astream_reply(
         self, messages: list[dict[str, str]], effort: ReasoningEffort, context: AgentContext
@@ -100,6 +137,7 @@ class LangGraphAgentRunner:
     ) -> AsyncIterator[AgentOutput]:
         graph = self._graph(effort)
         lc_messages = _to_lc_messages(messages, context)
+        model_turn = _ModelTurnBuffer([])
         async for item in graph.astream(
             {"messages": lc_messages}, context=context, stream_mode="messages"
         ):
@@ -107,21 +145,29 @@ class LangGraphAgentRunner:
                 continue
             chunk, metadata = item
             if isinstance(chunk, ToolMessage):
-                event = _tool_event(chunk.name)
-                if event is not None and isinstance(chunk.content, str):
-                    try:
-                        payload = json.loads(chunk.content)
-                    except json.JSONDecodeError:
-                        # 工具错误仍会回到模型解释；只有成功的结构化结果才投影成卡片。
-                        continue
-                    if isinstance(payload, dict):
-                        yield AgentOutput(event, payload)
+                model_turn.discard()
+                output = _tool_output(chunk)
+                if output is not None:
+                    yield output
                 continue
             if metadata.get("langgraph_node") != "model":
                 continue
-            content = chunk.content
-            if isinstance(content, str) and content:
-                yield AgentOutput("token", content)
+            for output in model_turn.accept(chunk):
+                yield output
+        for output in model_turn.flush():
+            yield output
+
+
+def _tool_output(message: ToolMessage) -> AgentOutput | None:
+    event = _tool_event(message.name)
+    if event is None or not isinstance(message.content, str):
+        return None
+    try:
+        payload = json.loads(message.content)
+    except json.JSONDecodeError:
+        # 工具错误仍会回到模型解释；只有成功的结构化结果才投影成卡片。
+        return None
+    return AgentOutput(event, payload) if isinstance(payload, dict) else None
 
 
 def _tool_event(tool_name: str | None) -> CardEvent | None:

@@ -4,16 +4,17 @@
 
 **Blocked by:** 09 — 电子处方（medications 表）；21 — 健康档案（当前档案过敏史）（禁忌数据在 Neo4j，与 RAG 无关）
 
-**Status:** claimed
+**Status:** done
 
-- [ ] Neo4j 禁忌子图 seed：药品—禁忌关系边及药品—药品相互作用关系边，并通过 `medication_id` 与 PostgreSQL medications 对齐；两端只共享稳定 ID，不双写药品业务字段
-- [ ] server-java 新增只读 Neo4j 禁忌事实访问 seam 与 `rule/` 确定性规则引擎；Neo4j 客户端不得进入 mapper 或 controller，规则结果、决定值和卡片消息类型从 `contracts/` 加载
-- [ ] server-java 暴露单一禁忌检查能力接口；从已鉴权患者的当前健康档案读取过敏史，不接受 LLM 提供患者身份或过敏史原文
-- [ ] server-py 的 `check_contraindication` 工具仅回调 server-java；涉及药品推荐时必须先检查，命中后不得继续推荐或展示未经复检的替代药
-- [ ] 拦截话术（说明原因 + 建议咨询医生）与卡片呈现；LLM 解释必须带免责声明，规则判定本身不由 LLM 改写
-- [ ] server-java 规则单测覆盖危险输入必触发、正常输入不误触、药品相互作用与数据缺失时安全降级；MockMvc 覆盖越权/无当前档案/未知 medication_id 等负向分支
-- [ ] server-py 用 fake 业务回调断言工具调用顺序，且不直连或写入业务库
+- [x] Neo4j 禁忌子图 seed：药品—禁忌关系边及药品—药品相互作用关系边，并通过 `medication_id` 与 PostgreSQL medications 对齐；两端只共享稳定 ID，不双写药品业务字段
+- [x] server-java 新增只读 Neo4j 禁忌事实访问 seam 与 `rule/` 确定性规则引擎；Neo4j 客户端不得进入 mapper 或 controller，规则结果、决定值和卡片消息类型从 `contracts/` 加载
+- [x] server-java 暴露单一禁忌检查能力接口；从已鉴权患者的当前健康档案读取过敏史，不接受 LLM 提供患者身份或过敏史原文
+- [x] server-py 的 `check_contraindication` 工具仅回调 server-java；涉及药品推荐时必须先检查，命中后不得继续推荐或展示未经复检的替代药
+- [x] 拦截话术（说明原因 + 建议咨询医生）与卡片呈现；LLM 解释必须带免责声明，规则判定本身不由 LLM 改写
+- [x] server-java 规则单测覆盖危险输入必触发、正常输入不误触、药品相互作用与数据缺失时安全降级；MockMvc 覆盖越权/无当前档案/未知 medication_id 等负向分支
+- [x] server-py 用 fake 业务回调断言工具调用顺序，且不直连或写入业务库
 
 ## Comments
 
 - 2026-07-29：按硬约束把禁忌“判断方”从 Agent 工具改为 server-java 确定性规则引擎。Neo4j 仍是禁忌知识唯一来源，server-py 不得根据图查询结果自行作安全决定。
+- 2026-07-29：完成 30 条药品与禁忌/相互作用 seed、签名患者上下文、当前已审核处方联合检查、Agent 调用顺序与阻断卡片；server-java 178 项、server-py 52 项测试及静态检查全部通过，并在支付宝开发者工具走通登录与禁忌卡片展示且控制台无错误。

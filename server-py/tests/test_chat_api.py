@@ -4,6 +4,8 @@
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 from collections.abc import Callable, Iterator, Sequence
 from types import SimpleNamespace
@@ -444,7 +446,7 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
             return self
 
     fake = ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="", tool_calls=[ToolCall(
+        AIMessage(content="先吃一粒阿莫西林。", tool_calls=[ToolCall(
             name="check_contraindication",
             args={"medication_ids": [1]},
             id="call-contraindication",
@@ -477,6 +479,11 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
     assert [event["event"] for event in events] == ["meta", "contraindication", "done"]
     assert events[1]["data"]["blocked"] is True
     assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
-    assert json.loads(requests[0].content) == {"patient_id": 12, "medication_ids": [1]}
+    assert json.loads(requests[0].content) == {"medication_ids": [1]}
+    assert requests[0].headers["X-Agent-Patient-Id"] == "12"
+    assert requests[0].headers["X-Agent-Patient-Signature"] == hmac.new(
+        b"shared-secret", b"12", hashlib.sha256
+    ).hexdigest()
     assert b"allerg" not in requests[0].content
+    assert all("先吃一粒阿莫西林" not in str(event) for event in events)
     assert all("布洛芬" not in str(event) for event in events)

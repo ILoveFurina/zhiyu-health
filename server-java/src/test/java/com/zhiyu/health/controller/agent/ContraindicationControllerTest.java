@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.agent;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,7 +12,11 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.controller.agent.mapping.ContraindicationDtoMapper;
 import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.service.ContraindicationService;
+import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.List;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,9 +41,10 @@ class ContraindicationControllerTest {
 
     @BeforeEach
     void mapRequestsToTrustedRuntimeCommands() {
-        when(dtoMapper.toCommand(any())).thenAnswer(invocation -> {
-            ContraindicationController.CheckRequest request = invocation.getArgument(0);
-            return new ContraindicationService.CheckCommand(request.patientId(), request.medicationIds());
+        when(dtoMapper.toCommand(anyLong(), any())).thenAnswer(invocation -> {
+            long patientId = invocation.getArgument(0);
+            ContraindicationController.CheckRequest request = invocation.getArgument(1);
+            return new ContraindicationService.CheckCommand(patientId, request.medicationIds());
         });
     }
 
@@ -64,8 +70,10 @@ class ContraindicationControllerTest {
 
         mockMvc.perform(post("/api/agent/contraindications/check")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
+                        .header(AgentCallbackAuthFilter.PATIENT_ID_HEADER, "12")
+                        .header(AgentCallbackAuthFilter.PATIENT_SIGNATURE_HEADER, signature("12"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"patient_id\":12,\"medication_ids\":[1]}"))
+                        .content("{\"medication_ids\":[1]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.decision").value("BLOCKED"))
                 .andExpect(jsonPath("$.message_type").value("contraindication_warning"))
@@ -77,8 +85,20 @@ class ContraindicationControllerTest {
     void rejectsCallsWithoutAgentCredential() throws Exception {
         mockMvc.perform(post("/api/agent/contraindications/check")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"patient_id\":12,\"medication_ids\":[1]}"))
+                        .content("{\"medication_ids\":[1]}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsForgedPatientContext() throws Exception {
+        mockMvc.perform(post("/api/agent/contraindications/check")
+                        .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
+                        .header(AgentCallbackAuthFilter.PATIENT_ID_HEADER, "99")
+                        .header(AgentCallbackAuthFilter.PATIENT_SIGNATURE_HEADER, signature("12"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"medication_ids\":[1]}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Agent 患者上下文认证失败"));
     }
 
     @Test
@@ -88,8 +108,10 @@ class ContraindicationControllerTest {
 
         mockMvc.perform(post("/api/agent/contraindications/check")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
+                        .header(AgentCallbackAuthFilter.PATIENT_ID_HEADER, "12")
+                        .header(AgentCallbackAuthFilter.PATIENT_SIGNATURE_HEADER, signature("12"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"patient_id\":12,\"medication_ids\":[1]}"))
+                        .content("{\"medication_ids\":[1]}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("请先创建并激活健康档案后再进行禁忌检查"));
     }
@@ -101,9 +123,17 @@ class ContraindicationControllerTest {
 
         mockMvc.perform(post("/api/agent/contraindications/check")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
+                        .header(AgentCallbackAuthFilter.PATIENT_ID_HEADER, "12")
+                        .header(AgentCallbackAuthFilter.PATIENT_SIGNATURE_HEADER, signature("12"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"patient_id\":12,\"medication_ids\":[999]}"))
+                        .content("{\"medication_ids\":[999]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("药品不存在或已停用: 999"));
+    }
+
+    private String signature(String patientId) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(CALLBACK_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return HexFormat.of().formatHex(mac.doFinal(patientId.getBytes(StandardCharsets.UTF_8)));
     }
 }
