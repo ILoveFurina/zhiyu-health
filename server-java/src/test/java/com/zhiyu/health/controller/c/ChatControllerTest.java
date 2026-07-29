@@ -164,4 +164,51 @@ class ChatControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(body).contains("event:meta", "\"effort\":\"high\"");
     }
+
+    @Test
+    void locationIsForwardedToAgentAndHospitalCardIsPersisted() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "附近有什么医院"))
+                .thenReturn(new Conversation(7L, 12L, "附近有什么医院"));
+        when(conversations.recentContext(7L)).thenReturn(java.util.List.of(
+                java.util.Map.of("role", "user", "content", "附近有什么医院")));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(),
+                eq("hospital_recommendations"), isNull()))
+                .thenReturn(new Message(
+                        13L, 7L, "assistant", "hospital_recommendations", "{}", null));
+        when(agentClient.chat(org.mockito.ArgumentMatchers.argThat(body ->
+                body.get("longitude").equals(121.4737)
+                        && body.get("latitude").equals(31.2304))))
+                .thenReturn(Flux.just(
+                        ServerSentEvent.builder("{\"effort\": \"low\"}").event("meta").build(),
+                        ServerSentEvent.builder(
+                                "{\"hospitals\":[{\"hospital_id\":1,\"name\":\"智愈市人民医院\","
+                                        + "\"distance_km\":0.0}]}")
+                                .event("hospital_recommendations").build(),
+                        ServerSentEvent.builder("{}").event("done").build()));
+        ChatService service = new ChatService(
+                agentClient, conversations, new RedFlagRuleEngine(), new ObjectMapper());
+        MockMvc mvc = standaloneSetup(new ChatController(service))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"附近有什么医院\",\"longitude\":121.4737,"
+                                + "\"latitude\":31.2304}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = mvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(body).contains("event:hospital_recommendations",
+                "\"hospital_id\":1", "智愈市人民医院",
+                "仅供参考，不替代医生诊断", "\"message_id\":13");
+    }
 }
