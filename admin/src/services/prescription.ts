@@ -1,5 +1,7 @@
 import { request } from '@umijs/max';
-import { prescriptionDecisions, prescriptionStatuses } from '@/contracts/prescription';
+import { prescriptionDecisions, prescriptionStatuses, prescriptionStatusLabels } from '@/contracts/prescription';
+
+type PrescriptionStatus = (typeof prescriptionStatusLabels)[keyof typeof prescriptionStatusLabels];
 
 export interface Medication {
   id: number;
@@ -22,7 +24,7 @@ export interface PrescriptionItem {
 export interface Prescription {
   id: number;
   appointment_id: number;
-  status: '待审核' | '已通过' | '已驳回';
+  status: PrescriptionStatus;
   notes?: string;
   interpretation?: string;
   disclaimer?: string;

@@ -7,11 +7,29 @@ import com.zhiyu.health.entity.PrescriptionItem;
 import com.zhiyu.health.service.PatientCareService;
 import com.zhiyu.health.service.PrescriptionService;
 import java.util.List;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
 @Mapper(componentModel = "spring")
 public interface PrescriptionDtoMapper {
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "appointmentId", source = "command.appointmentId")
+    @Mapping(target = "doctorId", source = "doctorId")
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "notes", source = "command.notes", qualifiedByName = "trimToNull")
+    Prescription toPrescription(PrescriptionService.CreateCommand command, long doctorId, String status);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "prescriptionId", source = "prescriptionId")
+    @Mapping(target = "medicationId", source = "input.medicationId")
+    @Mapping(target = "dosage", source = "input.dosage", qualifiedByName = "trimRequired")
+    @Mapping(target = "frequency", source = "input.frequency", qualifiedByName = "trimRequired")
+    @Mapping(target = "duration", source = "input.duration", qualifiedByName = "trimRequired")
+    @Mapping(target = "notes", source = "input.notes", qualifiedByName = "trimToNull")
+    PrescriptionItem toPrescriptionItem(PrescriptionService.CreateItem input, long prescriptionId);
+
     PrescriptionService.MedicationView toMedicationView(Medication medication);
 
     @Mapping(target = "name", source = "medicationName")
@@ -59,4 +77,17 @@ public interface PrescriptionDtoMapper {
     @Mapping(target = "disclaimer", source = "message.disclaimer")
     @Mapping(target = "createdAt", source = "createdAtText")
     PatientCareService.MessageView toMessageView(InAppMessage message, String createdAtText);
+
+    @Named("trimRequired")
+    default String trimRequired(String value) {
+        return value.trim();
+    }
+
+    @Named("trimToNull")
+    default String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
 }

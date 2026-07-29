@@ -59,30 +59,17 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                 .map(item -> requireMedication(item.medicationId()))
                 .toList();
         Long id = transactionTemplate.execute(status -> {
-            Prescription prescription = new Prescription();
-            prescription.setAppointmentId(command.appointmentId());
-            prescription.setDoctorId(doctorId);
-            prescription.setStatus(status("pending"));
-            prescription.setNotes(trimToNull(command.notes()));
+            Prescription prescription = dtoMapper.toPrescription(command, doctorId, status("pending"));
             prescriptionMapper.insert(prescription);
             for (CreateItem input : command.items()) {
-                PrescriptionItem item = new PrescriptionItem();
-                item.setPrescriptionId(prescription.getId());
-                item.setMedicationId(input.medicationId());
-                item.setDosage(input.dosage().trim());
-                item.setFrequency(input.frequency().trim());
-                item.setDuration(input.duration().trim());
-                item.setNotes(trimToNull(input.notes()));
-                itemMapper.insert(item);
+                itemMapper.insert(dtoMapper.toPrescriptionItem(input, prescription.getId()));
             }
             return prescription.getId();
         });
         Prescription created = prescriptionMapper.selectDetailedById(id);
         if (created == null) {
-            created = new Prescription();
+            created = dtoMapper.toPrescription(command, doctorId, status("pending"));
             created.setId(id);
-            created.setAppointmentId(command.appointmentId());
-            created.setStatus(status("pending"));
         }
         return toView(created, pairItems(command.items(), medications));
     }
