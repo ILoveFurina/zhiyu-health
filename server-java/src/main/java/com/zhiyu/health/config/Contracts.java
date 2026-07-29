@@ -104,7 +104,6 @@ public class Contracts {
     public Knowledge knowledge() {
         return knowledge;
     }
-    }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
     public record Disclaimer(String text) {}

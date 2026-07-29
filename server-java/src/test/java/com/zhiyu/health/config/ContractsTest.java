@@ -95,7 +95,6 @@ class ContractsTest {
     }
 
     @Test
-<<<<<<< HEAD
     void contraindicationDecisionsAndMessagesAreLoaded() {
         Contracts.Contraindication contraindication = contracts.contraindication();
         assertThat(contraindication.decisions())
@@ -104,7 +103,9 @@ class ContractsTest {
                 .containsEntry("review_required", "REVIEW_REQUIRED");
         assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
         assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
-=======
+    }
+
+    @Test
     void knowledgeContractValuesAreLoaded() {
         Contracts.Knowledge knowledge = contracts.knowledge();
         assertThat(knowledge.knowledgeSources()).containsExactly("rag", "graph");
@@ -118,7 +119,6 @@ class ContractsTest {
         assertThat(knowledge.vectorColumn()).isEqualTo("vector");
         assertThat(knowledge.searchTopK()).isEqualTo(3);
         assertThat(knowledge.similarityThreshold()).isEqualTo(0.3);
->>>>>>> df846df (feat(10): 新增知识增强跨栈契约 knowledge.json)
     }
 
     @Test
