@@ -9,6 +9,7 @@ class DependencyHealth(BaseModel):
 
 class KnowledgeHealth(BaseModel):
     neo4j: DependencyHealth
+    pgvector: DependencyHealth
 
 
 class HealthResponse(BaseModel):

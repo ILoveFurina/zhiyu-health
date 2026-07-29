@@ -18,7 +18,13 @@ TEST_AGENT_SECRET = "test-only-agent-callback-secret"
 
 class StubHealthService:
     async def check(self) -> dict[str, object]:
-        return {"status": "ok", "services": {"neo4j": {"status": "ok"}}}
+        return {
+            "status": "ok",
+            "services": {
+                "neo4j": {"status": "ok"},
+                "pgvector": {"status": "ok"},
+            },
+        }
 
 
 class FakeAgentRunner:

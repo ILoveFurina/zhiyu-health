@@ -36,6 +36,12 @@ class Settings(WebSettings):
     ark_api_key: str = ""
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
     doubao_chat_model: str = ""
+    # RAG 知识检索（ADR-0010）：embedding 离线生成 + 运行时只读 pgvector
+    doubao_embedding_model: str = ""
+    # 业务库连接（只读检索 knowledge_chunks）；.env 的 DATABASE_URL 与 server-java 共用同一库
+    database_url: str = ""
+    # 向量维度路径 B：DDL 写死 vector(1024)，此处为默认值，启动期校验与契约/DDL 一致
+    knowledge_embedding_dimension: int = 1024
 
 
 @lru_cache
