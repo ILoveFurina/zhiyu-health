@@ -268,3 +268,6 @@
   font-size: 28rpx;
   color: #fff;
 }
+
+/* 对话记录抽屉与右上角入口样式拆分至 drawer.acss（单文件职责约束） */
+@import "./drawer.acss";

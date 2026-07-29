@@ -1,4 +1,6 @@
 <view class="page">
+  <!-- 右上角对话记录入口：自绘按钮，不依赖支付宝平台 option menu（见票 27 决策 9） -->
+  <view class="option-menu-btn" onTap="openDrawer">≡</view>
   <scroll-view
     class="thread"
     scroll-y
@@ -94,5 +96,39 @@
     <view class="rf-advice">{{redFlag.advice}}</view>
     <view class="rf-tip">小愈已中断本次导诊，你的安全最重要。</view>
     <view class="rf-btn" onTap="closeRedFlag">我知道了</view>
+  </view>
+
+  <!-- 对话记录抽屉：同页浮层，打开不打断 SSE（见票 27 决策 9） -->
+  <view a:if="{{drawerOpen}}" class="drawer-mask" onTap="closeDrawer">
+    <view class="drawer" catchTap="noop">
+      <view class="drawer-head">
+        <view class="drawer-title">对话记录</view>
+        <view class="drawer-close" onTap="closeDrawer">×</view>
+      </view>
+      <!-- 顶部常驻「新对话」入口（非数据项，见决策 6） -->
+      <view class="new-chat" onTap="startNewConversation">
+        <view class="new-chat-ico">＋</view>
+        <view class="new-chat-text">新对话</view>
+      </view>
+      <scroll-view class="drawer-list" scroll-y>
+        <view a:if="{{drawerLoading}}" class="drawer-state">正在加载…</view>
+        <view a:elif="{{conversations.length === 0}}" class="drawer-state">暂无对话记录</view>
+        <view
+          a:for="{{conversations}}"
+          a:key="id"
+          class="conv-item {{item.id === conversationId ? 'conv-item-current' : ''}}"
+          data-id="{{item.id}}"
+          onTap="selectConversation"
+          onLongPress="onConversationLongPress"
+        >
+          <view class="conv-title">{{item.title}}</view>
+          <view class="conv-meta">
+            <text class="conv-time">{{item.relative}}</text>
+            <text a:if="{{item.active}}" class="conv-active">对话中</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="drawer-tip">长按会话可删除</view>
+    </view>
   </view>
 </view>

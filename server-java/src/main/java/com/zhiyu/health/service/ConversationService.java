@@ -21,6 +21,8 @@ public class ConversationService {
 
     public static final int TITLE_MAX_LENGTH = 20;
     private static final int CONTEXT_MESSAGE_LIMIT = 20;
+    /** 对话记录列表硬上限：按最近活跃倒序，不做分页（见票 27 决策 1）。 */
+    private static final int LIST_LIMIT = 50;
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
@@ -49,6 +51,34 @@ public class ConversationService {
 
     public Conversation getForPatient(Long conversationId, Long patientId) {
         return conversationMapper.selectOne(new LambdaQueryWrapper<Conversation>()
+                .eq(Conversation::getId, conversationId)
+                .eq(Conversation::getPatientId, patientId));
+    }
+
+    /** 当前患者的对话记录列表；最近活跃倒序，硬上限 50 条，只返三字段（见票 27 决策 1/12）。 */
+    public List<ConversationSummary> listForPatient(Long patientId) {
+        return conversationMapper.selectList(new LambdaQueryWrapper<Conversation>()
+                        .eq(Conversation::getPatientId, patientId)
+                        .orderByDesc(Conversation::getLastActiveAt)
+                        .last("LIMIT " + LIST_LIMIT)).stream()
+                .map(c -> new ConversationSummary(
+                        c.getId(),
+                        c.getTitle(),
+                        c.getLastActiveAt() == null ? null : c.getLastActiveAt().toString()))
+                .toList();
+    }
+
+    /**
+     * 硬删会话：DELETE 同时限定 id 与 patient_id（幂等、并发安全，见票 27 决策 2/9）。
+     * 归属/不存在一律 404，不区分原因以免泄露存在性（决策 3）。依赖 messages FK
+     * ON DELETE CASCADE 连带删消息、appointments FK ON DELETE SET NULL 保留挂号单。
+     */
+    @Transactional
+    public void deleteForPatient(Long conversationId, Long patientId) {
+        if (getForPatient(conversationId, patientId) == null) {
+            throw new ConversationNotFoundException();
+        }
+        conversationMapper.delete(new LambdaQueryWrapper<Conversation>()
                 .eq(Conversation::getId, conversationId)
                 .eq(Conversation::getPatientId, patientId));
     }
@@ -118,5 +148,12 @@ public class ConversationService {
             String effort,
             String disclaimer,
             String createdAt) {
+    }
+
+    /** 对话记录列表项；严格三字段，不加预览（见票 27 决策 11/12）。 */
+    public record ConversationSummary(
+            Long id,
+            String title,
+            String lastActiveAt) {
     }
 }

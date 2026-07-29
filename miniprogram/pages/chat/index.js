@@ -1,5 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 const { streamChat } = require('../../utils/chat-stream')
+const { drawerMethods } = require('./drawer')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -44,6 +45,10 @@ Page({
     conversationId: null,
     redFlag: null,
     anchorId: '',
+    // 对话记录抽屉
+    drawerOpen: false,
+    drawerLoading: false,
+    conversations: [],
   },
 
   _msgSeq: 0,
@@ -51,13 +56,14 @@ Page({
   _timer: null,
 
   onLoad() {
+    // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
     ensureLogin().catch(() =>
       my.showToast({ content: '登录失败，请检查后端服务', type: 'fail' })
     )
   },
 
   onUnload() {
-    this._stopTypewriter()
+    this.stopTypewriter()
   },
 
   onInput(e) {
@@ -147,6 +153,21 @@ Page({
     })
   },
 
+  /** 重置聊天空态：messages/conversationId/打字机，供「新对话」与删除当前会话复用（决策 6/13）。 */
+  resetChatState() {
+    this.stopTypewriter()
+    this._tokenQueue = []
+    this._final = null
+    this.setData({
+      messages: [],
+      conversationId: null,
+      inputValue: '',
+      canSend: false,
+      sending: false,
+      redFlag: null,
+    })
+  },
+
   /** 打字机回放 token 流，放完后定格为完整内容并挂免责声明。 */
   playAssistant(id, data, tokens) {
     if (!tokens.length) {
@@ -155,11 +176,11 @@ Page({
     }
     this._tokenQueue = tokens.slice()
     this._final = data
-    this._stopTypewriter()
+    this.stopTypewriter()
     this._timer = setInterval(() => {
       const next = this._tokenQueue.shift()
       if (next === undefined) {
-        this._stopTypewriter()
+        this.stopTypewriter()
         this.finishAssistant(id, this._final.content, this._final.disclaimer)
         return
       }
@@ -227,7 +248,7 @@ Page({
   },
 
   failRound(id, err) {
-    this._stopTypewriter()
+    this.stopTypewriter()
     this.patchMessage(id, (msg) => ({
       ...msg,
       content: `抱歉，出了点问题：${err.message || '网络异常'}，请稍后重试`,
@@ -242,10 +263,12 @@ Page({
     })
   },
 
-  _stopTypewriter() {
+  stopTypewriter() {
     if (this._timer) {
       clearInterval(this._timer)
       this._timer = null
     }
   },
+
+  ...drawerMethods,
 })
