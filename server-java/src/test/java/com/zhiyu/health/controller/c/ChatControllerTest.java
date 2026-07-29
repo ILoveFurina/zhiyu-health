@@ -1,11 +1,13 @@
 package com.zhiyu.health.controller.c;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,6 +26,7 @@ import com.zhiyu.health.service.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -289,5 +292,234 @@ class ChatControllerTest {
                 .andReturn();
 
         mvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+    }
+
+    /** 票 33 回归：多轮工具回调的长对话（卡片 ×3 + token 流）必须完整到达 done，且每张卡片都落库。 */
+    @Test
+    void longConversationWithToolCallbacksStreamsInOrderAndPersistsEveryCard() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "帮我挂林知远医生的号"))
+                .thenReturn(new Conversation(7L, 12L, "帮我挂林知远医生的号"));
+        when(conversations.recentContext(7L))
+                .thenReturn(java.util.List.of(
+                        java.util.Map.of("role", "user", "content", "我胸闷两天了"),
+                        java.util.Map.of("role", "assistant", "content", "建议挂心血管内科"),
+                        java.util.Map.of("role", "user", "content", "帮我挂林知远医生的号")));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(), eq("doctor_recommendations"), isNull()))
+                .thenReturn(new Message(11L, 7L, "assistant", "doctor_recommendations", "{}", null));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(), eq("doctor_slots"), isNull()))
+                .thenReturn(new Message(12L, 7L, "assistant", "doctor_slots", "{}", null));
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(), eq("appointment"), isNull()))
+                .thenReturn(new Message(13L, 7L, "assistant", "appointment", "{}", null));
+        when(conversations.appendMessage(7L, "assistant", "已为你挂号，明天上午见。", "text", "low"))
+                .thenReturn(new Message(14L, 7L, "assistant", "text", "已为你挂号，明天上午见。", "low"));
+        // 模拟长对话的真实节奏：事件间隔到达（工具回调期间 LLM 思考窗口无字节），
+        // 中继不得在间隙或卡片处理处断流
+        when(agentClient.chat(anyMap()))
+                .thenReturn(Flux.just(
+                                ServerSentEvent.builder("{\"effort\":\"low\"}")
+                                        .event("meta")
+                                        .build(),
+                                ServerSentEvent.builder("{\"doctors\":[{\"doctor_id\":1,\"name\":\"林知远\"}]}")
+                                        .event("doctor_recommendations")
+                                        .build(),
+                                ServerSentEvent.builder("{\"doctor_id\":1,\"slots\":[{\"schedule_id\":9}]}")
+                                        .event("doctor_slots")
+                                        .build(),
+                                ServerSentEvent.builder("{\"appointment_id\":21}")
+                                        .event("appointment")
+                                        .build(),
+                                ServerSentEvent.builder("{\"text\":\"已为\"}")
+                                        .event("token")
+                                        .build(),
+                                ServerSentEvent.builder("{\"text\":\"你挂号\"}")
+                                        .event("token")
+                                        .build(),
+                                ServerSentEvent.builder("{\"text\":\"，明天上午见。\"}")
+                                        .event("token")
+                                        .build(),
+                                ServerSentEvent.builder(
+                                                "{\"role\":\"assistant\",\"content\":\"已为你挂号，明天上午见。\",\"effort\":\"low\"}")
+                                        .event("message")
+                                        .build(),
+                                ServerSentEvent.builder("{}").event("done").build())
+                        .delayElements(Duration.ofMillis(10)));
+        MockMvc mvc = standaloneSetup(new ChatController(new ChatService(
+                        agentClient,
+                        conversations,
+                        new RedFlagRuleEngine(),
+                        new ObjectMapper(),
+                        TestDisclaimers.instance(),
+                        TestContracts.instance(),
+                        mock(HealthProfileService.class))))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"帮我挂林知远医生的号\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = mvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        // 完整序列 meta → 卡片 ×3 → token ×3 → message → done 必须按序到达
+        String[] expectedOrder = {
+            "event:meta", "event:doctor_recommendations", "event:doctor_slots",
+            "event:appointment", "\"text\":\"已为\"", "\"text\":\"你挂号\"",
+            "\"text\":\"，明天上午见。\"", "event:message", "event:done"
+        };
+        int cursor = -1;
+        for (String marker : expectedOrder) {
+            int index = body.indexOf(marker);
+            assertThat(index).as("缺少或乱序的事件：%s", marker).isGreaterThan(cursor);
+            cursor = index;
+        }
+        assertThat(body).contains("\"message_id\":11", "\"message_id\":12", "\"message_id\":13", "\"message_id\":14");
+        verify(conversations)
+                .appendMessage(eq(7L), eq("assistant"), anyString(), eq("doctor_recommendations"), isNull());
+        verify(conversations).appendMessage(eq(7L), eq("assistant"), anyString(), eq("doctor_slots"), isNull());
+        verify(conversations).appendMessage(eq(7L), eq("assistant"), anyString(), eq("appointment"), isNull());
+    }
+
+    /** 票 33：上游在响应已提交后失败时，中继安静收尾——不得再触发 No converter 二次噪音。 */
+    @Test
+    void upstreamFailureMidStreamCompletesQuietly() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "你好")).thenReturn(new Conversation(7L, 12L, "你好"));
+        when(conversations.recentContext(7L))
+                .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "你好")));
+        when(agentClient.chat(anyMap()))
+                .thenReturn(Flux.concat(
+                        Flux.just(
+                                ServerSentEvent.builder("{\"effort\":\"low\"}")
+                                        .event("meta")
+                                        .build(),
+                                ServerSentEvent.builder("{\"text\":\"你\"}")
+                                        .event("token")
+                                        .build()),
+                        Flux.error(new RuntimeException("upstream boom"))));
+        MockMvc mvc = standaloneSetup(new ChatController(new ChatService(
+                        agentClient,
+                        conversations,
+                        new RedFlagRuleEngine(),
+                        new ObjectMapper(),
+                        TestDisclaimers.instance(),
+                        TestContracts.instance(),
+                        mock(HealthProfileService.class))))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"你好\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = mvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        // 已发送内容原样保留，流干净结束；错误细节只进服务端日志，不写进 SSE 通道
+        assertThat(body).contains("event:meta", "\"text\":\"你\"");
+        assertThat(body).doesNotContain("event:done", "upstream boom");
+    }
+
+    /** 票 33：响应未提交前上游即失败时，错误直达统一异常出口（端侧拿 HTTP 错误而非空 SSE）。 */
+    @Test
+    void upstreamFailureBeforeFirstEventSurfacesAsHttpError() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "你好")).thenReturn(new Conversation(7L, 12L, "你好"));
+        when(conversations.recentContext(7L))
+                .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "你好")));
+        when(agentClient.chat(anyMap())).thenReturn(Flux.error(new RuntimeException("connection refused")));
+        MockMvc mvc = standaloneSetup(new ChatController(new ChatService(
+                        agentClient,
+                        conversations,
+                        new RedFlagRuleEngine(),
+                        new ObjectMapper(),
+                        TestDisclaimers.instance(),
+                        TestContracts.instance(),
+                        mock(HealthProfileService.class))))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"你好\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        assertThatThrownBy(() -> mvc.perform(asyncDispatch(result))).hasRootCauseMessage("connection refused");
+    }
+
+    /** 票 33 主根因回归：卡片落库失败（如 kind 溢出）时中继留痕并安静收尾，不穿透 onNext 掐流。 */
+    @Test
+    void cardPersistenceFailureCompletesQuietlyWithoutCancellingUpstream() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "你好")).thenReturn(new Conversation(7L, 12L, "你好"));
+        when(conversations.recentContext(7L))
+                .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "你好")));
+        // 模拟票 33 原始故障：首张卡片落库抛数据访问异常（原样穿透曾掐断整条流）
+        when(conversations.appendMessage(eq(7L), eq("assistant"), anyString(), eq("doctor_recommendations"), isNull()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "value too long for type character varying(20)"));
+        when(agentClient.chat(anyMap()))
+                .thenReturn(Flux.just(
+                        ServerSentEvent.builder("{\"effort\":\"low\"}")
+                                .event("meta")
+                                .build(),
+                        ServerSentEvent.builder("{\"doctors\":[{\"doctor_id\":1}]}")
+                                .event("doctor_recommendations")
+                                .build(),
+                        ServerSentEvent.builder("{}").event("done").build()));
+        MockMvc mvc = standaloneSetup(new ChatController(new ChatService(
+                        agentClient,
+                        conversations,
+                        new RedFlagRuleEngine(),
+                        new ObjectMapper(),
+                        TestDisclaimers.instance(),
+                        TestContracts.instance(),
+                        mock(HealthProfileService.class))))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"你好\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = mvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        // meta 已送达的部分保留；落库失败细节只进服务端日志，端侧拿到干净收尾而非异常噪音
+        assertThat(body).contains("event:meta");
+        assertThat(body).doesNotContain("event:done", "character varying");
     }
 }
