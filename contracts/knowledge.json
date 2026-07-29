@@ -1,0 +1,15 @@
+{
+  "_doc": "知识增强模式：知识源二态 rag/graph + 自动降级、SSE knowledge 元事件状态、向量检索参数。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "knowledge_sources": ["rag", "graph"],
+  "none_source": "none",
+  "default_by_scenario": {
+    "triage": "rag",
+    "interpretation": "none"
+  },
+  "knowledge_meta_event": "knowledge",
+  "knowledge_status": ["ok", "degraded", "unavailable"],
+  "embedding_dimension": 1024,
+  "vector_column": "vector",
+  "search_top_k": 3,
+  "similarity_threshold": 0.3
+}

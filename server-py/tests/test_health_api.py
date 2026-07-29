@@ -5,7 +5,13 @@ from app.main import app, create_app
 
 class StubHealthService:
     async def check(self) -> dict[str, object]:
-        return {"status": "ok", "services": {"neo4j": {"status": "ok"}}}
+        return {
+            "status": "ok",
+            "services": {
+                "neo4j": {"status": "ok"},
+                "pgvector": {"status": "ok"},
+            },
+        }
 
 
 def test_health_reports_knowledge_storage_dependencies() -> None:
@@ -15,7 +21,10 @@ def test_health_reports_knowledge_storage_dependencies() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
-        "services": {"neo4j": {"status": "ok"}},
+        "services": {
+            "neo4j": {"status": "ok"},
+            "pgvector": {"status": "ok"},
+        },
     }
 
 

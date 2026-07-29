@@ -199,6 +199,44 @@ class ChatControllerTest {
     }
 
     @Test
+    void knowledgeSourceIsForwardedToAgentBody() throws Exception {
+        AgentClient agentClient = mock(AgentClient.class);
+        ConversationService conversations = mock(ConversationService.class);
+        when(conversations.getOrCreateForPatient(12L, null, "咳嗽怎么办")).thenReturn(new Conversation(7L, 12L, "咳嗽怎么办"));
+        when(conversations.recentContext(7L))
+                .thenReturn(java.util.List.of(java.util.Map.of("role", "user", "content", "咳嗽怎么办")));
+        // 断言 knowledge_source 原样透传到 server-py 请求体（ADR-0010 运行时 seam）
+        when(agentClient.chat(org.mockito.ArgumentMatchers.argThat(body -> "rag".equals(body.get("knowledge_source")))))
+                .thenReturn(Flux.just(
+                        ServerSentEvent.builder("{\"effort\":\"low\"}").event("meta").build(),
+                        ServerSentEvent.builder("{}").event("done").build()));
+        ChatService service = new ChatService(
+                agentClient,
+                conversations,
+                new RedFlagRuleEngine(),
+                new ObjectMapper(),
+                TestDisclaimers.instance(),
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
+        MockMvc mvc = standaloneSetup(new ChatController(service))
+                .setMessageConverters(
+                        new StringHttpMessageConverter(StandardCharsets.UTF_8),
+                        new MappingJackson2HttpMessageConverter())
+                .build();
+
+        MvcResult result = mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", "12")
+                        .contentType("application/json")
+                        .content("{\"content\":\"咳嗽怎么办\",\"knowledge_source\":\"rag\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+        org.mockito.Mockito.verify(agentClient)
+                .chat(org.mockito.ArgumentMatchers.argThat(body -> "rag".equals(body.get("knowledge_source"))));
+    }
+
+    @Test
     void locationIsForwardedToAgentAndHospitalCardIsPersisted() throws Exception {
         AgentClient agentClient = mock(AgentClient.class);
         ConversationService conversations = mock(ConversationService.class);

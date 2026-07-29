@@ -1,6 +1,6 @@
 {
   "_doc": "SSE 事件协议：流事件名、工具名→事件名映射、消息 kind 清单与事件→kind 映射。server-py 产出事件，server-java 透传并按 kind 持久化。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
-  "stream_events": ["meta", "token", "message", "done"],
+  "stream_events": ["meta", "knowledge", "token", "message", "done"],
   "red_flag_event": "red_flag",
   "card_events": [
     "doctor_recommendations",

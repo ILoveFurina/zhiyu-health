@@ -61,6 +61,18 @@ _Avoid_: 报告诊断、检查结论
 存于 Neo4j 的医学知识网络：症状、疾病、科室、药品、禁忌五类节点及关系边。只装知识，不装业务实体（医生/号源在 PostgreSQL）。供导诊 Agent 推理、禁忌检测与 B 端图谱可视化使用。
 _Avoid_: 知识库（"知识库"特指 pgvector 中供向量检索的文本块）
 
+**知识库**:
+存于 PostgreSQL `knowledge_chunks` 表、经 doubao-embedding-vision 向量化的症状场景知识文本块集合。表 schema 由统一 schema.sql 管理；embedding 离线生成属数据准备（server-py），运行时 server-py 对该表只读检索。供导诊回答接地（见 ADR-0010）。
+_Avoid_: 知识图谱（"知识图谱"特指 Neo4j 中的图结构医学知识网络）
+
+**知识源选择器**:
+导诊回答的接地策略选择：RAG（pgvector 知识库检索）或知识图谱（Neo4j traverse_graph，票 13 接手）。检索失败或空召回时自动降级走裸 LLM；图谱未实现时视为不可用并降级。每请求字段 `knowledge_source` 经 `contracts/` 定义、业务后端透传至 Agent 层；B 端现场切换出口归票 25。
+_Avoid_: RAG 开关（实际是知识源选择器，不只是布尔开关）
+
+**降级**:
+知识源选择器选了 RAG 或图谱但检索失败、空召回或该源未实现时，静默改走裸 LLM 生成回复的兜底机制。降级状态经 SSE `knowledge` 元事件暴露（ok/degraded/unavailable），用户侧不强提示，演示与 B 端 trace 可见。
+_Avoid_: 回退、降级策略
+
 **排班**:
 医生在某日期某时段出诊的安排，号源（总数/剩余）挂在其上。
 _Avoid_: 出诊计划、班次

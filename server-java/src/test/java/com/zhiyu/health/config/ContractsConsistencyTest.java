@@ -83,8 +83,10 @@ class ContractsConsistencyTest {
     @Test
     void streamEventAccessorsMatchContractOrder() {
         Contracts.SseEvents events = contracts.sseEvents();
-        assertThat(events.streamEvents()).containsExactly("meta", "token", "message", "done");
+        assertThat(events.streamEvents())
+                .containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.metaEvent()).isEqualTo("meta");
+        assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
         assertThat(events.tokenEvent()).isEqualTo("token");
         assertThat(events.messageEvent()).isEqualTo("message");
         assertThat(events.doneEvent()).isEqualTo("done");

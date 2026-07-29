@@ -1,11 +1,11 @@
-"""知识存储探活：Agent 层只直连 Neo4j（pgvector 只读检索接入后在此扩展）。"""
+"""知识存储探活：Agent 层只直连 Neo4j + pgvector（只读检索）。"""
 
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
 from neo4j.exceptions import Neo4jError
 
-from app.db.clients import KnowledgeClients
+from app.db.clients import KnowledgeClients, acquire_pg_connection
 
 
 class HealthChecker(Protocol):
@@ -18,8 +18,9 @@ class HealthService:
 
     async def check(self) -> dict[str, object]:
         neo4j = await self._status(self._check_neo4j)
-        overall = "ok" if neo4j["status"] == "ok" else "degraded"
-        return {"status": overall, "services": {"neo4j": neo4j}}
+        pg = await self._status(self._check_pg)
+        overall = "ok" if neo4j["status"] == "ok" and pg["status"] == "ok" else "degraded"
+        return {"status": overall, "services": {"neo4j": neo4j, "pgvector": pg}}
 
     @staticmethod
     async def _status(check: Callable[[], Awaitable[None]]) -> dict[str, str]:
@@ -31,3 +32,14 @@ class HealthService:
 
     async def _check_neo4j(self) -> None:
         await self._clients.neo4j.verify_connectivity()
+
+    async def _check_pg(self) -> None:
+        # database_url 未配置时检索降级走裸 LLM，探活标 error（不阻断整体）
+        dsn = self._clients.pg_dsn
+        if dsn is None:
+            raise OSError("pgvector 未配置")
+        conn = await acquire_pg_connection(dsn)
+        try:
+            await conn.execute("SELECT 1")
+        finally:
+            await conn.close()

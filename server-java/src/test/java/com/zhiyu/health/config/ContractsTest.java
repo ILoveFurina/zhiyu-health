@@ -20,8 +20,10 @@ class ContractsTest {
     @Test
     void sseEventProtocolIsComplete() {
         Contracts.SseEvents events = contracts.sseEvents();
-        assertThat(events.streamEvents()).containsExactly("meta", "token", "message", "done");
+        assertThat(events.streamEvents())
+                .containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
+        assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
         assertThat(events.cardEvents()).hasSize(6);
         assertThat(events.toolToEvent())
                 .hasSize(6)
@@ -101,6 +103,22 @@ class ContractsTest {
                 .containsEntry("review_required", "REVIEW_REQUIRED");
         assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
         assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
+    }
+
+    @Test
+    void knowledgeContractValuesAreLoaded() {
+        Contracts.Knowledge knowledge = contracts.knowledge();
+        assertThat(knowledge.knowledgeSources()).containsExactly("rag", "graph");
+        assertThat(knowledge.noneSource()).isEqualTo("none");
+        assertThat(knowledge.defaultByScenario())
+                .containsEntry("triage", "rag")
+                .containsEntry("interpretation", "none");
+        assertThat(knowledge.knowledgeMetaEvent()).isEqualTo("knowledge");
+        assertThat(knowledge.knowledgeStatus()).containsExactly("ok", "degraded", "unavailable");
+        assertThat(knowledge.embeddingDimension()).isEqualTo(1024);
+        assertThat(knowledge.vectorColumn()).isEqualTo("vector");
+        assertThat(knowledge.searchTopK()).isEqualTo(3);
+        assertThat(knowledge.similarityThreshold()).isEqualTo(0.3);
     }
 
     @Test

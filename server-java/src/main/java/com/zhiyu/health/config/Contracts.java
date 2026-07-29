@@ -27,6 +27,7 @@ public class Contracts {
     private final ChatDefaults chatDefaults;
     private final PrescriptionFlow prescriptionFlow;
     private final Contraindication contraindication;
+    private final Knowledge knowledge;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -45,6 +46,7 @@ public class Contracts {
         this.chatDefaults = read(mapper, dir, "chat-defaults.json", ChatDefaults.class);
         this.prescriptionFlow = read(mapper, dir, "prescription-flow.json", PrescriptionFlow.class);
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
+        this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -99,6 +101,10 @@ public class Contracts {
         return contraindication;
     }
 
+    public Knowledge knowledge() {
+        return knowledge;
+    }
+
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
     public record Disclaimer(String text) {}
 
@@ -121,22 +127,26 @@ public class Contracts {
             eventToKind = Map.copyOf(eventToKind);
         }
 
-        // 流事件名按契约顺序固定为 [meta, token, message, done]，
+        // 流事件名按契约顺序固定为 [meta, knowledge, token, message, done]，
         // 顺序由 ContractsTest.sseEventProtocolIsComplete 钉死。
         public String metaEvent() {
             return streamEvents.get(0);
         }
 
-        public String tokenEvent() {
+        public String knowledgeEvent() {
             return streamEvents.get(1);
         }
 
-        public String messageEvent() {
+        public String tokenEvent() {
             return streamEvents.get(2);
         }
 
-        public String doneEvent() {
+        public String messageEvent() {
             return streamEvents.get(3);
+        }
+
+        public String doneEvent() {
+            return streamEvents.get(4);
         }
     }
 
@@ -214,6 +224,24 @@ public class Contracts {
             decisions = Map.copyOf(decisions);
             messageTypes = Map.copyOf(messageTypes);
             messages = Map.copyOf(messages);
+        }
+    }
+
+    /** 知识增强模式：知识源二态 rag/graph + 自动降级、向量检索参数（ADR-0010）。 */
+    public record Knowledge(
+            List<String> knowledgeSources,
+            String noneSource,
+            Map<String, String> defaultByScenario,
+            String knowledgeMetaEvent,
+            List<String> knowledgeStatus,
+            int embeddingDimension,
+            String vectorColumn,
+            int searchTopK,
+            double similarityThreshold) {
+        public Knowledge {
+            knowledgeSources = List.copyOf(knowledgeSources);
+            knowledgeStatus = List.copyOf(knowledgeStatus);
+            defaultByScenario = Map.copyOf(defaultByScenario);
         }
     }
 }

@@ -34,6 +34,7 @@ def test_stream_event_constants_match_contract() -> None:
     events = get_contracts().sse_events.stream_events
     assert [
         chat_service.EVENT_META,
+        chat_service.EVENT_KNOWLEDGE,
         chat_service.EVENT_TOKEN,
         chat_service.EVENT_MESSAGE,
         chat_service.EVENT_DONE,
@@ -41,9 +42,13 @@ def test_stream_event_constants_match_contract() -> None:
 
 
 def test_agent_output_event_literal_matches_contract() -> None:
-    # Literal 无法动态化，这里钉死它与契约 card_events + token 的一致
+    # Literal 无法动态化，这里钉死它与契约 card_events + token + knowledge 的一致
+    # knowledge 是检索元事件（非卡片），search_knowledge 工具结果投影成它
+    knowledge_event = get_contracts().knowledge.knowledge_meta_event
     event_type = AgentOutput.__dataclass_fields__["event"].type
-    assert _literal_values(event_type) == {"token", *get_contracts().sse_events.card_events}
+    assert _literal_values(event_type) == {
+        "token", knowledge_event, *get_contracts().sse_events.card_events
+    }
 
 
 def test_tool_event_mapping_follows_contract() -> None:

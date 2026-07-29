@@ -22,6 +22,7 @@ from app.core.logging import configure_logging
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
 from app.services.health import HealthChecker, HealthService
+from app.services.knowledge import build_knowledge_retriever
 from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
@@ -31,6 +32,7 @@ def create_app(
     agent_auth_secret: str | None = None,
     vision_interpreter: VisionInterpreter | None = None,
     clinical_generator: ClinicalGenerator | None = None,
+    rag_available: bool = False,
 ) -> FastAPI:
     # uvicorn 只配置自身 logger；app.* 的流生命周期日志需显式接管（票 33）
     configure_logging()
@@ -39,7 +41,9 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if health_service is not None:
             # 注入装配路径（测试）：不触碰真实存储与 settings
-            app.state.chat_service = AgentChatService(agent_runner or LazySettingsAgentRunner())
+            app.state.chat_service = AgentChatService(
+                agent_runner or LazySettingsAgentRunner(), rag_available=rag_available
+            )
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret
             app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
@@ -53,10 +57,14 @@ def create_app(
         app.state.business_client = BusinessCallbackClient(
             settings.server_java_base_url, callback_secret=settings.agent_callback_secret
         )
+        # 知识检索器（ADR-0010）：database_url/embedding 未配置时为 None，运行时检索降级
+        knowledge_retriever = build_knowledge_retriever(settings)
         runner = agent_runner or LazySettingsAgentRunner(
-            build_business_tools(app.state.business_client)
+            build_business_tools(app.state.business_client), knowledge_retriever
         )
-        app.state.chat_service = AgentChatService(runner)
+        app.state.chat_service = AgentChatService(
+            runner, rag_available=knowledge_retriever is not None
+        )
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
         try:

@@ -41,6 +41,8 @@ class AgentChatRequest(BaseModel):
     health_profile: HealthProfilePayload | None = None
     effort: EffortChoice = Field(default_factory=_effort_default)
     scenario: Scenario = Field(default_factory=_scenario_default)
+    # 知识增强源（ADR-0010）：rag/graph/none；缺省时 server-py 按 scenario 默认
+    knowledge_source: str | None = None
     # 用户授权定位后的经纬度；拒绝授权时不传，find_hospitals 据此降级
     longitude: float | None = Field(default=None, ge=_GEO.longitude_min, le=_GEO.longitude_max)
     latitude: float | None = Field(default=None, ge=_GEO.latitude_min, le=_GEO.latitude_max)
