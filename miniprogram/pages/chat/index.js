@@ -3,6 +3,7 @@ const { streamChat } = require('../../utils/chat-stream')
 const { drawerMethods } = require('./drawer')
 const reportComposer = require('./report-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
+const { visibleBubbles } = require('./feature-bubbles')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -18,10 +19,14 @@ const PROMPTS = [
   '为我推荐 28 天健康减肥食谱计划',
 ]
 
+// AI 诊室气泡点击插入的客户端引导语（D6）：不经 SSE、不持久化、不带免责声明
+const TRIAGE_GREETING = '请描述您的不适，我帮您判断该挂什么科'
+
 Page({
   data: {
     messages: [], // 文本、红线警告或医生/号源结构化卡片
     prompts: PROMPTS,
+    bubbles: visibleBubbles(), // 功能入口气泡（D5）：仅 enabled 项
     inputValue: '',
     canSend: false,
     sending: false,
@@ -68,6 +73,83 @@ Page({
 
   sendPrompt(e) {
     this.sendText(e.currentTarget.dataset.text)
+  },
+
+  /** 功能入口气泡点击分发（D5）。action 标识见 feature-bubbles.js。 */
+  onBubbleTap(e) {
+    if (this.data.sending) return
+    const action = e.currentTarget.dataset.action
+    if (action === 'triage') this.enterTriage()
+    else if (action === 'hospital') this.enterHospitalGuide()
+    else if (action === 'report') this.openReportPicker()
+  },
+
+  /** AI 诊室（D6）：插客户端欢迎语 + 聚焦输入框，不调 SSE、不持久化。 */
+  enterTriage() {
+    const message = {
+      id: ++this._msgSeq,
+      role: 'assistant',
+      kind: 'feature_guide',
+      content: TRIAGE_GREETING,
+      disclaimer: '',
+    }
+    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
+  },
+
+  /** 找医院（D2/D7）：出 feature_guide 卡片，内嵌授权定位按钮。 */
+  enterHospitalGuide() {
+    const message = {
+      id: ++this._msgSeq,
+      role: 'assistant',
+      kind: 'feature_guide',
+      card: { feature: 'hospital', mode: 'locate' },
+      disclaimer: '',
+    }
+    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
+  },
+
+  /** feature_guide 卡片内「授权定位」按钮（D7）。 */
+  onGuideLocate() {
+    my.getLocation({
+      type: 1,
+      success: (res) => this._afterGuideLocate({ longitude: res.longitude, latitude: res.latitude }),
+      fail: () => this._degradeGuide(),
+    })
+  },
+
+  /** 授权成功（D7）：删引导卡片 + 发对话。坐标已拿到，直接 startRound 不再走定位。 */
+  _afterGuideLocate(location) {
+    this._removeLastGuide()
+    this.startRound('帮我找附近的医院', location)
+  },
+
+  /** 拒绝授权（D7）：卡片改降级态文案，按钮行为改区域查找。 */
+  _degradeGuide() {
+    this.patchMessage(this._lastGuideId(), (msg) => ({
+      ...msg,
+      card: { feature: 'hospital', mode: 'manual' },
+    }))
+    my.showToast({ content: '未获取到定位，可点击按区域查找', type: 'none' })
+  },
+
+  /** 降级态「按区域查找」按钮（D7）。 */
+  onGuideManual() {
+    this._removeLastGuide()
+    this.sendText('我想找医院，请帮我看看附近有哪些科室')
+  },
+
+  _lastGuideId() {
+    const msgs = this.data.messages
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].kind === 'feature_guide') return msgs[i].id
+    }
+    return null
+  },
+
+  _removeLastGuide() {
+    const id = this._lastGuideId()
+    if (id === null) return
+    this.setData({ messages: this.data.messages.filter((m) => m.id !== id) })
   },
 
   send() {
