@@ -40,7 +40,8 @@ public class ChatService {
     }
 
     public SseEmitter chat(Long patientId, Long conversationId, String content,
-                           String effort, String scenario) {
+                           String effort, String scenario,
+                           Double longitude, Double latitude) {
         // 安全门先于会话与消息写入，更先于 Agent 调用。
         RedFlagHit hit = redFlagRules.judge(content);
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, content);
@@ -49,7 +50,7 @@ public class ChatService {
         if (hit != null) {
             return redFlagStream(conversation, hit);
         }
-        return agentStream(conversation, effort, scenario);
+        return agentStream(conversation, effort, scenario, longitude, latitude);
     }
 
     private SseEmitter redFlagStream(Conversation conversation, RedFlagHit hit) {
@@ -74,7 +75,8 @@ public class ChatService {
         return emitter;
     }
 
-    private SseEmitter agentStream(Conversation conversation, String effort, String scenario) {
+    private SseEmitter agentStream(Conversation conversation, String effort, String scenario,
+                                   Double longitude, Double latitude) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         Map<String, Object> body = new HashMap<>();
         body.put("messages", conversations.recentContext(conversation.getId()));
@@ -82,6 +84,11 @@ public class ChatService {
         body.put("conversation_id", conversation.getId());
         body.put("effort", blankToDefault(effort, "auto"));
         body.put("scenario", blankToDefault(scenario, "triage"));
+        // 经纬度来自用户授权定位；拒绝授权时不传，server-py 的 find_hospitals 据此降级。
+        if (longitude != null && latitude != null) {
+            body.put("longitude", longitude);
+            body.put("latitude", latitude);
+        }
 
         agentClient.chat(body).subscribe(
                 event -> forwardAgentEvent(emitter, conversation.getId(), event),

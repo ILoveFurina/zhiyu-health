@@ -30,12 +30,19 @@ class AgentChatService:
         conversation_id: int,
         effort_choice: EffortChoice,
         scenario: Scenario,
+        longitude: float | None = None,
+        latitude: float | None = None,
     ) -> AsyncIterator[dict[str, object]]:
         """对一段消息历史流式生成回复。auto 档位在此映射为 low/high，不外传。"""
         effort = map_reasoning_effort(effort_choice, scenario)
         yield {"event": EVENT_META, "data": {"effort": effort}}
         parts: list[str] = []
-        context = AgentContext(patient_id=patient_id, conversation_id=conversation_id)
+        context = AgentContext(
+            patient_id=patient_id,
+            conversation_id=conversation_id,
+            longitude=longitude,
+            latitude=latitude,
+        )
         async for output in self._agent_runner.astream_reply(messages, effort, context):
             if output.event == EVENT_TOKEN and isinstance(output.data, str):
                 parts.append(output.data)

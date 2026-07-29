@@ -3,6 +3,8 @@ package com.zhiyu.health.controller.c;
 import com.zhiyu.health.service.ChatService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +29,12 @@ public class ChatController {
             @NotBlank String content,
             @JsonProperty("conversation_id") Long conversationId,
             String effort,
-            String scenario) {
+            String scenario,
+            // 用户授权定位后回传的经纬度；拒绝授权时不传，由 Agent 降级提示手动选区
+            @JsonProperty("longitude")
+            @DecimalMin("-180") @DecimalMax("180") Double longitude,
+            @JsonProperty("latitude")
+            @DecimalMin("-90") @DecimalMax("90") Double latitude) {
     }
 
     @PostMapping("/chat")
@@ -36,6 +43,6 @@ public class ChatController {
             @Validated @RequestBody ChatRequest request) {
         return chatService.chat(
                 Long.valueOf(patientId), request.conversationId(), request.content(),
-                request.effort(), request.scenario());
+                request.effort(), request.scenario(), request.longitude(), request.latitude());
     }
 }

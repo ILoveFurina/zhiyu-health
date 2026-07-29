@@ -18,3 +18,6 @@ class AgentChatRequest(BaseModel):
     conversation_id: PositiveInt
     effort: EffortChoice = "auto"
     scenario: Scenario = "triage"
+    # 用户授权定位后的经纬度；拒绝授权时不传，find_hospitals 据此降级
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
