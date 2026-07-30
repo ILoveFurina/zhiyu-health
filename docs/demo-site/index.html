@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智愈 · 医疗 B+C 平台答辩展示</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ 顶部导航 ============ -->
+<div class="topbar">
+  <div class="logo"><span class="logo-mark">✚</span> 智愈</div>
+  <nav>
+    <a href="#hero" class="active">概览</a>
+    <a href="#architecture">架构</a>
+    <a href="#c-side">C 端</a>
+    <a href="#b-side">B 端</a>
+    <a href="#safety">安全</a>
+    <a href="#loop">闭环</a>
+    <a href="#summary">总结</a>
+  </nav>
+</div>
+
+<!-- ============ Hero ============ -->
+<section class="hero" id="hero">
+  <div class="mascot">✚</div>
+  <h1>智愈 <span class="brand">zhiyu-health</span></h1>
+  <p class="subtitle">医疗 B+C 平台 demo —— 以 AI Agent 串联智能导诊、医生推荐、挂号、接诊开方与处方审核的完整闭环，守住医疗安全边界。</p>
+  <div class="tags">
+    <span class="tag"><span class="dot"></span>支付宝原生小程序 C 端</span>
+    <span class="tag"><span class="dot"></span>React + Umi B 端</span>
+    <span class="tag"><span class="dot"></span>Java 业务后端</span>
+    <span class="tag"><span class="dot"></span>Python Agent 层</span>
+  </div>
+  <div class="cta-row">
+    <a href="#c-side" class="btn btn-primary">查看 C 端演示 →</a>
+    <a href="#b-side" class="btn btn-ghost">查看 B 端演示</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num">5</div><div class="label">C 端页面</div></div>
+    <div class="stat"><div class="num">8</div><div class="label">B 端页面</div></div>
+    <div class="stat"><div class="num">2</div><div class="label">后端服务</div></div>
+    <div class="stat"><div class="num">8</div><div class="label">跨栈契约</div></div>
+  </div>
+</section>
+
+<!-- ============ 架构图 ============ -->
+<section class="section" id="architecture">
+  <div class="section-head">
+    <span class="eyebrow">ARCHITECTURE</span>
+    <h2>双服务 + 双端 运行拓扑</h2>
+    <p>server-java 是唯一对外入口与业务写入方；server-py 只编排 Agent 与只读检索；两端均禁止直连 Agent 层。</p>
+  </div>
+  <div class="arch-diagram">
+    <div class="arch-flow">
+      <div class="arch-node c"><div class="node-title">C 端小程序</div><div class="node-desc">患者/家属</div></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node b"><div class="node-title">B 端 React</div><div class="node-desc">医生/管理员</div></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node java"><div class="node-title">server-java</div><div class="node-desc">鉴权·审计·规则·事务</div></div>
+      <span class="arch-arrow">⇄ SSE</span>
+      <div class="arch-node py"><div class="node-title">server-py</div><div class="node-desc">LangGraph·RAG·视觉</div></div>
+    </div>
+    <div class="arch-flow mt-16">
+      <span style="color:var(--text-muted);font-size:13px;">server-java 读写 →</span>
+      <div class="arch-node db"><div class="node-title">PostgreSQL 16</div><div class="node-desc">业务实体 + pgvector</div></div>
+      <div class="arch-node db"><div class="node-title">Redis 7</div><div class="node-desc">号源原子计数</div></div>
+      <div class="arch-node db"><div class="node-title">Neo4j 5</div><div class="node-desc">医学知识图谱</div></div>
+      <span style="color:var(--text-muted);font-size:13px;">← server-py 只读检索</span>
+    </div>
+    <div class="arch-flow mt-16">
+      <span style="color:var(--danger);font-size:12px;">⚠ 红线症状与用药禁忌由 server-java 确定性规则判断，LLM 只负责表达与解释</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C 端展示 ============ -->
+<section class="section" id="c-side" style="background:#fff;">
+  <div class="section-head">
+    <span class="eyebrow">C 端 · 支付宝原生小程序</span>
+    <h2>患者侧 · AI 诊室为第一入口</h2>
+    <p>5 个平级页面，无 tabBar，AI 诊室承载导诊、挂号、报告解读、语音视觉等核心能力。</p>
+  </div>
+
+  <div class="dual-showcase">
+    <!-- 手机外框 -->
+    <div class="phone-frame">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <!-- C 端页面切换 tabs -->
+        <div class="c-tabs">
+          <div class="c-tab active" data-ctab="chat">AI 诊室</div>
+          <div class="c-tab" data-ctab="appt">我的挂号</div>
+          <div class="c-tab" data-ctab="health">健康档案</div>
+          <div class="c-tab" data-ctab="rx">处方</div>
+          <div class="c-tab" data-ctab="msg">消息</div>
+        </div>
+
+        <!-- AI 诊室页 -->
+        <div class="mp-page c-page" id="cpage-chat">
+          <div class="chat-top">
+            <div class="profile-chip"><div class="avatar-sm">张</div> 张三</div>
+            <div class="gear-chip">自动 ▸</div>
+          </div>
+          <div class="chat-thread">
+            <div class="bubble user">最近三天发烧咳嗽，伴有头痛</div>
+            <div class="tool-status"><span class="spinner"></span> 正在检索医学知识</div>
+            <div class="bubble ai">根据您描述的发热、咳嗽伴头痛，建议先到呼吸内科就诊。我为您推荐以下医生：<span class="cursor">▍</span></div>
+
+            <!-- 医生推荐卡 -->
+            <div class="mp-card">
+              <div class="card-title">为你找到这些医生</div>
+              <div class="doctor-row">
+                <div class="doc-avatar">👨‍⚕️</div>
+                <div class="doc-main">
+                  <span class="doc-name">李建国</span><span class="doc-title">主任医师</span>
+                  <div class="doc-specialty">擅长：呼吸道感染、慢性咳嗽</div>
+                  <div class="doc-slots">共剩 8 个号源</div>
+                </div>
+                <button class="choose-btn">选择</button>
+              </div>
+              <div class="doctor-row">
+                <div class="doc-avatar">👩‍⚕️</div>
+                <div class="doc-main">
+                  <span class="doc-name">王秀兰</span><span class="doc-title">副主任医师</span>
+                  <div class="doc-specialty">擅长：发热待查、肺部感染</div>
+                  <div class="doc-slots">共剩 3 个号源</div>
+                </div>
+                <button class="choose-btn">选择</button>
+              </div>
+              <div class="ai-disclaimer">⚠ 仅供参考，不替代医生诊断</div>
+            </div>
+
+            <!-- 挂号成功卡 -->
+            <div class="mp-card success-card">
+              <div class="success-title">✓ 挂号成功</div>
+              <div class="success-meta">呼吸内科 · 李建国 主任医师</div>
+              <div class="success-meta">2026-08-01 上午 · 第 9 号</div>
+              <div class="success-notice">病情摘要已发送给医生</div>
+              <div class="ai-disclaimer">⚠ 仅供参考，不替代医生诊断</div>
+            </div>
+          </div>
+
+          <!-- 功能气泡栏 -->
+          <div class="bubble-bar">
+            <div class="bubble-chip">🏥 AI 诊室</div>
+            <div class="bubble-chip">📍 找医院</div>
+            <div class="bubble-chip">📄 看报告</div>
+            <div class="bubble-chip disabled">💊 拍药盒</div>
+            <div class="bubble-chip disabled">📷 拍皮肤</div>
+          </div>
+
+          <!-- 输入区 -->
+          <div class="composer">
+            <div class="c-input">请描述您的症状...</div>
+            <div class="c-row2">
+              <span class="cpill">🎤 语音</span>
+              <span class="cpill">自动 ▸</span>
+              <button class="send-btn">发送</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 我的挂号页 -->
+        <div class="mp-page c-page hidden" id="cpage-appt">
+          <div class="profile-banner">
+            <div><div class="p-label">当前服务对象</div><div class="p-name">张三（本人）</div></div>
+            <div class="p-arrow">切换 ›</div>
+          </div>
+          <div class="appt-card">
+            <div class="a-head"><span class="a-doctor">呼吸内科 · 李建国</span><span class="a-status">已约</span></div>
+            <div class="a-meta">2026-08-01 上午 · 第 9 号</div>
+            <div class="a-meta">就诊地点：门诊楼 3 楼 305</div>
+            <button class="cancel-btn">取消挂号</button>
+          </div>
+          <div class="appt-card">
+            <div class="a-head"><span class="a-doctor">心内科 · 张伟</span><span class="a-status cancelled">已接诊</span></div>
+            <div class="a-meta">2026-07-20 下午 · 第 5 号</div>
+          </div>
+        </div>
+
+        <!-- 健康档案页 -->
+        <div class="mp-page c-page hidden" id="cpage-health">
+          <div class="hero-bar">
+            <div><div class="h-title">健康档案</div><div class="h-sub">管理本人及家人健康数据</div></div>
+            <button class="add-btn">＋ 新建</button>
+          </div>
+          <div class="profile-strip">
+            <div class="profile-pill active"><div class="pp-avatar">张</div><div class="pp-name">张三</div></div>
+            <div class="profile-pill"><div class="pp-avatar">张</div><div class="pp-name">张父</div></div>
+          </div>
+          <div class="mp-card">
+            <div class="card-title">基础资料</div>
+            <div class="info-row"><span class="ir-label">称谓</span><span class="ir-value">张三</span></div>
+            <div class="info-row"><span class="ir-label">性别</span><span class="ir-value">男</span></div>
+            <div class="info-row"><span class="ir-label">出生日期</span><span class="ir-value">1990-01-15</span></div>
+            <div class="info-row"><span class="ir-label">关系</span><span class="ir-value">本人</span></div>
+          </div>
+          <div class="mp-card">
+            <div class="card-title">过敏史</div>
+            <span class="allergy-chip">青霉素 ×</span>
+            <span class="allergy-chip">头孢 ×</span>
+          </div>
+          <div class="mp-card">
+            <div class="card-title">健康时间线</div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-card">
+                <div class="tt-type">挂号单</div>
+                <div class="tt-summary">呼吸内科 李建国 · 已约</div>
+                <div class="tt-time">2026-07-30</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-card">
+                <div class="tt-type">报告解读</div>
+                <div class="tt-summary">血常规解读</div>
+                <div class="tt-time">2026-07-29</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 处方页 -->
+        <div class="mp-page gray c-page hidden" id="cpage-rx">
+          <div class="mock-note">购药入口为演示 Mock，非真实交易</div>
+          <div class="rx-card">
+            <div class="rx-title">电子处方 #2001</div>
+            <div class="rx-meta">呼吸内科 · 李建国 · 2026-08-01</div>
+            <div class="rx-drug">
+              <div class="drug-name">对乙酰氨基酚片 0.5g</div>
+              <div>用法：0.5g · 每日 3 次 · 3 天</div>
+            </div>
+            <div class="rx-interp-title">通俗解读</div>
+            <div class="rx-interp">本品用于退热止痛，建议饭后服用。若出现皮疹请停药并联系医生。</div>
+            <div class="ai-disclaimer">⚠ 仅供参考，不替代医生诊断</div>
+            <button class="order-btn">Mock 立即购药</button>
+          </div>
+        </div>
+
+        <!-- 消息页 -->
+        <div class="mp-page gray c-page hidden" id="cpage-msg">
+          <div class="msg-card">
+            <div class="m-head"><span class="m-title">就诊提醒</span><span class="m-time">今天</span></div>
+            <div class="m-content">您预约了 8 月 1 日上午呼吸内科李建国医生，请准时就诊，携带既往病历。</div>
+          </div>
+          <div class="msg-card">
+            <div class="m-head"><span class="m-title">处方通知</span><span class="m-time">昨天</span></div>
+            <div class="m-content">您的电子处方 #2001 已审核通过，可查看通俗解读。</div>
+          </div>
+          <div class="msg-card">
+            <div class="m-head"><span class="m-title">服药提醒</span><span class="m-time">昨天</span></div>
+            <div class="m-content">对乙酰氨基酚片，每日 3 次，已连续打卡 2 天。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧说明 -->
+    <div>
+      <div class="points-grid">
+        <div class="point-card">
+          <div class="pc-icon">🤖</div>
+          <div class="pc-title">SSE 流式对话</div>
+          <div class="pc-desc">POST /api/c/chat 触发 SSE 流，meta→token→卡片→done 逐事件透传。红线优先于 Agent，命中即中断导诊。</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-icon">📅</div>
+          <div class="pc-title">对话内挂号</div>
+          <div class="pc-desc">C 端无直连挂号端点，经 Agent 工具回调 POST /api/agent/appointments，防超卖与幂等由 server-java 保障。</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-icon">📄</div>
+          <div class="pc-title">报告两阶段上传</div>
+          <div class="pc-desc">逐文件 POST /report-interpretation-uploads，全部完成后 POST /finalize 合并解读，request_id 幂等。</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-icon">👤</div>
+          <div class="pc-title">单一激活档案</div>
+          <div class="pc-desc">同账号多档案，部分唯一索引保证仅一个激活；过敏史用于个性化禁忌检查。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B 端展示 ============ -->
+<section class="section" id="b-side">
+  <div class="section-head">
+    <span class="eyebrow">B 端 · React + Umi Max</span>
+    <h2>医生与管理员双角色工作台</h2>
+    <p>管理员维护组织排班与处方审核；医生查看病情摘要、完成接诊、开具电子处方。</p>
+  </div>
+
+  <div class="b-tabs">
+    <div class="b-tab active" data-btab="workbench">接诊工作台</div>
+    <div class="b-tab" data-btab="hospitals">医院管理</div>
+    <div class="b-tab" data-btab="doctors">医生管理</div>
+    <div class="b-tab" data-btab="schedules">排班管理</div>
+    <div class="b-tab" data-btab="prescriptions">处方审核</div>
+    <div class="b-tab" data-btab="dashboard">数据看板</div>
+  </div>
+
+  <div class="b-frame">
+    <div class="b-chrome">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="url">localhost:8000/workbench</span>
+    </div>
+    <div class="b-body">
+      <div class="b-sider">
+        <div class="sider-logo">✚ 智愈管理后台</div>
+        <div class="menu-group">组织管理</div>
+        <div class="menu-item" data-bmenu="hospitals">🏥 医院管理</div>
+        <div class="menu-item" data-bmenu="doctors">👨‍⚕️ 医生管理</div>
+        <div class="menu-item" data-bmenu="schedules">📅 排班管理</div>
+        <div class="menu-group">业务管理</div>
+        <div class="menu-item active" data-bmenu="workbench">📋 接诊工作台</div>
+        <div class="menu-item" data-bmenu="prescriptions">💊 处方审核</div>
+        <div class="menu-group">运营审计</div>
+        <div class="menu-item" data-bmenu="dashboard">📊 数据看板</div>
+      </div>
+      <div class="b-main">
+
+        <!-- 接诊工作台 -->
+        <div class="b-page" id="bpage-workbench">
+          <div class="page-title">医生接诊台</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">今日 · 仅展示当前医生的排班与挂号患者</div>
+          <div class="reception-grid">
+            <div class="reception-stat"><div class="rs-value">20</div><div class="rs-label">上午号源</div></div>
+            <div class="reception-stat"><div class="rs-value">17</div><div class="rs-label">已约</div></div>
+            <div class="reception-stat"><div class="rs-value">5</div><div class="rs-label">候诊中</div></div>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:12px;">今日挂号患者</div>
+            <table class="b-table">
+              <thead><tr><th>序号</th><th>患者</th><th>时段</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>7 号</td><td>张三</td><td>上午</td><td><span class="b-tag blue">待接诊</span></td><td><span class="op-link" onclick="openDrawer()">接诊</span></td></tr>
+                <tr><td>8 号</td><td>李四</td><td>上午</td><td><span class="b-tag blue">待接诊</span></td><td><span class="op-link" onclick="openDrawer()">接诊</span></td></tr>
+                <tr><td>6 号</td><td>王五</td><td>上午</td><td><span class="b-tag green">已接诊</span></td><td><span class="op-link" onclick="openDrawer()">查看</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 医院管理 -->
+        <div class="b-page hidden" id="bpage-hospitals">
+          <div class="page-title">医院管理</div>
+          <div class="b-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:600;">医院列表</span>
+              <button class="b-btn primary">+ 新建医院</button>
+            </div>
+            <table class="b-table">
+              <thead><tr><th>ID</th><th>医院名称</th><th>等级</th><th>地址</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>智愈示范医院</td><td>三级甲等</td><td>杭州市西湖区</td><td><span class="op-link">编辑</span><span class="op-link danger">删除</span></td></tr>
+                <tr><td>2</td><td>城南社区卫生中心</td><td>一级</td><td>杭州市滨江区</td><td><span class="op-link">编辑</span><span class="op-link danger">删除</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 医生管理 -->
+        <div class="b-page hidden" id="bpage-doctors">
+          <div class="page-title">医生管理</div>
+          <div class="b-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:600;">医生列表</span>
+              <button class="b-btn primary">+ 新建医生</button>
+            </div>
+            <table class="b-table">
+              <thead><tr><th>ID</th><th>姓名</th><th>科室</th><th>职称</th><th>擅长</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>3</td><td>李建国</td><td>呼吸内科</td><td>主任医师</td><td>呼吸道感染、慢性咳嗽</td><td><span class="op-link">编辑</span><span class="op-link danger">删除</span></td></tr>
+                <tr><td>4</td><td>王秀兰</td><td>呼吸内科</td><td>副主任医师</td><td>发热待查、肺部感染</td><td><span class="op-link">编辑</span><span class="op-link danger">删除</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 排班管理 -->
+        <div class="b-page hidden" id="bpage-schedules">
+          <div class="page-title">排班管理</div>
+          <div class="b-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:600;">排班列表</span>
+              <button class="b-btn primary">+ 新建排班</button>
+            </div>
+            <table class="b-table">
+              <thead><tr><th>ID</th><th>医生</th><th>日期</th><th>时段</th><th>总号源</th><th>剩余</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>5</td><td>李建国</td><td>2026-08-01</td><td>上午</td><td>20</td><td>17</td><td><span class="b-tag green">已发布</span></td><td><span class="op-link">编辑</span><span class="op-link danger">停诊</span></td></tr>
+                <tr><td>6</td><td>王秀兰</td><td>2026-08-01</td><td>下午</td><td>15</td><td>15</td><td><span class="b-tag gold">草稿</span></td><td><span class="op-link">发布</span><span class="op-link">编辑</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 处方审核 -->
+        <div class="b-page hidden" id="bpage-prescriptions">
+          <div class="page-title">电子处方审核</div>
+          <div class="b-card">
+            <table class="b-table">
+              <thead><tr><th>处方</th><th>挂号单</th><th>患者</th><th>医生</th><th>药品</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>#2001</td><td>#1001</td><td>张三</td><td>李建国</td><td>对乙酰氨基酚片 0.5g 每日3次 3天</td><td><span class="b-tag gold">待审核</span></td><td><span class="op-link">通过</span><span class="op-link danger">驳回</span></td></tr>
+                <tr><td>#2002</td><td>#1002</td><td>李四</td><td>李建国</td><td>阿莫西林胶囊 0.25g 每日2次 5天</td><td><span class="b-tag green">已通过</span></td><td>-</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 数据看板 -->
+        <div class="b-page hidden" id="bpage-dashboard">
+          <div class="page-title">数据看板 · 2026-07-30</div>
+          <div class="reception-grid" style="grid-template-columns:repeat(5,1fr);">
+            <div class="reception-stat"><div class="rs-value">42</div><div class="rs-label">今日挂号</div></div>
+            <div class="reception-stat"><div class="rs-value">66%</div><div class="rs-label">号源使用率</div></div>
+            <div class="reception-stat"><div class="rs-value">120</div><div class="rs-label">Agent 会话</div></div>
+            <div class="reception-stat"><div class="rs-value">312</div><div class="rs-label">工具调用</div></div>
+            <div class="reception-stat"><div class="rs-value">6</div><div class="rs-label">科室分布</div></div>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:12px;">科室挂号分布</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:80px;font-size:13px;">呼吸内科</span><div style="flex:1;height:20px;background:#f0f2f5;border-radius:10px;overflow:hidden;"><div style="width:43%;height:100%;background:var(--primary);border-radius:10px;"></div></div><span style="font-size:12px;color:var(--text-muted);">18</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:80px;font-size:13px;">心内科</span><div style="flex:1;height:20px;background:#f0f2f5;border-radius:10px;overflow:hidden;"><div style="width:26%;height:100%;background:var(--primary);border-radius:10px;"></div></div><span style="font-size:12px;color:var(--text-muted);">11</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:80px;font-size:13px;">消化内科</span><div style="flex:1;height:20px;background:#f0f2f5;border-radius:10px;overflow:hidden;"><div style="width:19%;height:100%;background:var(--primary);border-radius:10px;"></div></div><span style="font-size:12px;color:var(--text-muted);">8</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 安全设计 ============ -->
+<section class="section" id="safety" style="background:#fff;">
+  <div class="section-head">
+    <span class="eyebrow">SAFETY · 医疗安全边界</span>
+    <h2>确定性规则 + 免责声明全覆盖</h2>
+    <p>红线症状与用药禁忌由 server-java 确定性规则判断，LLM 只负责表达；所有 AI 产出携带免责声明。</p>
+  </div>
+  <div class="points-grid">
+    <div class="point-card danger">
+      <div class="pc-icon">🚨</div>
+      <div class="pc-title">红线症状中断</div>
+      <div class="pc-desc">胸痛伴冷汗、意识模糊、呼吸困难等规则组合命中时，立即中断普通导诊，返回红色警告与 120 建议，不调用推荐/挂号工具。</div>
+    </div>
+    <div class="point-card danger">
+      <div class="pc-icon">💊</div>
+      <div class="pc-title">用药禁忌拦截</div>
+      <div class="pc-desc">过敏史 + 候选药品 + Neo4j 知识，确定性规则给出 SAFE/BLOCKED/REVIEW_REQUIRED；医生开方、处方审核、患者查药复用同一规则。</div>
+    </div>
+    <div class="point-card">
+      <div class="pc-icon">⚠</div>
+      <div class="pc-title">免责声明兜底</div>
+      <div class="pc-desc">server-py 生成时注入，server-java 在所有 AI 响应出口和持久化前校验补齐，固定文案来自 contracts/disclaimer.json。</div>
+    </div>
+    <div class="point-card">
+      <div class="pc-icon">🔒</div>
+      <div class="pc-title">号源防超卖</div>
+      <div class="pc-desc">Redis 原子 DECR 预扣 + PostgreSQL 事务写入 + 失败精确补偿；唯一约束防重复预约，并发抢最后 1 个号源恰好 1 个成功。</div>
+    </div>
+  </div>
+
+  <!-- 红线演示卡 -->
+  <div style="max-width:480px;margin:32px auto 0;">
+    <div class="redflag-card">
+      <div class="rf-title">⚠ 紧急提醒</div>
+      <div class="rf-body">您描述的"胸痛伴冷汗"属于紧急症状，请立即拨打 120 或前往最近急诊，不要等待在线导诊。</div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;">命中红线规则时由 server-java 直接产出 red_flag 事件，不进入 Agent</div>
+  </div>
+</section>
+
+<!-- ============ 闭环验收 ============ -->
+<section class="section" id="loop">
+  <div class="section-head">
+    <span class="eyebrow">CLOSED LOOP · B+C 联动闭环</span>
+    <h2>AC-01 ~ AC-08 主闭环验收</h2>
+    <p>使用同一套虚构演示数据连续执行，每步生成的业务编号作为下一步输入，禁止人工改库。</p>
+  </div>
+  <div class="arch-diagram">
+    <div class="loop-flow">
+      <div class="loop-step"><div class="ls-num">1</div><div class="ls-text">配置医生<br>擅长与排班</div></div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-step"><div class="ls-num">2</div><div class="ls-text">新增药品<br>目录</div></div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-step"><div class="ls-num">3</div><div class="ls-text">患者症状<br>对话导诊</div></div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-step"><div class="ls-num">4</div><div class="ls-text">挂号成功<br>号源-1</div></div>
+      <span class="loop-arrow">→</span>
+      <div class="loop-step"><div class="ls-num">5</div><div class="ls-text">医生接诊<br>填诊断</div></div>
+    </div>
+    <div class="loop-flow mt-16">
+      <div class="loop-step"><div class="ls-num">8</div><div class="ls-text">患者查看<br>处方解读</div></div>
+      <span class="loop-arrow">←</span>
+      <div class="loop-step"><div class="ls-num">7</div><div class="ls-text">管理员<br>审核通过</div></div>
+      <span class="loop-arrow">←</span>
+      <div class="loop-step"><div class="ls-num">6</div><div class="ls-text">医生开方<br>进待审核</div></div>
+    </div>
+    <div class="loop-flow mt-16">
+      <span style="color:var(--primary);font-size:13px;font-weight:600;">✓ 挂号结果进入接诊队列 · 病情摘要可见 · 处方审核后 C 端可见 · 双端读取同一业务记录</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 总结 ============ -->
+<section class="section" id="summary" style="background:#fff;">
+  <div class="section-head">
+    <span class="eyebrow">SUMMARY</span>
+    <h2>项目亮点总结</h2>
+  </div>
+  <div class="points-grid">
+    <div class="point-card">
+      <div class="pc-icon">🏗️</div>
+      <div class="pc-title">清晰的职责边界</div>
+      <div class="pc-desc">server-java 唯一入口与业务写入方，server-py 只编排 Agent 与只读检索；8 份跨栈契约 JSON 作为单一事实源，双栈契约测试钉死。</div>
+    </div>
+    <div class="point-card">
+      <div class="pc-icon">🛡️</div>
+      <div class="pc-title">医疗安全优先</div>
+      <div class="pc-desc">红线规则先于 LLM，用药禁忌确定性判断，免责声明全覆盖；号源 Redis 原子扣减 + PG 事务对账防超卖。</div>
+    </div>
+    <div class="point-card">
+      <div class="pc-icon">🔗</div>
+      <div class="pc-title">B+C 真实联动</div>
+      <div class="pc-desc">C 端挂号产生的挂号单与病情摘要直接进入 B 端接诊台；处方审核结果同步医生与患者，双端读取同一业务记录。</div>
+    </div>
+    <div class="point-card">
+      <div class="pc-icon">📊</div>
+      <div class="pc-title">可观测可演示</div>
+      <div class="pc-desc">SSE 多跳链路留痕"流走到哪、在哪断"；Agent trace 只记脱敏摘要；演示重置三重保护；并发抢号脚本现场证明防超卖。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 页脚 ============ -->
+<div class="footer">
+  <div class="brand">✚ 智愈 zhiyu-health</div>
+  <div style="margin-top:8px;">医疗 B+C 平台 demo · 仅供参考，不替代医生诊断</div>
+</div>
+
+<!-- ============ B 端接诊抽屉（浮层） ============ -->
+<div class="b-drawer-mask hidden" id="drawerMask" onclick="closeDrawer()"></div>
+<div class="b-drawer hidden" id="bDrawer">
+  <div class="drawer-head">
+    <span class="dh-title">接诊详情</span>
+    <span class="dh-close" onclick="closeDrawer()">×</span>
+  </div>
+  <div class="drawer-body">
+    <div class="desc-grid">
+      <div class="desc-item"><div class="di-label">患者</div><div class="di-value">张三</div></div>
+      <div class="desc-item"><div class="di-label">序号</div><div class="di-value">7 号</div></div>
+      <div class="desc-item"><div class="di-label">时段</div><div class="di-value">上午</div></div>
+      <div class="desc-item"><div class="di-label">状态</div><div class="di-value"><span class="b-tag blue">待接诊</span></div></div>
+    </div>
+    <div class="b-alert info">
+      <div class="ba-title">AI 病情摘要</div>
+      <div style="font-size:13px;color:var(--text-2);">主诉：发热咳嗽 3 天，伴头痛，体温最高 38.5℃。无胸闷气促。</div>
+      <div style="font-size:12px;color:#d48806;margin-top:6px;">⚠ 仅供参考，不替代医生诊断</div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;font-weight:600;font-size:14px;">开具电子处方</div>
+    <div class="b-alert success">
+      <div class="ba-title">✓ 用药安全检查通过</div>
+      <div style="font-size:12px;color:var(--text-3);">候选药品未命中过敏史与相互作用</div>
+    </div>
+    <div class="b-form-item">
+      <label class="bfi-label">药品明细</label>
+      <div class="b-drug-row">
+        <select class="bdi"><option>对乙酰氨基酚片（0.5g）</option></select>
+        <input class="bdi" placeholder="0.5g" style="width:70px;">
+        <input class="bdi" placeholder="每日3次" style="width:90px;">
+        <input class="bdi" placeholder="3天" style="width:60px;">
+        <span style="color:#ff4d4f;cursor:pointer;">✕</span>
+      </div>
+      <button class="b-add-drug">+ 添加药品</button>
+    </div>
+    <div class="b-form-item">
+      <label class="bfi-label">诊断结论</label>
+      <textarea class="bfi-textarea" placeholder="请填写诊断结论">急性上呼吸道感染</textarea>
+    </div>
+    <div class="b-form-item">
+      <label class="bfi-label">医嘱</label>
+      <textarea class="bfi-textarea" placeholder="请填写医嘱">多饮水，注意休息，3天后复诊</textarea>
+    </div>
+    <button class="b-btn primary" style="width:100%;padding:10px;" onclick="closeDrawer()">完成接诊</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
