@@ -4,8 +4,15 @@
 业务 API、鉴权、会话持久化均不在本端。
 """
 
+import asyncio
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
+# Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容，切到 SelectorEventLoop。
+# 生产部署在 Linux 不受影响（Linux 默认即兼容的 epoll 循环）。
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

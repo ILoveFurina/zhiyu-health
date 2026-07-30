@@ -17,9 +17,9 @@ from app.core.contracts import get_contracts
 from app.core.embeddings import build_embedding_model
 from app.db.clients import acquire_pg_connection
 
-# 产物路径：server-java 的 classpath 资源目录
+# 产物路径：server-java 的 classpath 资源目录（parents[3] = 仓库根 zhiyu-health）
 _OUTPUT = (
-    Path(__file__).resolve().parents[4]
+    Path(__file__).resolve().parents[3]
     / "server-java"
     / "src"
     / "main"
@@ -65,7 +65,11 @@ async def main() -> int:
     embedder = build_embedding_model(settings)
     # 用 拼接文本作为 embedding 输入：title + content 携带科室语义
     texts = [f"{title}。{content}" for _, _, title, content in chunks]
-    vectors = await embedder.aembed_documents(texts)
+    # 方舟 embedding endpoint 限制单次最多 10 条输入，分批调用
+    vectors: list[list[float]] = []
+    batch_size = 10
+    for i in range(0, len(texts), batch_size):
+        vectors.extend(await embedder.aembed_documents(texts[i : i + batch_size]))
 
     actual_dim = len(vectors[0])
     if actual_dim != contract_dim:
@@ -94,4 +98,7 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
+    # Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     raise SystemExit(asyncio.run(main()))

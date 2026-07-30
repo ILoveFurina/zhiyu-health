@@ -46,9 +46,9 @@ zhiyu:
     user: ${NEO4J_USER:neo4j}
     password: ${NEO4J_PASSWORD:}
   knowledge:
-    # 向量维度路径 B（ADR-0010）：DDL 写死 vector(1024)，yml 配置默认值，
+    # 向量维度路径 B（ADR-0010）：DDL 写死 vector(2048)，yml 配置默认值，
     # 启动期校验配置维度 == DDL 维度 == endpoint 实际返回，不一致 fail-fast。
-    # 维度实际值实现期连 endpoint 探测确认，若非 1024 同步改 DDL 与此处。
-    embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1024}
+    # 维度实际值连 endpoint 探测确认（doubao-embedding-vision 返回 2048）。
+    embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:2048}
   rate-limit:
     permits-per-minute: 60

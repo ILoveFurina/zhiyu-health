@@ -48,6 +48,6 @@ zhiyu:
     user: ${NEO4J_USER:neo4j}
     password: ${NEO4J_PASSWORD:}
   knowledge:
-    embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1024}
+    embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:2048}
   rate-limit:
     permits-per-minute: 60

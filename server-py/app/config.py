@@ -40,8 +40,8 @@ class Settings(WebSettings):
     doubao_embedding_model: str = ""
     # 业务库连接（只读检索 knowledge_chunks）；.env 的 DATABASE_URL 与 server-java 共用同一库
     database_url: str = ""
-    # 向量维度路径 B：DDL 写死 vector(1024)，此处为默认值，启动期校验与契约/DDL 一致
-    knowledge_embedding_dimension: int = 1024
+    # 向量维度路径 B：DDL 写死 vector(2048)，此处为默认值，启动期校验与契约/DDL 一致
+    knowledge_embedding_dimension: int = 2048
 
 
 @lru_cache

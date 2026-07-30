@@ -11,8 +11,11 @@ from app.config import Settings
 
 
 def build_embedding_model(settings: Settings) -> OpenAIEmbeddings:
+    # check_embedding_ctx_length=False：方舟 embedding endpoint 不走 tiktoken 分词，
+    # 交由服务端处理文本；True 时 langchain 会本地分词并传 token id 数组导致 400。
     return OpenAIEmbeddings(
         model=settings.doubao_embedding_model,
         base_url=settings.ark_base_url,
         api_key=SecretStr(settings.ark_api_key),
+        check_embedding_ctx_length=False,
     )

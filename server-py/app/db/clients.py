@@ -40,13 +40,20 @@ def create_knowledge_clients(settings: Settings) -> KnowledgeClients:
             "请同步 application.yml 与 contracts/knowledge.json"
         )
     # database_url 为空（如测试或未配置检索）时不建连接，运行时检索降级走裸 LLM
-    return KnowledgeClients(neo4j=neo4j, pg_dsn=settings.database_url or None)
+    return KnowledgeClients(neo4j=neo4j, pg_dsn=_normalize_dsn(settings.database_url))
+
+
+def _normalize_dsn(database_url: str) -> str | None:
+    """规整 DSN：.env 用 SQLAlchemy 风格 postgresql+psycopg://，psycopg 原生需纯 postgresql://。"""
+    if not database_url:
+        return None
+    return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
 async def acquire_pg_connection(dsn: str) -> AsyncConnection:
     """打开一个只读检索连接并注册 pgvector 适配器。"""
     from pgvector.psycopg import register_vector_async  # 延迟导入，避免无 pg 时的副作用
 
-    conn = await AsyncConnection.connect(dsn, timeout=5)
+    conn = await AsyncConnection.connect(_normalize_dsn(dsn) or dsn, connect_timeout=5)
     await register_vector_async(conn)
     return conn

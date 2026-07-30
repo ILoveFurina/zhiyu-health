@@ -8,7 +8,7 @@
   },
   "knowledge_meta_event": "knowledge",
   "knowledge_status": ["ok", "degraded", "unavailable"],
-  "embedding_dimension": 1024,
+  "embedding_dimension": 2048,
   "vector_column": "vector",
   "search_top_k": 3,
   "similarity_threshold": 0.3

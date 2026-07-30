@@ -115,7 +115,7 @@ class ContractsTest {
                 .containsEntry("interpretation", "none");
         assertThat(knowledge.knowledgeMetaEvent()).isEqualTo("knowledge");
         assertThat(knowledge.knowledgeStatus()).containsExactly("ok", "degraded", "unavailable");
-        assertThat(knowledge.embeddingDimension()).isEqualTo(1024);
+        assertThat(knowledge.embeddingDimension()).isEqualTo(2048);
         assertThat(knowledge.vectorColumn()).isEqualTo("vector");
         assertThat(knowledge.searchTopK()).isEqualTo(3);
         assertThat(knowledge.similarityThreshold()).isEqualTo(0.3);
