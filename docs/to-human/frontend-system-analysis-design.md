@@ -20,7 +20,7 @@
 |---|---|---|---|
 | 患者/家属 | C 端 | 导诊、找医院、挂号、查记录、读报告/处方、管理家人档案 | 易用、安心、结果明确、隐私 |
 | 医生 | B 端 | 查看排班与候诊患者、阅读病情摘要、完成接诊、开电子处方 | 信息密度、效率、用药安全 |
-| 管理员/药师 | B 端 | 维护组织与排班、审核处方、查看数据与审计 | 准确、可追溯、权限隔离 |
+| 管理员 | B 端 | 维护组织与排班、审核处方、查看数据与审计 | 准确、可追溯、权限隔离 |
 | 演示者 | C 端+B 端 | 展示跨端闭环、AI 工具调用、防超卖与知识增强 | 稳定、路径短、状态可解释 |
 
 ## 4. 设计原则
@@ -30,7 +30,7 @@
 3. **免责声明全覆盖**：任何 AI 产出都展示“仅供参考，不替代医生诊断”，卡片、详情页、语音场景均无例外。
 4. **关键操作二次确认**：挂号、取消挂号、处方提交与审核等状态变更必须明确对象、后果及成功结果。
 5. **渐进披露**：首屏围绕主任务，复杂信息进入抽屉、详情页或展开区，降低患者认知负担。
-6. **跨端一致**：状态、消息类型、审核决定、错误码等从 `contracts/` 契约推导，不在端内另行定义。
+6. **跨端一致**：消息类型、处方状态与审核决定、禁忌判定决定、错误码等从 `contracts/` 契约推导，不在端内另行定义；挂号状态无契约枚举，由服务端返回中文展示值，端侧直接渲染。
 
 ## 5. 总体前端架构
 
@@ -38,7 +38,7 @@
 flowchart LR
   U1["患者/家属"] --> C["C 端：支付宝原生小程序"]
   U2["医生"] --> B["B 端：React 管理后台"]
-  U3["管理员/药师"] --> B
+  U3["管理员"] --> B
   C -->|"HTTPS / SSE"| J["server-java 统一入口"]
   B -->|"HTTPS"| J
   C -.->|"禁止直连"| P["server-py Agent 层"]
@@ -49,7 +49,7 @@ flowchart LR
 
 - 支付宝原生小程序，使用 AXML、ACSS、JavaScript 与 `my.*` API。
 - 通用交互组件优先采用 antd-mini；业务卡片使用原生自定义组件封装。
-- 页面通过 service 层访问 server-java；页面脚本不直接拼接网络请求。
+- 普通业务请求集中在 services/ 的资源模块（文件名使用 kebab-case）；鉴权、SSE 流解析、报告分片上传等机制封装在 utils/，供页面与 services 复用；页面脚本不直接拼接网络请求。
 - SSE 由独立流解析器处理，输出标准事件给页面状态机。
 - 录音通过 `my.getRecorderManager` 获取，位置能力仅在用户授权后调用。
 
@@ -62,13 +62,15 @@ flowchart LR
 
 ## 6. C 端信息架构
 
-| 一级页面 | 主要内容 | 主要入口/去向 |
+| 页面 | 主要内容 | 主要入口/去向 |
 |---|---|---|
 | AI 诊室 | 当前档案、推荐提问、功能气泡、会话消息、输入与语音、推理档位 | 医院/医生卡、挂号、报告上传、历史会话 |
 | 我的挂号 | 已约/已取消/已接诊列表、详情、取消、就诊指引 | 对应会话、处方、健康时间线 |
 | 健康档案 | 本人/家人档案切换、基础信息、过敏史、健康时间线 | 报告解读、挂号、处方 |
 | 电子处方 | 已审核处方、通俗解读、用法用量、打卡 | 药品详情、Mock 购药 |
 | 消息 | 就诊提醒、处方通知、接诊后小结 | 挂号或处方详情 |
+
+小程序不设底部 tabBar：五个页面为平级页面，AI 诊室为启动页，其余页面通过页内导航入口（`my.navigateTo`）互相跳转。
 
 会话归属患者账号，不绑定健康档案；切换健康档案不筛选会话历史。每轮依赖个人信息的能力只读取当前激活档案。
 
@@ -99,8 +101,10 @@ flowchart TD
 
 - 首条用户消息发送时创建会话，标题取首条消息的截断摘要。
 - 历史会话按最近活跃时间倒序，最多展示 50 条，支持新建、切换、续聊与单条删除。
-- 消息至少区分：文本、医生推荐、医生号源、医院推荐、挂号结果、挂号列表、报告上传、报告解读、报告上下文。
-- 文本 token 增量渲染；结构化卡片以完整事件落屏；流结束后以服务端持久化结果为准校准页面。
+- 消息种类以契约为准：文本、医生推荐、医生号源、医院推荐、挂号结果、挂号列表、报告上传、报告解读、报告上下文与用药禁忌提醒。
+- 端侧另有私有的引导提示类消息（如导诊引导、找医院引导卡片）：仅客户端渲染，不经 SSE、不持久化、不携带免责声明。
+- 文本 token 增量渲染；结构化卡片以完整事件落屏。
+- 免责声明标注组件内置固定文案，与 `contracts/disclaimer.json` 逐字一致，一切 AI 产出必须携带。
 - 页面离开、切换会话或网络中断时终止当前流订阅，避免事件串入错误会话。
 
 ### 7.3 多模态与特色入口
@@ -108,6 +112,9 @@ flowchart TD
 聊天框上方提供 AI 诊室、找医院、看报告、拍药盒、拍皮肤、拍饮食、拍舌苔入口。入口点击后先显示用途、上传要求和边界说明，再进入拍摄/选择文件。
 
 - 报告支持 JPEG、PNG、PDF；图片批次 1–5 张，单文件不超过 10 MiB、批次不超过 20 MiB；PDF 单次一个。
+- 报告上传采用两阶段协议：先逐文件上传分片（携带上传批次标识、页序与文件总数），全部完成后提交合并解读请求；任一文件失败即终止并提示重传。
+- 首次上传报告前展示一次性知情同意说明：告知内容将发送至多模态模型处理、建议遮盖姓名与证件号等敏感信息、原件不保存，并附免责声明；同意后记住选择，图片上传前在客户端压缩。
+- 找医院入口优先申请定位授权（小程序声明位置权限用途）；授权失败时降级为按区域手动查找，不阻断导诊。
 - 原始医学影像不作为报告文字页处理，需显示明确的范围错误。
 - 视觉结果使用结构化卡片展示识别摘要、重点指标、通俗解释、建议和免责声明。
 - 语音输入需显示录音、上传、识别三个状态；TTS 播放提供开始、暂停与停止，不能自动连续播报敏感信息。
@@ -124,7 +131,7 @@ flowchart TD
 
 ### 8.1 登录与权限
 
-- B 端账号体系与 C 端分离。
+- B 端账号体系与 C 端分离，角色仅管理员与医生两类。
 - 管理员可访问医院、科室、医生、排班、处方审核、数据看板、知识图谱、Agent 日志与演示数据重置。
 - 医生仅访问与本人关联的工作台、接诊任务与开方能力。
 - 未登录跳转登录页；无权路由进入 403 状态页；接口返回 401 时清理会话并回到登录页。
@@ -142,7 +149,7 @@ flowchart TD
 - 顶部展示今日排班摘要，主体为待接诊队列与患者详情工作区。
 - 患者详情包含健康档案摘要、过敏史、病情摘要、挂号信息和历史时间线入口。
 - 完成接诊需填写诊断结论与医嘱，提交后挂号单转为已接诊。
-- 电子处方以药品目录选择药品，填写剂量、频次、疗程和备注；过敏或相互作用命中时阻止或强警告，并解释依据。
+- 电子处方以药品目录选择药品，填写剂量、频次、疗程和备注；提交前先执行禁忌预检，过敏或相互作用命中时阻止或强警告，并解释依据。
 
 ### 8.4 处方审核、数据与审计
 
@@ -164,67 +171,56 @@ flowchart TD
 ### 9.2 API 使用约定
 
 - C 端仅调用 `/api/c/*`，B 端仅调用 `/api/b/*`；两端不得访问 server-py。
-- 请求统一注入访问令牌和请求标识；不得在日志中记录患者原文、文件内容或完整令牌。
+- 请求统一注入访问令牌；不得在日志中记录患者原文、文件内容或完整令牌。
 - 写操作按钮提交后立即进入不可重复提交状态；挂号、报告解读等使用服务端幂等标识。
-- SSE 消费 `meta`、`token`、`message`、结构化卡片、`red_flag` 与 `done` 事件；未知事件记录脱敏诊断信息并安全忽略。
-- 状态、消息种类、处方审核决定、免责声明、上传限制和用户可见视觉错误均来自根目录 `contracts/`。
+- SSE 消费 `meta`、`knowledge`、`token`、`message`、`red_flag`、`done` 与结构化卡片事件；`knowledge` 等无需端侧展示的事件不渲染，未识别的事件安全忽略、不影响后续事件处理。
+- 消息种类、处方状态与审核决定、禁忌判定决定、免责声明、上传限制和用户可见视觉错误均来自根目录 `contracts/`；挂号状态为特例，服务端直接返回中文展示值（已约/已接诊/已取消），两端按展示值渲染。
 
 #### 前端 service 与资源映射
 
-| 前端 service | 访问资源 | 主要 View Model |
-|---|---|---|
-| C 端 `auth` | `/api/c/auth/*` | `PatientSession` |
-| C 端 `conversations` | `/api/c/conversations/*`、`/api/c/chat/stream` | `ConversationSummary`、`MessageView`、`StreamState` |
-| C 端 `healthProfiles` | `/api/c/health-profiles/*` | `HealthProfileView`、`TimelineEntry` |
-| C 端 `appointments` | `/api/c/appointments/*` | `DoctorCard`、`SlotCard`、`AppointmentView` |
-| C 端 `reports` | `/api/c/reports/interpretations/*` | `ReportTaskView`、`ReportInterpretationView` |
-| C 端 `patientCare` | `/api/c/prescriptions`、`/api/c/messages` | `PrescriptionView`、`InAppMessageView` |
-| B 端 `organization` | `/api/b/hospitals`、`departments`、`doctors`、`schedules` | 对应表单、详情和分页模型 |
-| B 端 `reception` | `/api/b/reception/*`、`appointments/*/consultation` | `ReceptionQueueItem`、`ConsultationView` |
-| B 端 `prescription` | `/api/b/appointments/*/prescriptions`、`/api/b/prescriptions/*` | `PrescriptionForm`、`PrescriptionReviewView` |
-| B 端 `operations` | `/api/b/dashboard`、`knowledge-graph`、`agent-logs`、`demo/reset` | 指标、图节点/边、脱敏 trace |
+C 端 services/ 只承载业务资源的普通 JSON 请求；鉴权、SSE 流解析、报告分片上传封装在 utils/。医生推荐、号源、禁忌提醒等卡片数据经 SSE 事件到达页面，不走普通请求 service。
 
-service 方法只返回解包后的 `data`，统一请求层负责令牌、`X-Request-Id`、错误归一化和 401 处理。页面不得直接依赖数据库字段名或持久化 Entity。
+| 前端 service / 工具模块 | 访问资源 | 主要 View Model |
+|---|---|---|
+| C 端 `services/conversations` | `/api/c/conversations/*`；对话流 `POST /api/c/chat`（SSE，经 utils/chat-stream 解析） | `ConversationSummary`、`MessageView`、`StreamState`、`DoctorCard`、`SlotCard` |
+| C 端 `services/health-profiles` | `/api/c/health-profiles/*` | `HealthProfileView`、`TimelineEntry` |
+| C 端 `services/appointments` | `/api/c/appointments/*` | `AppointmentView` |
+| C 端 `services/patient-care` | `/api/c/prescriptions`、`/api/c/messages` | `PrescriptionView`、`InAppMessageView` |
+| C 端 `utils/auth`、`utils/report-upload` | `/api/c/auth/mock-login`；`/api/c/report-interpretation-uploads`、`/api/c/report-interpretations/finalize` | `PatientSession`、`ReportTaskView`、`ReportInterpretationView` |
+| B 端 `services/auth` | `/api/b/auth/login`、`/api/b/auth/me` | `CurrentUser` |
+| B 端 `services/organization` | `/api/b/hospitals`、`/api/b/departments`、`/api/b/doctors` | 对应表单与列表模型 |
+| B 端 `services/reception` | `GET /api/b/reception`（当日排班与候诊队列聚合）、`/api/b/reception/appointments/{id}`、`/api/b/reception/appointments/{id}/complete` | `ReceptionDashboard`、`AppointmentDetail` |
+| B 端 `services/prescription` | `/api/b/reception/medications`、`/api/b/reception/appointments/{id}/prescriptions`、`/api/b/reception/appointments/{id}/contraindication-check`（开方前禁忌预检）、`/api/b/prescriptions/*` | `PrescriptionForm`、`SafetyCheckResult`、`PrescriptionReviewView` |
+
+service 方法返回接口响应中的业务数据本体。B 端统一请求层负责注入访问令牌、错误提示归一化与 401 处理（清理会话并回到登录页）；C 端请求层注入令牌并解析错误体，不做统一 401 跳转，由各页面按错误反馈处理。页面不得直接依赖数据库字段名或持久化 Entity。
 
 #### 基础响应 schema
 
+成功响应无统一信封，响应体即业务数据本体（对象或数组）；列表接口直接返回数组，不使用分页包装。错误出口统一为 `{"detail": ...}`，分两种形态：
+
 ```ts
-type ApiResponse<T> = {
-  data: T;
-  requestId: string;
-};
+// 成功：响应体即业务数据本身，如 T 或 T[]
 
-type PageResult<T> = {
-  items: T[];
-  page: number;
-  pageSize: number;
-  total: number;
-};
-
-type ApiError = {
-  error: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown> | null;
-  };
-  requestId: string;
-};
+// 失败：统一错误体
+type ApiErrorBody =
+  | { detail: string }                              // 通用错误
+  | { detail: { code: string; message: string } };  // 带业务错误码
 ```
 
-C 端 JavaScript 使用同一字段 schema，并在请求边界执行运行时校验；B 端 TypeScript 类型由共享契约和接口 View 定义推导，不复制状态字符串。
+接口字段命名统一为 snake_case，两端直接使用服务端字段名，不做 camelCase 转换；C 端在请求边界按 `detail`/`message` 解析错误文案，B 端 TypeScript 类型由共享契约和接口 View 定义推导，不复制状态字符串。
 
 #### 核心 View Model schema
 
 | 模型 | 必备字段 | 渲染要求 |
 |---|---|---|
-| `ConversationSummary` | `id/title/lastActiveAt` | 最近活跃倒序；切换档案不筛选 |
-| `MessageView` | `id/role/kind/content/createdAt/disclaimer?` | 按 `kind` 分派组件；AI 消息校验免责声明 |
-| `DoctorCard` | `doctor/department/hospital/specialty/distance?/nextSlot?` | 缺少距离时隐藏，不使用默认假值 |
-| `SlotCard` | `id/date/timeSlot/remainingSlots/available` | `available=false` 时禁止提交 |
-| `AppointmentView` | `id/status/sequenceNumber/profile/hospital/department/doctor/schedule` | 所有操作按状态机控制，提交仍由服务端裁决 |
-| `HealthProfileView` | `id/displayName/gender/birthDate/relationship/active/allergies[]` | 明确显示当前服务对象 |
-| `PrescriptionView` | `id/status/items/reviewReason?/interpretation?/disclaimer?` | C 端仅渲染已审核可见数据 |
-| `ReportInterpretationView` | `id/requestId/status/file/result?/error?/disclaimer` | 根据任务状态显示进度、结果或契约错误 |
+| `ConversationSummary` | `id/title/last_active_at` | 最近活跃倒序；切换档案不筛选 |
+| `MessageView` | `id/role/kind/content/created_at/disclaimer?` | 按 `kind` 分派组件；AI 消息校验免责声明 |
+| `DoctorCard` | `doctor/department/hospital/specialty/distance?/next_slot?` | 缺少距离时隐藏，不使用默认假值 |
+| `SlotCard` | `id/date/time_slot/remaining_slots/available` | `available=false` 时禁止提交 |
+| `AppointmentView` | `id/status/sequence_number/profile/hospital/department/doctor/schedule` | 所有操作按状态机控制，提交仍由服务端裁决 |
+| `HealthProfileView` | `id/display_name/gender/birth_date/relationship/active/allergies[]` | 明确显示当前服务对象 |
+| `PrescriptionView` | `id/status/items/review_reason?/interpretation?/disclaimer?` | C 端仅渲染已审核可见数据 |
+| `ReportInterpretationView` | `id/request_id/status/file/result?/error?/disclaimer` | 根据任务状态显示进度、结果或契约错误 |
 
 #### SSE 消费状态机
 
@@ -246,7 +242,7 @@ stateDiagram-v2
 - `token.delta` 只追加到当前临时文本；收到完整 `message` 后用 `message.id` 替换临时文本，避免重复。
 - 结构化卡片使用事件中的 `messageId` 去重；重复 SSE 帧不得重复插入或重复触发挂号成功反馈。
 - `red_flag` 立即清空普通工具进度、停止语音播报并锁定普通导诊操作，直至 `done`。
-- `done.persistedMessageIds` 用于校准本地消息；异常结束后通过会话历史和业务查询接口恢复，不自动重放非幂等写操作。
+- `done` 仅标志流结束，不携带校准数据；异常结束后重新进入会话，以服务端持久化消息和业务查询接口恢复，不自动重放非幂等写操作。
 
 ### 9.3 错误体验
 
@@ -278,7 +274,7 @@ stateDiagram-v2
 ## 12. 性能与可靠性要求
 
 - 首屏优先加载主任务资源，图谱、图表和非首屏模块按需加载。
-- 列表采用服务端分页；图片上传前可做不改变医学可读性的压缩和方向校正。
+- 列表由服务端控制数据量（如历史会话上限 50 条、当日接诊聚合视图）；图片上传前可做不改变医学可读性的压缩和方向校正。
 - token 渲染应合并刷新，避免每个字符触发完整页面重排。
 - 普通请求提供可取消机制；离开页面清理计时器、录音、音频和流连接。
 - 所有成功提示必须来自服务端确认，尤其是挂号、取消、接诊、开方和审核。
