@@ -92,3 +92,25 @@ navLinks.forEach(a => {
     }
   });
 });
+
+// ============ 聊天历史抽屉（左滑入） ============
+const histMask = document.getElementById('histMask');
+const histDrawer = document.getElementById('histDrawer');
+const histItems = document.querySelectorAll('.hist-item');
+
+function openHistory() {
+  histMask.classList.add('show');
+  histDrawer.classList.add('show');
+}
+function closeHistory() {
+  histMask.classList.remove('show');
+  histDrawer.classList.remove('show');
+}
+// 点击历史项切换激活态并关闭抽屉
+histItems.forEach(item => {
+  item.addEventListener('click', () => {
+    histItems.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    closeHistory();
+  });
+});

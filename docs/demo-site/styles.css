@@ -307,6 +307,18 @@ body {
 }
 .mp-page.gray { background: var(--bg-gray); }
 
+/* 聊天页：固定头 + 中间消息区独立滚动 + 固定底 */
+.mp-page.chat-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.mp-page.chat-layout .chat-top { flex-shrink: 0; padding: 8px 12px; }
+.mp-page.chat-layout .chat-thread { flex: 1; overflow-y: auto; padding: 4px 12px 12px; }
+.mp-page.chat-layout .chat-bottom { flex-shrink: 0; }
+
 /* AI 诊室 */
 .chat-top {
   display: flex; align-items: center; justify-content: space-between;
@@ -555,3 +567,85 @@ body {
 .b-drug-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
 .b-drug-row .bdi { border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 10px; font-size: 12px; }
 .b-add-drug { border: 1px dashed var(--primary); color: var(--primary); background: #fff; border-radius: 6px; padding: 8px; width: 100%; font-size: 13px; cursor: pointer; }
+
+/* ============ chat 顶部布局（左历史按钮 + 档案，右档位） ============ */
+.chat-top-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.history-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-bg); color: var(--primary);
+  cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+}
+.history-btn:hover { background: var(--primary); color: #fff; }
+
+/* ============ 聊天历史抽屉（DeepSeek 手机版风格，左滑入） ============ */
+.hist-mask {
+  position: absolute; inset: 0; top: 28px; /* 避开听筒区 */
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 20; opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.hist-mask.show { opacity: 1; pointer-events: auto; }
+.hist-drawer {
+  position: absolute; top: 28px; bottom: 0; left: 0;
+  width: 82%; max-width: 300px;
+  background: #f7f9f8;
+  z-index: 21;
+  display: flex; flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+}
+.hist-drawer.show { transform: translateX(0); }
+.hist-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: #fff; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.hist-title { font-size: 15px; font-weight: 700; color: var(--text-1); }
+.hist-close { font-size: 22px; color: var(--text-light); cursor: pointer; line-height: 1; }
+.hist-new {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 12px 8px; padding: 10px 14px;
+  background: var(--primary-bg); color: var(--primary);
+  border: 1px solid #b9ded6; border-radius: 12px;
+  font-size: 14px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  transition: background 0.2s;
+}
+.hist-new:hover { background: #d8efe8; }
+.hist-search {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 12px 8px; padding: 8px 12px;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text-muted); flex-shrink: 0;
+}
+.hist-search input {
+  border: none; outline: none; background: transparent;
+  font-size: 13px; flex: 1; color: var(--text-2);
+}
+.hist-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+.hist-list::-webkit-scrollbar { width: 0; }
+.hist-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px; border-radius: 10px; cursor: pointer;
+  transition: background 0.15s;
+}
+.hist-item:hover { background: #fff; }
+.hist-item.active { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.hist-item.active .hist-item-title { color: var(--primary); font-weight: 600; }
+.hist-item-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--primary-bg-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.hist-item-main { flex: 1; min-width: 0; }
+.hist-item-title {
+  font-size: 13px; color: var(--text-2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.hist-item-time { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.hist-foot {
+  padding: 10px 16px; font-size: 11px; color: var(--text-light);
+  text-align: center; flex-shrink: 0; border-top: 1px solid var(--border-soft);
+}

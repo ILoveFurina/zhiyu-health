@@ -59,7 +59,7 @@
       <div class="arch-node b"><div class="node-title">B 端 React</div><div class="node-desc">医生/管理员</div></div>
       <span class="arch-arrow">→</span>
       <div class="arch-node java"><div class="node-title">server-java</div><div class="node-desc">鉴权·审计·规则·事务</div></div>
-      <span class="arch-arrow">⇄ SSE</span>
+      <span class="arch-arrow">⇄ WSS</span>
       <div class="arch-node py"><div class="node-title">server-py</div><div class="node-desc">LangGraph·RAG·视觉</div></div>
     </div>
     <div class="arch-flow mt-16">
@@ -98,9 +98,14 @@
         </div>
 
         <!-- AI 诊室页 -->
-        <div class="mp-page c-page" id="cpage-chat">
+        <div class="mp-page c-page chat-layout" id="cpage-chat">
           <div class="chat-top">
-            <div class="profile-chip"><div class="avatar-sm">张</div> 张三</div>
+            <div class="chat-top-left">
+              <div class="history-btn" onclick="openHistory()" title="聊天历史">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>
+              </div>
+              <div class="profile-chip"><div class="avatar-sm">张</div> 张三</div>
+            </div>
             <div class="gear-chip">自动 ▸</div>
           </div>
           <div class="chat-thread">
@@ -142,22 +147,22 @@
             </div>
           </div>
 
-          <!-- 功能气泡栏 -->
-          <div class="bubble-bar">
-            <div class="bubble-chip">🏥 AI 诊室</div>
-            <div class="bubble-chip">📍 找医院</div>
-            <div class="bubble-chip">📄 看报告</div>
-            <div class="bubble-chip disabled">💊 拍药盒</div>
-            <div class="bubble-chip disabled">📷 拍皮肤</div>
-          </div>
-
-          <!-- 输入区 -->
-          <div class="composer">
-            <div class="c-input">请描述您的症状...</div>
-            <div class="c-row2">
-              <span class="cpill">🎤 语音</span>
-              <span class="cpill">自动 ▸</span>
-              <button class="send-btn">发送</button>
+          <!-- 功能气泡栏 + 输入区（固定底部） -->
+          <div class="chat-bottom">
+            <div class="bubble-bar">
+              <div class="bubble-chip">🏥 AI 诊室</div>
+              <div class="bubble-chip">📍 找医院</div>
+              <div class="bubble-chip">📄 看报告</div>
+              <div class="bubble-chip disabled">💊 拍药盒</div>
+              <div class="bubble-chip disabled">📷 拍皮肤</div>
+            </div>
+            <div class="composer">
+              <div class="c-input">请描述您的症状...</div>
+              <div class="c-row2">
+                <span class="cpill">🎤 语音</span>
+                <span class="cpill">自动 ▸</span>
+                <button class="send-btn">发送</button>
+              </div>
             </div>
           </div>
         </div>
@@ -255,6 +260,68 @@
             <div class="m-content">对乙酰氨基酚片，每日 3 次，已连续打卡 2 天。</div>
           </div>
         </div>
+
+        <!-- 聊天历史抽屉（DeepSeek 手机版风格，左滑入） -->
+        <div class="hist-mask" id="histMask" onclick="closeHistory()"></div>
+        <div class="hist-drawer" id="histDrawer">
+          <div class="hist-head">
+            <span class="hist-title">智愈 · 对话记录</span>
+            <span class="hist-close" onclick="closeHistory()">×</span>
+          </div>
+          <div class="hist-new" onclick="closeHistory()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新建对话
+          </div>
+          <div class="hist-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+            <input placeholder="搜索对话" />
+          </div>
+          <div class="hist-list">
+            <div class="hist-item active">
+              <div class="hist-item-icon">💬</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">发烧咳嗽伴头痛</div>
+                <div class="hist-item-time">今天</div>
+              </div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-item-icon">💊</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">对乙酰氨基酚用法咨询</div>
+                <div class="hist-item-time">昨天</div>
+              </div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-item-icon">📄</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">血常规报告解读</div>
+                <div class="hist-item-time">前天</div>
+              </div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-item-icon">🏥</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">附近呼吸内科医院</div>
+                <div class="hist-item-time">07-27</div>
+              </div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-item-icon">🩺</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">胃痛反酸如何缓解</div>
+                <div class="hist-item-time">07-25</div>
+              </div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-item-icon">💬</div>
+              <div class="hist-item-main">
+                <div class="hist-item-title">儿童发烧用药咨询</div>
+                <div class="hist-item-time">07-22</div>
+              </div>
+            </div>
+          </div>
+          <div class="hist-foot">历史会话上限 50 条 · 长按可删除</div>
+        </div>
       </div>
     </div>
 
@@ -263,8 +330,8 @@
       <div class="points-grid">
         <div class="point-card">
           <div class="pc-icon">🤖</div>
-          <div class="pc-title">SSE 流式对话</div>
-          <div class="pc-desc">POST /api/c/chat 触发 SSE 流，meta→token→卡片→done 逐事件透传。红线优先于 Agent，命中即中断导诊。</div>
+          <div class="pc-title">WSS 实时对话</div>
+          <div class="pc-desc">WSS /api/c/chat/ws 发送 chat 信封，accepted->meta->token->卡片->done 逐事件透传。红线优先于 Agent，命中即中断导诊；WSS 不可用同 request_id 回退 SSE。</div>
         </div>
         <div class="point-card">
           <div class="pc-icon">📅</div>
@@ -535,7 +602,7 @@
     <div class="point-card">
       <div class="pc-icon">📊</div>
       <div class="pc-title">可观测可演示</div>
-      <div class="pc-desc">SSE 多跳链路留痕"流走到哪、在哪断"；Agent trace 只记脱敏摘要；演示重置三重保护；并发抢号脚本现场证明防超卖。</div>
+      <div class="pc-desc">WSS 多跳链路留痕"流走到哪、在哪断"；Agent trace 只记脱敏摘要；演示重置三重保护；并发抢号脚本现场证明防超卖。</div>
     </div>
   </div>
 </section>
