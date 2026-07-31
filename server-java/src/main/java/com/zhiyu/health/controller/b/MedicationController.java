@@ -31,7 +31,7 @@ public class MedicationController {
     private final MedicationInputMapper medicationInputMapper;
 
     public record MedicationInput(
-            @NotNull @DecimalMin("0.00") @DecimalMax("9999.99") java.math.BigDecimal price,
+            @NotNull @DecimalMin("0.00") @DecimalMax("99999999.99") java.math.BigDecimal price,
             @NotNull @Min(0) Integer stock,
             @NotNull @JsonProperty("is_active") Boolean isActive) {}
 
