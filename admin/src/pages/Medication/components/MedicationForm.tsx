@@ -11,10 +11,11 @@ interface Props {
 export default function MedicationForm({ open, record, onOpenChange, onSuccess }: Props) {
   return (
     <ModalForm<MedicationInput>
+      key={record?.id}
       title="编辑药品"
       open={open}
       onOpenChange={onOpenChange}
-      initialValues={record ? { price: record.price, stock: record.stock, is_active: record.is_active } : {}}
+      initialValues={record}
       modalProps={{ destroyOnClose: true, forceRender: true }}
       onFinish={async (values) => {
         if (record) {
