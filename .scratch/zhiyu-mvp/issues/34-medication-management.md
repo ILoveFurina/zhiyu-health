@@ -4,11 +4,11 @@
 
 **Blocked by:** None - can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] medications 表新增 `price DECIMAL(10,2)` 与 `stock INT` 字段；seed 补齐现有 30 条药品的价格与库存（drop + recreate + seed，不用迁移工具）
-- [ ] 新增 B 端药品管理接口（列表 + 编辑价格/库存 + 上下架 is_active），controller 归 `controller/b/`，service 继承 MyBatis-Plus ServiceImpl，DTO 映射用 MapStruct
-- [ ] B 端新增药品管理页（`admin/src/pages/Medication/`）：列表展示 + 编辑价格/库存 + 上下架操作；routes.ts 追加菜单项并加入 ADMIN_PATHS 限制 doctor 角色
-- [ ] 停用（is_active=false）的药品不出现在医生开方选药列表（DoctorPrescriptionController 的 medications 接口仅返回 is_active=true）
-- [ ] MockMvc 验证：编辑价格/库存后列表返回正确数据；上下架后开方选药列表可见性正确变化
-- [ ] 浏览器实测无控制台错误，人工走通"药品管理调价/补库存/上下架"
+- [x] medications 表新增 `price DECIMAL(10,2)` 与 `stock INT` 字段；seed 补齐现有 30 条药品的价格与库存（drop + recreate + seed，不用迁移工具）
+- [x] 新增 B 端药品管理接口（列表 + 编辑价格/库存 + 上下架 is_active），controller 归 `controller/b/`，service 继承 MyBatis-Plus ServiceImpl，DTO 映射用 MapStruct
+- [x] B 端新增药品管理页（`admin/src/pages/Medication/`）：列表展示 + 编辑价格/库存 + 上下架操作；routes.ts 追加菜单项并加入 ADMIN_PATHS 限制 doctor 角色
+- [x] 停用（is_active=false）的药品不出现在医生开方选药列表（DoctorPrescriptionController 的 medications 接口仅返回 is_active=true）
+- [x] MockMvc 验证：编辑价格/库存后列表返回正确数据；上下架后开方选药列表可见性正确变化
+- [x] 浏览器实测无控制台错误，人工走通"药品管理调价/补库存/上下架"
