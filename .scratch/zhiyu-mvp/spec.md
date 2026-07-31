@@ -9,7 +9,7 @@ Status: ready-for-agent
 
 ## Solution
 
-支付宝原生小程序（C 端）：医疗 AI Agent 完成"症状描述 → 追问 → 科室 → 医生推荐 → 挂号"全闭环，全程情感化交互（情绪识别、主动关怀、语音多模态），并附处方解读、报告解读、健康档案。React（Umi + Ant Design）Web 管理后台（B 端）：医院/科室/医生/排班/号源管理，医生工作台（接诊台看病情摘要、开电子处方），医学知识图谱可视化，数据看板。后端双栈（ADR-0009）：Java 业务后端（server-java，Spring Boot + MyBatis-Plus，唯一对外入口与唯一业务写入方）+ Python Agent 层（server-py，FastAPI + LangChain + LangGraph，对话编排与知识检索），存储 PostgreSQL+pgvector / Redis / Neo4j（ADR-0003、0006），LLM 用火山方舟 doubao（ADR-0004），Agent 编排 LangChain + LangGraph（ADR-0005）。
+支付宝原生小程序（C 端）：医疗 AI Agent 完成"症状描述 -> 追问 -> 科室 -> 医生推荐 -> 挂号"全闭环，全程情感化交互（情绪识别、主动关怀、语音多模态），并附处方解读、报告解读、健康档案。React（Umi + Ant Design）Web 管理后台（B 端）：医院/科室/医生/排班/号源管理，医生工作台（接诊台看病情摘要、开电子处方），医学知识图谱可视化，数据看板。后端双栈（ADR-0009）：Java 业务后端（server-java，Spring Boot + MyBatis-Plus，唯一对外入口与唯一业务写入方）+ Python Agent 层（server-py，FastAPI + LangChain + LangGraph，对话编排与知识检索），存储 PostgreSQL+pgvector / Redis / Neo4j（ADR-0003、0006），LLM 用火山方舟 doubao（ADR-0004），Agent 编排 LangChain + LangGraph（ADR-0005）。
 
 ## User Stories
 
@@ -90,22 +90,22 @@ Status: ready-for-agent
 - **三端双栈后端**：支付宝小程序 C 端（原生 + antd-mini，ADR-0008，替代微信端 ADR-0002）、React + Umi + Ant Design B 端（ADR-0009）、Java 业务后端 server-java（Spring Boot + MyBatis-Plus）+ Python Agent 层 server-py（FastAPI + LangGraph，ADR-0009），均全部 AI 生成代码。
 - **演示运行拓扑**：开发数据库部署于云服务器，团队通过账号密码直连，云安全组仅放行团队固定公网 IP；server-java（Maven）、server-py（uvicorn）、B 端与小程序开发环境均在本地运行。云服务器不部署应用，Agent 未经明确授权不得 SSH 登录或执行远程维护；小程序以开发者工具模拟器为主，真机通过预览二维码 + 开发者工具真机调试代理访问本地 server-java，不要求 HTTPS 域名。
 - **存储分工**：PostgreSQL 16 存全部业务实体 + pgvector 存知识块向量（ADR-0003）；Redis 承担号源计数与缓存；Neo4j 只存医学知识图谱（症状/疾病/科室/药品/禁忌五类节点 + 边），不装业务实体、无任何双写（ADR-0006）。
-- **LLM**：火山方舟一个 key；对话/视觉解读用 `doubao-seed-2.1-turbo`，RAG 向量化用 `doubao-embedding-vision`；C 端对话三档可选（自动/快速回答/深度思考），默认自动——后端按场景分配（导诊走低档、报告解读走高档）（ADR-0004）。
+- **LLM**：火山方舟一个 key；对话/视觉解读用 `doubao-seed-2.1-turbo`，RAG 向量化用 `doubao-embedding-vision`；C 端对话三档可选（自动/快速回答/深度思考），默认自动--后端按场景分配（导诊走低档、报告解读走高档）（ADR-0004）。
 - **Agent**：LangChain + LangGraph 编排（ADR-0005），依赖版本锁死；tool 函数为薄壳（仅参数校验），业务逻辑全在 service 层。第一版工具：`search_knowledge`（pgvector 召回）、`traverse_graph`（Neo4j 一跳扩展）、`recommend_doctors`、`get_doctor_slots`、`create_appointment`、`get_appointment`、`check_contraindication`。
 - **领域实体**：patients（C 端 mock 登录身份）、health_profiles（同一患者账号 1:N，基础信息 + 过敏史）、staff_users（医生/管理员，独立账号体系）、hospitals、departments、doctors、schedules（total_slots/remaining_slots，号源池计数 ADR-0007）、appointments（分配序号 + 状态：已约/已取消/已接诊）、condition_summaries、consultation_records（医生填写的诊断结论 + 医嘱）、prescriptions + prescription_items（审核状态流转）、medications（药品业务信息唯一权威来源）、report_interpretations、knowledge_chunks、agent_call_logs、in_app_messages（站内消息通道，票 09 首建）、med_checkin_records（服药打卡/提醒记录）；禁忌与药品相互作用关系唯一来源为 Neo4j 图谱（见 ADR-0006）。
 - **API 契约概略**：`/api/c/*`（会话、导诊对话 SSE、推荐卡片、挂号、挂号单管理、处方解读、报告解读、档案时间线）；`/api/b/*`（登录、机构/科室/医生/排班 CRUD、接诊台、电子处方与审核、图谱数据、看板统计、Agent 日志、演示重置）。
-- **关键交互**：结构化消息卡片（小程序聊天区自定义消息类型）；工具调用可视化（LangGraph 事件流 → SSE → 小程序进度条 + B 端日志页）；语音输入用 `my.getRecorderManager` 录音 → 火山引擎语音识别 → 文本进对话，TTS 播报同源（火山引擎，ADR-0008）；情绪标签经 LLM 结构化输出的 emotion 字段驱动 UI 变色与安抚文案；情感化人设集中在 system prompt。
+- **关键交互**：结构化消息卡片（小程序聊天区自定义消息类型）；工具调用可视化（LangGraph 事件流 -> SSE -> 小程序进度条 + B 端日志页）；语音输入用 `my.getRecorderManager` 录音 -> 火山引擎语音识别 -> 文本进对话，TTS 播报同源（火山引擎，ADR-0008）；情绪标签经 LLM 结构化输出的 emotion 字段驱动 UI 变色与安抚文案；情感化人设集中在 system prompt。
 - **硬约束**：免责声明标注为全局 UI 组件 + 后端统一注入，覆盖导诊建议、病情摘要、处方解读、报告解读、拍照分析、就诊小结、LLM 生成的用药解释与替代建议等一切 AI 产出，无例外。
-- **Mock 边界**：支付宝登录、药店推荐、购药下单、支付；Mock 购药仍需具备“点击下单 → 成功态”的可演示反馈。
-- **施工纪律**：顺序 P0（导诊挂号主闭环 + B 端基础管理）→ P1（电子处方 + RAG + 禁忌 + 报告解读）→ P2（图谱可视化 + 情感化）→ 档外功能；每个功能可插拔；演示主线只依赖 P0+P1；支线亮点（含图谱可视化）按完成情况插拔。
+- **Mock 边界**：支付宝登录维持 mock；购药与收费的业务实体（药品订单、挂号收费记录、库存）按 ADR-0012 为真实后端实体，支付动作为模拟状态机（不接支付网关），Mock 支付仍需具备点击后展示成功态的可演示反馈。
+- **施工纪律**：顺序 P0（导诊挂号主闭环 + B 端基础管理）-> P1（电子处方 + RAG + 禁忌 + 报告解读）-> P2（图谱可视化 + 情感化）-> 档外功能；每个功能可插拔；演示主线只依赖 P0+P1；支线亮点（含图谱可视化）按完成情况插拔。
 
 ## Testing Decisions
 
 - **server-java 主 seam**：HTTP API 层使用 MockMvc 测外部行为；规则引擎单测覆盖危险输入触发和正常输入不误触。
 - **server-py 主 seam**：Agent HTTP 接口使用 TestClient；LLM 与业务回调均以 fake 替换，断言工具调用顺序和回调参数，不直接写业务库。
-- **防超卖**：API 层并发测试——N 并发抢最后 1 个号源，恰好 1 个成功，Redis 与 PG 计数一致。
-- **禁忌规则**：service 层单元测试（过敏史 × 药品 → 拦截/放行）。
-- **前端（两端）**：不写自动化测试，以演示剧本手动验收——两周周期的现实取舍。
+- **防超卖**：API 层并发测试--N 并发抢最后 1 个号源，恰好 1 个成功，Redis 与 PG 计数一致。
+- **禁忌规则**：service 层单元测试（过敏史 × 药品 -> 拦截/放行）。
+- **前端（两端）**：不写自动化测试，以演示剧本手动验收--两周周期的现实取舍。
 - 集成测试在本地运行，通过 `TEST_DATABASE_URL` / `TEST_REDIS_URL` / `TEST_NEO4J_URI` 连接云端独立测试库，不得复用演示数据；测试失败不得触发 SSH、远程部署或云端服务变更。
 
 ## Out of Scope
@@ -117,6 +117,112 @@ Status: ready-for-agent
 
 ## Further Notes
 
-- **演示剧本**：主线（症状 → 情感化追问 → 推荐 → 挂号 → 切 B 端接诊台看摘要 → 开方 → 回 C 端处方解读）；支线亮点（图谱可视化、过敏禁忌拦截、并发防超卖）。
+- **演示剧本**：主线（症状 -> 情感化追问 -> 推荐 -> 挂号 -> 切 B 端接诊台看摘要 -> 开方 -> 回 C 端处方解读）；支线亮点（图谱可视化、过敏禁忌拦截、并发防超卖）。
 - **Seed 规模**：2 医院、6–8 科室、15–20 医生、未来 7 天排班、15–20 症状场景图谱数据、30–50 药品 + 禁忌规则、演示账号（患者 2 / 医生 2 / 管理员 1）。
-- 术语以根目录 `CONTEXT.md` 为准；架构决策见 `docs/adr/0001`–`0009`。
+- 术语以根目录 `CONTEXT.md` 为准；架构决策见 `docs/adr/0001`–`0012`。
+
+---
+
+# 药品管理、药品订单与挂号收费（Spec 0002）
+
+Status: ready-for-agent
+日期： 2026-07-31 · 依据：ADR-0012（实体真实、支付 Mock）、CONTEXT.md 术语"药品订单""挂号收费"
+
+## Problem Statement
+
+当前 demo 缺三块业务能力：药品只作为开方时的下拉选项存在，无价格、无库存、无 B 端管理面；患者拿到审核通过的电子处方后，购药入口是纯前端 Mock（点击弹 toast，不落库、无订单实体），"售卖模块"名不副实；挂号全程不涉及任何费用，与真实就医流程不符。这三块缺失导致 B 端无可演示的药品/订单/收费管理面，C 端购药与挂号收费无法形成业务闭环。
+
+## Solution
+
+按 ADR-0012 的"业务实体真实、支付 Mock"边界，新增三个模块：药品管理（medications 增价格库存字段 + B 端只读编辑管理面）、药品订单（处方驱动购药，真实订单实体 + 预扣库存 + 模拟支付状态机）、挂号收费（挂号即产生诊查费记录，金额挂医生职称，模拟支付状态机）。三个模块后端实体进 PostgreSQL 由 server-java 唯一写入，支付动作为一键模拟状态机不接网关，B 端各有独立管理页，C 端购药与挂号收费形成可演示闭环。
+
+## User Stories
+
+**药品管理**
+
+52. 作为管理员，我想在 B 端药品管理页查看药品列表（名称/通用名/规格/价格/库存/状态），以便掌握药品资产。
+53. 作为管理员，我想编辑药品的价格与库存，以便调价与补库存。
+54. 作为管理员，我想对药品上下架（启用/停用），以便控制开方时可选药品范围。
+55. 作为系统，停用的药品不出现在医生开方选药列表中，以便避免开出已停用药品。
+
+**药品订单**
+
+56. 作为患者，我想在已审核（APPROVED）电子处方详情页点击购药，系统基于处方明细生成订单（药品 + 数量 + 单价），以便完成购药。
+57. 作为患者，我想下单时库存不足被明确提示且订单不创建，以便避免超卖。
+58. 作为患者，我想在 C 端"我的药品订单"页查看我的订单及状态（待支付/已支付/已完成/已取消），以便跟踪购药。
+59. 作为患者，我想对未支付订单进行模拟支付，订单状态变为已支付，以便演示支付闭环。
+60. 作为患者，我想取消未支付的订单，取消后库存回补，以便行程变更。
+61. 作为管理员，我想在 B 端药品订单管理页按状态筛选订单、查看明细、取消未支付订单、将已支付订单标记为已完成，以便管理订单全生命周期。
+
+**挂号收费**
+
+62. 作为患者，我想挂号时看到该医生的诊查费（由职称决定），以便了解费用。
+63. 作为患者，我想挂号成功后自动产生一条待支付（UNPAID）的收费记录，以便后续支付。
+64. 作为患者，我想在"我的挂号"页看到挂号费用及其支付状态，以便知道是否已付费。
+65. 作为患者，我想对未支付的挂号收费进行模拟支付，状态变为已支付（PAID），以便演示收费闭环。
+66. 作为管理员，我想在 B 端医生管理页编辑医生的挂号费（按职称定价），以便维护定价。
+67. 作为管理员，我想在 B 端收费管理页按状态筛选收费记录、查看明细、对待支付记录执行模拟支付，以便管理挂号收费。
+
+**系统与演示**
+
+68. 作为系统，药品库存扣减必须防超卖：下单扣减库存时，并发请求不超过库存数。
+69. 作为系统，挂号收费记录与药品订单支付状态解耦--payments 表只承载挂号收费，药品订单支付状态内嵌在订单状态机中。
+70. 作为演示者，我想在 B 端分别演示药品管理（调价/补库存/上下架）、药品订单（下单/支付/取消/完成）、挂号收费（挂号产生欠费/模拟支付）三条独立闭环。
+
+## Implementation Decisions
+
+- **架构边界（ADR-0012）**：药品订单、挂号收费记录、药品库存为真实业务实体进 PostgreSQL，由 server-java 唯一写入并纳入审计；支付动作为模拟状态机（UNPAID -> PAID），不接任何支付网关、不接收真实回调。ADR-0008 原"购药/支付维持 mock 边界"已细化为"支付链路 mock、业务实体真实"。
+- **支付基础设施解耦**：药品订单的支付状态内嵌在订单状态机中（UNPAID/PAID/DONE/CANCELLED），不进 payments 表；挂号收费独立用 payments 表（关联 appointment_id，UNPAID/PAID）。两者各自有独立的模拟支付接口与状态机，互不共享、互不阻塞，可并行实施。
+- **Schema 演进（drop + recreate + seed，不用迁移工具）**：
+  - medications 增 `price DECIMAL(10,2)` + `stock INT`（库存为业务字段，与号源同属 PG 业务实体，不进 Neo4j，ADR-0006 边界不变）；seed 补齐 30 条药品的价格与库存。
+  - doctors 增 `registration_fee DECIMAL(10,2)`，seed 按职称定价（主任医师 50 / 副主任医师 30 / 主治医师 20）。
+  - appointments 增 `registration_fee DECIMAL(10,2)`，挂号时从 doctors 快照写入。
+  - 新增 `drug_orders` 表（id, patient_id, prescription_id, status default 'UNPAID', total_amount, created_at, paid_at, cancelled_at；status CHECK IN ('UNPAID','PAID','DONE','CANCELLED')）。
+  - 新增 `drug_order_items` 表（id, drug_order_id FK cascade, medication_id FK, quantity, unit_price, subtotal）。
+  - 新增 `payments` 表（id, appointment_id FK unique, amount, status default 'UNPAID', created_at, paid_at；status CHECK IN ('UNPAID','PAID')），只承载挂号收费。
+- **药品管理 CRUD 范围**：只读 + 编辑（改价格/库存/上下架 is_active），不新增不删除。理由：新增药品会破坏 Neo4j 禁忌子图按 medication_id 的对齐（ADR-0006），删除药品会破坏 prescription_items 外键引用与历史处方完整性。上下架控制开方选药可见性。
+- **药品订单触发点（处方驱动）**：订单明细复用 APPROVED 处方的 prescription_items（药品 + 数量，数量默认 1 可改）；订单与 prescription_id 强关联。购药入口在 C 端处方详情页，替换现有纯前端 Mock 按钮。
+- **药品订单状态机**：`UNPAID -> PAID -> DONE`，未支付订单可 `CANCELLED`。无 SHIPPED 发货态（mock 物流号无演示价值）。DONE 由 B 端人工"确认完成"或 PAID 后系统标记。状态常量进 `contracts/order-flow.json`，双栈只读消费。
+- **药品库存扣减（预扣模型）**：下单时扣减 medications.stock，取消未支付订单时回补。采用 PostgreSQL 行锁 + 条件更新（`UPDATE medications SET stock = stock - n WHERE id = ? AND stock >= n`，affected rows = 0 即库存不足下单失败），禁止先查后改。不引入 Redis 计数--药品购药并发度远低于抢号场景，PG 行锁足以防超卖，避免过度设计（与号源 ADR-0007/0011 的 Redis+PG 双写不同）。
+- **挂号收费金额来源**：挂医生职称。doctors.registration_fee 为定价基准（B 端医生管理页可编辑）；挂号时快照写入 appointments.registration_fee，不受后续调价影响。
+- **挂号收费时机（挂号即欠费）**：挂号成功（号源扣减 + 挂号单写入事务内）即产生 UNPAID 收费记录，不阻塞号源扣减，保持现有 AppointmentService.create() 事务结构不动；收费记录作为挂号单附属。收费状态机极简 `UNPAID -> PAID`，无退款态（取消挂号不触发退款，demo 容忍）。状态常量进 `contracts/payment-flow.json`。
+- **跨栈契约（新增 contracts/，ADR-0010 单一事实源）**：
+  - `contracts/order-flow.json`：statuses（unpaid/paid/done/cancelled）、status_labels、decisions（pay/cancel/complete）、message_types、messages，格式参照 prescription-flow.json。
+  - `contracts/payment-flow.json`：statuses（unpaid/paid）、status_labels、decisions（pay）、messages，格式参照 contraindication.json。
+  - 状态、决定、消息类型及其 TS 类型均从 contracts/ 推导，双栈只读消费，禁止端内私写。
+- **B 端新增页面（routes.ts 追加 + controller/b/ 三件套）**：
+  - 药品管理 `Medication/`（`/api/b/medications`）：列表 + 编辑价格/库存/上下架。
+  - 药品订单管理 `DrugOrder/`（`/api/b/drug-orders`）：按状态筛 + 明细 + 取消/确认完成。
+  - 收费管理 `Payment/`（`/api/b/payments`）：按状态筛 + 明细 + 模拟支付。
+  - 医生管理页 `Doctor/` 表单增"挂号费"字段编辑（归入挂号收费，不单独成页）。
+  - 新增路径需加入 `admin/src/app.tsx` 的 ADMIN_PATHS 限制 doctor 角色禁入。
+- **C 端改造**：
+  - 新增"我的药品订单"页并在 app.json 注册；购药入口由 prescriptions 页 mock order() 替换为真实 `/api/c/drug-orders` 下单调用（POST，传 prescription_id + 数量）。
+  - 挂号卡片（AppointmentCardBase / AppointmentOut / Agent AppointmentCard 三处 record）增 registration_fee 字段；appointments 页卡片增费用与支付状态展示行；新增挂号收费模拟支付调用 `/api/c/appointments/{id}/payment/pay`。
+- **分层归属**：server-java 新代码进入既有分层--controller/b/（MedicationController、DrugOrderController、PaymentController）、controller/c/（C 端订单与支付 controller）、service/、mapper/、entity/、config/（Contracts 加载新契约）；DTO 映射用 MapStruct；B 端新 CRUD 继承 MyBatis-Plus ServiceImpl。server-py 不参与（购药与收费为确定性业务流程，无 LLM 编排，不进 Agent 层）。
+- **审计**：药品订单创建、状态流转、库存扣减回补、挂号收费记录创建与支付，统一在 server-java 入口审计；不记录患者敏感原文，只记录脱敏摘要、操作类型与结果。
+
+## Testing Decisions
+
+- **主 seam：server-java MockMvc HTTP 外部行为测试**（AGENTS.md 约定）。三个模块的核心行为均在 HTTP 层验证：
+  - 药品管理：编辑价格/库存/上下架返回正确数据；停用药品不出现在开方选药列表。
+  - 药品订单：处方驱动下单成功（库存扣减、订单创建、状态 UNPAID）；库存不足下单失败（负向）；取消未支付订单库存回补；模拟支付 UNPAID->PAID；确认完成 PAID->DONE。
+  - 挂号收费：挂号成功产生 UNPAID 收费记录（金额 = 医生职称价）；模拟支付 UNPAID->PAID；appointments 返回费用与支付状态。
+- **防超卖（药品库存）**：并发下单同一库存不足的药品，成功数不超过库存数（参照号源防超卖测试先例，但用 PG 行锁而非 Redis）。
+- **契约消费**：测试断言使用 contracts/ 中的状态/决定常量，不硬编码字符串。
+- **前端**：不写自动化测试，浏览器实测无控制台错误 + 人工走通"药品管理调价 -> C 端处方购药 -> B 端订单管理""挂号 -> 我的挂号看费用 -> 模拟支付 -> B 端收费管理"两条闭环。
+
+## Out of Scope
+
+- 接入真实支付网关（支付宝/微信支付沙箱）、支付回调幂等、对账（ADR-0012 明确排除）。
+- 药品新增/删除（破坏 Neo4j 禁忌子图对齐与历史处方完整性，4a 决策排除）。
+- 药品订单发货/物流（SHIPPED 态，2b 决策排除）。
+- 挂号退款的完整流程（3c 决策排除，取消挂号不触发退款）。
+- 自由选购药品（无处方购药，2a 决策排除，合规风险）。
+- 药品订单的支付状态合并进 payments 表（问题 5 决策排除，两者解耦）。
+
+## Further Notes
+
+- 药品库存与号源是两套独立的防超卖机制：号源用 Redis 原子 DECR + PG 对账（ADR-0007/0011，高并发抢号），药品库存用 PG 行锁条件更新（低并发购药），不要混用。
+- 挂号收费不改动现有 SlotAccounting 号源扣减逻辑，收费记录作为挂号单的附属在挂号事务后写入（收费记录写入失败不回滚挂号，与病情摘要同模式）。
+- 演示叙事：开方 -> 审核 -> C 端购药 -> B 端订单管理（一条线）；挂号 -> 看费用 -> 模拟支付 -> B 端收费管理（另一条线），两条线独立可并行演示。

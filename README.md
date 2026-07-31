@@ -49,6 +49,13 @@ flowchart LR
     T26["26 彩排收口"]
     T27["27 对话记录"]
 
+    T34["34 药品管理"]
+    T35["35 挂号收费字段"]
+    T36["36 挂号收费支付"]
+    T37["37 药品订单下单"]
+    T38["38 药品订单支付"]
+    T39["39 医生页挂号费"]
+
     T28 --> T29
     T28 --> T31
     T29 --> T30
@@ -102,6 +109,14 @@ flowchart LR
     T24 --> T25
 
     T25 --> T26
+
+    T34 --> T37
+    T09 --> T37
+    T37 --> T38
+
+    T07 --> T35
+    T35 --> T36
+    T35 --> T39
 ```
 server-java、server-py 和前端不部署到这台云服务器，日常开发、测试、SSE 联调和断点调试均在各成员本机完成。
 
@@ -210,7 +225,7 @@ Python 依赖由 `pyproject.toml` 声明、`uv.lock` 精确锁定；B 端和小�
 ## 文档
 
 - 领域术语：`CONTEXT.md`
-- 架构决策：`docs/adr/0001`–`0009`
+- 架构决策：`docs/adr/0001`–`0012`
 - 产品规格：`.scratch/zhiyu-mvp/spec.md`
 - UI 约定：`docs/specs/0002-ui-conventions.md`
 - 施工票单：`.scratch/zhiyu-mvp/issues/`
