@@ -152,6 +152,8 @@ CREATE TABLE IF NOT EXISTS medications (
     generic_name VARCHAR(100) NOT NULL,
     specification VARCHAR(100) NOT NULL,
     instructions TEXT NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    stock INT NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
