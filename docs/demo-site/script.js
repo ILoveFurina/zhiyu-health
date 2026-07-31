@@ -25,8 +25,9 @@ cTabs.forEach(tab => {
     const target = tab.dataset.ctab;
     cTabs.forEach(t => t.classList.toggle('active', t === tab));
     cPages.forEach(p => p.classList.toggle('hidden', p.id !== 'cpage-' + target));
-    // 滚动到顶部
-    document.querySelector('.phone-screen').scrollTop = 0;
+    // 滚动到顶部：各 c-page 自身滚动，故重置当前激活页
+    const active = document.getElementById('cpage-' + target);
+    if (active) active.scrollTop = 0;
   });
 });
 
@@ -52,14 +53,28 @@ bMenuItems.forEach(item => {
   });
 });
 
-// ============ B 端接诊抽屉 ============
+// ============ B 端接诊抽屉（悬浮当前视口，从右侧滑入） ============
 function openDrawer() {
-  document.getElementById('drawerMask').classList.remove('hidden');
-  document.getElementById('bDrawer').classList.remove('hidden');
+  const mask = document.getElementById('drawerMask');
+  const drawer = document.getElementById('bDrawer');
+  // 先显示再触发过渡，确保动画生效
+  mask.classList.remove('hidden');
+  drawer.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    mask.classList.add('show');
+    drawer.classList.add('show');
+  });
 }
 function closeDrawer() {
-  document.getElementById('drawerMask').classList.add('hidden');
-  document.getElementById('bDrawer').classList.add('hidden');
+  const mask = document.getElementById('drawerMask');
+  const drawer = document.getElementById('bDrawer');
+  mask.classList.remove('show');
+  drawer.classList.remove('show');
+  // 过渡结束后再隐藏，避免内容瞬移
+  setTimeout(() => {
+    mask.classList.add('hidden');
+    drawer.classList.add('hidden');
+  }, 320);
 }
 
 // ============ 打字机效果（AI 诊室首条 AI 消息） ============

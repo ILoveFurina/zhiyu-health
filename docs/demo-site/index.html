@@ -368,6 +368,9 @@
     <div class="b-tab" data-btab="schedules">排班管理</div>
     <div class="b-tab" data-btab="prescriptions">处方审核</div>
     <div class="b-tab" data-btab="dashboard">数据看板</div>
+    <div class="b-tab" data-btab="knowledge">RAG 知识库</div>
+    <div class="b-tab" data-btab="kb-settings">知识库设置</div>
+    <div class="b-tab" data-btab="agent-logs">Agent 日志</div>
   </div>
 
   <div class="b-frame">
@@ -387,6 +390,10 @@
         <div class="menu-item" data-bmenu="prescriptions">💊 处方审核</div>
         <div class="menu-group">运营审计</div>
         <div class="menu-item" data-bmenu="dashboard">📊 数据看板</div>
+        <div class="menu-item" data-bmenu="agent-logs">🤖 Agent 日志</div>
+        <div class="menu-group">AI 知识</div>
+        <div class="menu-item" data-bmenu="knowledge">📚 RAG 知识库</div>
+        <div class="menu-item" data-bmenu="kb-settings">⚙️ 知识库设置</div>
       </div>
       <div class="b-main">
 
@@ -497,6 +504,165 @@
               <div style="display:flex;align-items:center;gap:12px;"><span style="width:80px;font-size:13px;">心内科</span><div style="flex:1;height:20px;background:#f0f2f5;border-radius:10px;overflow:hidden;"><div style="width:26%;height:100%;background:var(--primary);border-radius:10px;"></div></div><span style="font-size:12px;color:var(--text-muted);">11</span></div>
               <div style="display:flex;align-items:center;gap:12px;"><span style="width:80px;font-size:13px;">消化内科</span><div style="flex:1;height:20px;background:#f0f2f5;border-radius:10px;overflow:hidden;"><div style="width:19%;height:100%;background:var(--primary);border-radius:10px;"></div></div><span style="font-size:12px;color:var(--text-muted);">8</span></div>
             </div>
+          </div>
+        </div>
+
+        <!-- RAG 知识库管理 -->
+        <div class="b-page hidden" id="bpage-knowledge">
+          <div class="page-title">RAG 知识库管理</div>
+          <div class="b-alert info" style="margin-bottom:16px;">
+            <div class="ba-title">📚 知识库概览</div>
+            <div style="font-size:13px;color:var(--text-2);margin-top:4px;">医学知识只读检索：Neo4j 存症状/疾病/科室/药品/禁忌图谱，pgvector 存文档向量；server-py 只读检索，不写业务库。</div>
+          </div>
+          <div class="reception-grid" style="grid-template-columns:repeat(4,1fr);">
+            <div class="reception-stat"><div class="rs-value">1,284</div><div class="rs-label">文档切片</div></div>
+            <div class="reception-stat"><div class="rs-value">6,920</div><div class="rs-label">图谱三元组</div></div>
+            <div class="reception-stat"><div class="rs-value">96.3%</div><div class="rs-label">检索命中率</div></div>
+            <div class="reception-stat"><div class="rs-value">128ms</div><div class="rs-label">平均检索耗时</div></div>
+          </div>
+          <div class="b-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:600;">知识文档列表</span>
+              <button class="b-btn primary">+ 入库文档</button>
+            </div>
+            <table class="b-table">
+              <thead><tr><th>ID</th><th>文档名称</th><th>来源</th><th>切片数</th><th>向量化状态</th><th>更新时间</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>呼吸内科诊疗指南（2025 版）</td><td>医学文献</td><td>186</td><td><span class="b-tag green">已完成</span></td><td>2026-07-28</td><td><span class="op-link">查看</span><span class="op-link danger">重建</span></td></tr>
+                <tr><td>2</td><td>常用药品说明书汇编</td><td>药品目录</td><td>342</td><td><span class="b-tag green">已完成</span></td><td>2026-07-25</td><td><span class="op-link">查看</span><span class="op-link danger">重建</span></td></tr>
+                <tr><td>3</td><td>药物相互作用与禁忌手册</td><td>医学文献</td><td>214</td><td><span class="b-tag gold">向量化中</span></td><td>2026-07-30</td><td><span class="op-link">查看</span><span class="op-link danger">重建</span></td></tr>
+                <tr><td>4</td><td>儿童用药剂量速查</td><td>医学文献</td><td>98</td><td><span class="b-tag green">已完成</span></td><td>2026-07-20</td><td><span class="op-link">查看</span><span class="op-link danger">重建</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:12px;">医学知识图谱（Neo4j）</div>
+            <table class="b-table">
+              <thead><tr><th>节点类型</th><th>节点数</th><th>关系类型</th><th>关系数</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>症状</td><td>320</td><td>症状→疾病</td><td>1,820</td><td>导诊推荐科室</td></tr>
+                <tr><td>疾病</td><td>186</td><td>疾病→科室</td><td>210</td><td>导诊科室映射</td></tr>
+                <tr><td>药品</td><td>412</td><td>药品→禁忌</td><td>968</td><td>用药禁忌判定</td></tr>
+                <tr><td>禁忌</td><td>240</td><td>过敏→药品</td><td>1,520</td><td>个性化禁忌检查</td></tr>
+              </tbody>
+            </table>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:10px;">⚠ Neo4j 由 server-py 只读检索；图谱维护经离线脚本导入，B 端仅展示与查询，不提供在线写入。</div>
+          </div>
+        </div>
+
+        <!-- 知识库设置 -->
+        <div class="b-page hidden" id="bpage-kb-settings">
+          <div class="page-title">知识库设置</div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:16px;">检索参数</div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">Top-K 检索数量</div>
+              <div class="kbs-control"><input class="kbs-input" value="5" style="width:80px;"> <span class="kbs-hint">返回相似度最高的 K 条切片</span></div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">相似度阈值</div>
+              <div class="kbs-control"><input class="kbs-input" value="0.72" style="width:80px;"> <span class="kbs-hint">低于阈值的结果不进入 Agent 上下文</span></div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">嵌入模型</div>
+              <div class="kbs-control"><select class="kbs-input"><option>doubao-embedding-vision</option><option>bge-large-zh</option></select></div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">切片大小（字符）</div>
+              <div class="kbs-control"><input class="kbs-input" value="512" style="width:80px;"> <span class="kbs-hint">文档入库时的切片长度</span></div>
+            </div>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:16px;">重排与融合</div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">混合检索</div>
+              <div class="kbs-control">
+                <label class="kbs-switch"><input type="checkbox" checked><span class="kbs-slider"></span></label>
+                <span class="kbs-hint">向量检索 + 图谱检索结果融合</span>
+              </div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">重排序模型</div>
+              <div class="kbs-control"><select class="kbs-input"><option>启用（bge-reranker）</option><option>关闭</option></select></div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">图谱权重</div>
+              <div class="kbs-control"><input type="range" min="0" max="1" step="0.1" value="0.4" style="width:200px;"> <span class="kbs-hint">0.4</span></div>
+            </div>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:16px;">安全与免责</div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">免责声明注入</div>
+              <div class="kbs-control">
+                <label class="kbs-switch"><input type="checkbox" checked><span class="kbs-slider"></span></label>
+                <span class="kbs-hint">server-py 生成时注入，server-java 出口兜底（硬约束，不可关闭）</span>
+              </div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">红线规则优先级</div>
+              <div class="kbs-control">
+                <label class="kbs-switch"><input type="checkbox" checked disabled><span class="kbs-slider"></span></label>
+                <span class="kbs-hint">红线症状/用药禁忌由 server-java 确定性规则先于 LLM（固定开启）</span>
+              </div>
+            </div>
+            <div class="kb-setting-row">
+              <div class="kbs-label">Agent trace 脱敏</div>
+              <div class="kbs-control">
+                <label class="kbs-switch"><input type="checkbox" checked><span class="kbs-slider"></span></label>
+                <span class="kbs-hint">trace 只记脱敏摘要、工具名、参数类型，不记患者敏感原文</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="b-btn primary">保存设置</button>
+            <button class="b-btn" style="background:#fff;border:1px solid var(--border);">重置默认</button>
+          </div>
+        </div>
+
+        <!-- Agent 日志 -->
+        <div class="b-page hidden" id="bpage-agent-logs">
+          <div class="page-title">Agent 运行日志</div>
+          <div class="b-alert info" style="margin-bottom:16px;">
+            <div class="ba-title">🤖 Agent Trace 留痕</div>
+            <div style="font-size:13px;color:var(--text-2);margin-top:4px;">WSS 多跳链路逐事件留痕："流走到哪、在哪断"；trace 只记脱敏摘要、工具名、参数类型与结果，审计统一在 server-java 入口。</div>
+          </div>
+          <div class="reception-grid" style="grid-template-columns:repeat(4,1fr);">
+            <div class="reception-stat"><div class="rs-value">120</div><div class="rs-label">今日会话</div></div>
+            <div class="reception-stat"><div class="rs-value">312</div><div class="rs-label">工具调用</div></div>
+            <div class="reception-stat"><div class="rs-value">3</div><div class="rs-label">红线命中</div></div>
+            <div class="reception-stat"><div class="rs-value">1.8s</div><div class="rs-label">平均首 token</div></div>
+          </div>
+          <div class="b-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+              <span style="font-weight:600;">会话列表</span>
+              <div style="display:flex;gap:8px;">
+                <select class="bdi"><option>全部状态</option><option>正常</option><option>红线中断</option><option>降级 SSE</option></select>
+                <input class="bdi" placeholder="搜索 request_id" style="width:160px;">
+              </div>
+            </div>
+            <table class="b-table">
+              <thead><tr><th>request_id</th><th>患者</th><th>触发</th><th>工具链</th><th>红线</th><th>耗时</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td>req_8a3f…</td><td>张三</td><td>症状对话</td><td>检索图谱→推荐医生→挂号</td><td><span class="b-tag green">未命中</span></td><td>2.4s</td><td><span class="b-tag green">完成</span></td><td><span class="op-link">查看</span></td></tr>
+                <tr><td>req_7c1e…</td><td>李四</td><td>胸痛咨询</td><td>红线规则中断</td><td><span class="b-tag red">命中</span></td><td>0.2s</td><td><span class="b-tag red">中断</span></td><td><span class="op-link">查看</span></td></tr>
+                <tr><td>req_6b9d…</td><td>王五</td><td>报告解读</td><td>上传报告→视觉分析→解读</td><td><span class="b-tag green">未命中</span></td><td>3.1s</td><td><span class="b-tag green">完成</span></td><td><span class="op-link">查看</span></td></tr>
+                <tr><td>req_5a2c…</td><td>赵六</td><td>用药咨询</td><td>检索药品→禁忌检查</td><td><span class="b-tag green">未命中</span></td><td>1.6s</td><td><span class="b-tag gold">降级</span></td><td><span class="op-link">查看</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="b-card">
+            <div style="font-weight:600;margin-bottom:12px;">Trace 详情 · req_8a3f…（张三 · 症状对话）</div>
+            <div class="trace-timeline">
+              <div class="trace-step"><span class="ts-time">0ms</span><span class="ts-tag">received</span><span class="ts-text">chat 信封到达 server-java，已鉴权审计</span></div>
+              <div class="trace-step"><span class="ts-time">12ms</span><span class="ts-tag blue">forward</span><span class="ts-text">转发 server-py，accepted 事件透传</span></div>
+              <div class="trace-step"><span class="ts-time">85ms</span><span class="ts-tag gold">tool</span><span class="ts-text">调用 knowledge_search：参数类型=症状摘要(脱敏)，命中图谱 5 条</span></div>
+              <div class="trace-step"><span class="ts-time">210ms</span><span class="ts-tag gold">tool</span><span class="ts-text">调用 recommend_doctors：科室=呼吸内科，返回 2 名医生</span></div>
+              <div class="trace-step"><span class="ts-time">340ms</span><span class="ts-tag blue">token</span><span class="ts-text">首 token 透传，开始流式表达</span></div>
+              <div class="trace-step"><span class="ts-time">1.8s</span><span class="ts-tag gold">tool</span><span class="ts-text">调用 create_appointment：医生=李建国，号源原子扣减成功</span></div>
+              <div class="trace-step"><span class="ts-time">2.4s</span><span class="ts-tag">done</span><span class="ts-text">done 事件，免责声明已校验注入</span></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:10px;">⚠ trace 不记录患者敏感原文，仅记录脱敏摘要、工具名、参数类型与结果</div>
           </div>
         </div>
 

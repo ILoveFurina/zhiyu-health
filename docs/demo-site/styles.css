@@ -273,10 +273,17 @@ body {
 }
 .phone-frame .phone-screen {
   height: calc(100% - 28px);
-  overflow-y: auto;
+  /* tabs 固定在顶、下方页面独立滚动，避免 tab 被滚走丢失 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   position: relative;
 }
 .phone-frame .phone-screen::-webkit-scrollbar { width: 0; }
+.phone-frame .phone-screen .c-tabs { flex-shrink: 0; }
+/* c-page 自己负责滚动；chat-layout 已是固定头+中滚动+固定底，保留其内部布局 */
+.phone-frame .phone-screen .c-page { overflow-y: auto; flex: 1 1 0; min-height: 0; }
+.phone-frame .phone-screen .c-page::-webkit-scrollbar { width: 0; }
 
 /* C 端页面切换 tabs */
 .c-tabs {
@@ -309,7 +316,8 @@ body {
 
 /* 聊天页：固定头 + 中间消息区独立滚动 + 固定底 */
 .mp-page.chat-layout {
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -545,9 +553,26 @@ body {
 .mt-16 { margin-top: 16px; }
 .text-center { text-align: center; }
 
-/* 抽屉（B 端接诊） */
-.b-drawer-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 10; }
-.b-drawer { position: absolute; right: 0; top: 0; bottom: 0; width: 480px; background: #fff; box-shadow: -8px 0 30px rgba(0,0,0,0.1); overflow-y: auto; z-index: 11; }
+/* 抽屉（B 端接诊）-- 悬浮当前视口，跟随滚动，从右侧滑入 */
+.b-drawer-mask {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.b-drawer-mask.show { opacity: 1; pointer-events: auto; }
+.b-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 480px; max-width: 92vw;
+  background: #fff;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  z-index: 201;
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.b-drawer.show { transform: translateX(0); }
 .b-drawer .drawer-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .b-drawer .drawer-head .dh-title { font-size: 16px; font-weight: 600; }
 .b-drawer .drawer-head .dh-close { font-size: 20px; color: var(--text-light); cursor: pointer; }
@@ -567,6 +592,33 @@ body {
 .b-drug-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
 .b-drug-row .bdi { border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 10px; font-size: 12px; }
 .b-add-drug { border: 1px dashed var(--primary); color: var(--primary); background: #fff; border-radius: 6px; padding: 8px; width: 100%; font-size: 13px; cursor: pointer; }
+
+/* ============ 知识库设置 ============ */
+.kb-setting-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.kb-setting-row:last-child { border-bottom: none; }
+.kb-setting-row .kbs-label { width: 160px; font-size: 13px; color: var(--text-2); flex-shrink: 0; font-weight: 500; }
+.kb-setting-row .kbs-control { display: flex; align-items: center; gap: 12px; flex: 1; }
+.kb-setting-row .kbs-hint { font-size: 12px; color: var(--text-muted); }
+.kbs-input { border: 1px solid #d9d9d9; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--text-2); }
+.kbs-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-bg); }
+/* 开关 */
+.kbs-switch { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer; }
+.kbs-switch input { opacity: 0; width: 0; height: 0; }
+.kbs-slider { position: absolute; inset: 0; background: #d9d9d9; border-radius: 999px; transition: 0.25s; }
+.kbs-slider::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.25s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.kbs-switch input:checked + .kbs-slider { background: var(--primary); }
+.kbs-switch input:checked + .kbs-slider::before { transform: translateX(16px); }
+.kbs-switch input:disabled + .kbs-slider { opacity: 0.6; cursor: not-allowed; }
+
+/* ============ Agent 日志 trace 时间线 ============ */
+.trace-timeline { position: relative; padding-left: 18px; border-left: 2px solid var(--primary-bg); }
+.trace-step { position: relative; padding: 6px 0 6px 8px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.trace-step::before { content: ""; position: absolute; left: -23px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--primary-bg); }
+.trace-step .ts-time { font-family: monospace; font-size: 12px; color: var(--text-muted); width: 56px; flex-shrink: 0; }
+.trace-step .ts-tag { font-size: 11px; padding: 1px 8px; border-radius: 4px; background: #f0f2f5; color: var(--text-3); }
+.trace-step .ts-tag.blue { background: #e6f4ff; color: #1677ff; }
+.trace-step .ts-tag.gold { background: #fffbe6; color: #d48806; }
+.trace-step .ts-text { color: var(--text-2); flex: 1; min-width: 0; }
 
 /* ============ chat 顶部布局（左历史按钮 + 档案，右档位） ============ */
 .chat-top-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
