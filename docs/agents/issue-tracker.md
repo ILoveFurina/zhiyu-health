@@ -10,6 +10,7 @@
 - 票单顶部附近使用 `Status:` 记录状态；triage 角色字符串见 `triage-labels.md`
 - 评论和对话历史追加在文件底部的 `## Comments` 标题下
 - 票单之间通过 `Blocked by:` 声明阻塞关系，实施时先处理已解除阻塞的票单
+- 票单 `Status:` 改为 `done` 时，必须同步更新 `README.md` 依赖关系图中对应节点：在节点标题的数字前加 `[x]`，形如 `T29["[x]29 组织管理迁移"]`；未完成节点保持数字开头不加标记。节点文本必须用双引号包裹（方括号在 mermaid 中需引号保护），`[x]` 紧贴数字、无空格
 
 ## When a skill says "publish to the issue tracker"
 
