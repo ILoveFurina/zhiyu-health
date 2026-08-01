@@ -8,4 +8,7 @@
 .drug { margin-top: 18rpx; padding: 16rpx; border-radius: 14rpx; background: #f4faf8; color: #344845; font-size: 24rpx; }
 .price { margin-top: 8rpx; color: #6f8581; }
 .total { margin-top: 20rpx; color: #173f3a; font-size: 28rpx; font-weight: 700; text-align: right; }
-.cancel { margin-top: 18rpx; border: 1rpx solid #d94b4b; border-radius: 30rpx; background: #fff; color: #d94b4b; font-size: 25rpx; }
+.actions { display: flex; gap: 16rpx; margin-top: 18rpx; }
+.actions button { flex: 1; margin: 0; border-radius: 30rpx; font-size: 25rpx; }
+.pay { border: 0; background: #0e8a7d; color: #fff; }
+.cancel { border: 1rpx solid #d94b4b; background: #fff; color: #d94b4b; }

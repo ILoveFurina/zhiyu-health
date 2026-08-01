@@ -12,9 +12,15 @@
       <view class="price">¥{{drug.unit_price}} × {{drug.quantity}} = ¥{{drug.subtotal}}</view>
     </view>
     <view class="total">合计：¥{{item.total_amount}}</view>
-    <button a:if="{{item.cancellable}}" class="cancel" data-id="{{item.id}}"
-      loading="{{cancellingId === item.id}}" disabled="{{cancellingId === item.id}}" onTap="cancel">
-      取消订单
-    </button>
+    <view a:if="{{item.payable || item.cancellable}}" class="actions">
+      <button a:if="{{item.payable}}" class="pay" data-id="{{item.id}}"
+        loading="{{payingId === item.id}}" disabled="{{payingId === item.id || cancellingId === item.id}}" onTap="pay">
+        模拟支付
+      </button>
+      <button a:if="{{item.cancellable}}" class="cancel" data-id="{{item.id}}"
+        loading="{{cancellingId === item.id}}" disabled="{{cancellingId === item.id || payingId === item.id}}" onTap="cancel">
+        取消订单
+      </button>
+    </view>
   </view>
 </view>

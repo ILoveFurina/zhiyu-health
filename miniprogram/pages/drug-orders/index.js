@@ -1,8 +1,8 @@
 const { ensureLogin } = require('../../utils/auth')
-const { listDrugOrders, cancelDrugOrder } = require('../../services/drug-orders')
+const { listDrugOrders, cancelDrugOrder, payDrugOrder } = require('../../services/drug-orders')
 
 Page({
-  data: { loading: true, orders: [], cancellingId: null },
+  data: { loading: true, orders: [], cancellingId: null, payingId: null },
   onShow() { ensureLogin().then(() => this.load()) },
   load() {
     this.setData({ loading: true })
@@ -28,5 +28,16 @@ Page({
           .finally(() => this.setData({ cancellingId: null }))
       },
     })
+  },
+  pay(e) {
+    const id = e.currentTarget.dataset.id
+    this.setData({ payingId: id })
+    payDrugOrder(id)
+      .then(() => {
+        my.showToast({ content: '模拟支付成功', type: 'success' })
+        this.load()
+      })
+      .catch(() => my.showToast({ content: '支付失败，请刷新后重试', type: 'fail' }))
+      .finally(() => this.setData({ payingId: null }))
   },
 })

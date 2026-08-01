@@ -32,15 +32,21 @@ public interface DrugOrderDtoMapper {
     DrugOrderItem toItem(long orderId, Medication medication, int quantity, BigDecimal subtotal);
 
     @Mapping(target = "id", source = "order.id")
+    @Mapping(target = "patientId", source = "order.patientId")
     @Mapping(target = "prescriptionId", source = "order.prescriptionId")
     @Mapping(target = "status", source = "order.status")
     @Mapping(target = "statusLabel", source = "statusLabel")
     @Mapping(target = "totalAmount", source = "order.totalAmount")
     @Mapping(target = "createdAt", source = "order.createdAt", qualifiedByName = "offsetDateTimeText")
     @Mapping(target = "cancellable", source = "cancellable")
+    @Mapping(target = "payable", source = "payable")
     @Mapping(target = "items", source = "items")
     DrugOrderService.OrderView toView(
-            DrugOrder order, String statusLabel, boolean cancellable, List<DrugOrderService.ItemView> items);
+            DrugOrder order,
+            String statusLabel,
+            boolean cancellable,
+            boolean payable,
+            List<DrugOrderService.ItemView> items);
 
     @Mapping(target = "name", source = "medicationName")
     DrugOrderService.ItemView toItemView(DrugOrderItem item);
