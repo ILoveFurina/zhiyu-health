@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="mock-note">购药入口为演示 Mock，不会创建真实订单或支付。</view>
+  <view class="orders-link" onTap="openOrders">查看我的药品订单 ›</view>
   <view a:if="{{loading}}" class="state">正在加载…</view>
   <view a:elif="{{prescriptions.length === 0}}" class="state">暂无已审核通过的电子处方</view>
   <view a:for="{{prescriptions}}" a:key="id" class="card">
@@ -9,14 +9,20 @@
       <view class="drug-name">{{drug.name}} {{drug.specification}}</view>
       <view>{{drug.dosage}} · {{drug.frequency}} · {{drug.duration}}</view>
       <view a:if="{{drug.notes}}">备注：{{drug.notes}}</view>
+      <view class="quantity-row">
+        <text>购买数量</text>
+        <input class="quantity" type="number" min="1" value="{{drug.quantity}}"
+          data-prescription-id="{{item.id}}" data-medication-id="{{drug.medication_id}}"
+          onInput="changeQuantity" />
+      </view>
     </view>
     <view class="interpretation-title">通俗解读</view>
     <view class="interpretation">{{item.interpretation}}</view>
     <ai-disclaimer text="{{item.disclaimer}}" />
-    <view class="pharmacy">推荐药店（Mock）：智愈安心药房 · 配送约 30 分钟</view>
+    <view class="pharmacy">智愈安心药房 · 下单将立即预扣库存</view>
     <button class="order" data-id="{{item.id}}" loading="{{orderingId === item.id}}"
-      disabled="{{orderedId === item.id}}" onTap="order">
-      {{orderedId === item.id ? 'Mock 下单成功' : 'Mock 立即购药'}}
+      disabled="{{orderingId === item.id}}" onTap="order">
+      立即购药
     </button>
   </view>
 </view>

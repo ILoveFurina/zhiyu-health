@@ -40,6 +40,7 @@ Page({
     })
   },
   openPrescriptions() { my.navigateTo({ url: '/pages/prescriptions/index' }) },
+  openDrugOrders() { my.navigateTo({ url: '/pages/drug-orders/index' }) },
   openMessages() { my.navigateTo({ url: '/pages/messages/index' }) },
   openHealthProfiles() { my.navigateTo({ url: '/pages/health/index' }) },
 })

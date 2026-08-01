@@ -48,7 +48,13 @@ public class PatientCareService {
     }
 
     public record PatientItemView(
-            String name, String specification, String dosage, String frequency, String duration, String notes) {}
+            Long medicationId,
+            String name,
+            String specification,
+            String dosage,
+            String frequency,
+            String duration,
+            String notes) {}
 
     public record PatientPrescriptionView(
             Long id,
