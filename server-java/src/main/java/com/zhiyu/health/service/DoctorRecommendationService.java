@@ -37,7 +37,7 @@ public class DoctorRecommendationService {
 
         return remainingByDoctor.entrySet().stream()
                 .filter(entry -> doctorsById.containsKey(entry.getKey()))
-                .map(entry -> toRecommendation(doctorsById.get(entry.getKey()), entry.getValue()))
+                .map(entry -> recommendationDtos.toRecommendation(doctorsById.get(entry.getKey()), entry.getValue()))
                 .toList();
     }
 
@@ -45,10 +45,6 @@ public class DoctorRecommendationService {
         return scheduleMapper.selectAvailableByDoctor(doctorId, LocalDate.now()).stream()
                 .map(recommendationDtos::toSlot)
                 .toList();
-    }
-
-    private DoctorRecommendation toRecommendation(Doctor doctor, int remainingSlots) {
-        return recommendationDtos.toRecommendation(doctor, remainingSlots);
     }
 
     public record DoctorRecommendation(
