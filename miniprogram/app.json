@@ -1,10 +1,44 @@
 {
-  "pages": ["pages/chat/index", "pages/appointments/index", "pages/health/index", "pages/prescriptions/index", "pages/drug-orders/index", "pages/messages/index"],
+  "pages": [
+    "pages/home/index",
+    "pages/chat/index",
+    "pages/profile/index",
+    "pages/appointments/index",
+    "pages/health/index",
+    "pages/prescriptions/index",
+    "pages/drug-orders/index",
+    "pages/messages/index"
+  ],
   "window": {
     "defaultTitle": "智愈",
     "titleBarColor": "#e9f6f2",
     "backgroundColor": "#e9f6f2",
     "pullRefresh": false
+  },
+  "tabBar": {
+    "textColor": "#9db3af",
+    "selectedColor": "#00a870",
+    "backgroundColor": "#ffffff",
+    "items": [
+      {
+        "pagePath": "pages/home/index",
+        "name": "首页",
+        "icon": "assets/tabbar/home.png",
+        "activeIcon": "assets/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/chat/index",
+        "name": "AI对话",
+        "icon": "assets/tabbar/chat.png",
+        "activeIcon": "assets/tabbar/chat-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "name": "我的",
+        "icon": "assets/tabbar/profile.png",
+        "activeIcon": "assets/tabbar/profile-active.png"
+      }
+    ]
   },
   "permission": {
     "scope.userLocation": {

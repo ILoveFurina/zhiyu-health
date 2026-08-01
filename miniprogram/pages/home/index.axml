@@ -1,0 +1,79 @@
+<view class="page">
+  <!-- 问候头 + 当前激活健康档案 chip；未建档时显示引导卡片（规则同 AI 页空态） -->
+  <view class="header">
+    <view class="greeting">{{greeting}}{{activeProfile ? '，' + activeProfile.display_name : ''}}</view>
+    <view class="greeting-sub">愿每一天都健康安心</view>
+    <view a:if="{{profileLoaded && profiles.length > 0}}" class="profile-chip" onTap="openSheet">
+      <view class="chip-avatar">{{activeProfile ? activeProfile.initial : '…'}}</view>
+      <text class="chip-name">{{activeProfile ? activeProfile.display_name : '选择档案'}}</text>
+      <text class="chip-arrow">切换 ›</text>
+    </view>
+    <view a:if="{{profileLoaded && profiles.length === 0}}" class="profile-guide" onTap="createProfile">
+      <view class="profile-guide-icon">♡</view>
+      <view class="profile-guide-copy">
+        <view class="profile-guide-title">建立健康档案</view>
+        <view class="profile-guide-text">录入基础信息与过敏史，获得更安全的个性化服务</view>
+      </view>
+      <view class="profile-guide-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 功能宫格：就医服务 / 健康管理两组 -->
+  <view a:for="{{grids}}" a:key="title" class="section">
+    <view class="section-title">{{item.title}}</view>
+    <view class="card grid grid-{{item.columns}}">
+      <view
+        a:for="{{item.items}}"
+        a:for-item="entry"
+        a:key="key"
+        class="grid-item"
+        data-action="{{entry.action}}"
+        data-url="{{entry.url}}"
+        onTap="onGridTap"
+      >
+        <view class="grid-icon {{entry.textIcon ? 'grid-icon-text' : ''}}">{{entry.icon}}</view>
+        <view class="grid-label">{{entry.label}}</view>
+        <view a:if="{{entry.desc}}" class="grid-desc">{{entry.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 待办横卡：即将就诊的挂号单 + 待支付药品订单；无待办时整区不渲染 -->
+  <view a:if="{{todos.length > 0}}" class="section">
+    <view class="section-title">待办事项</view>
+    <scroll-view scroll-x class="todo-scroll" show-scrollbar="{{false}}">
+      <view class="todo-row">
+        <view
+          a:for="{{todos}}"
+          a:key="key"
+          class="todo-card"
+          data-kind="{{item.kind}}"
+          onTap="openTodo"
+        >
+          <view class="todo-badge {{item.kind === 'order' ? 'todo-badge-pay' : ''}}">{{item.badge}}</view>
+          <view class="todo-title">{{item.title}}</view>
+          <view class="todo-meta">{{item.meta}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 健康档案切换弹层 -->
+  <view a:if="{{sheetOpen}}" class="sheet-mask" onTap="closeSheet">
+    <view class="sheet" catchTap="noop">
+      <view class="sheet-title">切换健康档案</view>
+      <view
+        a:for="{{profiles}}"
+        a:key="id"
+        class="sheet-item {{item.active ? 'sheet-item-active' : ''}}"
+        data-id="{{item.id}}"
+        onTap="switchProfile"
+      >
+        <view class="sheet-avatar">{{item.initial}}</view>
+        <view class="sheet-name">{{item.display_name}}</view>
+        <view a:if="{{item.active}}" class="sheet-check">✓ 当前</view>
+      </view>
+      <view class="sheet-create" onTap="createProfile">＋ 新建健康档案</view>
+    </view>
+  </view>
+</view>
