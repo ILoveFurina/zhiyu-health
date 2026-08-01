@@ -7,7 +7,7 @@
   margin: 0 0 26rpx;
   padding: 22rpx;
   border: 1rpx solid #b9ded6;
-  border-radius: 24rpx;
+  border-radius: var(--zy-radius-card);
   background: linear-gradient(135deg, #fff 0%, #e8f7f3 100%);
   text-align: left;
 }
@@ -19,24 +19,24 @@
   width: 58rpx;
   height: 58rpx;
   border-radius: 18rpx;
-  background: #0e8a7d;
+  background: var(--zy-color-primary);
   color: #fff;
   font-size: 32rpx;
 }
 
 .profile-guide-copy { flex: 1; }
-.profile-guide-title { color: #174840; font-size: 27rpx; font-weight: 650; }
-.profile-guide-text { margin-top: 6rpx; color: #718b86; font-size: 21rpx; line-height: 1.45; }
-.profile-guide-arrow { color: #0e8a7d; font-size: 38rpx; }
+.profile-guide-title { color: var(--zy-text-title); font-size: 27rpx; font-weight: 650; }
+.profile-guide-text { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 21rpx; line-height: 1.45; }
+.profile-guide-arrow { color: var(--zy-color-primary); font-size: 38rpx; }
 .cpill.profile { max-width: 260rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.drawer-my-title { padding: 20rpx 28rpx 6rpx; color: #8b9b98; font-size: 22rpx; }
+.drawer-my-title { padding: 20rpx 28rpx 6rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 .drawer-entry {
   display: flex;
   justify-content: space-between;
-  margin: 8rpx 24rpx;
-  padding: 22rpx 24rpx;
+  margin: var(--zy-space-xs) var(--zy-space-md);
+  padding: 22rpx var(--zy-space-md);
   border-radius: 18rpx;
   background: #fff;
-  color: #294b46;
+  color: var(--zy-text-title);
   font-size: 27rpx;
 }

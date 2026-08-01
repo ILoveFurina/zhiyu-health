@@ -1,0 +1,31 @@
+/* 医院列表：白圆角卡片浮薄荷渐变，全部消费 app.acss 设计 token */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
+.title { color: var(--zy-text-title); font-size: 40rpx; font-weight: 700; }
+.subtitle { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 26rpx; }
+
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+.card {
+  margin-top: var(--zy-space-md);
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+}
+.card-main { flex: 1; }
+.name-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
+.name { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.level {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+}
+.address { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 24rpx; }
+.distance { margin-top: 6rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+.arrow { margin-left: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 40rpx; }

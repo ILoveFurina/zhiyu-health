@@ -3,15 +3,15 @@
 /* ===== 右上角对话记录入口（决策 9：自绘按钮，不用平台 option menu） ===== */
 .option-menu-btn {
   position: absolute;
-  top: 16rpx;
-  right: 24rpx;
+  top: var(--zy-space-sm);
+  right: var(--zy-space-md);
   z-index: 20;
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   font-size: 36rpx;
   display: flex;
   align-items: center;
@@ -44,7 +44,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24rpx 28rpx;
+  padding: var(--zy-space-md) 28rpx;
   background: #fff;
   border-bottom: 1rpx solid #eee;
 }
@@ -52,12 +52,12 @@
 .drawer-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
 }
 
 .drawer-close {
   font-size: 40rpx;
-  color: #999;
+  color: var(--zy-text-weak);
   padding: 0 8rpx;
 }
 
@@ -65,19 +65,19 @@
   display: flex;
   align-items: center;
   gap: 14rpx;
-  margin: 20rpx 24rpx 8rpx;
-  padding: 22rpx 24rpx;
+  margin: 20rpx var(--zy-space-md) var(--zy-space-xs);
+  padding: 22rpx var(--zy-space-md);
   background: #fff;
-  border-radius: 20rpx;
-  border: 1rpx solid #0e8a7d;
-  color: #0e8a7d;
+  border-radius: var(--zy-radius-card);
+  border: 1rpx solid var(--zy-color-primary);
+  color: var(--zy-color-primary);
 }
 
 .new-chat-ico {
   width: 44rpx;
   height: 44rpx;
   border-radius: 12rpx;
-  background: #0e8a7d;
+  background: var(--zy-color-primary);
   color: #fff;
   font-size: 32rpx;
   display: flex;
@@ -93,32 +93,32 @@
 
 .drawer-list {
   flex: 1;
-  padding: 8rpx 24rpx;
+  padding: var(--zy-space-xs) var(--zy-space-md);
   box-sizing: border-box;
 }
 
 .drawer-state {
   text-align: center;
-  color: #999;
+  color: var(--zy-text-weak);
   font-size: 26rpx;
   padding: 80rpx 0;
 }
 
 .conv-item {
   background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx 26rpx;
-  margin: 16rpx 0;
+  border-radius: var(--zy-radius-card);
+  padding: var(--zy-space-md) 26rpx;
+  margin: var(--zy-space-sm) 0;
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
 }
 
 .conv-item-current {
-  border: 1rpx solid #0e8a7d;
+  border: 1rpx solid var(--zy-color-primary);
 }
 
 .conv-title {
   font-size: 28rpx;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -128,12 +128,12 @@
   margin-top: 12rpx;
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: var(--zy-space-sm);
 }
 
 .conv-time {
   font-size: 22rpx;
-  color: #999;
+  color: var(--zy-text-weak);
 }
 
 .conv-active {
@@ -144,6 +144,6 @@
 .drawer-tip {
   text-align: center;
   font-size: 20rpx;
-  color: #bbb;
-  padding: 16rpx 0 28rpx;
+  color: var(--zy-text-weak);
+  padding: var(--zy-space-sm) 0 28rpx;
 }

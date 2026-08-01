@@ -16,16 +16,16 @@
 }
 
 .rf-ico { font-size: 88rpx; }
-.rf-h { font-size: 40rpx; font-weight: 600; margin-top: 24rpx; }
-.rf-rule { margin-top: 24rpx; font-size: 30rpx; font-weight: 600; }
-.rf-advice { margin-top: 16rpx; font-size: 30rpx; line-height: 1.7; }
-.rf-tip { margin-top: 24rpx; font-size: 24rpx; opacity: 0.9; }
+.rf-h { font-size: 40rpx; font-weight: 600; margin-top: var(--zy-space-md); }
+.rf-rule { margin-top: var(--zy-space-md); font-size: 30rpx; font-weight: 600; }
+.rf-advice { margin-top: var(--zy-space-sm); font-size: 30rpx; line-height: 1.7; }
+.rf-tip { margin-top: var(--zy-space-md); font-size: 24rpx; opacity: 0.9; }
 
 .rf-btn {
-  margin-top: 48rpx;
+  margin-top: var(--zy-space-xl);
   border: 1rpx solid #fff;
   border-radius: 36rpx;
-  padding: 16rpx 56rpx;
+  padding: var(--zy-space-sm) 56rpx;
   font-size: 28rpx;
   color: #fff;
 }

@@ -14,11 +14,11 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: var(--zy-space-xs);
   padding: 12rpx 22rpx;
   border-radius: 30rpx;
-  background: #e5f4f1;
-  color: #0e8a7d;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
   font-size: 25rpx;
 }
 
@@ -38,12 +38,12 @@
 
 /* 引导卡片（feature_guide，D2/D7）：客户端渲染，不带免责声明 */
 .guide-card {
-  margin: 16rpx 0;
+  margin: var(--zy-space-sm) 0;
 }
 
 .guide-hospital {
-  padding: 24rpx;
-  border-radius: 24rpx;
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
   background: #fff;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
 }
@@ -51,13 +51,13 @@
 .guide-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1f2d2b;
+  color: var(--zy-text-title);
 }
 
 .guide-desc {
   margin-top: 10rpx;
   font-size: 25rpx;
-  color: #52615f;
+  color: var(--zy-text-secondary);
   line-height: 1.55;
 }
 
@@ -65,7 +65,7 @@
   margin-top: 18rpx;
   padding: 14rpx;
   border-radius: 28rpx;
-  background: #0e8a7d;
+  background: var(--zy-color-primary);
   color: #fff;
   text-align: center;
   font-size: 25rpx;
