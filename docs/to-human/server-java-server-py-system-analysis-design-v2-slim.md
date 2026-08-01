@@ -35,9 +35,9 @@ ADR-0009 将原单体拆为两个本地进程，职责划分见下方"架构不�
 - [ADR-0009：双栈拆分](../adr/0009-competition-stack-pivot.md)
 - [ADR-0010：跨栈契约](../adr/0010-cross-stack-contracts.md)
 - [ADR-0011：号源补偿](../adr/0011-slot-accounting-compensation.md)
-- [ADR-0012：断连后继续生成](../adr/0012-chat-round-survives-client-disconnect.md)
-- [ADR-0013：默认对话关闭模型思考](../adr/0013-default-chat-disables-model-thinking.md)
-- [ADR-0014：C 端不做个性化用药决策](../adr/0014-agent-does-not-make-personalized-medication-decisions.md)
+- [ADR-0014：断连后继续生成](../adr/0014-chat-round-survives-client-disconnect.md)
+- [ADR-0015：默认对话关闭模型思考](../adr/0015-default-chat-disables-model-thinking.md)
+- [ADR-0016：C 端不做个性化用药决策](../adr/0016-agent-does-not-make-personalized-medication-decisions.md)
 - [WSS 与 Windows 服务排障](../engineering-notes/wss-and-windows-service-pitfalls.md)
 
 ---

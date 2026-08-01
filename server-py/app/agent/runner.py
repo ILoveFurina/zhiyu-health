@@ -2,7 +2,7 @@
 
 AgentRunner 协议是 LLM seam：测试用 fake 替换，断言消息历史与推理档位。
 生产实现经 langchain-openai 的 ChatOpenAI（OpenAI 兼容协议）接火山方舟；
-普通对话以 thinking.type=disabled 关闭思考，复杂任务使用 high（ADR-0013）。
+普通对话以 thinking.type=disabled 关闭思考，复杂任务使用 high（ADR-0015）。
 """
 
 import json

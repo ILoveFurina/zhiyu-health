@@ -1,4 +1,4 @@
-# 34 — 对话首响应提速与 WebSocket 实时链路
+# 40 — 对话首响应提速与 WebSocket 实时链路
 
 Status: done
 
@@ -41,4 +41,4 @@ Status: done
 - 2026-07-30：缩减范围：断线后不做跨轮自动重新附着。轮次继续执行并持久化，恢复已完成轮次的路径只有重进页面拉取对话记录（对齐竞品语义）。允许的自动恢复只有一种：同一 `request_id` 的传输降级——WebSocket 建连失败或轮次进行中断线时自动回退 SSE 继续接收本轮，不重跑、不生成新 ID；用户明确重试才创建新轮次。
 - 2026-07-30：TTFT 验收线：真实模型快速/自动普通对话连续 5 次首 token 中位数不超过 3 秒、最大不超过 5 秒；深度档仅记录。确定性自动化测试要求 fake 首 token 经 server-java 转发到 WebSocket 的额外延迟不超过 100ms；日志记录 accepted/首事件/首 token/完成耗时，不含患者原文。
 - 2026-07-30：定位支付宝开发者工具 WSS 建连失败根因：devtools（Electron 运行时）会把 `my.connectSocket` 的 `header` 参数值整体包一层字面双引号（如 `Authorization: "Bearer …"`），server-java 按严格语法解析令牌失败导致握手 401，客户端仅报笼统"连接失败"。诊断手段：本地同证书免鉴权 WSS 探针抓取原始握手字节。处置：小程序改经 `Authorization: Bearer …` 携带 JWT（即本票 checklist 的原始设计，替代 Sec-WebSocket-Protocol 子协议方案）；server-java `AuthFilter` 解析 Authorization 前剥离成对外层引号以兼容模拟器，对真机与标准客户端为 no-op。注意 `my.request` 的 header 无此引号问题。
-- 2026-07-30：双轴审查修复批次：信封类型/轮次状态/ws 路径全部改经 `contracts/chat-realtime.json` 访问器消费；删除残留的 Sec-WebSocket-Protocol 认证通道（含 `ChatWebSocketProtocol` 与子协议用例），握手只认 `Authorization: Bearer`，URL 令牌依旧拒绝；`ChatService` 恢复票 33 出口语义（响应提交前失败走 HTTP 错误、提交后失败安静收尾）；卡片路径回归测试（多卡片按序逐张落库、落库失败显式失败不留悬空）移植到 `ChatRoundServiceTest`；清理小程序打字机死代码；ADR-0004 Status 行标注自动档映射被 ADR-0013 取代；`config.js` 提交值回退 `localhost`（真机调试临时改局域网 IP，不入库）。评审"llm.py 的 low 成死值"为误判：`app/agent/clinical.py` 仍消费 `reasoning_effort="low"`，Literal 保留。
+- 2026-07-30：双轴审查修复批次：信封类型/轮次状态/ws 路径全部改经 `contracts/chat-realtime.json` 访问器消费；删除残留的 Sec-WebSocket-Protocol 认证通道（含 `ChatWebSocketProtocol` 与子协议用例），握手只认 `Authorization: Bearer`，URL 令牌依旧拒绝；`ChatService` 恢复票 33 出口语义（响应提交前失败走 HTTP 错误、提交后失败安静收尾）；卡片路径回归测试（多卡片按序逐张落库、落库失败显式失败不留悬空）移植到 `ChatRoundServiceTest`；清理小程序打字机死代码；ADR-0004 Status 行标注自动档映射被 ADR-0015 取代；`config.js` 提交值回退 `localhost`（真机调试临时改局域网 IP，不入库）。评审"llm.py 的 low 成死值"为误判：`app/agent/clinical.py` 仍消费 `reasoning_effort="low"`，Literal 保留。
