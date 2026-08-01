@@ -68,12 +68,21 @@
   color: #333;
 }
 
-.cancel {
+.cancel,
+.pay {
   margin-top: 20rpx;
   padding: 13rpx 0;
-  border: 1rpx solid #e64545;
   border-radius: 28rpx;
-  color: #e64545;
   font-size: 24rpx;
   text-align: center;
+}
+
+.pay {
+  border: 1rpx solid #0e8a7d;
+  color: #0e8a7d;
+}
+
+.cancel {
+  border: 1rpx solid #e64545;
+  color: #e64545;
 }

@@ -8,4 +8,8 @@ function cancelAppointment(appointmentId) {
   return request({ url: `/c/appointments/${appointmentId}/cancel`, method: 'POST' })
 }
 
-module.exports = { listAppointments, cancelAppointment }
+function payAppointment(appointmentId) {
+  return request({ url: `/c/appointments/${appointmentId}/payment/pay`, method: 'POST' })
+}
+
+module.exports = { listAppointments, cancelAppointment, payAppointment }

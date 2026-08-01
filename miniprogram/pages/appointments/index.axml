@@ -24,6 +24,12 @@
     <view a:if="{{item.registration_fee !== undefined}}" class="payment">
       诊查费 ¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}
     </view>
+    <view
+      a:if="{{item.payment_status === 'UNPAID'}}"
+      class="pay"
+      data-id="{{item.appointment_id}}"
+      onTap="pay"
+    >模拟支付</view>
     <view a:if="{{item.condition_summary}}" class="summary">病情摘要：{{item.condition_summary}}</view>
     <ai-disclaimer a:if="{{item.summary_disclaimer}}" text="{{item.summary_disclaimer}}" />
     <view
