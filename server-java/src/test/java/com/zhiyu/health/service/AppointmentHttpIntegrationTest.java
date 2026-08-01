@@ -67,8 +67,11 @@ class AppointmentHttpIntegrationTest {
 
         InMemorySlotCounter slots = new InMemorySlotCounter();
         slots.initialize(9L, 1);
-        PaymentService payments =
-                new PaymentService(paymentMapper, TestContracts.instance(), Mappers.getMapper(PaymentDtoMapper.class));
+        PaymentService payments = new PaymentService(
+                paymentMapper,
+                immediateTransaction(),
+                TestContracts.instance(),
+                Mappers.getMapper(PaymentDtoMapper.class));
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,

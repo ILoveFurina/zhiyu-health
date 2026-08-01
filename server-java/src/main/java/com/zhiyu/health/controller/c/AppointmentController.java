@@ -52,7 +52,8 @@ public class AppointmentController {
 
     private AppointmentOut toOut(AppointmentService.AppointmentView value) {
         AppointmentCardBase base = appointmentCards.toBase(value, disclaimers.mountIfPresent(value.conditionSummary()));
-        return appointmentCards.toPatientOut(base, value.createdAt());
+        return appointmentCards.toPatientOut(
+                base, value.createdAt(), appointmentService.isPaymentPayable(value.paymentStatus()));
     }
 
     public record AppointmentOut(
@@ -68,6 +69,7 @@ public class AppointmentController {
             @JsonProperty("registration_fee") BigDecimal registrationFee,
             @JsonProperty("payment_status") String paymentStatus,
             @JsonProperty("payment_status_label") String paymentStatusLabel,
+            @JsonProperty("payment_payable") boolean paymentPayable,
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("created_at") String createdAt) {}

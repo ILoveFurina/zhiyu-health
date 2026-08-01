@@ -1,5 +1,5 @@
 const { ensureLogin } = require('../../utils/auth')
-const { listAppointments, cancelAppointment } = require('../../services/appointments')
+const { listAppointments, cancelAppointment, payAppointment } = require('../../services/appointments')
 const { currentProfile } = require('../../services/health-profiles')
 
 Page({
@@ -36,6 +36,22 @@ Page({
             this.loadAppointments()
           })
           .catch(() => my.showToast({ content: '取消失败，请稍后重试', type: 'fail' }))
+      },
+    })
+  },
+  pay(e) {
+    const appointmentId = e.currentTarget.dataset.id
+    my.confirm({
+      title: '模拟支付',
+      content: '这是演示支付，不会产生真实扣款。确认支付诊查费吗？',
+      success: (result) => {
+        if (!result.confirm) return
+        payAppointment(appointmentId)
+          .then(() => {
+            my.showToast({ content: '支付成功', type: 'success' })
+            this.loadAppointments()
+          })
+          .catch(() => my.showToast({ content: '支付失败，请稍后重试', type: 'fail' }))
       },
     })
   },
