@@ -13,7 +13,7 @@
 
 .thread {
   flex: 1;
-  padding: 24rpx;
+  padding: var(--zy-space-md);
   box-sizing: border-box;
 }
 
@@ -32,7 +32,7 @@
 .appointments-link {
   align-self: flex-end;
   margin-bottom: 20rpx;
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   font-size: 24rpx;
 }
 
@@ -41,7 +41,7 @@
   height: 176rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, #e8f5f2, #d0ede8);
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   font-size: 76rpx;
   display: flex;
   align-items: center;
@@ -55,13 +55,13 @@
 }
 
 .greet .brand {
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
 }
 
 .greet-sub {
   margin-top: 10rpx;
   font-size: 24rpx;
-  color: #999;
+  color: var(--zy-text-weak);
 }
 
 .topics {
@@ -69,16 +69,16 @@
   margin-top: 40rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: var(--zy-space-sm);
 }
 
 .topic {
   background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx 26rpx;
+  border-radius: var(--zy-radius-card);
+  padding: var(--zy-space-md) 26rpx;
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: var(--zy-space-sm);
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
 }
 
@@ -86,7 +86,7 @@
   width: 40rpx;
   height: 40rpx;
   border-radius: 12rpx;
-  background: #0e8a7d;
+  background: var(--zy-color-primary);
   color: #fff;
   font-size: 24rpx;
   display: flex;
@@ -97,30 +97,30 @@
 
 .topic .topic-text {
   font-size: 26rpx;
-  color: #333;
+  color: var(--zy-text-title);
 }
 
 .topic .arrow {
   margin-left: auto;
-  color: #ccc;
+  color: var(--zy-text-weak);
   font-size: 32rpx;
 }
 
 /* ===== 气泡 ===== */
 .bubble {
   max-width: 78%;
-  padding: 20rpx 24rpx;
-  border-radius: 24rpx;
+  padding: 20rpx var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
   font-size: 28rpx;
   line-height: 1.55;
-  margin: 16rpx 0;
+  margin: var(--zy-space-sm) 0;
   word-break: break-all;
 }
 
 .bubble.user {
   margin-left: auto;
   background: #95deae;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   border-bottom-right-radius: 8rpx;
   width: fit-content;
 }
@@ -128,21 +128,21 @@
 .bubble.ai {
   margin-right: auto;
   background: #fff;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   border-bottom-left-radius: 8rpx;
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
   width: fit-content;
 }
 
 .cursor {
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
 }
 
 /* ===== 红线内联卡（历史回看时呈现） ===== */
 .redflag-card {
-  margin: 16rpx 0;
-  padding: 20rpx 24rpx;
-  border-radius: 24rpx;
+  margin: var(--zy-space-sm) 0;
+  padding: 20rpx var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
   background: #e64545;
   color: #fff;
 }
@@ -161,17 +161,17 @@
 /* ===== 免责声明常驻细条 ===== */
 .disclaimer-bar {
   background: rgba(245, 245, 245, 0.9);
-  color: #999;
+  color: var(--zy-text-weak);
   font-size: 20rpx;
   text-align: center;
-  padding: 8rpx 16rpx;
+  padding: var(--zy-space-xs) var(--zy-space-sm);
 }
 
 /* ===== 输入栏 ===== */
 .composer {
   background: #fff;
   border-top: 1rpx solid #eee;
-  padding: 16rpx 20rpx 24rpx;
+  padding: var(--zy-space-sm) 20rpx var(--zy-space-md);
 }
 
 .c-row1 {
@@ -191,8 +191,8 @@
 .c-row2 {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  margin-top: 16rpx;
+  gap: var(--zy-space-sm);
+  margin-top: var(--zy-space-sm);
 }
 
 .cpill {
@@ -200,18 +200,18 @@
   border-radius: 28rpx;
   padding: 10rpx 22rpx;
   font-size: 24rpx;
-  color: #333;
+  color: var(--zy-text-title);
   background: #fff;
 }
 
 .cpill.gear {
-  color: #0e8a7d;
-  border-color: #0e8a7d;
+  color: var(--zy-color-primary);
+  border-color: var(--zy-color-primary);
 }
 
 .send-btn {
   margin-left: auto;
-  background: #0e8a7d;
+  background: var(--zy-color-primary);
   color: #fff;
   border-radius: 32rpx;
   padding: 12rpx 36rpx;

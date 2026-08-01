@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="header">
+    <view class="title">{{doctorName}} <text class="title-suffix">{{departmentName}}</text></view>
+    <view class="subtitle">选择可预约的日期与时段</view>
+  </view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{groups.length === 0}}" class="state">该医生暂时没有排班</view>
+
+  <view a:for="{{groups}}" a:key="date" class="group">
+    <view class="group-date">{{item.date}}</view>
+    <view class="group-card">
+      <view
+        a:for="{{item.items}}"
+        a:for-item="slot"
+        a:key="schedule_id"
+        class="slot {{slot.remaining_slots <= 0 ? 'slot-disabled' : ''}}"
+        data-id="{{slot.schedule_id}}"
+        data-date="{{slot.schedule_date}}"
+        data-slot="{{slot.time_slot}}"
+        data-remaining="{{slot.remaining_slots}}"
+        onTap="openConfirm"
+      >
+        <view class="slot-time">{{slot.time_slot}}</view>
+        <view class="slot-remaining">{{slot.remaining_slots <= 0 ? '已约满' : '剩 ' + slot.remaining_slots + ' 个号源'}}</view>
+      </view>
+    </view>
+  </view>
+</view>

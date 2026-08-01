@@ -1,0 +1,42 @@
+/* 医生列表：头像 + 姓名/职称 + 擅长 + 挂号费 */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
+.subtitle { color: var(--zy-text-secondary); font-size: 26rpx; }
+
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+.card {
+  margin-top: var(--zy-space-md);
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+}
+.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0; }
+.avatar-fallback {
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 38rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-main { flex: 1; margin-left: var(--zy-space-sm); }
+.name-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
+.name { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.doctor-title { color: var(--zy-text-secondary); font-size: 24rpx; }
+.specialty {
+  margin-top: var(--zy-space-xs);
+  color: var(--zy-text-secondary);
+  font-size: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fee { margin-top: 6rpx; color: var(--zy-color-primary); font-size: 24rpx; font-weight: 600; }
+.arrow { margin-left: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 40rpx; }

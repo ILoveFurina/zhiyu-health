@@ -1,0 +1,38 @@
+/* 排班：按日期分组，时段网格；约满置灰 */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
+.title { color: var(--zy-text-title); font-size: 40rpx; font-weight: 700; }
+.title-suffix { font-size: 26rpx; font-weight: 400; color: var(--zy-text-secondary); }
+.subtitle { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 26rpx; }
+
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+.group { margin-top: var(--zy-space-lg); }
+.group-date { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; }
+.group-card {
+  padding: var(--zy-space-sm);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+}
+.slot {
+  width: 33.33%;
+  box-sizing: border-box;
+  padding: var(--zy-space-sm) var(--zy-space-xs);
+}
+.slot-time {
+  padding: var(--zy-space-sm) 0;
+  border-radius: 16rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 26rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.slot-remaining { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 20rpx; text-align: center; }
+
+.slot-disabled .slot-time { background: #f2f5f4; color: var(--zy-text-weak); font-weight: 400; }
+.slot-disabled .slot-remaining { color: var(--zy-text-weak); }

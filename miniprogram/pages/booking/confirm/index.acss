@@ -1,0 +1,28 @@
+/* 确认页：信息汇总卡 + 主行动按钮 */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.card {
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+.card-title { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.row { margin-top: var(--zy-space-md); display: flex; align-items: center; justify-content: space-between; }
+.label { color: var(--zy-text-secondary); font-size: 26rpx; }
+.value { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; }
+.fee { color: var(--zy-color-primary); }
+
+.tip { margin-top: var(--zy-space-md); color: var(--zy-text-weak); font-size: 22rpx; text-align: center; }
+
+.submit {
+  margin-top: var(--zy-space-xl);
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+}
+.submit-disabled { opacity: 0.6; }

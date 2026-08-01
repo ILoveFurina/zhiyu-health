@@ -1,6 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 const { chooseReport } = require('../../utils/report-picker')
-const { uploadReport } = require('../../utils/report-upload')
+const { uploadReport, finalizeReport } = require('../../utils/report-upload')
 
 module.exports = {
   openReportPicker() {
@@ -75,5 +75,51 @@ module.exports = {
       sending: false,
       anchorId: 'thread-bottom',
     })
+  },
+
+  /**
+   * 消费报告解读入口页（pages/report）传来的待解读请求（票 42 阶段三）：
+   * 分段上传已在入口页完成，这里只调 finalize，解读过程复用会话流渲染。
+   * switchTab 不能带参，经 globalData 传递；sending 时不消费、保留到下次 onShow，
+   * 避免打断进行中的对话轮次；request_id 幂等，重复 finalize 返回既有记录。
+   */
+  consumeReportEntry() {
+    const app = getApp()
+    const entry = app.globalData.pendingReportFinalize
+    if (!entry || this.data.sending) return
+    app.globalData.pendingReportFinalize = null
+    // 独立入口发起的解读归入全新会话：resetChatState 只清前端态，finalize 传空 conversation_id
+    this.resetChatState()
+    const uploadMessage = {
+      id: ++this._msgSeq, role: 'user', kind: 'report_upload',
+      content: entry.items[0].kind === 'pdf'
+        ? entry.items[0].name
+        : `报告图片（${entry.items.length}张）`,
+    }
+    const waiting = {
+      id: ++this._msgSeq, role: 'assistant', kind: 'text',
+      content: '报告解读中，请稍候…', disclaimer: '', streaming: true,
+    }
+    this.setData({ messages: [uploadMessage, waiting], sending: true, anchorId: 'thread-bottom' })
+    ensureLogin()
+      .then(() => finalizeReport({ requestId: entry.requestId, conversationId: null }))
+      .then((data) => {
+        this.patchMessage(waiting.id, () => ({
+          id: waiting.id,
+          role: 'assistant',
+          kind: 'report_interpretation',
+          card: data.result,
+          disclaimer: data.disclaimer,
+        }))
+        this.setData({ conversationId: data.conversation_id, sending: false })
+      })
+      .catch((error) => {
+        this.patchMessage(waiting.id, (msg) => ({
+          ...msg,
+          content: `抱歉，${error.detail || error.message || '报告解读失败'}，请稍后重试`,
+          streaming: false,
+        }))
+        this.setData({ sending: false })
+      })
   },
 }

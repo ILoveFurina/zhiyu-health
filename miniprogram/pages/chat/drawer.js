@@ -42,9 +42,16 @@ const drawerMethods = {
     this.setData({ drawerOpen: false })
   },
 
-  /** 点选历史会话：全量加载消息回放，并在该会话内续聊（决策 4/13）。 */
+  /** 点选历史会话：委托 openConversationById（决策 4/13）。 */
   selectConversation(e) {
-    const conversationId = e.currentTarget.dataset.id
+    this.openConversationById(e.currentTarget.dataset.id)
+  },
+
+  /**
+   * 按 id 打开历史会话：全量加载消息回放，并在该会话内续聊（决策 4/13）。
+   * 供抽屉点选与 tab 外入口（报告解读记录，票 42 阶段三）复用。
+   */
+  openConversationById(conversationId) {
     if (conversationId === this.data.conversationId) {
       this.setData({ drawerOpen: false })
       return
@@ -52,7 +59,6 @@ const drawerMethods = {
     my.showLoading({ content: '加载会话…' })
     listMessages(conversationId)
       .then((messages) => {
-        this.stopTypewriter()
         this.setData({
           messages: messages.map((m) => this.replayMessage(m)),
           conversationId,
@@ -63,6 +69,15 @@ const drawerMethods = {
       })
       .catch(() => my.showToast({ content: '会话加载失败', type: 'fail' }))
       .then(() => my.hideLoading())
+  },
+
+  /** 消费报告解读记录指定的待打开会话（票 42 阶段三，经 globalData 传递）。 */
+  consumeOpenConversation() {
+    const app = getApp()
+    const conversationId = app.globalData.pendingOpenConversationId
+    if (!conversationId) return
+    app.globalData.pendingOpenConversationId = null
+    this.openConversationById(conversationId)
   },
 
   /** 历史消息回放：原样渲染用户/红线/卡片，AI 文本定格为完整内容（不打字机）。 */

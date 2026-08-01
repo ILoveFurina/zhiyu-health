@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="header">
+    <view class="subtitle">选择就诊科室</view>
+  </view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{departments.length === 0}}" class="state">该医院暂时没有可预约科室</view>
+
+  <view
+    a:for="{{departments}}"
+    a:key="department_id"
+    class="card"
+    data-id="{{item.department_id}}"
+    data-name="{{item.name}}"
+    onTap="openDoctors"
+  >
+    <view class="card-main">
+      <view class="name">{{item.name}}</view>
+      <view a:if="{{item.floor || item.location}}" class="meta">
+        {{item.floor}}{{item.floor && item.location ? ' · ' : ''}}{{item.location}}
+      </view>
+    </view>
+    <view class="arrow">›</view>
+  </view>
+</view>

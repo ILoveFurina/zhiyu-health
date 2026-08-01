@@ -1,0 +1,161 @@
+/* 首页：白色圆角卡片浮在薄荷渐变背景上，全部消费 app.acss 的设计 token */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+/* 问候头 */
+.header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
+.greeting { color: var(--zy-text-title); font-size: 44rpx; font-weight: 700; }
+.greeting-sub { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 26rpx; }
+
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: var(--zy-space-sm);
+  padding: 10rpx 22rpx 10rpx 12rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+}
+.chip-avatar {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chip-name { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; }
+.chip-arrow { color: var(--zy-color-primary); font-size: 24rpx; }
+
+.profile-guide {
+  margin-top: var(--zy-space-sm);
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+}
+.profile-guide-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-guide-copy { flex: 1; margin-left: var(--zy-space-sm); }
+.profile-guide-title { color: var(--zy-text-title); font-size: 29rpx; font-weight: 600; }
+.profile-guide-text { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+.profile-guide-arrow { color: var(--zy-text-weak); font-size: 36rpx; }
+
+/* 宫格 */
+.section { margin-top: var(--zy-space-lg); }
+.section-title { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.card {
+  padding: var(--zy-space-md) var(--zy-space-sm);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+.grid { display: flex; flex-wrap: wrap; }
+.grid-2 .grid-item { width: 50%; }
+.grid-4 .grid-item { width: 25%; }
+.grid-item { box-sizing: border-box; padding: var(--zy-space-sm) var(--zy-space-xs); display: flex; flex-direction: column; align-items: center; }
+.grid-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 28rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 42rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.grid-icon-text { font-size: 30rpx; font-weight: 700; }
+.grid-label { margin-top: 12rpx; color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; }
+.grid-desc { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+
+/* 待办横卡 */
+.todo-scroll { width: 100%; }
+.todo-row { display: flex; gap: var(--zy-space-sm); padding: 0 var(--zy-space-xs) var(--zy-space-xs); box-sizing: border-box; }
+.todo-card {
+  width: 420rpx;
+  flex-shrink: 0;
+  padding: var(--zy-space-md);
+  box-sizing: border-box;
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+.todo-badge {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+}
+.todo-badge-pay { background: #fdf3e3; color: #d48806; } /* 待支付用琥珀色与就诊绿区分 */
+.todo-title { margin-top: var(--zy-space-sm); color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.todo-meta { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+
+/* 档案切换弹层 */
+.sheet-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--zy-space-md);
+  padding-bottom: calc(var(--zy-space-md) + env(safe-area-inset-bottom));
+  border-radius: var(--zy-radius-card) var(--zy-radius-card) 0 0;
+  background: #fff;
+}
+.sheet-title { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; text-align: center; }
+.sheet-item {
+  margin-top: var(--zy-space-sm);
+  padding: var(--zy-space-sm);
+  border-radius: var(--zy-radius-card);
+  border: 1rpx solid #eef3f1;
+  display: flex;
+  align-items: center;
+  gap: var(--zy-space-sm);
+}
+.sheet-item-active { border-color: var(--zy-color-primary); background: var(--zy-color-primary-soft); }
+.sheet-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-name { flex: 1; color: var(--zy-text-title); font-size: 28rpx; }
+.sheet-check { color: var(--zy-color-primary); font-size: 24rpx; }
+.sheet-create {
+  margin-top: var(--zy-space-md);
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 28rpx;
+  text-align: center;
+}
