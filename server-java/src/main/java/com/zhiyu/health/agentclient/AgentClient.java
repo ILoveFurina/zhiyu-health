@@ -76,6 +76,44 @@ public class AgentClient {
                 "/api/agent/clinical/consultation-summary", Map.of("diagnosis", diagnosis, "advice", advice));
     }
 
+    /** 同步获取知识图谱投影（ADR-0013 决策 2）：server-java 鉴权后转调 server-py 只读接口。 */
+    public GraphProjection fetchGraphProjection() {
+        try {
+            GraphProjection response = webClient
+                    .get()
+                    .uri("/api/knowledge/graph")
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(GraphProjection.class)
+                    .block(Duration.ofSeconds(15));
+            if (response == null) {
+                return new GraphProjection(List.of(), List.of());
+            }
+            return response;
+        } catch (RuntimeException e) {
+            // server-py 不可达或超时：返回空图降级展示，不阻断 B 端页面
+            return new GraphProjection(List.of(), List.of());
+        }
+    }
+
+    /** 同步获取图谱节点详情：点击节点时另取属性（grilling 决策 6）。 */
+    public JsonNode fetchGraphNodeDetail(String nodeId) {
+        try {
+            return webClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/knowledge/graph/node")
+                            .queryParam("node_id", nodeId)
+                            .build())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block(Duration.ofSeconds(15));
+        } catch (RuntimeException e) {
+            throw new ApiException(502, "知识图谱详情暂不可用");
+        }
+    }
+
     private ClinicalResponse clinicalText(String uri, Map<String, ?> body) {
         try {
             ClinicalResponse response = webClient
@@ -191,6 +229,15 @@ public class AgentClient {
     public record VisionResponse(JsonNode result, String disclaimer, @JsonProperty("page_count") Integer pageCount) {}
 
     public record ClinicalResponse(String content, String disclaimer) {}
+
+    /** 图谱投影骨架（ADR-0013 决策 6）：最小拓扑 {nodes, edges}，不携带节点属性。 */
+    public record GraphProjection(List<GraphProjectionNode> nodes, List<GraphProjectionEdge> edges) {}
+
+    /** 投影节点：id 为 {label_type}:{natural_key} 复合形式，group 取 label 名用于着色。 */
+    public record GraphProjectionNode(String id, String label, String group) {}
+
+    /** 投影边：source/target 为节点 id，type 为关系类型（INDICATES/TREATED_BY 等）。 */
+    public record GraphProjectionEdge(String source, String target, String type) {}
 
     public static final class VisionAgentException extends RuntimeException {
         private final String code;
