@@ -121,6 +121,15 @@ class ContractsTest {
     }
 
     @Test
+    void paymentFlowStatusesAndMessagesAreLoaded() {
+        Contracts.PaymentFlow payment = contracts.paymentFlow();
+        assertThat(payment.statuses()).containsExactlyInAnyOrderEntriesOf(Map.of("unpaid", "UNPAID", "paid", "PAID"));
+        assertThat(payment.statusLabels()).containsEntry("UNPAID", "待支付").containsEntry("PAID", "已支付");
+        assertThat(payment.decisions()).containsEntry("pay", "PAY");
+        assertThat(payment.messages()).containsEntry("pay_success", "支付成功");
+    }
+
+    @Test
     void knowledgeContractValuesAreLoaded() {
         Contracts.Knowledge knowledge = contracts.knowledge();
         assertThat(knowledge.knowledgeSources()).containsExactly("rag", "graph");

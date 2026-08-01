@@ -10,6 +10,8 @@ import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.support.TestContracts;
+import java.math.BigDecimal;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +55,13 @@ class AppointmentConcurrencyTest {
             return profile;
         });
         AppointmentService service = new AppointmentService(
-                appointments, schedules, new SlotAccounting(redis), serializedTransaction(), healthProfiles);
+                appointments,
+                schedules,
+                new SlotAccounting(redis),
+                serializedTransaction(),
+                healthProfiles,
+                mock(PaymentService.class),
+                TestContracts.instance());
         AtomicInteger successes = new AtomicInteger();
         var executor = Executors.newFixedThreadPool(10);
         try {
@@ -98,6 +106,7 @@ class AppointmentConcurrencyTest {
         schedule.setTotalSlots(1);
         schedule.setRemainingSlots(remaining);
         schedule.setIsActive(true);
+        schedule.setRegistrationFee(new BigDecimal("30.00"));
         return schedule;
     }
 }

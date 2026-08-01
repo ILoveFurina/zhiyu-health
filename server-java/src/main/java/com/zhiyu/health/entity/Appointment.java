@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class Appointment {
     private Long conversationId;
     private Long scheduleId;
     private Integer sequenceNumber;
+    private BigDecimal registrationFee;
     private String status;
     private String conditionSummary;
     private OffsetDateTime createdAt;
@@ -59,4 +61,7 @@ public class Appointment {
 
     @TableField(exist = false)
     private String patientNickname;
+
+    @TableField(exist = false)
+    private String paymentStatus;
 }

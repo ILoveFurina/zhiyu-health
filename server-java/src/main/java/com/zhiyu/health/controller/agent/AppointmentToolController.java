@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -79,6 +80,9 @@ public class AppointmentToolController {
             @JsonProperty("time_slot") String timeSlot,
             @JsonProperty("sequence_number") Integer sequenceNumber,
             String status,
+            @JsonProperty("registration_fee") BigDecimal registrationFee,
+            @JsonProperty("payment_status") String paymentStatus,
+            @JsonProperty("payment_status_label") String paymentStatusLabel,
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("summary_sent") boolean summarySent,
@@ -97,6 +101,9 @@ public class AppointmentToolController {
                     base.timeSlot(),
                     base.sequenceNumber(),
                     base.status(),
+                    base.registrationFee(),
+                    base.paymentStatus(),
+                    base.paymentStatusLabel(),
                     base.conditionSummary(),
                     base.summaryDisclaimer(),
                     summarySent,

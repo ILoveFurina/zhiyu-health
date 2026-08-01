@@ -4,7 +4,7 @@
 
 **Blocked by:** None - can start immediately
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] doctors 表新增 `registration_fee DECIMAL(10,2)`，seed 按职称定价（主任医师 50 / 副主任医师 30 / 主治医师 20）
 - [ ] appointments 表新增 `registration_fee DECIMAL(10,2)`，挂号时从 doctors 快照写入

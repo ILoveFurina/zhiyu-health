@@ -2,6 +2,7 @@ package com.zhiyu.health.controller;
 
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
+import java.math.BigDecimal;
 
 /**
  * AppointmentView → 卡片公共字段转换：C 端 AppointmentOut 与 Agent AppointmentCard 共用，
@@ -17,6 +18,9 @@ public record AppointmentCardBase(
         String timeSlot,
         Integer sequenceNumber,
         String status,
+        BigDecimal registrationFee,
+        String paymentStatus,
+        String paymentStatusLabel,
         String conditionSummary,
         String summaryDisclaimer) {
 
@@ -31,6 +35,9 @@ public record AppointmentCardBase(
                 value.timeSlot(),
                 value.sequenceNumber(),
                 value.status(),
+                value.registrationFee(),
+                value.paymentStatus(),
+                value.paymentStatusLabel(),
                 value.conditionSummary(),
                 // 免责声明挂载判断只留这一处：有摘要才挂载
                 disclaimers.mountIfPresent(value.conditionSummary()));

@@ -61,11 +61,12 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
-                   s.schedule_date, s.time_slot
+                   s.schedule_date, s.time_slot, p.status AS payment_status
             FROM appointments a
             JOIN schedules s ON s.id = a.schedule_id
             JOIN doctors d ON d.id = s.doctor_id
             JOIN departments dep ON dep.id = d.department_id
+            LEFT JOIN payments p ON p.appointment_id = a.id
             WHERE a.id = #{appointmentId}
             """)
     Appointment selectViewById(@Param("appointmentId") long appointmentId);
@@ -73,11 +74,12 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
-                   s.schedule_date, s.time_slot
+                   s.schedule_date, s.time_slot, p.status AS payment_status
             FROM appointments a
             JOIN schedules s ON s.id = a.schedule_id
             JOIN doctors d ON d.id = s.doctor_id
             JOIN departments dep ON dep.id = d.department_id
+            LEFT JOIN payments p ON p.appointment_id = a.id
             WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}
             ORDER BY s.schedule_date DESC, a.id DESC
             """)

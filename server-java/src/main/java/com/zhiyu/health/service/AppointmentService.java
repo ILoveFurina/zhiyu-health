@@ -1,10 +1,12 @@
 package com.zhiyu.health.service;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,11 +21,13 @@ public class AppointmentService {
     private final SlotAccounting slotAccounting;
     private final TransactionTemplate transactionTemplate;
     private final HealthProfileService healthProfiles;
+    private final PaymentService payments;
+    private final Contracts contracts;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
-        Long appointmentId = slotAccounting.withDeduction(
+        CreatedAppointment created = slotAccounting.withDeduction(
                 scheduleId,
                 deduction -> transactionTemplate.execute(status -> {
                     // 排班行锁把幂等判断、序号分配与 PG 对账串成一个临界区，防止并发重复扣减或重号。
@@ -34,7 +38,7 @@ public class AppointmentService {
                     Appointment existing =
                             appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
                     if (existing != null) {
-                        return existing.getId();
+                        return new CreatedAppointment(existing.getId(), existing.getRegistrationFee());
                     }
                     // 幂等检查通过后才预扣；售罄在此处抛 409 且 Redis 已被 SlotAccounting 回补。
                     deduction.acquire();
@@ -47,11 +51,18 @@ public class AppointmentService {
                     appointment.setConversationId(conversationId);
                     appointment.setScheduleId(scheduleId);
                     appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
+                    appointment.setRegistrationFee(schedule.getRegistrationFee());
                     appointment.setStatus(Appointment.STATUS_BOOKED);
                     appointmentMapper.insert(appointment);
-                    return appointment.getId();
+                    return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
                 }));
-        return view(appointmentId);
+        try {
+            // 挂号与号源事务已经提交；收费附属记录失败不得撤销真实挂号结果。
+            payments.createUnpaid(created.id(), created.registrationFee());
+        } catch (RuntimeException ignored) {
+            // 后续幂等挂号请求会再次尝试补建收费记录，唯一键避免重复收费。
+        }
+        return view(created.id());
     }
 
     public List<AppointmentView> listForPatient(long patientId) {
@@ -124,6 +135,7 @@ public class AppointmentService {
     }
 
     private AppointmentView toView(Appointment appointment) {
+        String paymentStatus = appointment.getPaymentStatus();
         return new AppointmentView(
                 appointment.getId(),
                 appointment.getScheduleId(),
@@ -138,6 +150,11 @@ public class AppointmentService {
                         : appointment.getTimeSlot().getValue(),
                 appointment.getSequenceNumber(),
                 Appointment.displayStatus(appointment.getStatus()),
+                appointment.getRegistrationFee(),
+                paymentStatus,
+                paymentStatus == null
+                        ? null
+                        : contracts.paymentFlow().statusLabels().get(paymentStatus),
                 appointment.getConditionSummary(),
                 appointment.getCreatedAt() == null
                         ? null
@@ -154,6 +171,11 @@ public class AppointmentService {
             String timeSlot,
             Integer sequenceNumber,
             String status,
+            BigDecimal registrationFee,
+            String paymentStatus,
+            String paymentStatusLabel,
             String conditionSummary,
             String createdAt) {}
+
+    private record CreatedAppointment(Long id, BigDecimal registrationFee) {}
 }

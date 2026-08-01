@@ -5,6 +5,7 @@ import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +47,9 @@ public class AppointmentController {
             @JsonProperty("time_slot") String timeSlot,
             @JsonProperty("sequence_number") Integer sequenceNumber,
             String status,
+            @JsonProperty("registration_fee") BigDecimal registrationFee,
+            @JsonProperty("payment_status") String paymentStatus,
+            @JsonProperty("payment_status_label") String paymentStatusLabel,
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("created_at") String createdAt) {
@@ -62,6 +66,9 @@ public class AppointmentController {
                     base.timeSlot(),
                     base.sequenceNumber(),
                     base.status(),
+                    base.registrationFee(),
+                    base.paymentStatus(),
+                    base.paymentStatusLabel(),
                     base.conditionSummary(),
                     base.summaryDisclaimer(),
                     value.createdAt());
