@@ -45,8 +45,38 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
                 .toList();
     }
 
+    public List<OrderView> listForAdmin(String status) {
+        String normalizedStatus = status == null || status.isBlank() ? null : status;
+        if (normalizedStatus != null && !contracts.orderFlow().statusLabels().containsKey(normalizedStatus)) {
+            throw new ApiException(400, "药品订单状态无效");
+        }
+        return orderMapper.selectForAdmin(normalizedStatus).stream()
+                .map(order -> toView(order, itemMapper.selectDetailed(order.getId())))
+                .toList();
+    }
+
+    public OrderView getForAdmin(long orderId) {
+        DrugOrder order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new ApiException(404, "药品订单不存在");
+        }
+        return toView(order, itemMapper.selectDetailed(orderId));
+    }
+
     public OrderView cancel(long patientId, long orderId) {
         return transactionTemplate.execute(status -> cancelInTransaction(patientId, orderId));
+    }
+
+    public OrderView pay(long patientId, long orderId) {
+        return transactionTemplate.execute(status -> payInTransaction(patientId, orderId));
+    }
+
+    public OrderView completeForAdmin(long orderId) {
+        return transactionTemplate.execute(status -> completeInTransaction(orderId));
+    }
+
+    public OrderView cancelForAdmin(long orderId) {
+        return transactionTemplate.execute(status -> cancelForAdminInTransaction(orderId));
     }
 
     private OrderView createInTransaction(CreateCommand command) {
@@ -82,7 +112,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
                 .toList();
         items.forEach(itemMapper::insert);
         return dtoMapper.toView(
-                order, contracts.orderFlow().statusLabels().get(unpaid), true, dtoMapper.toItemViews(items));
+                order, contracts.orderFlow().statusLabels().get(unpaid), true, true, dtoMapper.toItemViews(items));
     }
 
     private List<Line> lines(List<QuantityInput> inputs, List<Medication> medications) {
@@ -114,6 +144,49 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
 
     private OrderView cancelInTransaction(long patientId, long orderId) {
         DrugOrder order = orderMapper.selectForPatientForUpdate(orderId, patientId);
+        return cancelLocked(order, orderId);
+    }
+
+    private OrderView payInTransaction(long patientId, long orderId) {
+        DrugOrder order = orderMapper.selectForPatientForUpdate(orderId, patientId);
+        if (order == null) {
+            throw new ApiException(404, "药品订单不存在");
+        }
+        String unpaid = contracts.orderFlow().statuses().get("unpaid");
+        if (!unpaid.equals(order.getStatus())) {
+            throw new ApiException(409, "仅待支付药品订单可支付");
+        }
+        String paid = contracts.orderFlow().statuses().get("paid");
+        if (orderMapper.markPaid(orderId, paid, unpaid) == 0) {
+            throw new ApiException(409, "药品订单状态已变化，请刷新后重试");
+        }
+        order.setStatus(paid);
+        return toView(order, itemMapper.selectDetailed(orderId));
+    }
+
+    private OrderView completeInTransaction(long orderId) {
+        DrugOrder order = orderMapper.selectForUpdate(orderId);
+        if (order == null) {
+            throw new ApiException(404, "药品订单不存在");
+        }
+        String paid = contracts.orderFlow().statuses().get("paid");
+        if (!paid.equals(order.getStatus())) {
+            throw new ApiException(409, "仅已支付药品订单可确认完成");
+        }
+        String done = contracts.orderFlow().statuses().get("done");
+        if (orderMapper.complete(orderId, done, paid) == 0) {
+            throw new ApiException(409, "药品订单状态已变化，请刷新后重试");
+        }
+        order.setStatus(done);
+        return toView(order, itemMapper.selectDetailed(orderId));
+    }
+
+    private OrderView cancelForAdminInTransaction(long orderId) {
+        DrugOrder order = orderMapper.selectForUpdate(orderId);
+        return cancelLocked(order, orderId);
+    }
+
+    private OrderView cancelLocked(DrugOrder order, long orderId) {
         if (order == null) {
             throw new ApiException(404, "药品订单不存在");
         }
@@ -122,7 +195,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
             throw new ApiException(409, "仅待支付药品订单可取消");
         }
         List<DrugOrderItem> items = itemMapper.selectDetailed(orderId);
-        // 订单行锁阻止重复取消；库存回补和状态更新必须同事务提交，避免多补或已取消但未回补。
+        // C/B 两端都先锁订单行；库存回补和状态更新同事务提交，避免跨入口重复取消或多补库存。
         for (DrugOrderItem item : items) {
             if (medicationMapper.restoreStock(item.getMedicationId(), item.getQuantity()) == 0) {
                 throw new ApiException(500, "药品订单库存回补失败");
@@ -137,11 +210,12 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
     }
 
     private OrderView toView(DrugOrder order, List<DrugOrderItem> items) {
-        boolean cancellable = contracts.orderFlow().statuses().get("unpaid").equals(order.getStatus());
+        boolean unpaid = contracts.orderFlow().statuses().get("unpaid").equals(order.getStatus());
         return dtoMapper.toView(
                 order,
                 contracts.orderFlow().statusLabels().get(order.getStatus()),
-                cancellable,
+                unpaid,
+                unpaid,
                 dtoMapper.toItemViews(items));
     }
 
@@ -161,11 +235,13 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
 
     public record OrderView(
             Long id,
+            Long patientId,
             Long prescriptionId,
             String status,
             String statusLabel,
             BigDecimal totalAmount,
             String createdAt,
             boolean cancellable,
+            boolean payable,
             List<ItemView> items) {}
 }

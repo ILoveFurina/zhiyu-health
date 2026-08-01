@@ -167,6 +167,24 @@ class DrugOrderControllerTest {
     }
 
     @Test
+    void payingUnpaidOrderMarksItPaid() throws Exception {
+        DrugOrder order = new DrugOrder();
+        order.setId(51L);
+        order.setPatientId(7L);
+        order.setPrescriptionId(31L);
+        order.setStatus("UNPAID");
+        order.setTotalAmount(new BigDecimal("37.00"));
+        when(orderMapper.selectForPatientForUpdate(51L, 7L)).thenReturn(order);
+        when(orderMapper.markPaid(51L, "PAID", "UNPAID")).thenReturn(1);
+
+        mvc().perform(post("/api/c/drug-orders/51/pay").requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.status_label").value("已支付"))
+                .andExpect(jsonPath("$.cancellable").value(false));
+    }
+
+    @Test
     void listsOnlyCurrentPatientsOrders() throws Exception {
         DrugOrder order = new DrugOrder();
         order.setId(51L);

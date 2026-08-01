@@ -47,4 +47,10 @@ public class DrugOrderController {
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long id) {
         return service.cancel(patientId, id);
     }
+
+    @PostMapping("/{id}/pay")
+    public DrugOrderService.OrderView pay(
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long id) {
+        return service.pay(patientId, id);
+    }
 }

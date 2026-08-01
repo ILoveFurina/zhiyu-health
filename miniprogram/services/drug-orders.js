@@ -13,4 +13,9 @@ const cancelDrugOrder = (orderId) => request({
   method: 'POST',
 })
 
-module.exports = { createDrugOrder, listDrugOrders, cancelDrugOrder }
+const payDrugOrder = (orderId) => request({
+  url: `/c/drug-orders/${orderId}/pay`,
+  method: 'POST',
+})
+
+module.exports = { createDrugOrder, listDrugOrders, cancelDrugOrder, payDrugOrder }
