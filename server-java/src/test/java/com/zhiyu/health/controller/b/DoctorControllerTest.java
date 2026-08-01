@@ -16,7 +16,9 @@ import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.service.DoctorAdminService;
 import com.zhiyu.health.support.StaffTokens;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,7 +40,8 @@ class DoctorControllerTest {
     private static final String VALID_BODY =
             """
             {"department_id": 1, "name": "林知远", "title": "主任医师",
-             "specialty": "高血压、冠心病", "photo_url": "https://example.com/demo/lin.jpg"}
+             "registration_fee": 50.00, "specialty": "高血压、冠心病",
+             "photo_url": "https://example.com/demo/lin.jpg"}
             """;
 
     private Doctor demoDoctor() {
@@ -47,6 +50,7 @@ class DoctorControllerTest {
         doctor.setDepartmentId(1L);
         doctor.setName("林知远");
         doctor.setTitle("主任医师");
+        doctor.setRegistrationFee(new BigDecimal("30.00"));
         doctor.setSpecialty("高血压、冠心病");
         doctor.setPhotoUrl("https://example.com/demo/lin.jpg");
         return doctor;
@@ -106,6 +110,32 @@ class DoctorControllerTest {
                         .content(VALID_BODY))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("医生或科室不存在"));
+    }
+
+    @Test
+    void updateRegistrationFeeIsReturnedByDoctorList() throws Exception {
+        AtomicReference<Doctor> stored = new AtomicReference<>(demoDoctor());
+        when(doctorAdminService.update(any(Doctor.class))).thenAnswer(invocation -> {
+            Doctor doctor = invocation.getArgument(0);
+            stored.set(doctor);
+            return doctor;
+        });
+        when(doctorAdminService.listAll()).thenAnswer(invocation -> List.of(stored.get()));
+
+        mockMvc.perform(put("/api/b/doctors/1")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                        .contentType("application/json")
+                        .content("""
+                                {"department_id": 1, "name": "林知远", "title": "主任医师",
+                                 "registration_fee": 50.00, "specialty": "高血压、冠心病",
+                                 "photo_url": "https://example.com/demo/lin.jpg"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.registration_fee").value(50.00));
+
+        mockMvc.perform(get("/api/b/doctors").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].registration_fee").value(50.00));
     }
 
     @Test

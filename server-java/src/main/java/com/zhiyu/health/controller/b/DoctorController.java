@@ -3,9 +3,12 @@ package com.zhiyu.health.controller.b;
 import com.zhiyu.health.controller.b.mapping.DoctorInputMapper;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.service.DoctorAdminService;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,6 +36,7 @@ public class DoctorController {
             @NotNull Long departmentId,
             @NotBlank @Size(max = 50) String name,
             @NotBlank @Size(max = 50) String title,
+            @NotNull @DecimalMin("0.00") @DecimalMax("99999999.99") BigDecimal registrationFee,
             @NotBlank String specialty,
             @NotBlank @Size(max = 500) String photoUrl) {}
 

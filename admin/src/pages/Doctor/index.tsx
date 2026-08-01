@@ -33,6 +33,12 @@ export default function DoctorPage() {
       render: (_, row) => departments.find((d) => d.id === row.department_id)?.name ?? row.department_id,
     },
     { title: '职称', dataIndex: 'title', search: false },
+    {
+      title: '挂号费(元)',
+      dataIndex: 'registration_fee',
+      search: false,
+      valueType: 'money',
+    },
     { title: '擅长', dataIndex: 'specialty', search: false },
     { title: '照片', dataIndex: 'photo_url', search: false, render: (_, row) => row.photo_url || '-' },
     {

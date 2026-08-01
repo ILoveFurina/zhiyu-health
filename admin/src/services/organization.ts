@@ -22,6 +22,7 @@ export interface Doctor {
   department_id: number;
   name: string;
   title: string;
+  registration_fee: number;
   specialty: string;
   photo_url: string;
 }
