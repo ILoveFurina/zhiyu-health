@@ -21,5 +21,6 @@ export default [
   },
   { name: '电子处方审核', path: '/prescriptions', component: './Prescription', access: 'canAdmin' },
   { name: '药品管理', path: '/medications', component: './Medication', access: 'canAdmin' },
+  { name: '医学知识图谱', path: '/knowledge-graph', component: './KnowledgeGraph', access: 'canAdmin' },
   { name: '接诊台', path: '/workbench', component: './Workbench', access: 'canDoctor' },
 ];
