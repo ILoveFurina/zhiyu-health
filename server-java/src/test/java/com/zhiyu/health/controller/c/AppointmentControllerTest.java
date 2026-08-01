@@ -9,9 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
+import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.support.TestDisclaimers;
-import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;

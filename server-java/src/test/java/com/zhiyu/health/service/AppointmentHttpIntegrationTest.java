@@ -59,15 +59,16 @@ class AppointmentHttpIntegrationTest {
             savedPayment.set(invocation.getArgument(0));
             return 1;
         });
-        when(appointments.selectViewById(21L)).thenAnswer(invocation -> view(savedAppointment.get(), savedPayment.get()));
+        when(appointments.selectViewById(21L))
+                .thenAnswer(invocation -> view(savedAppointment.get(), savedPayment.get()));
         HealthProfile profile = new HealthProfile();
         profile.setId(31L);
         when(healthProfiles.requireActive(anyLong())).thenReturn(profile);
 
         InMemorySlotCounter slots = new InMemorySlotCounter();
         slots.initialize(9L, 1);
-        PaymentService payments = new PaymentService(
-                paymentMapper, TestContracts.instance(), Mappers.getMapper(PaymentDtoMapper.class));
+        PaymentService payments =
+                new PaymentService(paymentMapper, TestContracts.instance(), Mappers.getMapper(PaymentDtoMapper.class));
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
@@ -78,14 +79,14 @@ class AppointmentHttpIntegrationTest {
                 TestContracts.instance(),
                 Mappers.getMapper(AppointmentDtoMapper.class));
         MockMvc mvc = standaloneSetup(new AppointmentToolController(
-                        service,
-                        TestDisclaimers.instance(),
-                        Mappers.getMapper(AppointmentCardMapper.class)))
+                        service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .build();
 
-        mvc.perform(post("/api/agent/appointments")
-                        .contentType("application/json")
-                        .content("""
+        mvc.perform(
+                        post("/api/agent/appointments")
+                                .contentType("application/json")
+                                .content(
+                                        """
                                 {"patient_id":12,"conversation_id":7,"schedule_id":9,
                                  "condition_summary":"主诉胸闷两天"}
                                 """))

@@ -35,10 +35,7 @@ public class AppointmentToolController {
     @PostMapping
     public AppointmentCard create(@Valid @RequestBody CreateAppointmentRequest request) {
         return toCard(appointmentService.createWithSummary(
-                request.patientId(),
-                request.conversationId(),
-                request.scheduleId(),
-                request.conditionSummary()));
+                request.patientId(), request.conversationId(), request.scheduleId(), request.conditionSummary()));
     }
 
     @PostMapping("/{appointmentId}/summary")
@@ -56,8 +53,7 @@ public class AppointmentToolController {
     }
 
     private AppointmentCard toCard(AppointmentService.AppointmentView value) {
-        AppointmentCardBase base = appointmentCards.toBase(
-                value, disclaimers.mountIfPresent(value.conditionSummary()));
+        AppointmentCardBase base = appointmentCards.toBase(value, disclaimers.mountIfPresent(value.conditionSummary()));
         boolean summarySent = base.conditionSummary() != null;
         String notice = summarySent ? "病情摘要已发送给医生" : "挂号成功，病情摘要暂未发送";
         return appointmentCards.toAgentCard(base, summarySent, notice);

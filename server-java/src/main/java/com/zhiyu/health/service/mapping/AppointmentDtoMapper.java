@@ -26,8 +26,7 @@ public interface AppointmentDtoMapper {
     @Mapping(target = "paymentStatusLabel", source = "paymentStatusLabel")
     @Mapping(target = "conditionSummary", source = "appointment.conditionSummary")
     @Mapping(target = "createdAt", source = "appointment.createdAt", qualifiedByName = "dateTimeText")
-    AppointmentService.AppointmentView toView(
-            Appointment appointment, String statusLabel, String paymentStatusLabel);
+    AppointmentService.AppointmentView toView(Appointment appointment, String statusLabel, String paymentStatusLabel);
 
     @Named("dateText")
     default String dateText(LocalDate value) {

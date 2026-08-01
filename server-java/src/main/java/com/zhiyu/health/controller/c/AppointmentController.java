@@ -40,8 +40,7 @@ public class AppointmentController {
     }
 
     private AppointmentOut toOut(AppointmentService.AppointmentView value) {
-        AppointmentCardBase base = appointmentCards.toBase(
-                value, disclaimers.mountIfPresent(value.conditionSummary()));
+        AppointmentCardBase base = appointmentCards.toBase(value, disclaimers.mountIfPresent(value.conditionSummary()));
         return appointmentCards.toPatientOut(base, value.createdAt());
     }
 

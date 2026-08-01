@@ -19,6 +19,5 @@ public interface AppointmentCardMapper {
 
     @Mapping(target = "summarySent", source = "summarySent")
     @Mapping(target = "notice", source = "notice")
-    AppointmentToolController.AppointmentCard toAgentCard(
-            AppointmentCardBase base, boolean summarySent, String notice);
+    AppointmentToolController.AppointmentCard toAgentCard(AppointmentCardBase base, boolean summarySent, String notice);
 }
