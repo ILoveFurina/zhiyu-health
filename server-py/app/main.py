@@ -76,7 +76,7 @@ def create_app(
         # 图谱遍历器（ADR-0013）：Neo4j 驱动由 KnowledgeClients 持有，未配置时为 None
         graph_traverser = build_graph_traverser(settings, clients)
         # 图谱投影 service（ADR-0013 决策 2）：B 端可视化经 server-java 转调本接口
-        graph_projector = build_graph_projector(clients)
+        built_projector = build_graph_projector(clients)
         runner = agent_runner or LazySettingsAgentRunner(
             build_business_tools(app.state.business_client), knowledge_retriever, graph_traverser
         )
@@ -85,7 +85,7 @@ def create_app(
             rag_available=knowledge_retriever is not None,
             graph_available=graph_traverser is not None,
         )
-        app.state.graph_projector = graph_projector
+        app.state.graph_projector = built_projector
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
         try:
