@@ -28,6 +28,14 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select("SELECT * FROM prescriptions WHERE appointment_id = #{appointmentId}")
     Prescription selectByAppointmentId(@Param("appointmentId") long appointmentId);
 
+    @Select(
+            """
+            SELECT pr.* FROM prescriptions pr
+            JOIN appointments a ON a.id = pr.appointment_id
+            WHERE pr.id = #{id} AND a.patient_id = #{patientId}
+            """)
+    Prescription selectForPatient(@Param("id") long id, @Param("patientId") long patientId);
+
     @Select(DETAIL_COLUMNS + " WHERE pr.status = #{status} ORDER BY pr.created_at DESC")
     List<Prescription> selectForReview(@Param("status") String status);
 

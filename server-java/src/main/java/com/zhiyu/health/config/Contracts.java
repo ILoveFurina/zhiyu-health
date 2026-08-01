@@ -26,6 +26,7 @@ public class Contracts {
     private final UploadLimits uploadLimits;
     private final ChatDefaults chatDefaults;
     private final PrescriptionFlow prescriptionFlow;
+    private final OrderFlow orderFlow;
     private final Contraindication contraindication;
     private final Knowledge knowledge;
     private final ChatRealtime chatRealtime;
@@ -46,6 +47,7 @@ public class Contracts {
         this.uploadLimits = read(mapper, dir, "upload-limits.json", UploadLimits.class);
         this.chatDefaults = read(mapper, dir, "chat-defaults.json", ChatDefaults.class);
         this.prescriptionFlow = read(mapper, dir, "prescription-flow.json", PrescriptionFlow.class);
+        this.orderFlow = read(mapper, dir, "order-flow.json", OrderFlow.class);
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
@@ -97,6 +99,10 @@ public class Contracts {
 
     public PrescriptionFlow prescriptionFlow() {
         return prescriptionFlow;
+    }
+
+    public OrderFlow orderFlow() {
+        return orderFlow;
     }
 
     public Contraindication contraindication() {
@@ -261,6 +267,21 @@ public class Contracts {
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
             messageTypes = Map.copyOf(messageTypes);
+        }
+    }
+
+    public record OrderFlow(
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            Map<String, String> decisions,
+            Map<String, String> messageTypes,
+            Map<String, String> messages) {
+        public OrderFlow {
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            decisions = Map.copyOf(decisions);
+            messageTypes = Map.copyOf(messageTypes);
+            messages = Map.copyOf(messages);
         }
     }
 

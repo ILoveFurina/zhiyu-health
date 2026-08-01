@@ -1,0 +1,27 @@
+{
+  "statuses": {
+    "unpaid": "UNPAID",
+    "paid": "PAID",
+    "done": "DONE",
+    "cancelled": "CANCELLED"
+  },
+  "status_labels": {
+    "UNPAID": "待支付",
+    "PAID": "已支付",
+    "DONE": "已完成",
+    "CANCELLED": "已取消"
+  },
+  "decisions": {
+    "pay": "PAY",
+    "cancel": "CANCEL",
+    "complete": "COMPLETE"
+  },
+  "message_types": {
+    "order_status": "DRUG_ORDER_STATUS"
+  },
+  "messages": {
+    "created": "药品订单已创建",
+    "stock_insufficient": "药品库存不足，下单失败",
+    "cancelled": "药品订单已取消"
+  }
+}

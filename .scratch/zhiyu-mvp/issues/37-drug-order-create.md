@@ -4,13 +4,17 @@
 
 **Blocked by:** 34 - 药品管理：价格库存字段与 B 端管理面
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 新增 `drug_orders` 表（id, patient_id, prescription_id, status default 'UNPAID', total_amount, created_at, paid_at, cancelled_at；status CHECK IN ('UNPAID','PAID','DONE','CANCELLED')）
-- [ ] 新增 `drug_order_items` 表（id, drug_order_id FK cascade, medication_id FK, quantity, unit_price, subtotal）
-- [ ] 新增 `contracts/order-flow.json`（statuses unpaid/paid/done/cancelled、status_labels、decisions pay/cancel/complete、message_types、messages），格式参照 prescription-flow.json
-- [ ] C 端下单接口：传 prescription_id + 数量，校验处方为 APPROVED，订单明细复用处方明细（药品 + 数量 + 单价取 medications.price），计算 total_amount
-- [ ] 库存预扣：下单时 `UPDATE medications SET stock = stock - n WHERE id = ? AND stock >= n`，affected rows = 0 即库存不足下单失败（禁止先查后改）；取消未支付订单回补库存（事务内）
-- [ ] C 端购药入口替换 Mock：`miniprogram/pages/prescriptions/index.js` 的 order() 改为真实下单调用；新增"我的药品订单"页并在 app.json 注册
-- [ ] MockMvc 验证：下单成功扣库存、状态 UNPAID；库存不足下单失败且无订单创建；取消未支付订单库存回补
-- [ ] 浏览器实测无控制台错误，人工走通"开方审核 -> C 端处方购药 -> 我的药品订单可见"
+- [x] 新增 `drug_orders` 表（id, patient_id, prescription_id, status default 'UNPAID', total_amount, created_at, paid_at, cancelled_at；status CHECK IN ('UNPAID','PAID','DONE','CANCELLED')）
+- [x] 新增 `drug_order_items` 表（id, drug_order_id FK cascade, medication_id FK, quantity, unit_price, subtotal）
+- [x] 新增 `contracts/order-flow.json`（statuses unpaid/paid/done/cancelled、status_labels、decisions pay/cancel/complete、message_types、messages），格式参照 prescription-flow.json
+- [x] C 端下单接口：传 prescription_id + 数量，校验处方为 APPROVED，订单明细复用处方明细（药品 + 数量 + 单价取 medications.price），计算 total_amount
+- [x] 库存预扣：下单时 `UPDATE medications SET stock = stock - n WHERE id = ? AND stock >= n`，affected rows = 0 即库存不足下单失败（禁止先查后改）；取消未支付订单回补库存（事务内）
+- [x] C 端购药入口替换 Mock：`miniprogram/pages/prescriptions/index.js` 的 order() 改为真实下单调用；新增"我的药品订单"页并在 app.json 注册
+- [x] MockMvc 验证：下单成功扣库存、状态 UNPAID；库存不足下单失败且无订单创建；取消未支付订单库存回补
+- [x] UI 验收由用户明确要求本次跳过；未声明浏览器无控制台错误或人工链路已走通
+
+## Comments
+
+- 2026-08-02：server-java 全量 210 个测试、Spotless、小程序 JS 语法与 JSON 解析通过；用户明确要求跳过 UI 验收。双轴审查发现的 2 项规范问题、1 项规格问题与 1 项轻微异味均已修复。

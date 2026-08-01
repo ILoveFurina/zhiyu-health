@@ -1,6 +1,6 @@
 .page { min-height: 100vh; padding: 24rpx; box-sizing: border-box; background: #f3f7f6; }
 .state { padding-top: 180rpx; text-align: center; color: #999; }
-.mock-note { margin-bottom: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #fff7e6; color: #ad6800; font-size: 23rpx; }
+.orders-link { margin-bottom: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #e7f6f2; color: #0e8a7d; font-size: 25rpx; text-align: center; }
 .card { margin-bottom: 22rpx; padding: 26rpx; border-radius: 24rpx; background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,.06); }
 .title { color: #173f3a; font-size: 31rpx; font-weight: 700; }
 .meta { margin-top: 8rpx; color: #777; font-size: 23rpx; }
@@ -10,3 +10,5 @@
 .interpretation { margin-top: 8rpx; color: #344845; font-size: 25rpx; line-height: 1.7; }
 .pharmacy { margin-top: 20rpx; color: #666; font-size: 23rpx; }
 .order { margin-top: 16rpx; border: 0; border-radius: 32rpx; background: #138f7e; color: #fff; font-size: 26rpx; }
+.quantity-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; color: #173f3a; }
+.quantity { width: 100rpx; padding: 6rpx 10rpx; border: 1rpx solid #b8d8d1; border-radius: 10rpx; background: #fff; text-align: center; }

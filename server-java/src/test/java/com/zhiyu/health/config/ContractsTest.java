@@ -137,6 +137,23 @@ class ContractsTest {
     }
 
     @Test
+    void orderFlowDefinesStatusesDecisionsAndMessages() {
+        Contracts.OrderFlow flow = contracts.orderFlow();
+        assertThat(flow.statuses())
+                .containsEntry("unpaid", "UNPAID")
+                .containsEntry("paid", "PAID")
+                .containsEntry("done", "DONE")
+                .containsEntry("cancelled", "CANCELLED");
+        assertThat(flow.statusLabels()).containsEntry("UNPAID", "待支付");
+        assertThat(flow.decisions())
+                .containsEntry("pay", "PAY")
+                .containsEntry("cancel", "CANCEL")
+                .containsEntry("complete", "COMPLETE");
+        assertThat(flow.messageTypes()).containsEntry("order_status", "DRUG_ORDER_STATUS");
+        assertThat(flow.messages()).containsEntry("stock_insufficient", "药品库存不足，下单失败");
+    }
+
+    @Test
     void contractsDirCanBeOverridden() {
         // 解析顺序：系统属性 > 环境变量 > 默认 ../contracts；此处只断言默认值可用。
         assertThat(contracts.sseEvents().toolToEvent())
