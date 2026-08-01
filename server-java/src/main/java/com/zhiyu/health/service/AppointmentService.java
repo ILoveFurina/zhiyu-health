@@ -27,7 +27,7 @@ public class AppointmentService {
     private final AppointmentDtoMapper appointmentDtos;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
-        CreatedAppointment created = reserve(patientId, conversationId, scheduleId, false);
+        CreatedAppointment created = reserve(patientId, conversationId, scheduleId, DuplicatePolicy.RETURN_EXISTING);
         try {
             // 挂号与号源事务已经提交；收费附属记录失败不得撤销真实挂号结果。
             payments.createUnpaid(created.id(), created.registrationFee());
@@ -39,10 +39,11 @@ public class AppointmentService {
 
     /** C 端功能目录直接挂号；按票 41 边界不创建收费记录，重复提交返回明确冲突。 */
     public AppointmentView createDirect(long patientId, long scheduleId) {
-        return view(reserve(patientId, null, scheduleId, true).id());
+        return view(reserve(patientId, null, scheduleId, DuplicatePolicy.REJECT).id());
     }
 
-    private CreatedAppointment reserve(long patientId, Long conversationId, long scheduleId, boolean rejectDuplicate) {
+    private CreatedAppointment reserve(
+            long patientId, Long conversationId, long scheduleId, DuplicatePolicy duplicatePolicy) {
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
         CreatedAppointment created = slotAccounting.withDeduction(
@@ -56,7 +57,7 @@ public class AppointmentService {
                     Appointment existing =
                             appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
                     if (existing != null) {
-                        if (rejectDuplicate) {
+                        if (duplicatePolicy == DuplicatePolicy.REJECT) {
                             throw new ApiException(409, "请勿重复挂号");
                         }
                         return new CreatedAppointment(existing.getId(), existing.getRegistrationFee());
@@ -175,4 +176,9 @@ public class AppointmentService {
             String createdAt) {}
 
     private record CreatedAppointment(Long id, BigDecimal registrationFee) {}
+
+    private enum DuplicatePolicy {
+        RETURN_EXISTING,
+        REJECT
+    }
 }

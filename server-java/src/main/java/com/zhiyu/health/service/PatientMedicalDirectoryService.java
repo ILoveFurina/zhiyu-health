@@ -28,12 +28,9 @@ public class PatientMedicalDirectoryService {
     private final ScheduleMapper scheduleMapper;
     private final PatientMedicalDirectoryDtoMapper directoryDtos;
 
-    public List<HospitalView> hospitals(Double latitude, Double longitude) {
-        if ((latitude == null) != (longitude == null)) {
-            throw new ApiException(400, "lat 与 lng 必须同时提供");
-        }
-        if (latitude != null) {
-            return hospitalMapper.selectNearby(longitude, latitude).stream()
+    public List<HospitalView> hospitals(Coordinates coordinates) {
+        if (coordinates != null) {
+            return hospitalMapper.selectNearby(coordinates.longitude(), coordinates.latitude()).stream()
                     .map(directoryDtos::toHospitalView)
                     .toList();
         }
@@ -100,4 +97,17 @@ public class PatientMedicalDirectoryService {
             @JsonProperty("time_slot") String timeSlot,
             @JsonProperty("total_slots") int totalSlots,
             @JsonProperty("remaining_slots") int remainingSlots) {}
+
+    public record Coordinates(double latitude, double longitude) {
+
+        public static Coordinates fromNullable(Double latitude, Double longitude) {
+            if (latitude == null && longitude == null) {
+                return null;
+            }
+            if (latitude == null || longitude == null) {
+                throw new ApiException(400, "lat 与 lng 必须同时提供");
+            }
+            return new Coordinates(latitude, longitude);
+        }
+    }
 }

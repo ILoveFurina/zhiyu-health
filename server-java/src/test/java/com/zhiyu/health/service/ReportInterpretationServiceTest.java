@@ -14,9 +14,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.ReportInterpretation;
+import com.zhiyu.health.service.mapping.ReportInterpretationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.mockito.InOrder;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,12 +33,12 @@ class ReportInterpretationServiceTest {
         newer.setId(32L);
         newer.setStatus("SUCCEEDED");
         newer.setResultJson("{\"summary\":\"较新的报告\"}");
-        newer.setDisclaimer("仅供参考，不替代医生诊断");
+        newer.setDisclaimer(null);
         ReportInterpretation older = new ReportInterpretation();
         older.setId(31L);
         older.setStatus("SUCCEEDED");
         older.setResultJson("{\"summary\":\"较早的报告\"}");
-        older.setDisclaimer("仅供参考，不替代医生诊断");
+        older.setDisclaimer("被污染的免责声明");
         when(persistence.listForPatient(12L)).thenReturn(List.of(newer, older));
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence,
@@ -43,13 +46,18 @@ class ReportInterpretationServiceTest {
                 new ObjectMapper(),
                 mock(ReportUploadStagingService.class),
                 TestContracts.instance(),
-                mock(HealthProfileService.class));
+                mock(HealthProfileService.class),
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class));
 
         List<ReportInterpretationService.ReportView> result = service.listForPatient(12L);
 
         assertThat(result)
                 .extracting(ReportInterpretationService.ReportView::reportInterpretationId)
                 .containsExactly(32L, 31L);
+        assertThat(result)
+                .extracting(ReportInterpretationService.ReportView::disclaimer)
+                .containsOnly("仅供参考，不替代医生诊断");
         verify(persistence).listForPatient(12L);
     }
 
@@ -74,7 +82,9 @@ class ReportInterpretationServiceTest {
                 objectMapper,
                 mock(ReportUploadStagingService.class),
                 TestContracts.instance(),
-                mock(HealthProfileService.class));
+                mock(HealthProfileService.class),
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class));
         MultipartFile file = mock(MultipartFile.class);
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-001", List.of(file));
@@ -130,7 +140,9 @@ class ReportInterpretationServiceTest {
                 objectMapper,
                 mock(ReportUploadStagingService.class),
                 TestContracts.instance(),
-                healthProfiles);
+                healthProfiles,
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class));
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-002", List.of(file));
 
@@ -160,7 +172,9 @@ class ReportInterpretationServiceTest {
                 new ObjectMapper(),
                 staging,
                 TestContracts.instance(),
-                mock(HealthProfileService.class));
+                mock(HealthProfileService.class),
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class));
 
         ReportInterpretationService.ReportView result = service.finalizeStaged(12L, 8L, "req-retry");
 
@@ -191,7 +205,9 @@ class ReportInterpretationServiceTest {
                 new ObjectMapper(),
                 mock(ReportUploadStagingService.class),
                 TestContracts.instance(),
-                healthProfiles);
+                healthProfiles,
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class));
 
         assertThatThrownBy(() -> service.interpret(12L, null, "req-timeout", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {

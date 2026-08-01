@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.service.PatientMedicalDirectoryService;
+import com.zhiyu.health.service.PatientMedicalDirectoryService.Coordinates;
 import com.zhiyu.health.support.StaffTokens;
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,7 +29,8 @@ class MedicalDirectoryControllerTest {
 
     @Test
     void browsesHospitalsDepartmentsDoctorsAndFutureSchedules() throws Exception {
-        when(directory.hospitals(31.2304, 121.4737))
+        Coordinates coordinates = new Coordinates(31.2304, 121.4737);
+        when(directory.hospitals(coordinates))
                 .thenReturn(List.of(new PatientMedicalDirectoryService.HospitalView(
                         1L, "智愈市人民医院", "三级甲等", "智愈市安康路 88 号", 121.4737, 31.2304, 0.0)));
         when(directory.departments(1L))
@@ -59,7 +61,7 @@ class MedicalDirectoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].remaining_slots").value(2));
 
-        verify(directory).hospitals(31.2304, 121.4737);
+        verify(directory).hospitals(coordinates);
         verify(directory).departments(1L);
         verify(directory).doctors(2L);
         verify(directory).schedules(3L);
@@ -75,7 +77,7 @@ class MedicalDirectoryControllerTest {
 
     @Test
     void listsAllHospitalsWhenCoordinatesAreOmitted() throws Exception {
-        when(directory.hospitals(null, null))
+        when(directory.hospitals(null))
                 .thenReturn(List.of(new PatientMedicalDirectoryService.HospitalView(
                         1L, "智愈市人民医院", "三级甲等", "智愈市安康路 88 号", 121.4737, 31.2304, null)));
 
@@ -83,6 +85,12 @@ class MedicalDirectoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].hospital_id").value(1))
                 .andExpect(jsonPath("$[0].distance_km").doesNotExist());
-        verify(directory).hospitals(null, null);
+        verify(directory).hospitals(null);
+    }
+
+    @Test
+    void rejectsIncompleteCoordinates() throws Exception {
+        mockMvc.perform(get("/api/c/hospitals").param("lat", "31.2304").with(StaffTokens.withPatientSubject("12")))
+                .andExpect(status().isBadRequest());
     }
 }

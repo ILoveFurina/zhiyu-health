@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.c;
 
 import com.zhiyu.health.service.PatientMedicalDirectoryService;
+import com.zhiyu.health.service.PatientMedicalDirectoryService.Coordinates;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Positive;
@@ -26,7 +27,7 @@ public class MedicalDirectoryController {
     public List<PatientMedicalDirectoryService.HospitalView> hospitals(
             @RequestParam(required = false) @DecimalMin("-90") @DecimalMax("90") Double lat,
             @RequestParam(required = false) @DecimalMin("-180") @DecimalMax("180") Double lng) {
-        return directory.hospitals(lat, lng);
+        return directory.hospitals(Coordinates.fromNullable(lat, lng));
     }
 
     @GetMapping("/hospitals/{hospitalId}/departments")

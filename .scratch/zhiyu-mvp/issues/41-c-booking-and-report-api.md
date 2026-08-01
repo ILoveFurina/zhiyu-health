@@ -17,4 +17,4 @@
 
 ## Comments
 
-- 2026-08-02：在隔离 worktree `E:\project\zhiyu-health-t41` 完成。server-java 226 tests passed；Spotless 对改动文件通过。应用内浏览器因安全策略拦截 localhost，未能执行浏览器冒烟；本票无前端改动，且按用户要求不操作小程序开发者工具。
+- 2026-08-02：在隔离 worktree `E:\project\zhiyu-health-t41` 完成。变基到最新 main 后 server-java 235 tests passed；Spotless 对改动文件通过。应用内浏览器因安全策略拦截 localhost，未能执行浏览器冒烟；本票无前端改动，且按用户要求不操作小程序开发者工具。

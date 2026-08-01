@@ -7,6 +7,7 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.ReportInterpretation;
+import com.zhiyu.health.service.mapping.ReportInterpretationDtoMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,6 +26,8 @@ public class ReportInterpretationService {
     // 上传限制唯一事实源是 contracts/upload-limits.json（两端入口校验必须一致）
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
+    private final DisclaimerService disclaimers;
+    private final ReportInterpretationDtoMapper reportDtos;
 
     public List<ReportView> listForPatient(long patientId) {
         return persistence.listForPatient(patientId).stream().map(this::toView).toList();
@@ -120,13 +123,8 @@ public class ReportInterpretationService {
     private ReportView toView(ReportInterpretation record) {
         try {
             JsonNode result = record.getResultJson() == null ? null : objectMapper.readTree(record.getResultJson());
-            return new ReportView(
-                    record.getId(),
-                    record.getConversationId(),
-                    record.getStatus(),
-                    record.getPageCount(),
-                    result,
-                    record.getDisclaimer());
+            // 历史数据中的 disclaimer 可能为空或被污染，server-java 出口始终挂载唯一固定文案。
+            return reportDtos.toView(record, result, disclaimers.text());
         } catch (Exception e) {
             throw new ApiException(500, "报告解读记录损坏");
         }
