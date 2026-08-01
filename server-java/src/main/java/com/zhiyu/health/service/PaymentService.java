@@ -28,6 +28,7 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
     }
 
     public PaymentView payForPatient(long patientId, long appointmentId) {
+        // 患者归属校验与收费行锁在同一事务内完成，避免校验后记录被另一入口并发支付。
         return transactionTemplate.execute(
                 status -> payLocked(paymentMapper.selectForPatientForUpdate(appointmentId, patientId), appointmentId));
     }
@@ -51,6 +52,7 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
     }
 
     public PaymentView payForAdmin(long paymentId) {
+        // B 端与 C 端复用同一锁后状态机，任一入口先提交后，另一入口只会得到已支付冲突。
         return transactionTemplate.execute(status -> {
             Payment payment = paymentMapper.selectForUpdate(paymentId);
             return payLocked(payment, payment == null ? 0L : payment.getAppointmentId());

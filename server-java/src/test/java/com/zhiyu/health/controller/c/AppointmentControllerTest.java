@@ -40,6 +40,7 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$[0].registration_fee").value(30.00))
                 .andExpect(jsonPath("$[0].payment_status").value("UNPAID"))
                 .andExpect(jsonPath("$[0].payment_status_label").value("待支付"))
+                .andExpect(jsonPath("$[0].payment_payable").value(true))
                 .andExpect(jsonPath("$[0].condition_summary").value("主诉胸闷两天"))
                 .andExpect(jsonPath("$[0].summary_disclaimer").value("仅供参考，不替代医生诊断"));
 

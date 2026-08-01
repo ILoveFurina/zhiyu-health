@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { App, Button, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
-import { paymentStatusLabels, paymentStatuses } from '@/contracts/payment';
+import { paymentMessages, paymentStatusLabels, paymentStatuses } from '@/contracts/payment';
 import {
   getPayment,
   listPayments,
@@ -36,7 +36,7 @@ export default function PaymentPage() {
   const openDetail = async (id: number) => setDetail(await getPayment(id));
   const pay = async (row: Payment) => {
     await payPayment(row.id);
-    message.success('模拟支付成功');
+    message.success(paymentMessages.pay_success);
     setDetail(undefined);
     await load();
   };

@@ -20,6 +20,7 @@ public interface PaymentMapper extends BaseMapper<Payment> {
             """)
     int insertUnpaid(@Param("payment") Payment payment);
 
+    // 锁定收费行后再判断状态，使 C/B 两个支付入口不能同时把同一笔收费重复流转。
     @Select(
             """
             SELECT p.* FROM payments p
@@ -32,6 +33,7 @@ public interface PaymentMapper extends BaseMapper<Payment> {
     @Select("SELECT * FROM payments WHERE id = #{id} FOR UPDATE")
     Payment selectForUpdate(@Param("id") long id);
 
+    // 旧状态谓词是锁之外的最终原子护栏；受影响行为 0 时由 service 报并发冲突，paid_at 不会误写。
     @Update(
             """
             UPDATE payments SET status = #{paidStatus}, paid_at = now()

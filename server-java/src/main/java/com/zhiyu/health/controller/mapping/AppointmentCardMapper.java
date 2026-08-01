@@ -15,7 +15,8 @@ public interface AppointmentCardMapper {
     AppointmentCardBase toBase(AppointmentService.AppointmentView value, String summaryDisclaimer);
 
     @Mapping(target = "createdAt", source = "createdAt")
-    AppointmentController.AppointmentOut toPatientOut(AppointmentCardBase base, String createdAt);
+    AppointmentController.AppointmentOut toPatientOut(
+            AppointmentCardBase base, String createdAt, boolean paymentPayable);
 
     @Mapping(target = "summarySent", source = "summarySent")
     @Mapping(target = "notice", source = "notice")

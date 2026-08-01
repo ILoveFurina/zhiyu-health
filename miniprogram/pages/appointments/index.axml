@@ -25,7 +25,7 @@
       诊查费 ¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}
     </view>
     <view
-      a:if="{{item.payment_status === 'UNPAID'}}"
+      a:if="{{item.payment_payable}}"
       class="pay"
       data-id="{{item.appointment_id}}"
       onTap="pay"

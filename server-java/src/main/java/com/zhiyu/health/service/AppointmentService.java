@@ -159,6 +159,10 @@ public class AppointmentService {
                 appointment, Appointment.displayStatus(appointment.getStatus()), paymentStatusLabel);
     }
 
+    public boolean isPaymentPayable(String paymentStatus) {
+        return contracts.paymentFlow().statuses().get("unpaid").equals(paymentStatus);
+    }
+
     public record AppointmentView(
             Long id,
             Long scheduleId,

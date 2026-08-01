@@ -14,15 +14,25 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
+import com.zhiyu.health.controller.b.PaymentController;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
+import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Payment;
+import com.zhiyu.health.entity.TimeSlot;
+import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.PaymentMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.AppointmentService;
+import com.zhiyu.health.service.HealthProfileService;
 import com.zhiyu.health.service.PaymentService;
+import com.zhiyu.health.service.SlotAccounting;
+import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.service.mapping.PaymentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -60,18 +70,23 @@ class AppointmentPaymentControllerTest {
         Payment payment = payment("UNPAID");
         when(mapper.selectForPatientForUpdate(21L, 12L)).thenReturn(payment);
         when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
-        AppointmentService appointments = mock(AppointmentService.class);
-        when(appointments.listForPatient(12L)).thenAnswer(ignored -> List.of(appointment(payment.getStatus())));
+        when(mapper.selectById(41L)).thenAnswer(ignored -> payment);
+        AppointmentService appointments = appointmentService(payment);
         AppointmentController appointmentController = new AppointmentController(
                 appointments, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class));
-        MockMvc flowMvc = mvc(controller, appointmentController);
+        MockMvc flowMvc = mvc(controller, appointmentController, new PaymentController(service));
 
         flowMvc.perform(post("/api/c/appointments/21/payment/pay").requestAttr("authSubject", 12L))
                 .andExpect(status().isOk());
+        flowMvc.perform(get("/api/b/payments/41"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.paid_at").isNotEmpty());
         flowMvc.perform(get("/api/c/appointments").requestAttr("authSubject", 12L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].payment_status").value("PAID"))
-                .andExpect(jsonPath("$[0].payment_status_label").value("已支付"));
+                .andExpect(jsonPath("$[0].payment_status_label").value("已支付"))
+                .andExpect(jsonPath("$[0].payment_payable").value(false));
     }
 
     @Test
@@ -95,22 +110,41 @@ class AppointmentPaymentControllerTest {
         return payment;
     }
 
-    private AppointmentService.AppointmentView appointment(String paymentStatus) {
-        return new AppointmentService.AppointmentView(
-                21L,
-                9L,
-                2L,
-                "周安宁",
-                "心血管内科",
-                "2026-07-29",
-                "上午",
-                1,
-                "已约",
-                new BigDecimal("30.00"),
-                paymentStatus,
-                TestContracts.instance().paymentFlow().statusLabels().get(paymentStatus),
-                "主诉胸闷两天",
-                "2026-07-28T10:00:00+08:00");
+    private AppointmentService appointmentService(Payment payment) {
+        AppointmentMapper appointments = mock(AppointmentMapper.class);
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfile profile = new HealthProfile();
+        profile.setId(31L);
+        when(healthProfiles.requireActive(12L)).thenReturn(profile);
+        when(appointments.selectViewsByProfile(12L, 31L))
+                .thenAnswer(ignored -> List.of(appointment(payment.getStatus())));
+        return new AppointmentService(
+                appointments,
+                mock(ScheduleMapper.class),
+                mock(SlotAccounting.class),
+                transactionTemplate(),
+                healthProfiles,
+                service,
+                TestContracts.instance(),
+                Mappers.getMapper(AppointmentDtoMapper.class));
+    }
+
+    private Appointment appointment(String paymentStatus) {
+        Appointment appointment = new Appointment();
+        appointment.setId(21L);
+        appointment.setScheduleId(9L);
+        appointment.setDoctorId(2L);
+        appointment.setDoctorName("周安宁");
+        appointment.setDepartmentName("心血管内科");
+        appointment.setScheduleDate(LocalDate.parse("2026-07-29"));
+        appointment.setTimeSlot(TimeSlot.MORNING);
+        appointment.setSequenceNumber(1);
+        appointment.setStatus(Appointment.STATUS_BOOKED);
+        appointment.setRegistrationFee(new BigDecimal("30.00"));
+        appointment.setPaymentStatus(paymentStatus);
+        appointment.setConditionSummary("主诉胸闷两天");
+        appointment.setCreatedAt(OffsetDateTime.parse("2026-07-28T10:00:00+08:00"));
+        return appointment;
     }
 
     private MockMvc mvc() {
