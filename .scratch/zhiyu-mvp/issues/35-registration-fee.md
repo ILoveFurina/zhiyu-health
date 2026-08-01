@@ -4,13 +4,17 @@
 
 **Blocked by:** None - can start immediately
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] doctors 表新增 `registration_fee DECIMAL(10,2)`，seed 按职称定价（主任医师 50 / 副主任医师 30 / 主治医师 20）
-- [ ] appointments 表新增 `registration_fee DECIMAL(10,2)`，挂号时从 doctors 快照写入
-- [ ] 新增 `payments` 表（id, appointment_id FK unique, amount, status default 'UNPAID', created_at, paid_at；status CHECK IN ('UNPAID','PAID')），只承载挂号收费
-- [ ] 新增 `contracts/payment-flow.json`（statuses unpaid/paid、status_labels、decisions pay、messages），格式参照 contraindication.json；Contracts 启动期加载
-- [ ] 挂号成功（AppointmentService.create 事务内或紧随其后）产生 UNPAID 收费记录，金额 = appointments.registration_fee；不改动现有 SlotAccounting 号源扣减逻辑；收费记录写入失败不回滚挂号
-- [ ] AppointmentCardBase / AppointmentOut / Agent AppointmentCard 三处 record 增 registration_fee 与支付状态字段；C 端"我的挂号"卡片展示费用与支付状态
-- [ ] MockMvc 验证：挂号成功后存在 UNPAID 收费记录，金额等于医生职称价；appointments 接口返回费用与支付状态
+- [x] doctors 表新增 `registration_fee DECIMAL(10,2)`，seed 按职称定价（主任医师 50 / 副主任医师 30 / 主治医师 20）
+- [x] appointments 表新增 `registration_fee DECIMAL(10,2)`，挂号时从 doctors 快照写入
+- [x] 新增 `payments` 表（id, appointment_id FK unique, amount, status default 'UNPAID', created_at, paid_at；status CHECK IN ('UNPAID','PAID')），只承载挂号收费
+- [x] 新增 `contracts/payment-flow.json`（statuses unpaid/paid、status_labels、decisions pay、messages），格式参照 contraindication.json；Contracts 启动期加载
+- [x] 挂号成功（AppointmentService.create 事务内或紧随其后）产生 UNPAID 收费记录，金额 = appointments.registration_fee；不改动现有 SlotAccounting 号源扣减逻辑；收费记录写入失败不回滚挂号
+- [x] AppointmentCardBase / AppointmentOut / Agent AppointmentCard 三处 record 增 registration_fee 与支付状态字段；C 端"我的挂号"卡片展示费用与支付状态
+- [x] MockMvc 验证：挂号成功后存在 UNPAID 收费记录，金额等于医生职称价；appointments 接口返回费用与支付状态
 - [ ] 浏览器实测无控制台错误，人工走通"挂号 -> 我的挂号看费用"
+
+## Comments
+
+- 2026-08-02：实现位于隔离 worktree `E:\project\zhiyu-health-t35`、分支 `codex/t35-registration-fee`，已变基到包含票 37 的最新 `main`。server-java 213 tests passed；server-py 84 passed / 2 skipped，ruff、mypy、import-linter passed；Spotless check passed。用户明确要求跳过前端人工验收，因此状态保留 `claimed`，README 完成标记未更新。

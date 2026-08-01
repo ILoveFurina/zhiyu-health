@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,7 +16,11 @@ import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
+import com.zhiyu.health.support.TestContracts;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,6 +31,8 @@ class AppointmentServiceTest {
     private final ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
+    private final PaymentService payments = mock(PaymentService.class);
+    private final AppointmentDtoMapper appointmentDtos = Mappers.getMapper(AppointmentDtoMapper.class);
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -52,6 +59,8 @@ class AppointmentServiceTest {
         assertThat(created.conditionSummary()).isNull();
         assertThat(inserted.get().getConditionSummary()).isNull();
         assertThat(inserted.get().getHealthProfileId()).isEqualTo(31L);
+        assertThat(inserted.get().getRegistrationFee()).isEqualByComparingTo("30.00");
+        verify(payments).createUnpaid(21L, new BigDecimal("30.00"));
         assertThat(slotCounter.values.get(9L)).hasValue(2);
     }
 
@@ -120,6 +129,30 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void paymentFailureKeepsCommittedAppointmentResult() {
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
+        when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
+        when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
+        when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(21L);
+            return 1;
+        });
+        Appointment committed = view("BOOKED", 1);
+        committed.setPaymentStatus(null);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(committed);
+        doThrow(new IllegalStateException("收费记录写入失败")).when(payments).createUnpaid(21L, new BigDecimal("30.00"));
+        slotCounter.initialize(9L, 1);
+
+        AppointmentService.AppointmentView result = service().create(12L, 7L, 9L);
+
+        assertThat(result.id()).isEqualTo(21L);
+        assertThat(result.registrationFee()).isEqualByComparingTo("30.00");
+        assertThat(result.paymentStatus()).isNull();
+        assertThat(slotCounter.values.get(9L)).hasValue(0);
+    }
+
+    @Test
     void databaseCommitFailureRefundsRedisDeduction() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
         when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
@@ -138,7 +171,10 @@ class AppointmentServiceTest {
                 scheduleMapper,
                 new SlotAccounting(slotCounter),
                 transaction,
-                activeProfileService());
+                activeProfileService(),
+                payments,
+                TestContracts.instance(),
+                appointmentDtos);
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
@@ -186,7 +222,10 @@ class AppointmentServiceTest {
                 scheduleMapper,
                 new SlotAccounting(slotCounter),
                 transaction,
-                activeProfileService());
+                activeProfileService(),
+                payments,
+                TestContracts.instance(),
+                appointmentDtos);
     }
 
     private HealthProfileService activeProfileService() {
@@ -202,6 +241,7 @@ class AppointmentServiceTest {
         schedule.setTotalSlots(total);
         schedule.setRemainingSlots(remaining);
         schedule.setIsActive(true);
+        schedule.setRegistrationFee(new BigDecimal("30.00"));
         return schedule;
     }
 
@@ -224,6 +264,8 @@ class AppointmentServiceTest {
         appointment.setScheduleDate(java.time.LocalDate.parse("2026-07-29"));
         appointment.setTimeSlot(com.zhiyu.health.entity.TimeSlot.MORNING);
         appointment.setSequenceNumber(sequence);
+        appointment.setRegistrationFee(new BigDecimal("30.00"));
+        appointment.setPaymentStatus("UNPAID");
         appointment.setConditionSummary("主诉胸闷两天");
         appointment.setCreatedAt(java.time.OffsetDateTime.parse("2026-07-28T10:00:00+08:00"));
         return appointment;

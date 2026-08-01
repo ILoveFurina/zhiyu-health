@@ -77,6 +77,14 @@ def test_prescription_flow_values_are_loaded() -> None:
     assert flow.message_types["consultation_summary"] == "CONSULTATION_SUMMARY"
 
 
+def test_payment_flow_values_are_loaded() -> None:
+    flow = get_contracts().payment_flow
+    assert flow.statuses == {"unpaid": "UNPAID", "paid": "PAID"}
+    assert flow.status_labels == {"UNPAID": "待支付", "PAID": "已支付"}
+    assert flow.decisions == {"pay": "PAY"}
+    assert flow.messages["pay_success"] == "支付成功"
+
+
 def test_contraindication_values_are_loaded() -> None:
     contract = get_contracts().contraindication
     assert contract.decisions == {

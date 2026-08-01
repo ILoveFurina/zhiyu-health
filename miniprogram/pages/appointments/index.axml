@@ -21,6 +21,9 @@
     </view>
     <view class="meta">{{item.schedule_date}} {{item.time_slot}}</view>
     <view class="number">就诊序号：{{item.sequence_number}} 号</view>
+    <view a:if="{{item.registration_fee !== undefined}}" class="payment">
+      诊查费 ¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}
+    </view>
     <view a:if="{{item.condition_summary}}" class="summary">病情摘要：{{item.condition_summary}}</view>
     <ai-disclaimer a:if="{{item.summary_disclaimer}}" text="{{item.summary_disclaimer}}" />
     <view

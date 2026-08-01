@@ -27,6 +27,7 @@ public class Contracts {
     private final ChatDefaults chatDefaults;
     private final PrescriptionFlow prescriptionFlow;
     private final OrderFlow orderFlow;
+    private final PaymentFlow paymentFlow;
     private final Contraindication contraindication;
     private final Knowledge knowledge;
     private final ChatRealtime chatRealtime;
@@ -48,6 +49,7 @@ public class Contracts {
         this.chatDefaults = read(mapper, dir, "chat-defaults.json", ChatDefaults.class);
         this.prescriptionFlow = read(mapper, dir, "prescription-flow.json", PrescriptionFlow.class);
         this.orderFlow = read(mapper, dir, "order-flow.json", OrderFlow.class);
+        this.paymentFlow = read(mapper, dir, "payment-flow.json", PaymentFlow.class);
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
@@ -103,6 +105,10 @@ public class Contracts {
 
     public OrderFlow orderFlow() {
         return orderFlow;
+    }
+
+    public PaymentFlow paymentFlow() {
+        return paymentFlow;
     }
 
     public Contraindication contraindication() {
@@ -281,6 +287,19 @@ public class Contracts {
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
             messageTypes = Map.copyOf(messageTypes);
+            messages = Map.copyOf(messages);
+        }
+    }
+
+    public record PaymentFlow(
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            Map<String, String> decisions,
+            Map<String, String> messages) {
+        public PaymentFlow {
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            decisions = Map.copyOf(decisions);
             messages = Map.copyOf(messages);
         }
     }

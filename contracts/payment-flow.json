@@ -1,0 +1,17 @@
+{
+  "statuses": {
+    "unpaid": "UNPAID",
+    "paid": "PAID"
+  },
+  "status_labels": {
+    "UNPAID": "待支付",
+    "PAID": "已支付"
+  },
+  "decisions": {
+    "pay": "PAY"
+  },
+  "messages": {
+    "pay_success": "支付成功",
+    "already_paid": "该挂号收费已支付"
+  }
+}

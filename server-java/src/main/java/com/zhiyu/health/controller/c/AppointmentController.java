@@ -3,8 +3,10 @@ package com.zhiyu.health.controller.c;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.controller.AppointmentCardBase;
+import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,18 +24,24 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
     private final DisclaimerService disclaimers;
+    private final AppointmentCardMapper appointmentCards;
 
     @GetMapping
     public List<AppointmentOut> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
         return appointmentService.listForPatient(patientId).stream()
-                .map(view -> AppointmentOut.from(view, disclaimers))
+                .map(this::toOut)
                 .toList();
     }
 
     @PostMapping("/{appointmentId}/cancel")
     public AppointmentOut cancel(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long appointmentId) {
-        return AppointmentOut.from(appointmentService.cancel(patientId, appointmentId), disclaimers);
+        return toOut(appointmentService.cancel(patientId, appointmentId));
+    }
+
+    private AppointmentOut toOut(AppointmentService.AppointmentView value) {
+        AppointmentCardBase base = appointmentCards.toBase(value, disclaimers.mountIfPresent(value.conditionSummary()));
+        return appointmentCards.toPatientOut(base, value.createdAt());
     }
 
     public record AppointmentOut(
@@ -46,25 +54,10 @@ public class AppointmentController {
             @JsonProperty("time_slot") String timeSlot,
             @JsonProperty("sequence_number") Integer sequenceNumber,
             String status,
+            @JsonProperty("registration_fee") BigDecimal registrationFee,
+            @JsonProperty("payment_status") String paymentStatus,
+            @JsonProperty("payment_status_label") String paymentStatusLabel,
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
-            @JsonProperty("created_at") String createdAt) {
-
-        static AppointmentOut from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
-            AppointmentCardBase base = AppointmentCardBase.from(value, disclaimers);
-            return new AppointmentOut(
-                    base.appointmentId(),
-                    base.scheduleId(),
-                    base.doctorId(),
-                    base.doctorName(),
-                    base.departmentName(),
-                    base.scheduleDate(),
-                    base.timeSlot(),
-                    base.sequenceNumber(),
-                    base.status(),
-                    base.conditionSummary(),
-                    base.summaryDisclaimer(),
-                    value.createdAt());
-        }
-    }
+            @JsonProperty("created_at") String createdAt) {}
 }

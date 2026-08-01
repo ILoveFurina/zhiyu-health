@@ -4,6 +4,9 @@
   <view a:if="{{kind === 'appointment'}}" class="appointment">
     <view class="doctor">{{card.department_name}} · {{card.doctor_name}}医生</view>
     <view class="meta">{{card.schedule_date}} {{card.time_slot}} · 第 {{card.sequence_number}} 号</view>
+    <view a:if="{{card.registration_fee !== undefined}}" class="payment">
+      诊查费 ¥{{card.registration_fee}} · {{card.payment_status_label || '收费记录待补建'}}
+    </view>
     <view class="summary-notice">{{card.notice}}</view>
     <view class="summary">病情摘要：{{card.condition_summary}}</view>
     <ai-disclaimer text="{{card.summary_disclaimer || card.disclaimer}}" />
@@ -13,6 +16,9 @@
     <view a:for="{{card.appointments}}" a:key="appointment_id" class="appointment">
       <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
       <view class="meta">{{item.schedule_date}} {{item.time_slot}} · {{item.status}}</view>
+      <view a:if="{{item.registration_fee !== undefined}}" class="payment">
+        诊查费 ¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}
+      </view>
     </view>
     <view a:if="{{card.appointments.length === 0}}" class="empty">暂无挂号</view>
     <ai-disclaimer text="{{card.disclaimer}}" />

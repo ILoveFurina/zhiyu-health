@@ -2,18 +2,18 @@ package com.zhiyu.health.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhiyu.health.entity.Schedule;
+import java.time.LocalDate;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import java.time.LocalDate;
-import java.util.List;
-
 @Mapper
 public interface ScheduleMapper extends BaseMapper<Schedule> {
 
-    @Select("""
+    @Select(
+            """
             SELECT s.*
             FROM schedules s
             JOIN doctors d ON d.id = s.doctor_id
@@ -25,10 +25,11 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             ORDER BY s.doctor_id, s.schedule_date,
                      CASE s.time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END
             """)
-    List<Schedule> selectAvailableByDepartment(@Param("departmentName") String departmentName,
-                                                @Param("fromDate") LocalDate fromDate);
+    List<Schedule> selectAvailableByDepartment(
+            @Param("departmentName") String departmentName, @Param("fromDate") LocalDate fromDate);
 
-    @Select("""
+    @Select(
+            """
             SELECT * FROM schedules
             WHERE doctor_id = #{doctorId}
               AND is_active = TRUE
@@ -37,16 +38,23 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             ORDER BY schedule_date,
                      CASE time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END
             """)
-    List<Schedule> selectAvailableByDoctor(@Param("doctorId") long doctorId,
-                                           @Param("fromDate") LocalDate fromDate);
+    List<Schedule> selectAvailableByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
 
-    @Select("SELECT * FROM schedules WHERE id = #{scheduleId} FOR UPDATE")
+    @Select(
+            """
+            SELECT s.*, d.registration_fee
+            FROM schedules s
+            JOIN doctors d ON d.id = s.doctor_id
+            WHERE s.id = #{scheduleId}
+            FOR UPDATE OF s
+            """)
     Schedule selectByIdForUpdate(@Param("scheduleId") long scheduleId);
 
     @Update("UPDATE schedules SET is_active = FALSE WHERE id = #{scheduleId}")
     int disable(@Param("scheduleId") long scheduleId);
 
-    @Update("""
+    @Update(
+            """
             UPDATE schedules
             SET doctor_id = #{schedule.doctorId},
                 schedule_date = #{schedule.scheduleDate},
@@ -58,14 +66,16 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     int adjustCapacity(@Param("schedule") Schedule schedule);
 
-    @Update("""
+    @Update(
+            """
             UPDATE schedules
             SET remaining_slots = remaining_slots - 1
             WHERE id = #{scheduleId} AND is_active = TRUE AND remaining_slots > 0
             """)
     int decrementRemainingSlots(@Param("scheduleId") long scheduleId);
 
-    @Update("""
+    @Update(
+            """
             UPDATE schedules
             SET remaining_slots = remaining_slots + 1
             WHERE id = #{scheduleId} AND remaining_slots < total_slots

@@ -19,22 +19,22 @@ INSERT INTO departments (id, hospital_id, name, floor, location) VALUES
     (10, 2, '妇科', '门诊楼 4 层', '西区 405 室')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO doctors (id, department_id, name, title, specialty, photo_url) VALUES
-    (1, 1, '林知远', '主任医师', '高血压、冠心病、心律失常', 'https://example.com/demo/lin-zhiyuan.jpg'),
-    (2, 1, '周安宁', '副主任医师', '胸痛评估、心力衰竭', 'https://example.com/demo/zhou-anning.jpg'),
-    (3, 2, '陈清禾', '主治医师', '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
-    (4, 3, '苏明哲', '主任医师', '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
-    (5, 3, '李婉清', '副主任医师', '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
-    (6, 4, '赵启明', '主任医师', '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
-    (7, 4, '吴佩珊', '主治医师', '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
-    (8, 5, '孙立航', '主任医师', '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
-    (9, 5, '郑雅文', '副主任医师', '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
-    (10, 6, '马俊杰', '主任医师', '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
-    (11, 6, '何静怡', '副主任医师', '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
-    (12, 7, '黄志远', '主任医师', '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
-    (13, 7, '梁书瑶', '主治医师', '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
-    (14, 8, '冯雪松', '主任医师', '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
-    (15, 9, '韩思敏', '副主任医师', '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
+INSERT INTO doctors (id, department_id, name, title, registration_fee, specialty, photo_url) VALUES
+    (1, 1, '林知远', '主任医师', 50.00, '高血压、冠心病、心律失常', 'https://example.com/demo/lin-zhiyuan.jpg'),
+    (2, 1, '周安宁', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'https://example.com/demo/zhou-anning.jpg'),
+    (3, 2, '陈清禾', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
+    (4, 3, '苏明哲', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
+    (5, 3, '李婉清', '副主任医师', 30.00, '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
+    (6, 4, '赵启明', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
+    (7, 4, '吴佩珊', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
+    (8, 5, '孙立航', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
+    (9, 5, '郑雅文', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
+    (10, 6, '马俊杰', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
+    (11, 6, '何静怡', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
+    (12, 7, '黄志远', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
+    (13, 7, '梁书瑶', '主治医师', 20.00, '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
+    (14, 8, '冯雪松', '主任医师', 50.00, '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
+    (15, 9, '韩思敏', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO medications (id, name, generic_name, specification, instructions, price, stock) VALUES

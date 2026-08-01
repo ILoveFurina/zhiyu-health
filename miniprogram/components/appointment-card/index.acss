@@ -28,12 +28,18 @@
 }
 
 .meta,
+.payment,
 .summary,
 .empty {
   margin-top: 8rpx;
   color: #999;
   font-size: 23rpx;
   line-height: 1.5;
+}
+
+.payment {
+  color: #b26a00;
+  font-weight: 600;
 }
 
 .summary-notice {

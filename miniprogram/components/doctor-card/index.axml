@@ -10,6 +10,7 @@
           <text class="doctor-title">{{item.title}}</text>
         </view>
         <view class="specialty">擅长：{{item.specialty}}</view>
+        <view class="availability">诊查费 ¥{{item.registration_fee}}</view>
         <view class="availability">共剩 {{item.remaining_slots}} 个号源</view>
       </view>
       <view

@@ -57,6 +57,8 @@ flowchart LR
     T38["38 药品订单支付"]
     T39["39 医生页挂号费"]
     T40["[x]40 对话TTFT与WebSocket"]
+    T41["41 C端挂号与报告API"]
+    T42["42 小程序首页与tabBar"]
 
     T28 --> T29
     T28 --> T31
@@ -121,6 +123,9 @@ flowchart LR
     T35 --> T39
 
     T31 --> T40
+
+    T07 --> T41
+    T41 --> T42
 ```
 
 server-java、server-py 和前端不部署到这台云服务器，日常开发、测试、SSE 联调和断点调试均在各成员本机完成。
