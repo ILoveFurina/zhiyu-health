@@ -15,7 +15,6 @@ Cypher 用 WHERE n.name = $entity OR $entity IN n.aliases 匹配，把"叫法不
 from neo4j import AsyncDriver
 from neo4j.exceptions import Neo4jError
 
-from app.config import Settings
 from app.db.clients import KnowledgeClients
 from app.tools.graph import GraphNeighbor, GraphTraverser
 
@@ -74,6 +73,20 @@ RETURN n.node_id AS node_id, labels(n)[0] AS node_type, n.name AS name,
 """
 
 
+async def _read(driver: AsyncDriver, cypher: str, **params) -> list[dict] | None:
+    """只读 Cypher 执行的共享辅助：开 READ 会话跑查询，返回 records 或 None（异常降级）。
+
+    把 try/except + session 生命周期管理收拢在此，避免 traverse/projection/node_detail
+    三处复制粘贴同样的降级逻辑。
+    """
+    try:
+        async with driver.session(default_access_mode="READ") as session:
+            result = await session.run(cypher, **params)
+            return await result.data()
+    except (Neo4jError, OSError):
+        return None
+
+
 class Neo4jGraphTraverser:
     """生产实现：Neo4j 异步驱动 + 一跳 Cypher 扩展。
 
@@ -87,15 +100,8 @@ class Neo4jGraphTraverser:
     async def traverse(self, entities: list[str]) -> list[GraphNeighbor]:
         if not entities:
             return []
-        try:
-            # 只读会话：执行模式 READ，不持有写锁
-            async with self._driver.session(
-                default_access_mode="READ"
-            ) as session:
-                result = await session.run(_TRAVERSE_CYPHER, entities=entities)
-                records = await result.data()
-        except (Neo4jError, OSError):
-            # 降级：任何图谱异常都不阻断对话，返回空让调用方走裸 LLM
+        records = await _read(self._driver, _TRAVERSE_CYPHER, entities=entities)
+        if records is None:
             return []
         neighbors: list[GraphNeighbor] = []
         for record in records:
@@ -118,7 +124,7 @@ class Neo4jGraphTraverser:
         return neighbors
 
 
-def build_graph_traverser(settings: Settings, clients: KnowledgeClients | None) -> GraphTraverser | None:
+def build_graph_traverser(clients: KnowledgeClients | None) -> GraphTraverser | None:
     """生产装配：Neo4j 驱动未配置或 clients 缺失时返回 None（遍历降级）。
 
     与 build_knowledge_retriever 对称：返回 None 即告知 runner/main 图谱不可用，
@@ -142,29 +148,24 @@ class Neo4jGraphProjector:
 
     async def projection(self) -> dict[str, list]:
         """返回全图最小拓扑骨架 {nodes:[{id,label,group}], edges:[{source,target,type}]}。"""
-        try:
-            async with self._driver.session(default_access_mode="READ") as session:
-                result = await session.run(_PROJECTION_CYPHER)
-                records = await result.data()
-        except (Neo4jError, OSError):
+        records = await _read(self._driver, _PROJECTION_CYPHER)
+        if records is None:
             return {"nodes": [], "edges": []}
         nodes: dict[str, dict[str, str]] = {}
         edges: list[dict[str, str]] = []
         for record in records:
             source_id = record.get("source")
             target_id = record.get("target")
-            if source_id and source_id not in nodes:
-                nodes[source_id] = {
-                    "id": source_id,
-                    "label": record.get("source_name", source_id),
-                    "group": record.get("source_group", ""),
-                }
-            if target_id and target_id not in nodes:
-                nodes[target_id] = {
-                    "id": target_id,
-                    "label": record.get("target_name", target_id),
-                    "group": record.get("target_group", ""),
-                }
+            for node_id, name_key, group_key in [
+                (source_id, "source_name", "source_group"),
+                (target_id, "target_name", "target_group"),
+            ]:
+                if node_id and node_id not in nodes:
+                    nodes[node_id] = {
+                        "id": node_id,
+                        "label": record.get(name_key, node_id),
+                        "group": record.get(group_key, ""),
+                    }
             if source_id and target_id:
                 edges.append({
                     "source": source_id,
@@ -175,12 +176,7 @@ class Neo4jGraphProjector:
 
     async def node_detail(self, node_id: str) -> dict[str, object] | None:
         """点击节点取详情：返回节点类型与全部属性（aliases/description/ingredients 等）。"""
-        try:
-            async with self._driver.session(default_access_mode="READ") as session:
-                result = await session.run(_DETAIL_CYPHER, node_id=node_id)
-                records = await result.data()
-        except (Neo4jError, OSError):
-            return None
+        records = await _read(self._driver, _DETAIL_CYPHER, node_id=node_id)
         if not records:
             return None
         record = records[0]

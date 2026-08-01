@@ -96,7 +96,8 @@ public class AgentClient {
         }
     }
 
-    /** 同步获取图谱节点详情：点击节点时另取属性（grilling 决策 6）。 */
+    /** 同步获取图谱节点详情：点击节点时另取属性（grilling 决策 6）。
+     *  server-py 不可达时返回 null（B 端展示"无详情"），与投影降级纪律对称。 */
     public JsonNode fetchGraphNodeDetail(String nodeId) {
         try {
             return webClient
@@ -110,7 +111,8 @@ public class AgentClient {
                     .bodyToMono(JsonNode.class)
                     .block(Duration.ofSeconds(15));
         } catch (RuntimeException e) {
-            throw new ApiException(502, "知识图谱详情暂不可用");
+            // server-py 不可达或超时：返回 null，B 端展示"无详情"，不阻断页面
+            return null;
         }
     }
 

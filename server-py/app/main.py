@@ -74,7 +74,7 @@ def create_app(
         # 知识检索器（ADR-0010）：database_url/embedding 未配置时为 None，运行时检索降级
         knowledge_retriever = build_knowledge_retriever(settings)
         # 图谱遍历器（ADR-0013）：Neo4j 驱动由 KnowledgeClients 持有，未配置时为 None
-        graph_traverser = build_graph_traverser(settings, clients)
+        graph_traverser = build_graph_traverser(clients)
         # 图谱投影 service（ADR-0013 决策 2）：B 端可视化经 server-java 转调本接口
         built_projector = build_graph_projector(clients)
         runner = agent_runner or LazySettingsAgentRunner(
