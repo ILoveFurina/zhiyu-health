@@ -6,6 +6,7 @@ import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class AppointmentService {
     private final HealthProfileService healthProfiles;
     private final PaymentService payments;
     private final Contracts contracts;
+    private final AppointmentDtoMapper appointmentDtos;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         long profileId = healthProfiles.requireActive(patientId).getId();
@@ -136,29 +138,11 @@ public class AppointmentService {
 
     private AppointmentView toView(Appointment appointment) {
         String paymentStatus = appointment.getPaymentStatus();
-        return new AppointmentView(
-                appointment.getId(),
-                appointment.getScheduleId(),
-                appointment.getDoctorId(),
-                appointment.getDoctorName(),
-                appointment.getDepartmentName(),
-                appointment.getScheduleDate() == null
-                        ? null
-                        : appointment.getScheduleDate().toString(),
-                appointment.getTimeSlot() == null
-                        ? null
-                        : appointment.getTimeSlot().getValue(),
-                appointment.getSequenceNumber(),
-                Appointment.displayStatus(appointment.getStatus()),
-                appointment.getRegistrationFee(),
-                paymentStatus,
-                paymentStatus == null
-                        ? null
-                        : contracts.paymentFlow().statusLabels().get(paymentStatus),
-                appointment.getConditionSummary(),
-                appointment.getCreatedAt() == null
-                        ? null
-                        : appointment.getCreatedAt().toString());
+        String paymentStatusLabel = paymentStatus == null
+                ? null
+                : contracts.paymentFlow().statusLabels().get(paymentStatus);
+        return appointmentDtos.toView(
+                appointment, Appointment.displayStatus(appointment.getStatus()), paymentStatusLabel);
     }
 
     public record AppointmentView(

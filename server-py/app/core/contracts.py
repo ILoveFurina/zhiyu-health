@@ -72,6 +72,13 @@ class PrescriptionFlowContract(BaseModel):
     message_types: dict[str, str]
 
 
+class PaymentFlowContract(BaseModel):
+    statuses: dict[str, str]
+    status_labels: dict[str, str]
+    decisions: dict[str, str]
+    messages: dict[str, str]
+
+
 class ContraindicationContract(BaseModel):
     decisions: dict[str, str]
     message_types: dict[str, str]
@@ -100,6 +107,7 @@ class Contracts(BaseModel):
     upload_limits: UploadLimitsContract
     chat_defaults: ChatDefaultsContract
     prescription_flow: PrescriptionFlowContract
+    payment_flow: PaymentFlowContract
     contraindication: ContraindicationContract
     knowledge: KnowledgeContract
 
@@ -139,6 +147,9 @@ def _load(dir_path: Path) -> Contracts:
             ),
             prescription_flow=PrescriptionFlowContract.model_validate(
                 _read_json(dir_path, "prescription-flow.json")
+            ),
+            payment_flow=PaymentFlowContract.model_validate(
+                _read_json(dir_path, "payment-flow.json")
             ),
             contraindication=ContraindicationContract.model_validate(
                 _read_json(dir_path, "contraindication.json")

@@ -17,8 +17,10 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,6 +32,7 @@ class AppointmentServiceTest {
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
     private final PaymentService payments = mock(PaymentService.class);
+    private final AppointmentDtoMapper appointmentDtos = Mappers.getMapper(AppointmentDtoMapper.class);
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -170,7 +173,8 @@ class AppointmentServiceTest {
                 transaction,
                 activeProfileService(),
                 payments,
-                TestContracts.instance());
+                TestContracts.instance(),
+                appointmentDtos);
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
@@ -220,7 +224,8 @@ class AppointmentServiceTest {
                 transaction,
                 activeProfileService(),
                 payments,
-                TestContracts.instance());
+                TestContracts.instance(),
+                appointmentDtos);
     }
 
     private HealthProfileService activeProfileService() {

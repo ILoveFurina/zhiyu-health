@@ -1,7 +1,5 @@
 package com.zhiyu.health.controller;
 
-import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.DisclaimerService;
 import java.math.BigDecimal;
 
 /**
@@ -22,24 +20,4 @@ public record AppointmentCardBase(
         String paymentStatus,
         String paymentStatusLabel,
         String conditionSummary,
-        String summaryDisclaimer) {
-
-    public static AppointmentCardBase from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
-        return new AppointmentCardBase(
-                value.id(),
-                value.scheduleId(),
-                value.doctorId(),
-                value.doctorName(),
-                value.departmentName(),
-                value.scheduleDate(),
-                value.timeSlot(),
-                value.sequenceNumber(),
-                value.status(),
-                value.registrationFee(),
-                value.paymentStatus(),
-                value.paymentStatusLabel(),
-                value.conditionSummary(),
-                // 免责声明挂载判断只留这一处：有摘要才挂载
-                disclaimers.mountIfPresent(value.conditionSummary()));
-    }
-}
+        String summaryDisclaimer) {}

@@ -5,6 +5,8 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.service.mapping.DoctorRecommendationDtoMapper;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,6 +21,7 @@ public class DoctorRecommendationService {
 
     private final DoctorMapper doctorMapper;
     private final ScheduleMapper scheduleMapper;
+    private final DoctorRecommendationDtoMapper recommendationDtos;
 
     public List<DoctorRecommendation> recommendDoctors(String departmentName) {
         List<Schedule> schedules = scheduleMapper.selectAvailableByDepartment(departmentName, LocalDate.now());
@@ -40,26 +43,22 @@ public class DoctorRecommendationService {
 
     public List<DoctorSlot> getDoctorSlots(long doctorId) {
         return scheduleMapper.selectAvailableByDoctor(doctorId, LocalDate.now()).stream()
-                .map(schedule -> new DoctorSlot(
-                        schedule.getId(),
-                        schedule.getScheduleDate(),
-                        schedule.getTimeSlot(),
-                        schedule.getRemainingSlots()))
+                .map(recommendationDtos::toSlot)
                 .toList();
     }
 
     private DoctorRecommendation toRecommendation(Doctor doctor, int remainingSlots) {
-        return new DoctorRecommendation(
-                doctor.getId(),
-                doctor.getName(),
-                doctor.getTitle(),
-                doctor.getSpecialty(),
-                doctor.getPhotoUrl(),
-                remainingSlots);
+        return recommendationDtos.toRecommendation(doctor, remainingSlots);
     }
 
     public record DoctorRecommendation(
-            long doctorId, String name, String title, String specialty, String photoUrl, int remainingSlots) {}
+            long doctorId,
+            String name,
+            String title,
+            BigDecimal registrationFee,
+            String specialty,
+            String photoUrl,
+            int remainingSlots) {}
 
     public record DoctorSlot(long scheduleId, LocalDate scheduleDate, TimeSlot timeSlot, int remainingSlots) {}
 }

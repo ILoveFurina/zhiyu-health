@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.agent;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.controller.AppointmentCardBase;
+import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
 import jakarta.validation.Valid;
@@ -29,32 +30,37 @@ public class AppointmentToolController {
 
     private final AppointmentService appointmentService;
     private final DisclaimerService disclaimers;
+    private final AppointmentCardMapper appointmentCards;
 
     @PostMapping
     public AppointmentCard create(@Valid @RequestBody CreateAppointmentRequest request) {
-        return AppointmentCard.from(
-                appointmentService.createWithSummary(
-                        request.patientId(),
-                        request.conversationId(),
-                        request.scheduleId(),
-                        request.conditionSummary()),
-                disclaimers);
+        return toCard(appointmentService.createWithSummary(
+                request.patientId(),
+                request.conversationId(),
+                request.scheduleId(),
+                request.conditionSummary()));
     }
 
     @PostMapping("/{appointmentId}/summary")
     public AppointmentCard saveSummary(
             @PathVariable @Positive long appointmentId, @Valid @RequestBody SaveSummaryRequest request) {
-        return AppointmentCard.from(
-                appointmentService.saveConditionSummary(
-                        request.patientId(), request.conversationId(), appointmentId, request.conditionSummary()),
-                disclaimers);
+        return toCard(appointmentService.saveConditionSummary(
+                request.patientId(), request.conversationId(), appointmentId, request.conditionSummary()));
     }
 
     @GetMapping
     public AppointmentList getAppointments(@RequestParam("patient_id") @Positive long patientId) {
         return new AppointmentList(appointmentService.listForPatient(patientId).stream()
-                .map(view -> AppointmentCard.from(view, disclaimers))
+                .map(this::toCard)
                 .toList());
+    }
+
+    private AppointmentCard toCard(AppointmentService.AppointmentView value) {
+        AppointmentCardBase base = appointmentCards.toBase(
+                value, disclaimers.mountIfPresent(value.conditionSummary()));
+        boolean summarySent = base.conditionSummary() != null;
+        String notice = summarySent ? "病情摘要已发送给医生" : "挂号成功，病情摘要暂未发送";
+        return appointmentCards.toAgentCard(base, summarySent, notice);
     }
 
     public record CreateAppointmentRequest(
@@ -86,28 +92,5 @@ public class AppointmentToolController {
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("summary_sent") boolean summarySent,
-            String notice) {
-
-        static AppointmentCard from(AppointmentService.AppointmentView value, DisclaimerService disclaimers) {
-            AppointmentCardBase base = AppointmentCardBase.from(value, disclaimers);
-            boolean summarySent = base.conditionSummary() != null;
-            return new AppointmentCard(
-                    base.appointmentId(),
-                    base.scheduleId(),
-                    base.doctorId(),
-                    base.doctorName(),
-                    base.departmentName(),
-                    base.scheduleDate(),
-                    base.timeSlot(),
-                    base.sequenceNumber(),
-                    base.status(),
-                    base.registrationFee(),
-                    base.paymentStatus(),
-                    base.paymentStatusLabel(),
-                    base.conditionSummary(),
-                    base.summaryDisclaimer(),
-                    summarySent,
-                    summarySent ? "病情摘要已发送给医生" : "挂号成功，病情摘要暂未发送");
-        }
-    }
+            String notice) {}
 }

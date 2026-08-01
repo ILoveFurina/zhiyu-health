@@ -11,18 +11,23 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.support.TestDisclaimers;
+import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.test.web.servlet.MockMvc;
 
 class AppointmentToolControllerTest {
+
+    private final AppointmentCardMapper appointmentCards = Mappers.getMapper(AppointmentCardMapper.class);
 
     @Test
     void createToolValidatesAndDelegatesToAppointmentService() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
         when(service.createWithSummary(12L, 7L, 9L, "主诉胸闷两天")).thenReturn(appointmentWithoutSummary());
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance()))
+        MockMvc mvc = standaloneSetup(
+                        new AppointmentToolController(service, TestDisclaimers.instance(), appointmentCards))
                 .build();
 
         mvc.perform(
@@ -46,7 +51,8 @@ class AppointmentToolControllerTest {
     void getToolReturnsOnlyTrustedRuntimePatientsAppointments() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
         when(service.listForPatient(12L)).thenReturn(List.of(appointment()));
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance()))
+        MockMvc mvc = standaloneSetup(
+                        new AppointmentToolController(service, TestDisclaimers.instance(), appointmentCards))
                 .build();
 
         mvc.perform(get("/api/agent/appointments").param("patient_id", "12"))
@@ -58,7 +64,8 @@ class AppointmentToolControllerTest {
     void savesSummaryAfterAppointmentSuccess() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
         when(service.saveConditionSummary(12L, 7L, 21L, "主诉胸闷两天")).thenReturn(appointment());
-        MockMvc mvc = standaloneSetup(new AppointmentToolController(service, TestDisclaimers.instance()))
+        MockMvc mvc = standaloneSetup(
+                        new AppointmentToolController(service, TestDisclaimers.instance(), appointmentCards))
                 .build();
 
         mvc.perform(

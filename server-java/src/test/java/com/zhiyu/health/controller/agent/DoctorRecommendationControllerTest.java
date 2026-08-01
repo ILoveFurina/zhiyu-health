@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.service.DoctorRecommendationService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,13 @@ class DoctorRecommendationControllerTest {
     void recommendsAvailableDoctorsByDepartment() throws Exception {
         when(recommendationService.recommendDoctors("心血管内科"))
                 .thenReturn(List.of(new DoctorRecommendationService.DoctorRecommendation(
-                        2L, "周安宁", "副主任医师", "胸痛评估、心力衰竭", "https://example.com/demo/zhou.jpg", 5)));
+                        2L,
+                        "周安宁",
+                        "副主任医师",
+                        new BigDecimal("30.00"),
+                        "胸痛评估、心力衰竭",
+                        "https://example.com/demo/zhou.jpg",
+                        5)));
 
         mockMvc.perform(get("/api/agent/doctors/recommend")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
@@ -43,6 +50,7 @@ class DoctorRecommendationControllerTest {
                 .andExpect(jsonPath("$.doctors[0].doctor_id").value(2))
                 .andExpect(jsonPath("$.doctors[0].name").value("周安宁"))
                 .andExpect(jsonPath("$.doctors[0].title").value("副主任医师"))
+                .andExpect(jsonPath("$.doctors[0].registration_fee").value(30.00))
                 .andExpect(jsonPath("$.doctors[0].specialty").value("胸痛评估、心力衰竭"))
                 .andExpect(jsonPath("$.doctors[0].photo_url").value("https://example.com/demo/zhou.jpg"))
                 .andExpect(jsonPath("$.doctors[0].remaining_slots").value(5));
