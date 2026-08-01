@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
+import com.zhiyu.health.service.ChatRoundService;
 import com.zhiyu.health.service.ChatService;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -24,6 +25,7 @@ public class ChatController {
     private final ChatService chatService;
 
     public record ChatRequest(
+            @JsonProperty("request_id") @NotBlank String requestId,
             @NotBlank String content,
             @JsonProperty("conversation_id") Long conversationId,
             String effort,
@@ -38,14 +40,15 @@ public class ChatController {
     public SseEmitter chat(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @Validated @RequestBody ChatRequest request) {
-        return chatService.chat(
+        return chatService.chat(new ChatRoundService.Command(
                 patientId,
+                request.requestId(),
                 request.conversationId(),
                 request.content(),
                 request.effort(),
                 request.scenario(),
                 request.knowledgeSource(),
                 request.longitude(),
-                request.latitude());
+                request.latitude()));
     }
 }

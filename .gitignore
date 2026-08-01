@@ -42,3 +42,12 @@ miniprogram_npm/
 .worktrees/
 .scratch/*.log
 .scratch/reword/
+# 本地开发产物：证书与私钥、pid、WSS 覆盖配置与诊断探针（票单 issues 保持跟踪，不可整目录忽略）
+.scratch/*.key
+.scratch/*.pfx
+.scratch/*.pem
+.scratch/*.crt
+.scratch/*.cer
+.scratch/*.pid
+.scratch/application-local-wss.yml
+.scratch/wss-probe.py

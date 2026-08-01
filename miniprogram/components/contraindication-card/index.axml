@@ -1,7 +1,0 @@
-<view class="warning-card">
-  <view class="warning-title">⚠ 用药禁忌提醒</view>
-  <view class="warning-message">{{card.message}}</view>
-  <view a:for="{{card.reasons}}" a:key="index" class="warning-reason">• {{item}}</view>
-  <view a:if="{{card.advice}}" class="warning-advice">{{card.advice}}</view>
-  <ai-disclaimer text="{{card.disclaimer}}" />
-</view>

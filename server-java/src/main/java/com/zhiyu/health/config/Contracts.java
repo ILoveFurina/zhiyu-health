@@ -28,6 +28,7 @@ public class Contracts {
     private final PrescriptionFlow prescriptionFlow;
     private final Contraindication contraindication;
     private final Knowledge knowledge;
+    private final ChatRealtime chatRealtime;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -47,6 +48,7 @@ public class Contracts {
         this.prescriptionFlow = read(mapper, dir, "prescription-flow.json", PrescriptionFlow.class);
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
+        this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -103,6 +105,10 @@ public class Contracts {
 
     public Knowledge knowledge() {
         return knowledge;
+    }
+
+    public ChatRealtime chatRealtime() {
+        return chatRealtime;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -199,6 +205,49 @@ public class Contracts {
         public ChatDefaults {
             effortChoices = List.copyOf(effortChoices);
             scenarios = List.copyOf(scenarios);
+        }
+    }
+
+    /** C 端实时对话的结构化信封与持久化状态。 */
+    public record ChatRealtime(String websocketPath, List<String> envelopeTypes, List<String> roundStatuses) {
+        public ChatRealtime {
+            envelopeTypes = List.copyOf(envelopeTypes);
+            roundStatuses = List.copyOf(roundStatuses);
+        }
+
+        // 信封类型按契约顺序固定为 [chat, accepted, event, error]，
+        // 轮次状态按契约顺序固定为 [ACCEPTED, RUNNING, COMPLETED, FAILED]，
+        // 顺序由 ContractsTest 钉死。
+        public String chatEnvelope() {
+            return envelopeTypes.get(0);
+        }
+
+        public String acceptedEnvelope() {
+            return envelopeTypes.get(1);
+        }
+
+        public String eventEnvelope() {
+            return envelopeTypes.get(2);
+        }
+
+        public String errorEnvelope() {
+            return envelopeTypes.get(3);
+        }
+
+        public String acceptedStatus() {
+            return roundStatuses.get(0);
+        }
+
+        public String runningStatus() {
+            return roundStatuses.get(1);
+        }
+
+        public String completedStatus() {
+            return roundStatuses.get(2);
+        }
+
+        public String failedStatus() {
+            return roundStatuses.get(3);
         }
     }
 

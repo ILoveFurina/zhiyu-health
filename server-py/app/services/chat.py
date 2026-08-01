@@ -75,7 +75,7 @@ class AgentChatService:
         latitude: float | None = None,
         knowledge_source: str | None = None,
     ) -> AsyncIterator[dict[str, object]]:
-        """对一段消息历史流式生成回复。auto 档位在此映射为 low/high，不外传。"""
+        """对一段消息历史流式生成回复。auto 在此映射为 disabled/high，不外传。"""
         effort = map_reasoning_effort(effort_choice, scenario)
         yield {"event": EVENT_META, "data": {"effort": effort}}
 
@@ -87,7 +87,6 @@ class AgentChatService:
             yield {"event": EVENT_KNOWLEDGE, "data": degraded}
 
         parts: list[str] = []
-        terminated_by_contraindication = False
         context = AgentContext(
             patient_id=patient_id,
             conversation_id=conversation_id,
@@ -108,22 +107,13 @@ class AgentChatService:
                     "event": output.event,
                     "data": {**output.data, "disclaimer": self._disclaimer},
                 }
-                contraindication_event = get_contracts().sse_events.tool_to_event[
-                    "check_contraindication"
-                ]
-                if output.event == contraindication_event and output.data.get("blocked") is True:
-                    # 规则卡片已经给出固定原因与建议；立即关闭图流，阻止模型继续输出
-                    # 未经复检的替代药或覆盖规则决定。
-                    terminated_by_contraindication = True
-                    break
-        if not terminated_by_contraindication:
-            yield {
-                "event": EVENT_MESSAGE,
-                "data": {
-                    "role": "assistant",
-                    "content": "".join(parts),
-                    "disclaimer": self._disclaimer,
-                    "effort": effort,
-                },
-            }
+        yield {
+            "event": EVENT_MESSAGE,
+            "data": {
+                "role": "assistant",
+                "content": "".join(parts),
+                "disclaimer": self._disclaimer,
+                "effort": effort,
+            },
+        }
         yield {"event": EVENT_DONE, "data": {}}

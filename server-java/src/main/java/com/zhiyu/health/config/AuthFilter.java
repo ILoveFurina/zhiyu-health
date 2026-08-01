@@ -41,8 +41,9 @@ public class AuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String header = stripSimulatorQuotes(request.getHeader("Authorization"));
+        String token = header != null && header.startsWith("Bearer ") ? header.substring(7) : null;
+        if (token == null) {
             reject(response);
             return;
         }
@@ -51,7 +52,7 @@ public class AuthFilter extends OncePerRequestFilter {
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
-                    .parseSignedClaims(header.substring(7))
+                    .parseSignedClaims(token)
                     .getPayload();
 
             String path = request.getRequestURI();
@@ -67,6 +68,18 @@ public class AuthFilter extends OncePerRequestFilter {
         } catch (JwtException | IllegalArgumentException e) {
             reject(response);
         }
+    }
+
+    /**
+     * 支付宝开发者工具会把 connectSocket 的 header 参数值整体包一层字面双引号
+     * （JS→原生桥 JSON 序列化的副作用），导致按严格语法解析失败；真机与标准客户端发出的是
+     * 干净头，剥离成对外层引号对其为 no-op。
+     */
+    private static String stripSimulatorQuotes(String value) {
+        if (value != null && value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     private void reject(HttpServletResponse response) throws IOException {

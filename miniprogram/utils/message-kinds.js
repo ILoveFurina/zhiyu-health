@@ -7,7 +7,6 @@ const CARD_KINDS = [
   'appointment',
   'appointments',
   'report_interpretation',
-  'contraindication',
 ]
 
 function isCardKind(kind) {

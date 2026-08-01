@@ -19,6 +19,9 @@
 
 ## 2. Commands
 
+一键启动本地三服务（server-py / server-java / admin，各开独立窗口并等待健康检查）：
+`powershell -File scripts/dev-up.ps1`；小程序仍需支付宝开发者工具手动导入。
+
 ```bash
 mvn -f server-java/pom.xml spring-boot:run
 mvn -f server-java/pom.xml test
@@ -60,7 +63,7 @@ npm --prefix miniprogram ci
 ## 5. Hard Constraints
 
 1. 所有 AI 产出必须带“仅供参考，不替代医生诊断”：server-py 生成时注入，server-java 出口兜底，界面无例外。
-2. 红线症状和用药禁忌必须由 server-java 确定性规则判断，LLM 只负责表达与解释。
+2. 红线症状由 server-java 在 C 端对话入口确定性判断；用药禁忌仅在 B 端医生开方流程由 server-java 确定性判断。C 端 Agent 不做个性化用药决策，只提供通用药品知识解释并引导咨询医生或药师。
 3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
 4. 号源扣减必须使用 Redis 原子 DECR + PostgreSQL 事务对账，禁止先查后改。
 5. `.env` 永不入库、不打印、不写进代码或测试。审计日志和 Agent trace 不记录患者敏感原文，只记录脱敏摘要、工具名、参数类型与结果；审计统一在 server-java 入口执行。
@@ -71,6 +74,8 @@ npm --prefix miniprogram ci
 
 - server-py/services 仅承载知识检索/RAG；涉及业务写入的多步骤流程由 server-java service 原子化或显式编排，并向 Agent 暴露单一业务能力接口。
 - Umi 运行时插件错误可能只在浏览器中出现，因此前端构建成功不代表验收通过。
+- 支付宝开发者工具会把 `my.connectSocket` 的自定义 header 值包一层字面双引号（`my.request` 不受影响），server-java `AuthFilter` 已兼容剥离；本地 WSS 套件（8443 覆盖配置 + 自签证书）与排障方法见 `docs/engineering-notes/wss-and-windows-service-pitfalls.md`。
+- Windows 上单进程 uvicorn 默认 ProactorEventLoop，psycopg 异步拒绝运行；`--reload` 的重生在后台环境可能静默卡死。server-py 启动姿势见同上笔记。
 
 ## 7. Agent skills
 

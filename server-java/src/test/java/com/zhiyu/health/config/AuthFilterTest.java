@@ -1,18 +1,17 @@
 package com.zhiyu.health.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.Map;
+import javax.crypto.SecretKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** JWT 鉴权：scope 分端校验、role 透传、登录端点放行、/me 必须持令牌 */
 class AuthFilterTest {
@@ -54,7 +53,8 @@ class AuthFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(chain.getRequest()).isNotNull();
-        assertThat(chain.getRequest().getAttribute(AuthFilter.ATTR_AUTH_SUBJECT)).isEqualTo("1");
+        assertThat(chain.getRequest().getAttribute(AuthFilter.ATTR_AUTH_SUBJECT))
+                .isEqualTo("1");
         assertThat(chain.getRequest().getAttribute(AuthFilter.ATTR_AUTH_ROLE)).isEqualTo("admin");
     }
 
@@ -73,5 +73,33 @@ class AuthFilterTest {
     @Test
     void meEndpointRequiresToken() throws Exception {
         assertThat(run("/api/b/auth/me", null).getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void websocketStillRejectsQueryToken() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/chat/ws");
+        request.setQueryString("token=" + token(Map.of("scope", "c_patient")));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    /** 支付宝开发者工具会把 header 值包一层双引号，剥引号后应等价于标准头 */
+    @Test
+    void quotedAuthorizationHeaderPassesAsStandardBearer() throws Exception {
+        String bearer = token(Map.of("scope", "c_patient"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/chat/ws");
+        request.addHeader("Authorization", "\"Bearer " + bearer + "\"");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(chain.getRequest().getAttribute(AuthFilter.ATTR_AUTH_SUBJECT))
+                .isEqualTo("1");
     }
 }

@@ -1,5 +1,5 @@
 const { ensureLogin } = require('../../utils/auth')
-const { streamChat } = require('../../utils/chat-stream')
+const { createChatChannel } = require('../../utils/chat-stream')
 const { drawerMethods } = require('./drawer')
 const reportComposer = require('./report-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
@@ -45,8 +45,6 @@ Page({
   },
 
   _msgSeq: 0,
-  _tokenQueue: [],
-  _timer: null,
 
   ...reportComposer,
   ...hospitalRoutingMethods,
@@ -54,9 +52,12 @@ Page({
 
   onLoad() {
     // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
-    ensureLogin().catch(() =>
-      my.showToast({ content: '登录失败，请检查后端服务', type: 'fail' })
-    )
+    ensureLogin()
+      .then(() => {
+        this._chatChannel = createChatChannel()
+        this._chatChannel.connect().catch(() => {})
+      })
+      .catch(() => my.showToast({ content: '登录失败，请检查业务后端', type: 'fail' }))
   },
 
   onShow() {
@@ -67,7 +68,7 @@ Page({
   },
 
   onUnload() {
-    this.stopTypewriter()
+    if (this._chatChannel) this._chatChannel.close()
   },
 
   onInput(e) {
@@ -107,7 +108,9 @@ Page({
       anchorId: 'thread-bottom',
     })
 
-    streamChat({
+    if (!this._chatChannel) this._chatChannel = createChatChannel()
+    this._chatChannel.send({
+      requestId: `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`,
       content,
       conversationId: this.data.conversationId,
       effort: GEARS[this.data.gearIndex].key,
@@ -116,25 +119,23 @@ Page({
       latitude: location && location.latitude,
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
-        onAssistant: (data, tokens) => this.playAssistant(aiMsg.id, data, tokens),
+        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
+        onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
+        onAssistant: (data) => this.finishAssistant(aiMsg.id, data.content, data.disclaimer),
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
         onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
-        onContraindication: (data) => this.showContraindication(aiMsg.id, data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
-        onDone: () => {},
+        onDone: () => this.completeRound(),
         onError: (err) => this.failRound(aiMsg.id, err),
       },
     })
   },
 
-  /** 重置聊天空态：messages/conversationId/打字机，供「新对话」与删除当前会话复用（决策 6/13）。 */
+  /** 重置聊天空态：messages/conversationId，供「新对话」与删除当前会话复用（决策 6/13）。 */
   resetChatState() {
-    this.stopTypewriter()
-    this._tokenQueue = []
-    this._final = null
     this.setData({
       messages: [],
       conversationId: null,
@@ -145,29 +146,17 @@ Page({
     })
   },
 
-  /** 打字机回放 token 流，放完后定格为完整内容并挂免责声明。 */
-  playAssistant(id, data, tokens) {
-    if (!tokens.length) {
-      this.finishAssistant(id, data.content, data.disclaimer)
-      return
-    }
-    this._tokenQueue = tokens.slice()
-    this._final = data
-    this.stopTypewriter()
-    this._timer = setInterval(() => {
-      const next = this._tokenQueue.shift()
-      if (next === undefined) {
-        this.stopTypewriter()
-        this.finishAssistant(id, this._final.content, this._final.disclaimer)
-        return
-      }
-      this.patchMessage(id, (msg) => ({ ...msg, content: msg.content + next }))
-      this.setData({ anchorId: 'thread-bottom' })
-    }, 50)
+  streamAssistantToken(id, text) {
+    this.patchMessage(id, (msg) => ({ ...msg, content: msg.content + text }))
+    this.setData({ anchorId: 'thread-bottom' })
   },
 
   finishAssistant(id, content, disclaimer) {
     this.patchMessage(id, (msg) => ({ ...msg, content, disclaimer, streaming: false }))
+  },
+
+  completeRound() {
+    if (this._chatChannel) this._chatChannel.finishRound()
     this.setData({ sending: false, canSend: this.data.inputValue.trim().length > 0 })
   },
 
@@ -215,19 +204,7 @@ Page({
       disclaimer: '',
       streaming: false,
     }))
-    this.setData({ redFlag: data, sending: false })
-  },
-
-  showContraindication(id, data) {
-    this.patchMessage(id, () => ({
-      id,
-      role: 'assistant',
-      kind: 'contraindication',
-      card: data,
-      disclaimer: data.disclaimer,
-      streaming: false,
-    }))
-    this.setData({ sending: false })
+    this.setData({ redFlag: data })
   },
 
   closeRedFlag() {
@@ -235,26 +212,19 @@ Page({
   },
 
   failRound(id, err) {
-    this.stopTypewriter()
     this.patchMessage(id, (msg) => ({
       ...msg,
       content: `抱歉，出了点问题：${err.message || '网络异常'}，请稍后重试`,
       streaming: false,
     }))
     this.setData({ sending: false })
+    if (this._chatChannel) this._chatChannel.finishRound()
   },
 
   patchMessage(id, patch) {
     this.setData({
       messages: this.data.messages.map((msg) => (msg.id === id ? patch(msg) : msg)),
     })
-  },
-
-  stopTypewriter() {
-    if (this._timer) {
-      clearInterval(this._timer)
-      this._timer = null
-    }
   },
 
   ...drawerMethods,

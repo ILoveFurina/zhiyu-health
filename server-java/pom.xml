@@ -28,6 +28,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
         <!-- webflux 仅用 WebClient 做调 server-py 的 SSE 客户端 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

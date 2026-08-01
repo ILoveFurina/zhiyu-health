@@ -4,8 +4,6 @@
 """
 
 import asyncio
-import hashlib
-import hmac
 import json
 from collections.abc import Callable, Iterator, Sequence
 from types import SimpleNamespace
@@ -62,7 +60,7 @@ def test_chat_streams_tokens_and_final_message_with_disclaimer(harness: SimpleNa
     assert final["data"]["role"] == "assistant"
     assert final["data"]["content"] == "你好，我是小愈。"
     assert final["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
-    assert final["data"]["effort"] == "low"  # 自动档导诊场景映射 low
+    assert final["data"]["effort"] == "disabled"  # 自动档普通对话关闭模型思考
 
 
 def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None:
@@ -98,7 +96,7 @@ def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None
 
 
 def test_effort_choice_is_mapped_by_backend(harness: SimpleNamespace) -> None:
-    for choice, expected in [("auto", "low"), ("quick", "low"), ("deep", "high")]:
+    for choice, expected in [("auto", "disabled"), ("quick", "disabled"), ("deep", "high")]:
         harness.agent.calls.clear()
         _post_chat(
             harness.client,
@@ -422,19 +420,13 @@ def test_find_hospitals_degrades_without_coordinates() -> None:
     assert events[1]["data"]["hospitals"] == []
 
 
-def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommendation() -> None:
+def test_patient_agent_only_explains_general_medication_knowledge() -> None:
     requests: list[httpx.Request] = []
+    bound_tool_names: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={
-            "decision": "BLOCKED",
-            "message_type": "contraindication_warning",
-            "blocked": True,
-            "reasons": ["过敏史“青霉素”与药品 1 的成分/禁忌项匹配"],
-            "message": "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
-            "advice": "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。",
-        })
+        return httpx.Response(500)
 
     callback = BusinessCallbackClient(
         "http://server-java.test",
@@ -444,16 +436,13 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
 
     class ToolCallingFake(GenericFakeChatModel):
         def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            bound_tool_names.extend(tool.name for tool in tools)
             return self
 
-    fake = ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="先吃一粒阿莫西林。", tool_calls=[ToolCall(
-            name="check_contraindication",
-            args={"medication_ids": [1]},
-            id="call-contraindication",
-        )]),
-        "可以改用未经复检的布洛芬。",
-    ]))
+    fake = ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(["阿莫西林属于青霉素类抗菌药。是否适合你服用，请咨询医生或药师。"]),
+    )
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
@@ -464,7 +453,7 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
         )
         with TestClient(app) as client:
             events = _post_chat(client, {
-                "messages": [{"role": "user", "content": "我青霉素过敏，能吃阿莫西林吗"}],
+                "messages": [{"role": "user", "content": "阿莫西林是什么药"}],
                 "health_profile": {
                     "id": 31,
                     "display_name": "本人",
@@ -477,17 +466,10 @@ def test_contraindication_check_uses_hidden_patient_and_stops_unchecked_recommen
     finally:
         asyncio.run(callback.aclose())
 
-    assert [event["event"] for event in events] == ["meta", "contraindication", "done"]
-    assert events[1]["data"]["blocked"] is True
-    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
-    assert json.loads(requests[0].content) == {"medication_ids": [1]}
-    assert requests[0].headers["X-Agent-Patient-Id"] == "12"
-    assert requests[0].headers["X-Agent-Patient-Signature"] == hmac.new(
-        b"shared-secret", b"12", hashlib.sha256
-    ).hexdigest()
-    assert b"allerg" not in requests[0].content
-    assert all("先吃一粒阿莫西林" not in str(event) for event in events)
-    assert all("布洛芬" not in str(event) for event in events)
+    assert [event["event"] for event in events] == ["meta", "token", "message", "done"]
+    assert events[-2]["data"]["content"].endswith("请咨询医生或药师。")
+    assert "check_contraindication" not in bound_tool_names
+    assert requests == []
 
 
 def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_stream() -> None:

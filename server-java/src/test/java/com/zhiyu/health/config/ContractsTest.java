@@ -20,25 +20,22 @@ class ContractsTest {
     @Test
     void sseEventProtocolIsComplete() {
         Contracts.SseEvents events = contracts.sseEvents();
-        assertThat(events.streamEvents())
-                .containsExactly("meta", "knowledge", "token", "message", "done");
+        assertThat(events.streamEvents()).containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
-        assertThat(events.cardEvents()).hasSize(6);
+        assertThat(events.cardEvents()).hasSize(5);
         assertThat(events.toolToEvent())
-                .hasSize(6)
+                .hasSize(5)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
                 .containsEntry("find_hospitals", "hospital_recommendations")
                 .containsEntry("create_appointment", "appointment")
-                .containsEntry("get_appointment", "appointments")
-                .containsEntry("check_contraindication", "contraindication");
-        assertThat(events.messageKinds()).hasSize(10).contains("text", "report_interpretation", "contraindication");
-        assertThat(events.aiCardKinds()).hasSize(7);
+                .containsEntry("get_appointment", "appointments");
+        assertThat(events.messageKinds()).hasSize(9).contains("text", "report_interpretation");
+        assertThat(events.aiCardKinds()).hasSize(6);
         assertThat(events.eventToKind())
-                .hasSize(7)
-                .containsEntry("hospital_recommendations", "hospital_recommendations")
-                .containsEntry("contraindication", "contraindication");
+                .hasSize(6)
+                .containsEntry("hospital_recommendations", "hospital_recommendations");
     }
 
     @Test
@@ -77,6 +74,24 @@ class ContractsTest {
         assertThat(defaults.longitudeMax()).isEqualTo(180.0);
         assertThat(defaults.latitudeMin()).isEqualTo(-90.0);
         assertThat(defaults.latitudeMax()).isEqualTo(90.0);
+    }
+
+    @Test
+    void realtimeEnvelopeAndRoundStatusesAreLoaded() {
+        assertThat(contracts.chatRealtime().websocketPath()).isEqualTo("/api/c/chat/ws");
+        assertThat(contracts.chatRealtime().envelopeTypes()).containsExactly("chat", "accepted", "event", "error");
+        assertThat(contracts.chatRealtime().roundStatuses())
+                .containsExactly("ACCEPTED", "RUNNING", "COMPLETED", "FAILED");
+        // 命名访问器与契约顺序的映射钉死：消费侧一律经访问器取契约值，不得再硬编码字面量
+        Contracts.ChatRealtime realtime = contracts.chatRealtime();
+        assertThat(realtime.chatEnvelope()).isEqualTo("chat");
+        assertThat(realtime.acceptedEnvelope()).isEqualTo("accepted");
+        assertThat(realtime.eventEnvelope()).isEqualTo("event");
+        assertThat(realtime.errorEnvelope()).isEqualTo("error");
+        assertThat(realtime.acceptedStatus()).isEqualTo("ACCEPTED");
+        assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
+        assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
+        assertThat(realtime.failedStatus()).isEqualTo("FAILED");
     }
 
     @Test
@@ -130,8 +145,7 @@ class ContractsTest {
                         "get_doctor_slots", "doctor_slots",
                         "find_hospitals", "hospital_recommendations",
                         "create_appointment", "appointment",
-                        "get_appointment", "appointments",
-                        "check_contraindication", "contraindication"));
+                        "get_appointment", "appointments"));
         assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));
     }
 }

@@ -1,6 +1,6 @@
 # LLM 选型：火山引擎方舟一站式（豆包 doubao-seed-2.1）
 
-Status: accepted
+Status: accepted（自动档 `triage → low` 的映射被 ADR-0013 取代：普通对话默认关闭思考）
 
 LLM 能力需求有三：对话 + function calling（Agent 业务闭环）、embedding（RAG）、视觉（报告图片解读）。决定用火山引擎方舟一个 API key 全覆盖：
 

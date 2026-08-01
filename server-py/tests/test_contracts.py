@@ -15,20 +15,19 @@ def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
     assert events.stream_events == ["meta", "knowledge", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
-    assert len(events.card_events) == 6
+    assert len(events.card_events) == 5
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
         "find_hospitals": "hospital_recommendations",
         "create_appointment": "appointment",
         "get_appointment": "appointments",
-        "check_contraindication": "contraindication",
     }
-    assert len(events.message_kinds) == 10
+    assert len(events.message_kinds) == 9
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
-    assert len(events.ai_card_kinds) == 7
-    assert len(events.event_to_kind) == 7
+    assert len(events.ai_card_kinds) == 6
+    assert len(events.event_to_kind) == 6
 
 
 def test_vision_error_codes_and_messages_are_loaded() -> None:

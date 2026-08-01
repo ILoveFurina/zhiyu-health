@@ -10,8 +10,6 @@ server-java 统一入口的回调通道，地址经 SERVER_JAVA_BASE_URL 配置�
 不会被 runner._tool_output 投影成卡片，与"工具错误仍会回到模型解释"的设计一致。
 """
 
-import hashlib
-import hmac
 from typing import Any
 
 import httpx
@@ -48,23 +46,6 @@ class BusinessCallbackClient:
 
     async def post(self, path: str, payload: dict[str, Any]) -> Any:
         return await self._request_json("POST", path, json=payload)
-
-    async def post_for_patient(
-        self, path: str, patient_id: int, payload: dict[str, Any]
-    ) -> Any:
-        patient_id_text = str(patient_id)
-        signature = hmac.new(
-            self._callback_secret.encode(), patient_id_text.encode(), hashlib.sha256
-        ).hexdigest()
-        return await self._request_json(
-            "POST",
-            path,
-            json=payload,
-            headers={
-                "X-Agent-Patient-Id": patient_id_text,
-                "X-Agent-Patient-Signature": signature,
-            },
-        )
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -106,15 +87,6 @@ async def _forward_post(
         return _callback_error_text(action, e)
 
 
-def _normalize_medication_ids(medication_ids: list[int]) -> list[int]:
-    normalized_ids = list(dict.fromkeys(medication_ids))
-    if not normalized_ids or len(normalized_ids) > 20:
-        raise ValueError("medication_ids 必须包含 1 到 20 个药品 ID")
-    if any(not isinstance(medication_id, int) or medication_id <= 0 for medication_id in normalized_ids):
-        raise ValueError("medication_id 必须为正整数")
-    return normalized_ids
-
-
 def _appointment_args_error(schedule_id: int, condition_summary: str) -> str | None:
     """入参由模型生成，臆造值属正常运行时结果：返回错误文本让其改正，而非掐断流。"""
     if schedule_id <= 0:
@@ -122,24 +94,6 @@ def _appointment_args_error(schedule_id: int, condition_summary: str) -> str | N
     if not condition_summary.strip():
         return "预约挂号失败：病情摘要为空，请先向用户了解主要症状再预约"
     return None
-
-
-async def _run_contraindication_check(
-    client: BusinessCallbackClient, patient_id: int, medication_ids: list[int]
-) -> dict[str, Any] | str:
-    """确定性禁忌检查回调；任何无法可靠检查的情形都必须阻止推荐（安全语义优先于体验）。"""
-    try:
-        normalized_ids = _normalize_medication_ids(medication_ids)
-    except ValueError:
-        return "禁忌检查无法可靠完成：候选药品 ID 无效，不得推荐任何药品，请提示用户咨询医生或药师"
-    try:
-        return dict(await client.post_for_patient(
-            "/api/agent/contraindications/check",
-            patient_id,
-            {"medication_ids": normalized_ids},
-        ))
-    except httpx.HTTPError as e:
-        return _callback_error_text("禁忌检查", e) + "；本次无法可靠检查，不得推荐任何药品，请提示用户稍后重试或咨询医生/药师"
 
 
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
@@ -208,21 +162,10 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             action="查询附近医院",
         )
 
-    @tool
-    async def check_contraindication(
-        medication_ids: list[int], runtime: ToolRuntime[AgentContext]
-    ) -> dict[str, Any] | str:
-        """在推荐候选药品前执行确定性禁忌检查；命中或无法可靠检查时必须停止推荐。
-
-        只传候选 medication_id；患者身份由可信运行时注入，禁止要求用户提供身份或过敏史。
-        """
-        return await _run_contraindication_check(client, runtime.context.patient_id, medication_ids)
-
     return [
         recommend_doctors,
         get_doctor_slots,
         find_hospitals,
         create_appointment,
         get_appointment,
-        check_contraindication,
     ]
