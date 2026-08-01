@@ -1,0 +1,30 @@
+<view class="page">
+  <view class="header">
+    <view class="subtitle">选择你想预约的医生</view>
+  </view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{doctors.length === 0}}" class="state">该科室暂时没有可预约医生</view>
+
+  <view
+    a:for="{{doctors}}"
+    a:key="doctor_id"
+    class="card"
+    data-id="{{item.doctor_id}}"
+    data-name="{{item.name}}"
+    data-fee="{{item.registration_fee}}"
+    onTap="openSchedules"
+  >
+    <image a:if="{{item.photo_url}}" class="avatar" src="{{item.photo_url}}" mode="aspectFill" />
+    <view a:else class="avatar avatar-fallback">{{item.initial}}</view>
+    <view class="card-main">
+      <view class="name-row">
+        <text class="name">{{item.name}}</text>
+        <text a:if="{{item.title}}" class="doctor-title">{{item.title}}</text>
+      </view>
+      <view a:if="{{item.specialty}}" class="specialty">擅长：{{item.specialty}}</view>
+      <view class="fee">挂号费 ¥{{item.registration_fee}}</view>
+    </view>
+    <view class="arrow">›</view>
+  </view>
+</view>

@@ -7,7 +7,12 @@
     "pages/health/index",
     "pages/prescriptions/index",
     "pages/drug-orders/index",
-    "pages/messages/index"
+    "pages/messages/index",
+    "pages/booking/hospitals/index",
+    "pages/booking/departments/index",
+    "pages/booking/doctors/index",
+    "pages/booking/schedules/index",
+    "pages/booking/confirm/index"
   ],
   "window": {
     "defaultTitle": "智愈",
