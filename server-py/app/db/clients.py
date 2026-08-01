@@ -40,7 +40,14 @@ def create_knowledge_clients(settings: Settings) -> KnowledgeClients:
             "请同步 application.yml 与 contracts/knowledge.json"
         )
     # database_url 为空（如测试或未配置检索）时不建连接，运行时检索降级走裸 LLM
-    return KnowledgeClients(neo4j=neo4j, pg_dsn=settings.database_url or None)
+    return KnowledgeClients(neo4j=neo4j, pg_dsn=_normalize_dsn(settings.database_url))
+
+
+def _normalize_dsn(database_url: str) -> str | None:
+    """规整 DSN：.env 用 SQLAlchemy 风格 postgresql+psycopg://，psycopg 原生需纯 postgresql://。"""
+    if not database_url:
+        return None
+    return database_url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
 def libpq_dsn(dsn: str) -> str:

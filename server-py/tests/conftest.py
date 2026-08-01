@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
+from app.tools.graph import GraphNeighbor
 from app.tools.knowledge import KnowledgeChunk
 
 TEST_AGENT_SECRET = "test-only-agent-callback-secret"
@@ -61,6 +62,26 @@ class FakeKnowledgeRetriever:
         if self._raises:
             raise RuntimeError("检索失败（fake）")
         return list(self._chunks)
+
+
+class FakeGraphTraverser:
+    """图谱遍历 seam 的 fake：可控邻接结果/空/异常，记录调用实体。"""
+
+    def __init__(
+        self,
+        neighbors: list[GraphNeighbor] | None = None,
+        *,
+        raises: bool = False,
+    ) -> None:
+        self._neighbors = neighbors or []
+        self._raises = raises
+        self.calls: list[list[str]] = []
+
+    async def traverse(self, entities: list[str]) -> list[GraphNeighbor]:
+        self.calls.append(list(entities))
+        if self._raises:
+            raise RuntimeError("图谱遍历失败（fake）")
+        return list(self._neighbors)
 
 
 @pytest.fixture

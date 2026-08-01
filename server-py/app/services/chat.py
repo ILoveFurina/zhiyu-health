@@ -5,9 +5,10 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 免责声明（硬规则 1，server-java 出口另有兜底校验）。
 
 知识增强（ADR-0010）：知识源选择器模型 Y 二态 rag/graph + 自动降级。默认按
-场景（triage->rag，interpretation->none）；rag 注入 search_knowledge 工具（LLM
-自主调用），关闭增强不注入工具（裸 LLM）。检索失败/空召回静默降级走裸 LLM；
-graph 未实现视为 unavailable 降级。降级/不可用状态经 SSE knowledge 元事件暴露。
+场景（triage->rag，interpretation->none）；rag 注入 search_knowledge 工具、graph
+注入 traverse_graph 工具（LLM 自主调用，互斥），关闭增强不注入工具（裸 LLM）。
+检索失败/空召回静默降级走裸 LLM；graph 遍历器未配置视为 unavailable 降级。
+降级/不可用状态经 SSE knowledge 元事件暴露。
 召回块与 knowledge 元事件不带免责声明（非 AI 产出）。
 """
 
@@ -25,16 +26,23 @@ EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
 
 
 class AgentChatService:
-    def __init__(self, agent_runner: AgentRunner, *, rag_available: bool = False) -> None:
+    def __init__(
+        self,
+        agent_runner: AgentRunner,
+        *,
+        rag_available: bool = False,
+        graph_available: bool = False,
+    ) -> None:
         self._agent_runner = agent_runner
         self._rag_available = rag_available
+        self._graph_available = graph_available
         # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
         # 装配期取出缓存，禁止在本地另立文案常量。
         self._disclaimer = get_contracts().disclaimer.text
         self._knowledge = get_contracts().knowledge
 
     def _resolve_knowledge_source(self, requested: str | None, scenario: Scenario) -> str:
-        """知识源选择器（模型 Y）：默认按场景；graph 未实现降级；rag 需检索器可用。"""
+        """知识源选择器（模型 Y）：默认按场景；graph 需遍历器可用；rag 需检索器可用。"""
         contract = self._knowledge
         source = requested if requested is not None else contract.default_by_scenario[scenario]
         if source not in contract.knowledge_sources:
@@ -42,8 +50,8 @@ class AgentChatService:
         if source == "rag" and not self._rag_available:
             # rag 选中但检索器未配置：降级走裸 LLM（knowledge 事件标 degraded）
             return contract.none_source
-        if source == "graph":
-            # graph 由票 13 接手，未实现视为 unavailable 降级走裸 LLM
+        if source == "graph" and not self._graph_available:
+            # graph 选中但遍历器未配置：降级走裸 LLM（knowledge 事件标 unavailable）
             return contract.none_source
         return source
 
@@ -56,7 +64,7 @@ class AgentChatService:
         requested_source = (
             requested if requested is not None else contract.default_by_scenario[scenario]
         )
-        if requested_source == "graph":
+        if requested_source == "graph" and not self._graph_available:
             return {"source": "graph", "status": "unavailable", "count": 0}
         if requested_source == "rag" and not self._rag_available:
             return {"source": "rag", "status": "degraded", "count": 0}

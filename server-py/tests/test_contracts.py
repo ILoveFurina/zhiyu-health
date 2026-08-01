@@ -95,7 +95,7 @@ def test_knowledge_contract_values_are_loaded() -> None:
     assert knowledge.default_by_scenario == {"triage": "rag", "interpretation": "none"}
     assert knowledge.knowledge_meta_event == "knowledge"
     assert knowledge.knowledge_status == ["ok", "degraded", "unavailable"]
-    assert knowledge.embedding_dimension == 1024
+    assert knowledge.embedding_dimension == 2048
     assert knowledge.vector_column == "vector"
     assert knowledge.search_top_k == 3
     assert knowledge.similarity_threshold == 0.3

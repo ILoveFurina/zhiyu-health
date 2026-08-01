@@ -14,7 +14,7 @@ import {
 } from '@/utils/session';
 
 const LOGIN_PATH = '/login';
-const ADMIN_PATHS = ['/hospitals', '/departments', '/doctors', '/prescriptions'];
+const ADMIN_PATHS = ['/hospitals', '/departments', '/doctors', '/prescriptions', '/medications', '/knowledge-graph'];
 
 export interface InitialState {
   currentUser?: CurrentUser;

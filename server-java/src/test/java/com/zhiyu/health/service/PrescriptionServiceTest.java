@@ -122,6 +122,23 @@ class PrescriptionServiceTest {
     }
 
     @Test
+    void listMedicationsOnlyReturnsActiveForDoctorSelection() {
+        // 停用药品不出现在医生开方选药列表：selectActive() 已按 is_active=TRUE 过滤，
+        // listMedications 直接透传其结果，停用药（id=2 isActive=false）被排除。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        Medication active = new Medication();
+        active.setId(1L);
+        active.setIsActive(true);
+        when(medicationMapper.selectActive()).thenReturn(List.of(active));
+
+        List<PrescriptionService.MedicationView> views = service.listMedications(8L);
+
+        assertEquals(1, views.size());
+        assertEquals(1L, views.get(0).id());
+        verify(medicationMapper).selectActive();
+    }
+
+    @Test
     void checkSafetyRejectsForeignAppointment() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(null);
