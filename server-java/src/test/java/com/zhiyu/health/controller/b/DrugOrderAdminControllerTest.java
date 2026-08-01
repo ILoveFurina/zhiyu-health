@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
+import com.zhiyu.health.controller.c.DrugOrderController;
+import com.zhiyu.health.controller.c.mapping.DrugOrderInputMapper;
 import com.zhiyu.health.entity.DrugOrder;
 import com.zhiyu.health.entity.DrugOrderItem;
 import com.zhiyu.health.mapper.DrugOrderItemMapper;
@@ -47,6 +49,8 @@ class DrugOrderAdminControllerTest {
             TestContracts.instance(),
             dtoMapper);
     private final DrugOrderAdminController controller = new DrugOrderAdminController(service);
+    private final DrugOrderController patientController =
+            new DrugOrderController(service, Mappers.getMapper(DrugOrderInputMapper.class));
 
     @Test
     void filtersOrdersByContractStatus() throws Exception {
@@ -104,6 +108,24 @@ class DrugOrderAdminControllerTest {
         verify(medicationMapper).restoreStock(1L, 2);
     }
 
+    @Test
+    void sameOrderFlowsFromUnpaidThroughPatientPaymentToAdminCompletion() throws Exception {
+        DrugOrder order = order(51L, "UNPAID");
+        when(orderMapper.selectForPatientForUpdate(51L, 7L)).thenReturn(order);
+        when(orderMapper.markPaid(51L, "PAID", "UNPAID")).thenReturn(1);
+        when(orderMapper.selectForUpdate(51L)).thenReturn(order);
+        when(orderMapper.complete(51L, "DONE", "PAID")).thenReturn(1);
+        when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
+
+        flowMvc().perform(post("/api/c/drug-orders/51/pay").requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PAID"));
+
+        flowMvc().perform(post("/api/b/drug-orders/51/complete"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DONE"));
+    }
+
     private DrugOrder order(long id, String status) {
         DrugOrder order = new DrugOrder();
         order.setId(id);
@@ -117,6 +139,14 @@ class DrugOrderAdminControllerTest {
     private MockMvc mvc() {
         ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         return standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler())
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper))
+                .build();
+    }
+
+    private MockMvc flowMvc() {
+        ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        return standaloneSetup(patientController, controller)
                 .setControllerAdvice(new ApiExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper))
                 .build();

@@ -1,7 +1,6 @@
 import { request } from '@umijs/max';
-import { orderStatuses } from '@/contracts/order';
-
-export type DrugOrderStatus = (typeof orderStatuses)[keyof typeof orderStatuses];
+import type { DrugOrderStatus } from '@/contracts/order';
+export type { DrugOrderStatus } from '@/contracts/order';
 
 export interface DrugOrderItem {
   medication_id: number;
