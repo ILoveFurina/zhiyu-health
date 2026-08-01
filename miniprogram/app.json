@@ -3,6 +3,7 @@
     "pages/home/index",
     "pages/chat/index",
     "pages/profile/index",
+    "pages/report/index",
     "pages/appointments/index",
     "pages/health/index",
     "pages/prescriptions/index",

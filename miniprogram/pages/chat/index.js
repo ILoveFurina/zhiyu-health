@@ -65,6 +65,10 @@ Page({
       .then(() => currentProfile())
       .then((result) => this.setData({ currentProfile: result.profile, profileLoaded: true }))
       .catch(() => this.setData({ currentProfile: null, profileLoaded: true }))
+    // 消费 tab 外入口经 globalData 传入的上下文（switchTab 不能带参，票 42 阶段三）：
+    // 报告解读入口页已完成分段上传的待解读请求、报告记录指定的待打开会话
+    this.consumeReportEntry()
+    this.consumeOpenConversation()
   },
 
   onUnload() {

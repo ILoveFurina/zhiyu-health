@@ -49,11 +49,19 @@ function uploadOne({ requestId, item, index, total }) {
   })
 }
 
-async function uploadReport({ requestId, conversationId, items, onProgress }) {
+/** 仅分段上传（staging 不落业务记录），供报告解读入口页与 chat 内上传共用。 */
+async function stageReportFiles({ requestId, items, onProgress }) {
   for (let index = 0; index < items.length; index += 1) {
     await uploadOne({ requestId, item: items[index], index, total: items.length })
     if (onProgress) onProgress(index + 1, items.length)
   }
+}
+
+/**
+ * 仅 finalize：staging 已完成时触发解读；request_id 幂等（后端 findByRequest 去重）。
+ * conversation_id 传空时后端新建「看报告」会话并写入上传/解读消息。
+ */
+function finalizeReport({ requestId, conversationId }) {
   return request({
     url: '/c/report-interpretations/finalize',
     method: 'POST',
@@ -62,4 +70,9 @@ async function uploadReport({ requestId, conversationId, items, onProgress }) {
   })
 }
 
-module.exports = { uploadReport }
+async function uploadReport({ requestId, conversationId, items, onProgress }) {
+  await stageReportFiles({ requestId, items, onProgress })
+  return finalizeReport({ requestId, conversationId })
+}
+
+module.exports = { uploadReport, stageReportFiles, finalizeReport }

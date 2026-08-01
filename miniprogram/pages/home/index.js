@@ -5,7 +5,7 @@ const { listDrugOrders } = require('../../services/drug-orders')
 
 /**
  * 首页功能目录宫格（CONTEXT.md「功能目录」词条）：
- * 就医服务指向 tab/独立页面，预约挂号多页流属票 42 阶段二，本阶段先落入口。
+ * 就医服务指向 tab/独立页面；报告解读入口页（pages/report）属票 42 阶段三。
  */
 const GRIDS = [
   {
@@ -14,6 +14,7 @@ const GRIDS = [
     items: [
       { key: 'triage', icon: '✚', label: '智能导诊', desc: '描述症状，推荐科室', action: 'switchTab', url: '/pages/chat/index' },
       { key: 'booking', icon: '⚑', label: '预约挂号', desc: '选医院、科室与医生', action: 'navigateTo', url: '/pages/booking/hospitals/index' },
+      { key: 'report', icon: '▦', label: '报告解读', desc: '上传报告，AI 解读', action: 'navigateTo', url: '/pages/report/index' },
     ],
   },
   {

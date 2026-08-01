@@ -1,0 +1,104 @@
+<view class="page">
+  <!-- 上传区：拍照/相册/PDF，多页报告支持多图；解读过程在会话流中呈现 -->
+  <view class="card upload-card">
+    <view class="upload-title">上传检查报告</view>
+    <view class="upload-sub">拍照或上传多页报告，AI 生成通俗解读</view>
+    <view class="upload-tip">将发送至多模态模型；请先遮盖姓名、身份证号等身份信息，原件不保存</view>
+
+    <view a:if="{{!pending}}" class="upload-actions">
+      <view class="upload-btn" data-index="0" onTap="pickReport">
+        <view class="upload-btn-icon">📷</view>
+        <view class="upload-btn-label">拍摄报告</view>
+      </view>
+      <view class="upload-btn" data-index="1" onTap="pickReport">
+        <view class="upload-btn-icon">🖼</view>
+        <view class="upload-btn-label">从相册选择</view>
+      </view>
+      <view class="upload-btn" data-index="2" onTap="pickReport">
+        <view class="upload-btn-icon">📄</view>
+        <view class="upload-btn-label">上传 PDF</view>
+      </view>
+    </view>
+
+    <!-- 待上传清单：图片可排序/移除，确认后分段上传并进入会话解读 -->
+    <view a:if="{{pending}}" class="pending">
+      <view class="pending-head">
+        <view class="pending-title">待上传的报告</view>
+        <view class="pending-count">{{pending.items.length}} 个文件</view>
+      </view>
+      <view a:for="{{pending.items}}" a:key="path" class="pending-item">
+        <view class="pending-index">{{index + 1}}</view>
+        <view class="pending-name">{{item.name}}</view>
+        <view a:if="{{!pending.isPdf}}" class="order-btn" data-index="{{index}}" data-offset="-1" onTap="movePendingItem">↑</view>
+        <view a:if="{{!pending.isPdf}}" class="order-btn" data-index="{{index}}" data-offset="1" onTap="movePendingItem">↓</view>
+        <view class="remove-btn" data-index="{{index}}" onTap="removePendingItem">×</view>
+      </view>
+      <view a:if="{{uploadProgress}}" class="upload-progress">{{uploadProgress}}，正在安全处理…</view>
+      <view class="pending-actions">
+        <view class="pending-cancel {{uploading ? 'pending-action-disabled' : ''}}" onTap="cancelPending">取消</view>
+        <view class="pending-send {{uploading ? 'pending-action-disabled' : ''}}" onTap="confirmUpload">上传并解读</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 历史解读记录：后端按创建时间倒序返回 -->
+  <view class="section">
+    <view class="section-title">解读记录</view>
+    <view a:if="{{loading}}" class="state">正在加载…</view>
+    <view a:elif="{{records.length === 0}}" class="state">暂无报告解读记录</view>
+    <view
+      a:for="{{records}}"
+      a:key="report_interpretation_id"
+      class="card record"
+      data-id="{{item.report_interpretation_id}}"
+      onTap="openRecord"
+    >
+      <view class="record-head">
+        <view class="record-title">报告解读 #{{item.report_interpretation_id}}</view>
+        <view class="record-status status-{{item.statusClass}}">{{item.statusLabel}}</view>
+      </view>
+      <view a:if="{{item.summary}}" class="record-summary">{{item.summary}}</view>
+      <view class="record-meta">
+        <text a:if="{{item.pageMeta}}">{{item.pageMeta}} · </text>
+        <text>{{item.conversation_id ? '查看会话中的解读' : '查看详情'}} ›</text>
+      </view>
+      <!-- 列表摘要为 AI 产出，免责声明随卡挂载（硬约束） -->
+      <ai-disclaimer a:if="{{item.summary}}" />
+    </view>
+  </view>
+
+  <!-- 无关联会话记录的页内详情（结构化解读卡片与会话内同款） -->
+  <view a:if="{{detail}}" class="detail-mask" onTap="closeDetail">
+    <view class="detail" catchTap="noop">
+      <view class="detail-head">
+        <view class="detail-title">解读详情</view>
+        <view class="detail-close" onTap="closeDetail">×</view>
+      </view>
+      <scroll-view scroll-y class="detail-body">
+        <view class="report-summary">{{detail.result.summary}}</view>
+        <view a:for="{{detail.result.items}}" a:for-item="finding" a:key="index" class="finding">
+          <view class="finding-head">
+            <view a:if="{{finding.priority === 'red'}}" class="priority-label priority-red">尽快咨询（非急救）</view>
+            <view a:elif="{{finding.priority === 'yellow'}}" class="priority-label priority-yellow">重点关注</view>
+            <view a:elif="{{finding.priority === 'blue'}}" class="priority-label priority-blue">日常观察</view>
+            <view a:else class="priority-label priority-green">范围内</view>
+            <text class="finding-name">{{finding.name}}</text>
+            <text class="finding-value">{{finding.value}} {{finding.unit}}</text>
+          </view>
+          <view class="finding-ref">参考范围：{{finding.reference_range}} · 第 {{finding.page}} 页</view>
+          <view class="finding-text">{{finding.explanation}}</view>
+          <view class="finding-action">建议：{{finding.action}}</view>
+        </view>
+        <view a:if="{{detail.result.actions.length}}" class="report-section">
+          <view class="report-section-title">下一步建议</view>
+          <view a:for="{{detail.result.actions}}" a:key="index" class="report-line">• {{item}}</view>
+        </view>
+        <view a:if="{{detail.result.unreadable.length}}" class="unreadable">
+          <view class="report-section-title">未能可靠识别</view>
+          <view a:for="{{detail.result.unreadable}}" a:key="index" class="report-line">• {{item}}</view>
+        </view>
+        <ai-disclaimer text="{{detail.disclaimer}}" />
+      </scroll-view>
+    </view>
+  </view>
+</view>

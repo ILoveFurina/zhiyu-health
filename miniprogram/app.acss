@@ -3,7 +3,7 @@ page {
   background: linear-gradient(180deg, #e9f6f2 0%, #f4faf8 45%, #f8faf9 100%);
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* 设计 token（票 42）：新页面排版统一消费此处变量，旧页机械替换随阶段二推进 */
+  /* 设计 token（票 42）：新页面排版统一消费此处变量；旧页（chat/挂号/档案/处方/消息/药品订单）已完成机械替换 */
   --zy-color-primary: #00a870; /* 主行动色（医疗绿），tabBar selectedColor 与此同值 */
   --zy-color-primary-soft: #e3f5ee; /* 主色浅底，chip/徽标背景 */
   --zy-text-title: #173f3a;
