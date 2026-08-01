@@ -27,6 +27,22 @@ public class AppointmentService {
     private final AppointmentDtoMapper appointmentDtos;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
+        CreatedAppointment created = reserve(patientId, conversationId, scheduleId, false);
+        try {
+            // 挂号与号源事务已经提交；收费附属记录失败不得撤销真实挂号结果。
+            payments.createUnpaid(created.id(), created.registrationFee());
+        } catch (RuntimeException ignored) {
+            // 后续幂等挂号请求会再次尝试补建收费记录，唯一键避免重复收费。
+        }
+        return view(created.id());
+    }
+
+    /** C 端功能目录直接挂号；按票 41 边界不创建收费记录，重复提交返回明确冲突。 */
+    public AppointmentView createDirect(long patientId, long scheduleId) {
+        return view(reserve(patientId, null, scheduleId, true).id());
+    }
+
+    private CreatedAppointment reserve(long patientId, Long conversationId, long scheduleId, boolean rejectDuplicate) {
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
         CreatedAppointment created = slotAccounting.withDeduction(
@@ -40,6 +56,9 @@ public class AppointmentService {
                     Appointment existing =
                             appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
                     if (existing != null) {
+                        if (rejectDuplicate) {
+                            throw new ApiException(409, "请勿重复挂号");
+                        }
                         return new CreatedAppointment(existing.getId(), existing.getRegistrationFee());
                     }
                     // 幂等检查通过后才预扣；售罄在此处抛 409 且 Redis 已被 SlotAccounting 回补。
@@ -58,13 +77,7 @@ public class AppointmentService {
                     appointmentMapper.insert(appointment);
                     return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
                 }));
-        try {
-            // 挂号与号源事务已经提交；收费附属记录失败不得撤销真实挂号结果。
-            payments.createUnpaid(created.id(), created.registrationFee());
-        } catch (RuntimeException ignored) {
-            // 后续幂等挂号请求会再次尝试补建收费记录，唯一键避免重复收费。
-        }
-        return view(created.id());
+        return created;
     }
 
     public List<AppointmentView> listForPatient(long patientId) {

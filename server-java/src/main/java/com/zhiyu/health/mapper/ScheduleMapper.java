@@ -42,6 +42,18 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
 
     @Select(
             """
+            SELECT * FROM schedules
+            WHERE doctor_id = #{doctorId}
+              AND is_active = TRUE
+              AND schedule_date >= #{fromDate}
+            ORDER BY schedule_date,
+                     CASE time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END,
+                     id
+            """)
+    List<Schedule> selectFutureByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
+
+    @Select(
+            """
             SELECT s.*, d.registration_fee
             FROM schedules s
             JOIN doctors d ON d.id = s.doctor_id

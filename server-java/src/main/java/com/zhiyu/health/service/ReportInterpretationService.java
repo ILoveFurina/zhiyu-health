@@ -26,6 +26,10 @@ public class ReportInterpretationService {
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
 
+    public List<ReportView> listForPatient(long patientId) {
+        return persistence.listForPatient(patientId).stream().map(this::toView).toList();
+    }
+
     public ReportView finalizeStaged(Long patientId, Long conversationId, String requestId) {
         ReportInterpretation existing = persistence.findByRequest(patientId, requestId);
         if (existing != null) {

@@ -6,6 +6,9 @@ import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +35,13 @@ public class AppointmentController {
         return appointmentService.listForPatient(patientId).stream()
                 .map(this::toOut)
                 .toList();
+    }
+
+    @PostMapping
+    public AppointmentOut create(
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
+            @Valid @RequestBody CreateAppointmentRequest request) {
+        return toOut(appointmentService.createDirect(patientId, request.scheduleId()));
     }
 
     @PostMapping("/{appointmentId}/cancel")
@@ -60,4 +71,6 @@ public class AppointmentController {
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
             @JsonProperty("created_at") String createdAt) {}
+
+    public record CreateAppointmentRequest(@JsonProperty("schedule_id") @NotNull @Positive Long scheduleId) {}
 }

@@ -24,6 +24,36 @@ import org.springframework.web.multipart.MultipartFile;
 class ReportInterpretationServiceTest {
 
     @Test
+    void listsOnlyPersistenceFilteredPatientHistoryInReturnedOrder() throws Exception {
+        ReportInterpretationPersistence persistence = mock(ReportInterpretationPersistence.class);
+        ReportInterpretation newer = new ReportInterpretation();
+        newer.setId(32L);
+        newer.setStatus("SUCCEEDED");
+        newer.setResultJson("{\"summary\":\"较新的报告\"}");
+        newer.setDisclaimer("仅供参考，不替代医生诊断");
+        ReportInterpretation older = new ReportInterpretation();
+        older.setId(31L);
+        older.setStatus("SUCCEEDED");
+        older.setResultJson("{\"summary\":\"较早的报告\"}");
+        older.setDisclaimer("仅供参考，不替代医生诊断");
+        when(persistence.listForPatient(12L)).thenReturn(List.of(newer, older));
+        ReportInterpretationService service = new ReportInterpretationService(
+                persistence,
+                mock(AgentClient.class),
+                new ObjectMapper(),
+                mock(ReportUploadStagingService.class),
+                TestContracts.instance(),
+                mock(HealthProfileService.class));
+
+        List<ReportInterpretationService.ReportView> result = service.listForPatient(12L);
+
+        assertThat(result)
+                .extracting(ReportInterpretationService.ReportView::reportInterpretationId)
+                .containsExactly(32L, 31L);
+        verify(persistence).listForPatient(12L);
+    }
+
+    @Test
     void succeededRequestReturnsStoredCardWithoutCallingAgentAgain() throws Exception {
         ReportInterpretationPersistence persistence = mock(ReportInterpretationPersistence.class);
         AgentClient agentClient = mock(AgentClient.class);

@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -45,6 +47,40 @@ class AppointmentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("已取消"));
         verify(service).cancel(12L, 21L);
+    }
+
+    @Test
+    void directlyCreatesAppointmentForAuthenticatedPatient() throws Exception {
+        AppointmentService service = mock(AppointmentService.class);
+        when(service.createDirect(12L, 9L)).thenReturn(appointment("已约"));
+        MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance(), appointmentCards))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
+
+        mvc.perform(post("/api/c/appointments")
+                        .contentType("application/json")
+                        .content("{\"schedule_id\":9}")
+                        .requestAttr("authSubject", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appointment_id").value(21))
+                .andExpect(jsonPath("$.schedule_id").value(9));
+        verify(service).createDirect(12L, 9L);
+    }
+
+    @Test
+    void directDuplicateReturnsExplicitConflict() throws Exception {
+        AppointmentService service = mock(AppointmentService.class);
+        when(service.createDirect(12L, 9L)).thenThrow(new ApiException(409, "请勿重复挂号"));
+        MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance(), appointmentCards))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
+
+        mvc.perform(post("/api/c/appointments")
+                        .contentType("application/json")
+                        .content("{\"schedule_id\":9}")
+                        .requestAttr("authSubject", "12"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("请勿重复挂号"));
     }
 
     private AppointmentService.AppointmentView appointment(String status) {

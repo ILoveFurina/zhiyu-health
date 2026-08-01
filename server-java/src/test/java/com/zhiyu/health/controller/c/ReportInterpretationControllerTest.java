@@ -1,48 +1,80 @@
 package com.zhiyu.health.controller.c;
 
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.service.ReportInterpretationService;
 import com.zhiyu.health.service.ReportUploadStagingService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
-
 /** 报告解读上传的 C 端 HTTP seam。 */
 class ReportInterpretationControllerTest {
+
+    @Test
+    void listsOnlyCurrentPatientsReportInterpretationsNewestFirst() throws Exception {
+        ReportInterpretationService service = mock(ReportInterpretationService.class);
+        when(service.listForPatient(12L))
+                .thenReturn(List.of(
+                        new ReportInterpretationService.ReportView(
+                                32L,
+                                8L,
+                                "SUCCEEDED",
+                                2,
+                                new ObjectMapper().readTree("{\"summary\":\"较新的报告\"}"),
+                                "仅供参考，不替代医生诊断"),
+                        new ReportInterpretationService.ReportView(
+                                31L,
+                                7L,
+                                "SUCCEEDED",
+                                1,
+                                new ObjectMapper().readTree("{\"summary\":\"较早的报告\"}"),
+                                "仅供参考，不替代医生诊断")));
+        MockMvc mvc = standaloneSetup(
+                        new ReportInterpretationController(service, mock(ReportUploadStagingService.class)))
+                .build();
+
+        mvc.perform(get("/api/c/report-interpretations").requestAttr("authSubject", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].report_interpretation_id").value(32))
+                .andExpect(jsonPath("$[1].report_interpretation_id").value(31));
+        verify(service).listForPatient(12L);
+    }
 
     @Test
     void patientUploadsReportThroughJavaAndReceivesStructuredCard() throws Exception {
         ReportInterpretationService service = mock(ReportInterpretationService.class);
         ObjectMapper objectMapper = new ObjectMapper();
-        when(service.interpret(eq(12L), isNull(), eq("req-001"), anyList())).thenReturn(
-                new ReportInterpretationService.ReportView(
+        when(service.interpret(eq(12L), isNull(), eq("req-001"), anyList()))
+                .thenReturn(new ReportInterpretationService.ReportView(
                         31L,
                         7L,
                         "SUCCEEDED",
                         1,
-                        objectMapper.readTree("""
+                        objectMapper.readTree(
+                                """
                                 {"summary":"血红蛋白偏低","items":[{"name":"血红蛋白"}],
                                  "actions":["咨询医生"],"unreadable":[]}
                                 """),
                         "仅供参考，不替代医生诊断"));
-        MockMvc mvc = standaloneSetup(new ReportInterpretationController(
-                service, mock(ReportUploadStagingService.class))).build();
-        MockMultipartFile image = new MockMultipartFile(
-                "files", "report.png", "image/png", new byte[]{1, 2, 3});
+        MockMvc mvc = standaloneSetup(
+                        new ReportInterpretationController(service, mock(ReportUploadStagingService.class)))
+                .build();
+        MockMultipartFile image = new MockMultipartFile("files", "report.png", "image/png", new byte[] {1, 2, 3});
 
         mvc.perform(multipart("/api/c/report-interpretations")
                         .file(image)
@@ -62,12 +94,16 @@ class ReportInterpretationControllerTest {
         ReportInterpretationService service = mock(ReportInterpretationService.class);
         ReportUploadStagingService staging = mock(ReportUploadStagingService.class);
         MultipartFile file = mock(MultipartFile.class);
-        when(service.finalizeStaged(12L, 9L, "req-staged")).thenReturn(
-                new ReportInterpretationService.ReportView(
-                        41L, 9L, "SUCCEEDED", 1,
+        when(service.finalizeStaged(12L, 9L, "req-staged"))
+                .thenReturn(new ReportInterpretationService.ReportView(
+                        41L,
+                        9L,
+                        "SUCCEEDED",
+                        1,
                         new ObjectMapper().readTree("{\"summary\":\"解读完成\"}"),
                         "仅供参考，不替代医生诊断"));
-        MockMvc mvc = standaloneSetup(new ReportInterpretationController(service, staging)).build();
+        MockMvc mvc = standaloneSetup(new ReportInterpretationController(service, staging))
+                .build();
 
         mvc.perform(post("/api/c/report-interpretations/finalize")
                         .contentType("application/json")

@@ -3,6 +3,7 @@ package com.zhiyu.health.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +17,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
 class ReportInterpretationPersistenceTest {
+
+    @Test
+    void reportHistoryDelegatesPatientScopeToOrderedMapperQuery() {
+        ReportInterpretationMapper mapper = mock(ReportInterpretationMapper.class);
+        when(mapper.selectHistoryByPatient(12L)).thenReturn(List.of(new ReportInterpretation()));
+        ReportInterpretationPersistence persistence = new ReportInterpretationPersistence(
+                mapper,
+                mock(ConversationService.class),
+                new ObjectMapper(),
+                TestDisclaimers.instance(),
+                mock(HealthProfileService.class));
+
+        assertThat(persistence.listForPatient(12L)).hasSize(1);
+        verify(mapper).selectHistoryByPatient(12L);
+    }
 
     @Test
     void newReportBelongsToCurrentHealthProfile() {

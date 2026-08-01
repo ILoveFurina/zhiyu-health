@@ -32,6 +32,10 @@ public class ReportInterpretationPersistence {
                 .eq(ReportInterpretation::getRequestId, requestId));
     }
 
+    public List<ReportInterpretation> listForPatient(long patientId) {
+        return mapper.selectHistoryByPatient(patientId);
+    }
+
     @Transactional
     public ReportInterpretation start(
             Long patientId, Long conversationId, String requestId, List<MultipartFile> files) {

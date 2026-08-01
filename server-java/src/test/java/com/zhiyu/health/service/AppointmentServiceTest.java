@@ -65,6 +65,40 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void directAppointmentDeductsSlotWithoutCreatingPayment() {
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
+        when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
+        when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
+        when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(21L);
+            return 1;
+        });
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+        slotCounter.initialize(9L, 1);
+
+        AppointmentService.AppointmentView result = service().createDirect(12L, 9L);
+
+        assertThat(result.id()).isEqualTo(21L);
+        assertThat(slotCounter.values.get(9L)).hasValue(0);
+        verify(payments, never()).createUnpaid(anyLong(), any());
+    }
+
+    @Test
+    void directDuplicateReturnsConflictWithoutDeductingAgain() {
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        slotCounter.initialize(9L, 2);
+
+        assertThatThrownBy(() -> service().createDirect(12L, 9L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("请勿重复挂号");
+        assertThat(slotCounter.values.get(9L)).hasValue(2);
+        verify(scheduleMapper, never()).decrementRemainingSlots(9L);
+        verify(payments, never()).createUnpaid(anyLong(), any());
+    }
+
+    @Test
     void savesGeneratedSummaryOnlyForOwningPatientAndConversation() {
         // 摘要纯内容直存，不再拼接免责文案；标注在响应装配时挂载。
         when(appointmentMapper.updateConditionSummary(21L, 12L, 31L, 7L, "主诉胸闷两天"))
@@ -204,11 +238,12 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 0));
         slotCounter.initialize(9L, 0);
 
-        assertThatThrownBy(() -> service().create(12L, 7L, 9L))
+        assertThatThrownBy(() -> service().createDirect(12L, 9L))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("号源已约满");
         assertThat(slotCounter.values.get(9L)).hasValue(0);
         verify(scheduleMapper, never()).decrementRemainingSlots(9L);
+        verify(payments, never()).createUnpaid(anyLong(), any());
     }
 
     private AppointmentService service() {
