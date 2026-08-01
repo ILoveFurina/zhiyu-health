@@ -28,8 +28,8 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
     }
 
     public PaymentView payForPatient(long patientId, long appointmentId) {
-        return transactionTemplate.execute(status -> payLocked(
-                paymentMapper.selectForPatientForUpdate(appointmentId, patientId), appointmentId));
+        return transactionTemplate.execute(
+                status -> payLocked(paymentMapper.selectForPatientForUpdate(appointmentId, patientId), appointmentId));
     }
 
     public List<PaymentView> listForAdmin(String status) {
@@ -37,7 +37,9 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
         if (normalizedStatus != null && !contracts.paymentFlow().statusLabels().containsKey(normalizedStatus)) {
             throw new ApiException(400, "挂号收费状态无效");
         }
-        return paymentMapper.selectForAdmin(normalizedStatus).stream().map(this::toView).toList();
+        return paymentMapper.selectForAdmin(normalizedStatus).stream()
+                .map(this::toView)
+                .toList();
     }
 
     public PaymentView getForAdmin(long paymentId) {
@@ -75,8 +77,7 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
     private PaymentView toView(Payment payment) {
         String unpaid = contracts.paymentFlow().statuses().get("unpaid");
         String statusLabel = contracts.paymentFlow().statusLabels().get(payment.getStatus());
-        return paymentDtos.toView(
-                payment, statusLabel, unpaid.equals(payment.getStatus()));
+        return paymentDtos.toView(payment, statusLabel, unpaid.equals(payment.getStatus()));
     }
 
     public record PaymentView(

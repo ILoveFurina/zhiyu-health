@@ -63,9 +63,7 @@ class AppointmentPaymentControllerTest {
         AppointmentService appointments = mock(AppointmentService.class);
         when(appointments.listForPatient(12L)).thenAnswer(ignored -> List.of(appointment(payment.getStatus())));
         AppointmentController appointmentController = new AppointmentController(
-                appointments,
-                TestDisclaimers.instance(),
-                Mappers.getMapper(AppointmentCardMapper.class));
+                appointments, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class));
         MockMvc flowMvc = mvc(controller, appointmentController);
 
         flowMvc.perform(post("/api/c/appointments/21/payment/pay").requestAttr("authSubject", 12L))

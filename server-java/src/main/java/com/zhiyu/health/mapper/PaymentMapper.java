@@ -27,8 +27,7 @@ public interface PaymentMapper extends BaseMapper<Payment> {
             WHERE p.appointment_id = #{appointmentId} AND a.patient_id = #{patientId}
             FOR UPDATE OF p
             """)
-    Payment selectForPatientForUpdate(
-            @Param("appointmentId") long appointmentId, @Param("patientId") long patientId);
+    Payment selectForPatientForUpdate(@Param("appointmentId") long appointmentId, @Param("patientId") long patientId);
 
     @Select("SELECT * FROM payments WHERE id = #{id} FOR UPDATE")
     Payment selectForUpdate(@Param("id") long id);
