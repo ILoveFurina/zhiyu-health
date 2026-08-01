@@ -18,7 +18,7 @@ public interface MedicationMapper extends BaseMapper<Medication> {
             SELECT m.* FROM medications m
             JOIN prescription_items pi ON pi.medication_id = m.id
             WHERE pi.prescription_id = #{prescriptionId}
-            ORDER BY m.id
+            ORDER BY m.id, pi.id
             FOR UPDATE OF m
             """)
     List<Medication> selectForPrescriptionForUpdate(@Param("prescriptionId") long prescriptionId);

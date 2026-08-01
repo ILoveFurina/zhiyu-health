@@ -108,6 +108,37 @@ class DrugOrderControllerTest {
     }
 
     @Test
+    void repeatedMedicationLinesReusePrescriptionDetailsInsteadOfRejectingOrder() throws Exception {
+        Medication firstLine = medication(1L, "阿莫西林胶囊", "18.50");
+        Medication secondLine = medication(1L, "阿莫西林胶囊", "18.50");
+        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(prescription("APPROVED"));
+        when(medicationMapper.selectForPrescriptionForUpdate(31L)).thenReturn(List.of(firstLine, secondLine));
+        when(medicationMapper.deductStock(1L, 1)).thenReturn(1);
+        when(medicationMapper.deductStock(1L, 2)).thenReturn(1);
+        doAnswer(invocation -> {
+                    invocation.getArgument(0, DrugOrder.class).setId(51L);
+                    return 1;
+                })
+                .when(orderMapper)
+                .insert(any(DrugOrder.class));
+
+        mvc().perform(
+                        post("/api/c/drug-orders")
+                                .requestAttr("authSubject", 7L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"prescription_id":31,"items":[
+                                  {"medication_id":1,"quantity":1},
+                                  {"medication_id":1,"quantity":2}
+                                ]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.total_amount").value(55.50));
+    }
+
+    @Test
     void cancellingUnpaidOrderRestoresStock() throws Exception {
         DrugOrder order = new DrugOrder();
         order.setId(51L);
@@ -149,7 +180,8 @@ class DrugOrderControllerTest {
         mvc().perform(get("/api/c/drug-orders").requestAttr("authSubject", 7L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(51))
-                .andExpect(jsonPath("$[0].status_label").value("待支付"));
+                .andExpect(jsonPath("$[0].status_label").value("待支付"))
+                .andExpect(jsonPath("$[0].cancellable").value(true));
     }
 
     private MockMvc mvc() {

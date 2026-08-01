@@ -13,6 +13,8 @@ import com.zhiyu.health.mapper.MedicationMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.service.mapping.DrugOrderDtoMapper;
 import java.math.BigDecimal;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -62,15 +64,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
         if (medications.isEmpty()) {
             throw new ApiException(409, "电子处方没有可购买的药品");
         }
-        Map<Long, Integer> quantities = quantities(command.items(), medications);
-        List<Line> lines = medications.stream()
-                .map(medication -> new Line(
-                        medication,
-                        quantities.getOrDefault(medication.getId(), 1),
-                        medication
-                                .getPrice()
-                                .multiply(BigDecimal.valueOf(quantities.getOrDefault(medication.getId(), 1)))))
-                .toList();
+        List<Line> lines = lines(command.items(), medications);
 
         // 库存只能由带 stock >= n 条件的 UPDATE 预扣；任一药品不足即抛错，PG 事务回滚此前扣减。
         for (Line line : lines) {
@@ -88,24 +82,34 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
                 .toList();
         items.forEach(itemMapper::insert);
         return dtoMapper.toView(
-                order, contracts.orderFlow().statusLabels().get(unpaid), null, dtoMapper.toItemViews(items));
+                order, contracts.orderFlow().statusLabels().get(unpaid), true, dtoMapper.toItemViews(items));
     }
 
-    private Map<Long, Integer> quantities(List<QuantityInput> inputs, List<Medication> medications) {
-        Map<Long, Integer> quantities = new HashMap<>();
-        if (inputs != null) {
-            for (QuantityInput input : inputs) {
-                if (quantities.put(input.medicationId(), input.quantity()) != null) {
-                    throw new ApiException(400, "同一药品不能重复提交数量");
-                }
-            }
-        }
+    private List<Line> lines(List<QuantityInput> inputs, List<Medication> medications) {
         Set<Long> prescriptionMedicationIds = new HashSet<>();
         medications.forEach(medication -> prescriptionMedicationIds.add(medication.getId()));
-        if (!prescriptionMedicationIds.containsAll(quantities.keySet())) {
-            throw new ApiException(400, "下单数量包含电子处方以外的药品");
+        Map<Long, ArrayDeque<Integer>> submittedQuantities = new HashMap<>();
+        if (inputs != null) {
+            for (QuantityInput input : inputs) {
+                if (!prescriptionMedicationIds.contains(input.medicationId())) {
+                    throw new ApiException(400, "下单数量包含电子处方以外的药品");
+                }
+                submittedQuantities
+                        .computeIfAbsent(input.medicationId(), ignored -> new ArrayDeque<>())
+                        .add(input.quantity());
+            }
         }
-        return quantities;
+
+        List<Line> lines = new ArrayList<>();
+        for (Medication medication : medications) {
+            ArrayDeque<Integer> quantities = submittedQuantities.get(medication.getId());
+            int quantity = quantities == null || quantities.isEmpty() ? 1 : quantities.removeFirst();
+            lines.add(new Line(medication, quantity, medication.getPrice().multiply(BigDecimal.valueOf(quantity))));
+        }
+        if (submittedQuantities.values().stream().anyMatch(quantities -> !quantities.isEmpty())) {
+            throw new ApiException(400, "提交的药品数量明细多于电子处方明细");
+        }
+        return lines;
     }
 
     private OrderView cancelInTransaction(long patientId, long orderId) {
@@ -133,12 +137,11 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
     }
 
     private OrderView toView(DrugOrder order, List<DrugOrderItem> items) {
-        String createdAt =
-                order.getCreatedAt() == null ? null : order.getCreatedAt().toString();
+        boolean cancellable = contracts.orderFlow().statuses().get("unpaid").equals(order.getStatus());
         return dtoMapper.toView(
                 order,
                 contracts.orderFlow().statusLabels().get(order.getStatus()),
-                createdAt,
+                cancellable,
                 dtoMapper.toItemViews(items));
     }
 
@@ -163,5 +166,6 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
             String statusLabel,
             BigDecimal totalAmount,
             String createdAt,
+            boolean cancellable,
             List<ItemView> items) {}
 }

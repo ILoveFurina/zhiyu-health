@@ -5,10 +5,12 @@ import com.zhiyu.health.entity.DrugOrderItem;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.service.DrugOrderService;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
 @Mapper(componentModel = "spring")
 public interface DrugOrderDtoMapper {
@@ -34,13 +36,19 @@ public interface DrugOrderDtoMapper {
     @Mapping(target = "status", source = "order.status")
     @Mapping(target = "statusLabel", source = "statusLabel")
     @Mapping(target = "totalAmount", source = "order.totalAmount")
-    @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "createdAt", source = "order.createdAt", qualifiedByName = "offsetDateTimeText")
+    @Mapping(target = "cancellable", source = "cancellable")
     @Mapping(target = "items", source = "items")
     DrugOrderService.OrderView toView(
-            DrugOrder order, String statusLabel, String createdAt, List<DrugOrderService.ItemView> items);
+            DrugOrder order, String statusLabel, boolean cancellable, List<DrugOrderService.ItemView> items);
 
     @Mapping(target = "name", source = "medicationName")
     DrugOrderService.ItemView toItemView(DrugOrderItem item);
 
     List<DrugOrderService.ItemView> toItemViews(List<DrugOrderItem> items);
+
+    @Named("offsetDateTimeText")
+    default String offsetDateTimeText(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
 }
