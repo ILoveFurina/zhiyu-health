@@ -43,10 +43,23 @@ def create_knowledge_clients(settings: Settings) -> KnowledgeClients:
     return KnowledgeClients(neo4j=neo4j, pg_dsn=settings.database_url or None)
 
 
+def libpq_dsn(dsn: str) -> str:
+    """归一化 libpq 连接串：psycopg 只认 postgresql:// 或 postgres:// 方案的 URI。
+
+    .env 的 DATABASE_URL 与 server-java/SQLAlchemy 生态共用，可能是
+    postgresql+psycopg:// 方案；原样传入会被 psycopg 当作 key=value 串解析而报错。
+    """
+    if dsn.startswith("postgresql+psycopg://"):
+        return "postgresql://" + dsn.removeprefix("postgresql+psycopg://")
+    return dsn
+
+
 async def acquire_pg_connection(dsn: str) -> AsyncConnection:
     """打开一个只读检索连接并注册 pgvector 适配器。"""
     from pgvector.psycopg import register_vector_async  # 延迟导入，避免无 pg 时的副作用
 
-    conn = await AsyncConnection.connect(dsn, timeout=5)
+    # psycopg 3.3 的 connect() 无 timeout 形参（多余 kwargs 会并入 conninfo 而报错），
+    # 连接超时只能走 libpq 连接选项 connect_timeout。
+    conn = await AsyncConnection.connect(libpq_dsn(dsn), connect_timeout=5)
     await register_vector_async(conn)
     return conn
