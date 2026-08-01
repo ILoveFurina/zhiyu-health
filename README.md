@@ -57,7 +57,7 @@ flowchart LR
     T38["[x]38 药品订单支付"]
     T39["[x]39 医生页挂号费"]
     T40["[x]40 对话TTFT与WebSocket"]
-    T41["41 C端挂号与报告API"]
+    T41["[x]41 C端挂号与报告API"]
     T42["42 小程序首页与tabBar"]
 
     T28 --> T29
