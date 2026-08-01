@@ -30,6 +30,7 @@ from app.core.lazy import LazyDelegate
 from app.core.llm import build_chat_model
 from app.services.reasoning import ReasoningEffort
 from app.tools.knowledge import KnowledgeRetriever, build_knowledge_tool
+from app.tools.graph import GraphTraverser, build_graph_tool
 
 
 @dataclass(frozen=True)
@@ -53,8 +54,8 @@ class AgentContext:
     # 不进 system prompt，避免模型誊抄坐标出错；工具直接从 context 取用。
     longitude: float | None = None
     latitude: float | None = None
-    # 知识增强源（ADR-0010）：rag 注入 search_knowledge 工具；none 不注入（裸 LLM）。
-    # graph 不识别 graph 态（票 13 接手），由选择器在外层映射为 rag/none。
+    # 知识增强源（ADR-0010）：rag 注入 search_knowledge 工具；graph 注入 traverse_graph
+    # 工具（票 13）；none 不注入（裸 LLM）。rag 与 graph 互斥，同一请求只注入一个知识工具。
     knowledge_source: str = "none"
 
 
@@ -68,6 +69,10 @@ CardEvent = Literal[
 # search_knowledge 工具名：工具不投影成卡片（tool_to_event 不含），但其结果
 # 投影成 knowledge 元事件（携带 source/status/count，ADR-0010）。
 KNOWLEDGE_TOOL = "search_knowledge"
+
+# traverse_graph 工具名（票 13）：与 search_knowledge 对称，投影成 knowledge
+# 元事件（source="graph"），不在 tool_to_event（不投影成卡片）。
+GRAPH_TOOL = "traverse_graph"
 
 
 @dataclass(frozen=True)
@@ -127,6 +132,7 @@ class LangGraphAgentRunner:
         model_factory: Callable[[ReasoningEffort], BaseChatModel],
         tools: Sequence[BaseTool] | None = None,
         knowledge_retriever: KnowledgeRetriever | None = None,
+        graph_traverser: GraphTraverser | None = None,
     ) -> None:
         self._model_factory = model_factory
         self._base_tools = list(tools or [])
@@ -134,13 +140,20 @@ class LangGraphAgentRunner:
         self._knowledge_tools = (
             build_knowledge_tool(knowledge_retriever) if knowledge_retriever is not None else []
         )
+        # graph 工具与 search_knowledge 互斥：graph 态只注入 traverse_graph（grilling 决策 2）
+        self._graph_tools = (
+            build_graph_tool(graph_traverser) if graph_traverser is not None else []
+        )
         # 缓存键 (effort, knowledge_source)：工具集随知识增强开关变化
         self._graphs: dict[tuple[str, str], CompiledStateGraph[Any, Any, Any, Any]] = {}
 
     def _tools_for(self, knowledge_source: str) -> list[BaseTool]:
-        # rag 态注入 search_knowledge；none/其他不注入（LLM 看不到即不检索）
+        # rag 态注入 search_knowledge；graph 态注入 traverse_graph（互斥）；
+        # none/其他不注入（LLM 看不到即不检索）
         if knowledge_source == "rag" and self._knowledge_tools:
             return [*self._base_tools, *self._knowledge_tools]
+        if knowledge_source == "graph" and self._graph_tools:
+            return [*self._base_tools, *self._graph_tools]
         return list(self._base_tools)
 
     def _graph(self, effort: ReasoningEffort, knowledge_source: str) -> CompiledStateGraph[Any, Any, Any, Any]:
@@ -181,10 +194,10 @@ class LangGraphAgentRunner:
 
 
 def _tool_output(message: ToolMessage) -> AgentOutput | None:
-    """工具结果投影：卡片事件（tool_to_event）或 knowledge 元事件（search_knowledge）。
+    """工具结果投影：卡片事件（tool_to_event）或 knowledge 元事件（知识工具）。
 
-    search_knowledge 不在 tool_to_event（不投影成卡片），其结果投影成 knowledge
-    元事件，携带 source/status/count（空召回标 degraded，ADR-0010）。
+    search_knowledge / traverse_graph 不在 tool_to_event（不投影成卡片），其结果投影成
+    knowledge 元事件，携带 source/status/count（空召回标 degraded，ADR-0010/0013）。
     """
     if not isinstance(message.content, str):
         return None
@@ -199,6 +212,14 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
         count = int(payload.get("count", 0))
         return AgentOutput("knowledge", {
             "source": "rag",
+            "status": "ok" if count > 0 else "degraded",
+            "count": count,
+        })
+    if message.name == GRAPH_TOOL:
+        # graph 空召回标 degraded 走裸 LLM（grilling 决策 3），与 rag 降级对称
+        count = int(payload.get("count", 0))
+        return AgentOutput("knowledge", {
+            "source": "graph",
             "status": "ok" if count > 0 else "degraded",
             "count": count,
         })
@@ -246,11 +267,14 @@ def build_langgraph_agent_runner(
     settings: Settings,
     tools: Sequence[BaseTool] | None = None,
     knowledge_retriever: KnowledgeRetriever | None = None,
+    graph_traverser: GraphTraverser | None = None,
 ) -> LangGraphAgentRunner:
     def model_factory(effort: ReasoningEffort) -> BaseChatModel:
         return build_chat_model(settings, reasoning_effort=effort)
 
-    return LangGraphAgentRunner(model_factory, tools=tools, knowledge_retriever=knowledge_retriever)
+    return LangGraphAgentRunner(
+        model_factory, tools=tools, knowledge_retriever=knowledge_retriever, graph_traverser=graph_traverser
+    )
 
 
 class LazySettingsAgentRunner:
@@ -260,9 +284,10 @@ class LazySettingsAgentRunner:
         self,
         tools: Sequence[BaseTool] | None = None,
         knowledge_retriever: KnowledgeRetriever | None = None,
+        graph_traverser: GraphTraverser | None = None,
     ) -> None:
         self._lazy: LazyDelegate[LangGraphAgentRunner] = LazyDelegate(
-            lambda: build_langgraph_agent_runner(get_settings(), tools, knowledge_retriever)
+            lambda: build_langgraph_agent_runner(get_settings(), tools, knowledge_retriever, graph_traverser)
         )
 
     async def astream_reply(
