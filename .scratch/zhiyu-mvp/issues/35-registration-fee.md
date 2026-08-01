@@ -17,4 +17,4 @@
 
 ## Comments
 
-- 2026-08-02：实现位于隔离 worktree `E:\project\zhiyu-health-t35`、分支 `codex/t35-registration-fee`。server-java 207 tests passed；server-py 84 passed / 2 skipped，ruff、mypy、import-linter passed；Spotless check passed。用户明确要求跳过前端人工验收，因此状态保留 `claimed`，README 完成标记未更新。
+- 2026-08-02：实现位于隔离 worktree `E:\project\zhiyu-health-t35`、分支 `codex/t35-registration-fee`，已变基到包含票 37 的最新 `main`。server-java 213 tests passed；server-py 84 passed / 2 skipped，ruff、mypy、import-linter passed；Spotless check passed。用户明确要求跳过前端人工验收，因此状态保留 `claimed`，README 完成标记未更新。
