@@ -31,6 +31,7 @@ class AppointmentControllerTest {
         AppointmentService.AppointmentView cancelled = appointment("已取消");
         when(service.listForPatient(12L)).thenReturn(List.of(booked));
         when(service.cancel(12L, 21L)).thenReturn(cancelled);
+        when(service.isPaymentPayable("UNPAID")).thenReturn(true);
         MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance(), appointmentCards))
                 .build();
 

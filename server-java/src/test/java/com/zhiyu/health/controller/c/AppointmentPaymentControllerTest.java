@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -67,11 +68,17 @@ class AppointmentPaymentControllerTest {
 
     @Test
     void paymentImmediatelySynchronizesAppointmentCardStatus() throws Exception {
-        Payment payment = payment("UNPAID");
-        when(mapper.selectForPatientForUpdate(21L, 12L)).thenReturn(payment);
-        when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
-        when(mapper.selectById(41L)).thenAnswer(ignored -> payment);
-        AppointmentService appointments = appointmentService(payment);
+        AtomicReference<Payment> stored = new AtomicReference<>(payment("UNPAID"));
+        when(mapper.selectForPatientForUpdate(21L, 12L)).thenAnswer(ignored -> copy(stored.get()));
+        when(mapper.markPaid(21L, "PAID", "UNPAID")).thenAnswer(ignored -> {
+            Payment persisted = copy(stored.get());
+            persisted.setStatus("PAID");
+            persisted.setPaidAt(OffsetDateTime.parse("2026-08-02T10:05:00+08:00"));
+            stored.set(persisted);
+            return 1;
+        });
+        when(mapper.selectById(41L)).thenAnswer(ignored -> copy(stored.get()));
+        AppointmentService appointments = appointmentService(stored);
         AppointmentController appointmentController = new AppointmentController(
                 appointments, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class));
         MockMvc flowMvc = mvc(controller, appointmentController, new PaymentController(service));
@@ -110,14 +117,25 @@ class AppointmentPaymentControllerTest {
         return payment;
     }
 
-    private AppointmentService appointmentService(Payment payment) {
+    private Payment copy(Payment source) {
+        Payment copy = new Payment();
+        copy.setId(source.getId());
+        copy.setAppointmentId(source.getAppointmentId());
+        copy.setAmount(source.getAmount());
+        copy.setStatus(source.getStatus());
+        copy.setCreatedAt(source.getCreatedAt());
+        copy.setPaidAt(source.getPaidAt());
+        return copy;
+    }
+
+    private AppointmentService appointmentService(AtomicReference<Payment> stored) {
         AppointmentMapper appointments = mock(AppointmentMapper.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         HealthProfile profile = new HealthProfile();
         profile.setId(31L);
         when(healthProfiles.requireActive(12L)).thenReturn(profile);
         when(appointments.selectViewsByProfile(12L, 31L))
-                .thenAnswer(ignored -> List.of(appointment(payment.getStatus())));
+                .thenAnswer(ignored -> List.of(appointment(stored.get().getStatus())));
         return new AppointmentService(
                 appointments,
                 mock(ScheduleMapper.class),
