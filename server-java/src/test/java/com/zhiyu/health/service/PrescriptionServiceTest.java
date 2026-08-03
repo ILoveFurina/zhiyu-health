@@ -43,6 +43,7 @@ class PrescriptionServiceTest {
     private final TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
     private final AgentClient agentClient = mock(AgentClient.class);
     private final ContraindicationService contraindicationService = mock(ContraindicationService.class);
+    private final MedCheckinService medCheckinService = mock(MedCheckinService.class);
     private final PrescriptionService service = new PrescriptionService(
             staffUserMapper,
             receptionMapper,
@@ -54,7 +55,8 @@ class PrescriptionServiceTest {
             contraindicationService,
             TestDisclaimers.instance(),
             TestContracts.instance(),
-            Mappers.getMapper(PrescriptionDtoMapper.class));
+            Mappers.getMapper(PrescriptionDtoMapper.class),
+            medCheckinService);
 
     @Test
     void approvalGeneratesExplanationThenPublishesWithJavaDisclaimer() {
@@ -80,6 +82,8 @@ class PrescriptionServiceTest {
         assertEquals("已通过", result.status());
         assertEquals("仅供参考，不替代医生诊断", result.disclaimer());
         verify(agentClient).explainPrescription(anyList());
+        // 审核通过必须触发服药打卡 eager 预生成（ADR-0017）。
+        verify(medCheckinService).generateForApprovedPrescription(31L);
     }
 
     @Test
@@ -89,6 +93,18 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(ApiException.class, () -> service.review(1L, 31L, "REJECT", " "));
 
         assertEquals(400, error.getStatus());
+    }
+
+    @Test
+    void rejectionDoesNotGenerateMedCheckinReminders() {
+        // 驳回处方不得生成服药打卡提醒（票 22：未审核处方不生成提醒）。
+        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, "PENDING"));
+        when(prescriptionMapper.review(31L, "REJECTED", "用法不当", 1L, null, null, "PENDING"))
+                .thenReturn(1);
+
+        service.review(1L, 31L, "REJECT", "用法不当");
+
+        verify(medCheckinService, never()).generateForApprovedPrescription(31L);
     }
 
     @Test
