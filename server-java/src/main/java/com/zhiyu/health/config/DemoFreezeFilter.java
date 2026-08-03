@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 演示重置冻结过滤器（票 25，ADR-0020）：重置进行中拦截全部 C 端入口返回 503，
+ * 演示重置冻结过滤器（票 25，ADR-0022）：重置进行中拦截全部 C 端入口返回 503，
  * B 端只读与重置接口本身不受影响。由 WebConfig 装配（order 25，鉴权 20 之后、限流 30 之前）。
  *
  * 冻结为瞬态：重置完成由 {@link DemoFreezeGate#unfreeze()} 解冻；中途失败保持冻结，

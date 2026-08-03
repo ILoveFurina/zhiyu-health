@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * 知识源现场切换（票 25，ADR-0019）：运行时状态存 Redis 全局单键 {@code demo:knowledge_source}。
+ * 知识源现场切换（票 25，ADR-0021）：运行时状态存 Redis 全局单键 {@code demo:knowledge_source}。
  *
  * B 端 {@code PUT /api/b/demo/knowledge-source}（admin）写键；C 端对话请求未显式带
  * {@code knowledge_source} 时由 {@link ChatRoundService#agentBody} 读键补位透传，

@@ -26,7 +26,7 @@ import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Service;
 
 /**
- * 演示重置（票 25，ADR-0020）：受三重保护的一键业务数据重置。
+ * 演示重置（票 25，ADR-0022）：受三重保护的一键业务数据重置。
  *
  * 三重保护（同时满足才执行）：① env {@code DEMO_RESET_ENABLED} 默认 false；
  * ② 请求体确认短语与契约 {@code reset_confirm_phrase} 一致；③ 进程内 {@link AtomicBoolean} CAS 互斥。
@@ -78,7 +78,7 @@ public class DemoResetService {
     @Value("${zhiyu.demo.reset-enabled:false}")
     private boolean resetEnabled;
 
-    // 三重保护之三：进程内互斥锁，与本地单实例拓扑匹配（ADR-0020）
+    // 三重保护之三：进程内互斥锁，与本地单实例拓扑匹配（ADR-0022）
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**

@@ -55,5 +55,5 @@ zhiyu:
   rate-limit:
     permits-per-minute: 60
   demo:
-    # 演示重置三重保护之一（ADR-0020）：默认关闭，未设置或 false 一律拒绝
+    # 演示重置三重保护之一（ADR-0022）：默认关闭，未设置或 false 一律拒绝
     reset-enabled: ${DEMO_RESET_ENABLED:false}

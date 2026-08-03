@@ -250,7 +250,7 @@ class ChatRoundServiceTest {
         verify(fixture.persistence, never()).markFailed(any(), anyString());
     }
 
-    /** ADR-0019：请求未带 knowledge_source 时读 Redis 全局键补位透传给 server-py。 */
+    /** ADR-0021：请求未带 knowledge_source 时读 Redis 全局键补位透传给 server-py。 */
     @Test
     @SuppressWarnings("unchecked")
     void knowledgeSourceFilledFromRedisWhenRequestOmits() {
@@ -267,7 +267,7 @@ class ChatRoundServiceTest {
         assertThat(body.getValue().get("knowledge_source")).isEqualTo("graph");
     }
 
-    /** ADR-0019：请求与 Redis 全局键皆空时省略 body 字段，交 server-py 走 scenario 默认。 */
+    /** ADR-0021：请求与 Redis 全局键皆空时省略 body 字段，交 server-py 走 scenario 默认。 */
     @Test
     @SuppressWarnings("unchecked")
     void knowledgeSourceOmittedWhenBothRequestAndRedisEmpty() {

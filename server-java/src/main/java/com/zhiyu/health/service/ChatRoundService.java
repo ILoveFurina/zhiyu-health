@@ -43,7 +43,7 @@ public class ChatRoundService {
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
     private final AgentCallLogService agentCallLogs;
-    // 知识源现场切换补位（ADR-0019）：请求未带 knowledge_source 时读 Redis 全局键
+    // 知识源现场切换补位（ADR-0021）：请求未带 knowledge_source 时读 Redis 全局键
     private final StringRedisTemplate redis;
     private final Map<Long, RunningRound> running = new ConcurrentHashMap<>();
 
@@ -162,7 +162,7 @@ public class ChatRoundService {
         body.put(
                 "scenario",
                 blankToDefault(command.scenario(), contracts.chatDefaults().scenarioDefault()));
-        // 知识源现场切换（ADR-0019）：优先级"请求 > 全局键 > scenario 默认"。
+        // 知识源现场切换（ADR-0021）：优先级"请求 > 全局键 > scenario 默认"。
         // 请求未显式带值时读 Redis 全局键 demo:knowledge_source 补位；两者皆空则省略字段，
         // 交 server-py 按 scenario 默认处理。server-py 完全不感知开关存在。
         String knowledgeSource = resolveKnowledgeSource(command.knowledgeSource());
@@ -282,7 +282,7 @@ public class ChatRoundService {
     }
 
     /**
-     * 知识源三级解析（ADR-0019）：请求带值用请求；请求空读 Redis 全局键；Redis 也空返回 null
+     * 知识源三级解析（ADR-0021）：请求带值用请求；请求空读 Redis 全局键；Redis 也空返回 null
      * （调用方据此省略 body 字段，交 server-py 走 scenario 默认）。
      */
     private String resolveKnowledgeSource(String requested) {

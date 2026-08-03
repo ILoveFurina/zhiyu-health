@@ -6,7 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * 演示看板聚合（票 25，ADR-0020）：单接口返回严格四类指标，不加分页与时间筛选。
+ * 演示看板聚合（票 25，ADR-0022）：单接口返回严格四类指标，不加分页与时间筛选。
  *
  * "今日"取服务器 {@code CURRENT_DATE}。数据经 server-java 聚合接口实时读取，
  * 不得让浏览器直连数据库或 server-py。看板只消费业务数据（只读聚合），不定义新业务实体。

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 演示武器包入口（票 25，ADR-0020）：全部收口在 {@code /api/b/demo/**}，仅 admin 可用（AdminInterceptor）。
+ * 演示武器包入口（票 25，ADR-0022）：全部收口在 {@code /api/b/demo/**}，仅 admin 可用（AdminInterceptor）。
  *
  * 演示重置三重保护在 {@link DemoResetService} 内执行；中途失败保持冻结、返回步骤清单，
  * 接口幂等可从失败步重跑，不自动回滚。成功 200 / 失败 503，体形状统一为 {@link ResetResult}。
@@ -57,7 +57,7 @@ public class DemoController {
         return new KnowledgeSourceView(knowledgeSourceService.current());
     }
 
-    /** 写知识源现场切换全局键（ADR-0019）；非法值由 service 抛 400。 */
+    /** 写知识源现场切换全局键（ADR-0021）；非法值由 service 抛 400。 */
     @PutMapping("/knowledge-source")
     public KnowledgeSourceView putKnowledgeSource(@RequestBody KnowledgeSourceRequest request) {
         knowledgeSourceService.update(request.knowledgeSource());
