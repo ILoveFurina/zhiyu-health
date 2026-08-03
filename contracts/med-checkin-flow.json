@@ -1,0 +1,19 @@
+{
+  "statuses": {
+    "pending": "PENDING",
+    "checked": "CHECKED"
+  },
+  "status_labels": {
+    "PENDING": "待打卡",
+    "CHECKED": "已服用"
+  },
+  "decisions": {
+    "check": "CHECK"
+  },
+  "message_types": {
+    "medication_reminder": "MEDICATION_REMINDER"
+  },
+  "timeline_types": {
+    "med_checkin": "MED_CHECKIN"
+  }
+}
