@@ -37,6 +37,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
+    private final MedCheckinService medCheckinService;
 
     public List<MedicationView> listMedications(long staffId) {
         requireDoctor(staffId);
@@ -126,6 +127,11 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                         id, target, trimToNull(reason), reviewerId, interpretation, disclaimer, status("pending"))
                 != 1) {
             throw new ApiException(409, "电子处方已审核");
+        }
+        // 审核通过才 eager 预生成服药打卡提醒（ADR-0017）；驳回不生成。
+        // 生成幂等由 UNIQUE(prescription_item_id, due_date) 兜底，重复审核静默吞掉。
+        if (status("approved").equals(target)) {
+            medCheckinService.generateForApprovedPrescription(id);
         }
         return toView(prescriptionMapper.selectDetailedById(id));
     }
