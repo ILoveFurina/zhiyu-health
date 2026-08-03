@@ -113,6 +113,18 @@ _Avoid_: 购药单、药单、药方订单
 患者挂号时产生的诊查费，金额由医生职称决定（doctors 表 registration_fee，按主任医师/副主任医师/主治医师等定价）。挂号即产生 UNPAID 收费记录（payments 表，关联 appointment_id），不阻塞号源扣减；状态流转 `UNPAID -> PAID`，支付动作为模拟状态机（ADR-0012）。payments 表只承载挂号收费，药品订单的支付状态内嵌在订单状态机中，两者解耦。
 _Avoid_: 挂号费订单、预约费
 
+**工具进度事件**:
+Agent 调用可视化（票 24）的运行时载体：每次工具调用产生两条 SSE 事件--`tool_start`（工具名 + 参数摘要，下发时 C 端显示"正在…"）与 `tool_end`（结果枚举 success/error/skipped + 耗时 duration_ms，由 server-java 按墙钟计算）。两态对齐 LangGraph `agent_actions` 流的"发起/返回"两个天然时刻，不插值、不造中间心跳；长工具（vision 150s+）的无反馈问题由 vision 自身结构校验分片流解决，不污染通用 trace 契约。事件名、阶段与结果枚举的唯一事实源是 `contracts/sse-events.json`（票 24 在该文件新增 `trace_events` 字段，与有序的 `stream_events` 并列；trace 事件可穿插、无固定顺序）。trace 事件名集合必须与 `card_events`/`ai_card_kinds` 严格不相交，且不得与 `done` 重名，由 `ContractsConsistencyTest` 钉死。trace 事件落 `agent_call_logs` 必须走独立可失败路径，不得复用 `persistEvent` 同步事务--写入失败只产可观测错误，不连坐主对话流（票 24 硬约束）。
+_Avoid_: 工具日志、tool trace（"trace"指整条调用链，单条事件叫"工具进度事件"）
+
+**Agent 调用日志**:
+B 端"Agent 调用日志"页展示的每轮对话工具调用链，持久化于 `agent_call_logs` 表（事件粒度：每条工具进度事件一行，`tool_start`/`tool_end` 用 `tool_call_id` 配对）。字段为白名单：round_id/conversation_id/patient_id/tool_call_id/tool_name/phase/result/duration_ms/error_code/seq/created_at，**无任何原文列**（不存工具参数与返回体，硬约束 5）。仅 `admin` 角色可见，经 `GET /api/b/agent-call-logs/conversations`（会话摘要导航）与 `GET /api/b/agent-call-logs?conversation_id={id}`（扁平事件列表）查询；不存在的会话返回空列表。
+_Avoid_: Agent 日志、工具调用记录（"对话记录"指 C 端会话列表，与调用日志不同）
+
+**工具进度状态条**:
+C 端对话页输入框上方的瞬态状态条，承载工具进度事件的用户可见反馈。`tool_start` 显示"正在{中文文案}…"（带 loading），`tool_end` 按结果分流：success 短暂显示后清空，error 显示"{工具中文名}失败"，skipped 静默不显示（降级对用户不可见，与"降级"词条一致）。状态条是瞬态运行时状态，不进入 messages 数组（持久对话记录），避免与紧随的卡片消息视觉重复。工具名->中文文案映射在 miniprogram 本地维护。
+_Avoid_: 进度气泡、加载气泡（"气泡"指消息流内的持久消息单元）
+
 **功能目录**:
 C 端首页的功能宫格：分"就医服务"（智能导诊、预约挂号、报告解读）与"健康管理"（健康档案、我的挂号、电子处方、药品订单）两组，是业务后端能力的图形化入口，与 Agent 卡片入口并存。宫格每个入口指向独立页面，不经对话中转；C 端主导航为 tabBar 三 tab（首页 / AI对话 / 我的）。
 _Avoid_: 功能列表、服务大厅
