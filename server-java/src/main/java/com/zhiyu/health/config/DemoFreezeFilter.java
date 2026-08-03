@@ -19,12 +19,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class DemoFreezeFilter extends OncePerRequestFilter {
 
     private final DemoFreezeGate freezeGate;
+    // 冻结状态码与文案从 contracts/ 加载（AGENTS.md §4：契约值只从 contracts/ 加载）
+    private final Contracts contracts;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         if (freezeGate.isFrozen()) {
-            ApiErrorBody.write(response, 503, "演示重置中，请稍后重试");
+            ApiErrorBody.write(
+                    response,
+                    contracts.demoArsenal().resetFreezeStatus(),
+                    contracts.demoArsenal().resetFreezeMessage());
             return;
         }
         filterChain.doFilter(request, response);

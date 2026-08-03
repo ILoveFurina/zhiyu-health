@@ -149,7 +149,7 @@ public class DemoResetService {
     /** 清 Redis 演示键：全部号源计数 + 知识源开关键。 */
     private void clearRedisDemoKeys() {
         ScanOptions options = ScanOptions.scanOptions()
-                .match("schedule:*:remaining_slots")
+                .match(SlotKeys.keyPattern())
                 .count(100)
                 .build();
         List<String> keys = new ArrayList<>();
@@ -201,22 +201,29 @@ public class DemoResetService {
      * 一致性断言：每个 Redis 号源计数 == PG remaining_slots，且 total-remaining == 有效挂号数（重灌后应为 0）；
      * 只读断言 pgvector 知识块数与 Neo4j 各节点数达基线。不等则抛异常（保持冻结）。
      */
+    /**
+     * 一致性断言（票 25 checklist 第 4 条）：每个 Redis 号源计数 == PG remaining_slots，
+     * 且 sum(total_slots - remaining_slots) == 重灌后有效挂号数（重灌后均应为 0）；
+     * 只读断言 pgvector 知识块数与 Neo4j 各节点数达基线。不等则抛异常（保持冻结）。
+     */
     private void assertConsistency() {
         List<Schedule> schedules = scheduleMapper.selectList(null);
+        long slotConsumed = 0;
         for (Schedule s : schedules) {
-            String redisKey = "schedule:" + s.getId() + ":remaining_slots";
-            String redisVal = redis.opsForValue().get(redisKey);
+            String redisVal = redis.opsForValue().get(SlotKeys.key(s.getId()));
             int redisRemaining = redisVal == null ? -1 : Integer.parseInt(redisVal);
             if (redisRemaining != s.getRemainingSlots()) {
                 throw new IllegalStateException("号源计数不一致 scheduleId=" + s.getId() + " redis=" + redisRemaining + " pg="
                         + s.getRemainingSlots());
             }
+            slotConsumed += (s.getTotalSlots() - s.getRemainingSlots());
         }
-        // 重灌后有效挂号数应为 0（appointments 已清空）
-        Long appointmentCount =
+        // 票 25 checklist 第 4 条核心不变量：号源消耗量 == 有效挂号数（重灌后均为 0）
+        Long effectiveAppointments =
                 jdbc.queryForObject("SELECT count(*) FROM appointments WHERE status <> 'CANCELLED'", Long.class);
-        if (appointmentCount != null && appointmentCount > 0) {
-            throw new IllegalStateException("重灌后仍存在有效挂号: " + appointmentCount);
+        long effective = effectiveAppointments == null ? 0 : effectiveAppointments;
+        if (slotConsumed != effective) {
+            throw new IllegalStateException("号源消耗与有效挂号数不一致 consumed=" + slotConsumed + " appointments=" + effective);
         }
         assertKnowledgeBaselines();
     }

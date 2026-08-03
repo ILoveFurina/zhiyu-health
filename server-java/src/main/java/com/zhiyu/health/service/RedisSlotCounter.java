@@ -45,6 +45,6 @@ public class RedisSlotCounter implements SlotCounter {
     }
 
     static String key(long scheduleId) {
-        return "schedule:" + scheduleId + ":remaining_slots";
+        return SlotKeys.key(scheduleId);
     }
 }

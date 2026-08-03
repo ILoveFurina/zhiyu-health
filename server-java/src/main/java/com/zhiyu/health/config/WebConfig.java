@@ -69,12 +69,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Bean
     @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(DemoFreezeGate.class)
-    public FilterRegistrationBean<DemoFreezeFilter> demoFreezeFilterRegistration(DemoFreezeGate demoFreezeGate) {
+    public FilterRegistrationBean<DemoFreezeFilter> demoFreezeFilterRegistration(
+            DemoFreezeGate demoFreezeGate, Contracts contracts) {
         // 演示重置冻结：order 25，鉴权 20 之后、限流 30 之前；仅拦 C 端入口。
         // @ConditionalOnBean：@WebMvcTest 切片不扫描普通 @Component，此时本 Bean 不创建，
         // 避免切片上下文缺 DemoFreezeGate 而失败；全量上下文下正常注册。
         FilterRegistrationBean<DemoFreezeFilter> bean =
-                new FilterRegistrationBean<>(new DemoFreezeFilter(demoFreezeGate));
+                new FilterRegistrationBean<>(new DemoFreezeFilter(demoFreezeGate, contracts));
         bean.addUrlPatterns("/api/c/*");
         bean.setOrder(25);
         return bean;
