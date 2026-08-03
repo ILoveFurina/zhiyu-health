@@ -28,6 +28,9 @@ class SseEventsContract(BaseModel):
     stream_events: list[str]
     red_flag_event: str
     card_events: list[str]
+    trace_events: list[str]
+    trace_results: list[str]
+    trace_error_code_unknown: str
     tool_to_event: dict[str, str]
     message_kinds: list[str]
     ai_card_kinds: list[str]

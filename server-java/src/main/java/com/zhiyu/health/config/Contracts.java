@@ -131,6 +131,9 @@ public class Contracts {
             List<String> streamEvents,
             String redFlagEvent,
             List<String> cardEvents,
+            List<String> traceEvents,
+            List<String> traceResults,
+            String traceErrorCodeUnknown,
             Map<String, String> toolToEvent,
             List<String> messageKinds,
             List<String> aiCardKinds,
@@ -139,6 +142,8 @@ public class Contracts {
             // 防御性拷贝：Jackson 产出的是可变容器，对外只暴露不可变视图。
             streamEvents = List.copyOf(streamEvents);
             cardEvents = List.copyOf(cardEvents);
+            traceEvents = List.copyOf(traceEvents);
+            traceResults = List.copyOf(traceResults);
             messageKinds = List.copyOf(messageKinds);
             aiCardKinds = List.copyOf(aiCardKinds);
             toolToEvent = Map.copyOf(toolToEvent);
@@ -165,6 +170,25 @@ public class Contracts {
 
         public String doneEvent() {
             return streamEvents.get(4);
+        }
+
+        /** 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。 */
+        public String toolStartEvent() {
+            return traceEvents.get(0);
+        }
+
+        public String toolEndEvent() {
+            return traceEvents.get(1);
+        }
+
+        /** 事件名是否属于工具进度事件（trace）：与 stream/card 事件命名空间隔离。 */
+        public boolean isTraceEvent(String eventName) {
+            return traceEvents.contains(eventName);
+        }
+
+        /** tool_end 结果枚举白名单（硬约束 5：result 只接受契约白名单值）。 */
+        public boolean isTraceResult(String value) {
+            return traceResults.contains(value);
         }
     }
 

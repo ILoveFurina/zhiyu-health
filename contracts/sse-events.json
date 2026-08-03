@@ -9,6 +9,11 @@
     "appointment",
     "appointments"
   ],
+  "_trace_events_doc": "工具进度事件（票 24）：无序、可穿插，与有序的 stream_events 并列。两态对齐 LangGraph 工具调用的发起/返回时刻，不插值、不造中间心跳。trace 事件名集合必须与 card_events/ai_card_kinds 严格不相交且不得与 done 重名，由 ContractsConsistencyTest 钉死。",
+  "trace_events": ["tool_start", "tool_end"],
+  "_trace_results_doc": "tool_end 的结果枚举：success/error/skipped（skipped 如定位拒绝时静默降级，对用户不可见）。error_code 只存白名单码，非白名单统一记 TOOL_ERROR_UNKNOWN。",
+  "trace_results": ["success", "error", "skipped"],
+  "trace_error_code_unknown": "TOOL_ERROR_UNKNOWN",
   "tool_to_event": {
     "recommend_doctors": "doctor_recommendations",
     "get_doctor_slots": "doctor_slots",
