@@ -1,0 +1,33 @@
+# 45 - 语音双向（ASR 输入 + TTS 播报）
+
+**What to build:** C 端对话页增加语音输入（支付宝 `my.getRecorderManager` 录音 -> server-java 转发 server-py -> 火山引擎 ASR -> 文字回端侧填输入框）与 AI 回复语音播报（按需点击触发 -> server-java 转发 server-py -> 火山引擎 TTS -> 二进制逐跳透传 -> 端侧播放/停止）。未配置/超时/失败时降级文字输入不阻塞演示。
+
+**Blocked by:** 31 - 对话主干双栈化；40 - 对话 TTFT 与 WebSocket
+
+**Status:** ready-for-agent（火山语音服务开通前置）
+
+- [ ] 新建 `contracts/voice.json`：完整骨架带占位（asr_enabled/asr_format null/asr_timeout_ms=10000/asr_max_duration_ms=60000/tts_enabled/tts_format null/tts_timeout_ms=15000/tts_voice null/error_codes/degrade_hint）
+- [ ] server-py `app/services/voice.py`：`AsrClient`/`TtsClient` 接口 + `FakeAsrClient`/`FakeTtsClient`；开通后加 `VolcAsrClient`/`VolcTtsClient`，按 `contracts/voice.json` 的 enabled + 环境密钥选实例
+- [ ] server-java `POST /c/asr`：multipart 音频转发 server-py `POST /api/agent/asr` 回文字
+- [ ] server-java `POST /c/tts`：按 message_id/text 转发 server-py `POST /api/agent/tts` 回二进制音频（`Content-Type: audio/mpeg` 等，按开通后格式）
+- [ ] 端侧 `pages/chat/`：按住说话（`my.getRecorderManager`，识别结果填输入框可见可改不自动发）+ AI 气泡播放/停止（`my.createInnerAudioContext`）
+- [ ] 审计：server-java 入口记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）；ASR/TTS 不进 `agent_call_logs` trace（见 ADR-0020）
+- [ ] 降级：契约开关（`asr_enabled`/`tts_enabled`）控制 UI 入口显示 + 运行时密钥检测兜底；未配置/超时/失败三情况降级文字，不阻塞演示
+- [ ] 测试：fake 覆盖正常/超时/未配置/失败；火山语音开通后真实 smoke
+
+## Comments
+
+### 2026-08-03 - grill-with-docs 设计澄清
+
+原票 20（情感化包）拆为 43/44/45 三票，本票承接原票 20 的"语音输入（ASR）"+"AI 回复 TTS 语音播报"两项。决策与 checklist 同等约束力：
+
+- **策略**：契约先行 + 分层实现。密钥开通前只做契约+server-py client 骨架+端侧 UI 骨架+fake 测试（不依赖真实密钥，可先行）；开通后接真实火山 SDK/HTTP 跑通端到端标 done；始终不开通则停在此阶段，演示时语音入口降级为文字输入（对齐票 20"未配置/失败时降级为文字输入且不阻塞演示"）。
+- **火山语音开通前置**：需在火山引擎控制台开通 ASR/TTS 服务并取凭据，**只有用户能做**（需用户火山账号）。开通前无法验收、最多骨架+fake，不能标 done。`.env` 字段名等开通后按实际凭据定（火山 ASR 与 TTS 可能用不同服务形态：一句话识别 vs 流式 ASR、标准 TTS vs 大模型 TTS）。
+- **ASR 数据流**：端 `my.getRecorderManager` 录音 -> server-java（入口、鉴权、审计）-> server-py（调火山 ASR）-> 文字回 server-java -> 端把文字填入输入框（可见可改、不自动发）-> 用户确认后走正常 `startRound`。识别结果对用户可见可改（ASR 可能有错字），对话流入口统一（都从端侧 `startRound` 进），不在 server-java 开"语音直入对话"旁路。
+- **TTS 数据流**：按需点击触发（不自动播放，医疗场景打扰、公共场合、按需省调用）、整条回复一次合成（不分段，MVP 简单）、独立 HTTP 拉取（`POST /c/tts`，不污染 WS JSON 信封、不 base64 膨胀、与 ASR 对称）。PRD"逐跳返回"理解为 server-py->server-java->端逐跳透传二进制，不必是 WS。
+- **录音格式/传输方式/音频格式**：取决于火山 ASR/TTS 产品形态，等开通后钉入 `contracts/voice.json`（`asr_format`/`tts_format`/`tts_voice` 当前留 null）。火山 endpoint 不进契约（server-py 内部实现细节）。
+- **审计/脱敏**：ASR/TTS 音频全程内存流转、不持久化、不落日志（对齐票 12 视觉管道"原始文件处理完即清理"先例）。审计只记调用类型+参数类型+结果码/长度，**不记音频与识别/合成文字原文**。ASR 识别文字一旦作为消息发出，按现有对话消息规则处理（脱敏摘要、trace 不记原文）。
+- **trace 归属**：ASR/TTS 不进 `agent_call_logs`（非 LangGraph 工具循环内调用），仅 server-java 入口审计。详见 ADR-0020。
+- **契约骨架**：`contracts/voice.json` 用方案 2 完整骨架带占位（结构一次性钉死，开通后只填值不改结构、不双栈二次发版）；`ContractsConsistencyTest` 先钉字段集合存在，开通后钉值非 null。
+- **client 形态**：server-py `app/services/voice.py` 定义 `AsrClient`/`TtsClient` 接口（`asr(audio_bytes)->str` / `tts(text)->bytes`），骨架阶段 Fake 实现返回固定值，真实实现开通后加 Volc 实现，按 enabled+密钥选实例（与 vision interpreter 可替换模型适配层同构）。
+- 不新增 CONTEXT.md 术语（ASR/TTS/语音输入/播报为通用概念，非本项目特有 ubiquitous language）；新增 ADR-0020（ASR/TTS 不进 trace 决策）。

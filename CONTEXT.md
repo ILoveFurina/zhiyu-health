@@ -136,3 +136,15 @@ _Avoid_: 站内消息表、消息中心（"通道"指出口能力，非某张具
 **服药打卡**:
 基于已审核通过（APPROVED）电子处方的用法用量，由 server-java eager 预生成的到点服药提醒与打卡记录，承载在 `med_checkin_records` 表上。处方审核通过那一刻按 `duration` 解析出的天数展开为每日一条 PENDING 记录（`due_date` 到点才在站内消息通道可见），患者点"已服用"后状态机推进为 CHECKED 并落 `checked_at`，CHECKED 不可回退。连续天数（streak）由 server-java service 按打卡记录现算（漏一天归零），不存派生列。打卡记录直接归属 `health_profile_id`+`patient_id`（report_interpretations 先例），不经 appointment 中转；时间线第 4 分支读 CHECKED 记录。server-py 完全不参与。
 _Avoid_: 用药提醒（提醒只是 PENDING 态的别名，打卡才是完整生命周期）、服药记录（容易混成纯日志，实际是带生命周期的状态机记录）
+
+**就诊指引卡**:
+挂号成功后随关怀消息下发给患者的结构化就诊提示（地址/楼层/携带材料/注意事项），承载于一条 `in_app_messages`（type=`appointment_care`），由 server-java `AppointmentService.create()` 事务内写入，覆盖 C 端 Agent 与 B 端直接挂号所有入口，靠 `UNIQUE(related_appointment_id, type)` 幂等。内容字段（关怀语/医院/科室/医生/排班/地址/楼层/材料/注意事项）由 `contracts/appointment-care.json` 定义；地址/楼层/材料/注意事项来自 `hospitals` 表静态列，非 LLM 生成。消息页按 type 渲染为卡片，底部带免责声明标注。
+_Avoid_: 就诊通知、导诊卡（"导诊"是 Agent 流程，指引卡是挂号后副作用产物）
+
+**情绪反馈**:
+C 端 Agent 回复携带的三档情绪标注（calm/anxious/fearful），驱动 AI 气泡配色与安抚语。由 server-py 在主回复完成后串行非流式 LLM 调用产生（`response_format=json_object`+pydantic 校验，复用视觉管道结构化输出范式），失败降级 calm；枚举、默认值与安抚语映射在 `contracts/emotion.json`。情绪字段挂 `message` 事件（不新增 SSE 事件），持久化于 `messages.emotion` 列供历史回看复现情绪色。情绪反馈与红线症状正交：红线是 server-java 确定性规则，情绪只是 UI 反馈，不触发中断。
+_Avoid_: 情感分析、情绪识别（反馈是 UI 驱动标注，不是分析/诊断行为）
+
+**安抚语**:
+情绪反馈触发时附于 AI 气泡底部（disclaimer 上方）的确定性安抚文案，从 `contracts/emotion.json` 的 `soothing_texts` 取，不由 LLM 现场生成。calm 无安抚语，anxious/fearful 各一条。与 AI 回复共用同一条免责声明标注，不单独标注、不作为独立消息、不进 messages 数组。
+_Avoid_: 安慰话术、心理疏导（医疗场景不做心理干预，仅 UI 安抚）
