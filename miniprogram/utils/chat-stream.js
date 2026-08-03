@@ -190,6 +190,8 @@ function dispatchEvent(event, data, handlers) {
   if (event === 'meta') handlers.onMeta(data)
   else if (event === 'token') handlers.onToken(data)
   else if (event === 'message') handlers.onAssistant(data)
+  else if (event === 'tool_start') handlers.onToolStart(data)
+  else if (event === 'tool_end') handlers.onToolEnd(data)
   else if (event === 'doctor_recommendations') handlers.onDoctorRecommendations(data)
   else if (event === 'doctor_slots') handlers.onDoctorSlots(data)
   else if (event === 'hospital_recommendations') handlers.onHospitalRecommendations(data)

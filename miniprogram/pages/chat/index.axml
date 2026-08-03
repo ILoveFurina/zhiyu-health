@@ -157,6 +157,12 @@
     </view>
   </view>
 
+  <!-- 工具进度状态条（票 24）：瞬态，不进 messages 数组；输入框上方 -->
+  <view a:if="{{toolProgress}}" class="tool-progress {{toolProgressError ? 'tool-progress-error' : ''}}">
+    <view a:if="{{!toolProgressError}}" class="tool-progress-spinner" />
+    <text>{{toolProgress}}</text>
+  </view>
+
   <!-- 输入栏（双行结构） -->
   <view class="composer">
     <view class="c-row1">
