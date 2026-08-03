@@ -32,6 +32,7 @@ public class Contracts {
     private final Knowledge knowledge;
     private final ChatRealtime chatRealtime;
     private final MedCheckinFlow medCheckinFlow;
+    private final DemoArsenal demoArsenal;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -55,6 +56,7 @@ public class Contracts {
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
+        this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -127,6 +129,10 @@ public class Contracts {
 
     public MedCheckinFlow medCheckinFlow() {
         return medCheckinFlow;
+    }
+
+    public DemoArsenal demoArsenal() {
+        return demoArsenal;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -377,6 +383,24 @@ public class Contracts {
             decisions = Map.copyOf(decisions);
             messageTypes = Map.copyOf(messageTypes);
             timelineTypes = Map.copyOf(timelineTypes);
+        }
+    }
+
+    /**
+     * 演示武器包常量（票 25，ADR-0020）：重置确认短语、知识源开关值域与 Redis 键、
+     * 知识基线数量断言阈值、冻结状态码。基线数字来自 seed.sql 与 deploy/neo4j/seed.cypher。
+     */
+    public record DemoArsenal(
+            String resetConfirmPhrase,
+            List<String> knowledgeSourceValues,
+            String knowledgeSourceDefault,
+            String knowledgeSourceRedisKey,
+            Map<String, Integer> knowledgeBaselines,
+            int resetFreezeStatus,
+            String resetFreezeMessage) {
+        public DemoArsenal {
+            knowledgeSourceValues = List.copyOf(knowledgeSourceValues);
+            knowledgeBaselines = Map.copyOf(knowledgeBaselines);
         }
     }
 }

@@ -184,4 +184,27 @@ class ContractsTest {
         assertThat(flow.messageTypes()).containsEntry("medication_reminder", "MEDICATION_REMINDER");
         assertThat(flow.timelineTypes()).containsEntry("med_checkin", "MED_CHECKIN");
     }
+
+    @Test
+    void demoArsenalConstantsAreLoaded() {
+        Contracts.DemoArsenal demo = contracts.demoArsenal();
+        assertThat(demo.resetConfirmPhrase()).isEqualTo("DEMO_RESET_CONFIRM");
+        assertThat(demo.knowledgeSourceValues()).containsExactly("rag", "graph", "none");
+        assertThat(demo.knowledgeSourceDefault()).isEqualTo("none");
+        assertThat(demo.knowledgeSourceRedisKey()).isEqualTo("demo:knowledge_source");
+        // 基线数量与 seed.sql / deploy/neo4j/seed.cypher 对齐
+        assertThat(demo.knowledgeBaselines())
+                .containsEntry("knowledge_chunks", 50)
+                .containsEntry("neo4j_symptoms", 50)
+                .containsEntry("neo4j_diseases", 57)
+                .containsEntry("neo4j_departments", 10)
+                .containsEntry("neo4j_medications", 30)
+                .containsEntry("neo4j_contraindications", 9);
+        assertThat(demo.resetFreezeStatus()).isEqualTo(503);
+        assertThat(demo.resetFreezeMessage()).isEqualTo("演示重置中，请稍后重试");
+        // 值域与 knowledge.json 的 rag/graph + none 三态一致
+        assertThat(demo.knowledgeSourceValues())
+                .containsExactlyElementsOf(
+                        List.of("rag", "graph", contracts.knowledge().noneSource()));
+    }
 }

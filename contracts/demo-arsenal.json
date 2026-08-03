@@ -1,0 +1,17 @@
+{
+  "_doc": "演示武器包常量（票 25，ADR-0020）：重置确认短语、知识源开关值域与 Redis 键、知识基线数量断言阈值、冻结状态码。本文件是演示武器包跨栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "reset_confirm_phrase": "DEMO_RESET_CONFIRM",
+  "knowledge_source_values": ["rag", "graph", "none"],
+  "knowledge_source_default": "none",
+  "knowledge_source_redis_key": "demo:knowledge_source",
+  "knowledge_baselines": {
+    "knowledge_chunks": 50,
+    "neo4j_symptoms": 50,
+    "neo4j_diseases": 57,
+    "neo4j_departments": 10,
+    "neo4j_medications": 30,
+    "neo4j_contraindications": 9
+  },
+  "reset_freeze_status": 503,
+  "reset_freeze_message": "演示重置中，请稍后重试"
+}
