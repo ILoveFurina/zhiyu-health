@@ -24,6 +24,9 @@ EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
     get_contracts().sse_events.stream_events
 )
 
+# 工具进度事件名（票 24）：tool_start/tool_end，不带免责声明（非 AI 产出）。
+EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
+
 
 class AgentChatService:
     def __init__(
@@ -110,6 +113,10 @@ class AgentChatService:
             elif output.event == EVENT_KNOWLEDGE and isinstance(output.data, dict):
                 # runner 在 search_knowledge 成功检索时产出；不带免责声明（非 AI 产出）
                 yield {"event": EVENT_KNOWLEDGE, "data": output.data}
+            elif output.event in (EVENT_TOOL_START, EVENT_TOOL_END):
+                # 工具进度事件（票 24）：无原文、无免责声明（非 AI 产出）。
+                # tool_call_id 作为 start/end 配对键透传，duration_ms 由 server-java 墙钟计算。
+                yield {"event": output.event, "data": output.data}
             elif isinstance(output.data, dict):
                 yield {
                     "event": output.event,

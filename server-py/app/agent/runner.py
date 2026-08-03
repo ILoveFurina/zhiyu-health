@@ -65,6 +65,13 @@ CardEvent = Literal[
     "appointment", "appointments",
 ]
 
+# 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。
+# 与契约 trace_events 一致，由 tests/test_contract_consumption.py 钉死。
+TraceEvent = Literal["tool_start", "tool_end"]
+
+# tool_end 结果枚举：success/error/skipped（skipped 如定位拒绝静默降级）。
+TraceResult = Literal["success", "error", "skipped"]
+
 # search_knowledge 工具名：工具不投影成卡片（tool_to_event 不含），但其结果
 # 投影成 knowledge 元事件（携带 source/status/count，ADR-0010）。
 KNOWLEDGE_TOOL = "search_knowledge"
@@ -76,7 +83,7 @@ GRAPH_TOOL = "traverse_graph"
 
 @dataclass(frozen=True)
 class AgentOutput:
-    event: Literal["token", "knowledge"] | CardEvent
+    event: Literal["token", "knowledge"] | CardEvent | TraceEvent
     data: str | dict[str, Any]
 
 
@@ -141,13 +148,36 @@ class LangGraphAgentRunner:
     ) -> AsyncIterator[AgentOutput]:
         graph = self._graph(effort, context.knowledge_source)
         lc_messages = _to_lc_messages(messages, context)
+        # stream_mode 仅用 "messages"（langgraph 1.2.9 的 StreamMode 不含 agent_actions）：
+        # 工具调用边界改由 messages 流自身的 AIMessage.tool_calls（发起）与 ToolMessage（返回）
+        # 两个天然时刻检测，等价于 agent_actions 的 start/end，且不依赖未发布的 stream mode。
         async for item in graph.astream(
             {"messages": lc_messages}, context=context, stream_mode="messages"
         ):
             if not isinstance(item, tuple):
                 continue
             chunk, metadata = item
+            # tool_start：模型节点产出的 AIMessage 携带 tool_calls 即工具发起。
+            # 每条 tool_call 产一个 tool_start（工具名 + tool_call_id 配对键）。
+            # 知识工具（search_knowledge/traverse_graph）不投影成卡片，只发 tool_end，
+            # 其结果由 knowledge 元事件承担（票 24 决策）。
+            if isinstance(chunk, AIMessage) and metadata.get("langgraph_node") == "model":
+                for call in chunk.tool_calls or []:
+                    if call.get("name") in (KNOWLEDGE_TOOL, GRAPH_TOOL):
+                        continue
+                    yield AgentOutput("tool_start", {
+                        "tool_call_id": call.get("id"),
+                        "tool_name": call.get("name"),
+                    })
+                # AIMessage 可能同时携带文本 token 与 tool_calls（思考+调用），
+                # 文本部分仍按 token 投影。
+                if isinstance(chunk.content, str) and chunk.content:
+                    yield AgentOutput("token", chunk.content)
+                continue
             if isinstance(chunk, ToolMessage):
+                # tool_end 必须先于对应卡片事件发送（保持"工具完成->结果呈现"因果顺序）。
+                # server-py 不背时钟：duration_ms 由 server-java 按 start->end 墙钟计算。
+                yield AgentOutput("tool_end", _tool_end_data(chunk))
                 output = _tool_output(chunk)
                 if output is not None:
                     yield output
@@ -156,6 +186,45 @@ class LangGraphAgentRunner:
                 continue
             if isinstance(chunk.content, str) and chunk.content:
                 yield AgentOutput("token", chunk.content)
+
+
+def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
+    """tool_end 负载：tool_call_id 配对键 + 工具名 + 结果枚举。
+
+    结果判定（与 _tool_output 的投影逻辑对齐，但不重复投影卡片/知识）：
+    - skipped：工具被静默降级（find_hospitals 无定位返 need_location；知识工具空召回），
+      对用户不可见，与"降级"词条一致。
+    - error：工具内容无法解析为结构化结果（非 JSON / 非 dict）。
+    - success：工具返回可投影的结构化结果（卡片或非空知识召回）。
+    duration_ms 不在此计算--server-py 不背时钟，由 server-java 按 start->end 墙钟算。
+    """
+    result = _classify_tool_result(message)
+    return {
+        "tool_call_id": message.tool_call_id,
+        "tool_name": message.name,
+        "result": result,
+    }
+
+
+def _classify_tool_result(message: ToolMessage) -> TraceResult:
+    # 解析复用 _tool_output 的判定，避免结果分类与卡片投影逻辑分叉。
+    if not isinstance(message.content, str):
+        return "error"
+    try:
+        payload = json.loads(message.content)
+    except json.JSONDecodeError:
+        return "error"
+    if not isinstance(payload, dict):
+        return "error"
+    # find_hospitals 无定位降级：need_location=true 视为 skipped（静默，对用户不可见）
+    if message.name == "find_hospitals" and payload.get("need_location") is True:
+        return "skipped"
+    # 知识工具空召回：degraded，无结果可呈现，归 skipped（降级对用户不可见）
+    if message.name in (KNOWLEDGE_TOOL, GRAPH_TOOL):
+        count = int(payload.get("count", 0))
+        return "success" if count > 0 else "skipped"
+    # 卡片工具：tool_to_event 命中即成功；未命中映射的结构化结果也视为成功
+    return "success"
 
 
 def _tool_output(message: ToolMessage) -> AgentOutput | None:
