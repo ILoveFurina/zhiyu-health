@@ -69,7 +69,7 @@ public class DemoResetService {
     private final Contracts contracts;
     private final JdbcTemplate jdbc;
     private final StringRedisTemplate redis;
-    private final SlotCounter slotCounter;
+    private final SlotAccounting slotAccounting;
     private final ScheduleMapper scheduleMapper;
     private final Driver neo4jDriver;
     private final DemoFreezeGate freezeGate;
@@ -159,7 +159,7 @@ public class DemoResetService {
                 while (cursor.hasNext()) {
                     keys.add(new String(cursor.next(), StandardCharsets.UTF_8));
                 }
-            } catch (java.io.IOException e) {
+            } catch (Exception e) {
                 throw new IllegalStateException("Redis SCAN 失败", e);
             }
             return null;
@@ -188,11 +188,12 @@ public class DemoResetService {
         }
     }
 
-    /** 重建 Redis 号源计数：遍历重灌后的 schedules，写回 remaining_slots。 */
+    /** 重建 Redis 号源计数：遍历重灌后的 schedules，经 SlotAccounting 写回 remaining_slots。 */
     private void rebuildRedisCounts() {
         List<Schedule> schedules = scheduleMapper.selectList(null);
+        // 号源只经 SlotAccounting（ArchUnit 强制）：每个排班独立初始化，事务体只做 Redis 写
         for (Schedule s : schedules) {
-            slotCounter.initialize(s.getId(), s.getRemainingSlots());
+            slotAccounting.withInitialization(init -> init.init(s.getId(), s.getRemainingSlots()));
         }
     }
 
