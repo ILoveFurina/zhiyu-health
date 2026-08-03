@@ -9,6 +9,7 @@
     "typecheck": "max setup && tsc --noEmit"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.2.0",
     "@ant-design/pro-components": "^2.8.10",
     "@antv/g6": "^5.1.1",
     "@umijs/max": "^4.4.0"

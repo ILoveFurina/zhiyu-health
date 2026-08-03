@@ -25,5 +25,6 @@ export default [
   { name: '收费管理', path: '/payments', component: './Payment', access: 'canAdmin' },
   { name: '医学知识图谱', path: '/knowledge-graph', component: './KnowledgeGraph', access: 'canAdmin' },
   { name: 'Agent 调用日志', path: '/agent-trace', component: './AgentTrace', access: 'canAdmin' },
+  { name: '演示武器包', path: '/demo', component: './Demo', access: 'canAdmin' },
   { name: '接诊台', path: '/workbench', component: './Workbench', access: 'canDoctor' },
 ];
