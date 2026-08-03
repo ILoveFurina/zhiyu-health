@@ -22,7 +22,9 @@ spring:
       # 这里显式指定 data-locations，让 seed.sql 保持语义化文件名
       # seed-knowledge.sql 含向量回填，由离线 embedding 工具产出且不入库；
       # optional: 容忍其缺失，避免阻断未产出向量时的启动
+      # encoding: Windows 平台默认 GBK，须显式 UTF-8 否则 seed.sql 中文（科室/药品/排班时段）乱码
       mode: always
+      encoding: UTF-8
       data-locations: optional:classpath:seed-knowledge.sql,classpath:seed.sql
   data:
     redis:
