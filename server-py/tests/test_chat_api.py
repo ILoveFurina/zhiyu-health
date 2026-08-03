@@ -247,13 +247,20 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
         asyncio.run(callback.aclose())
 
     assert [event["event"] for event in events] == [
-        "meta", "doctor_recommendations", "doctor_slots", "appointment",
+        "meta",
+        "tool_start", "tool_end", "doctor_recommendations",
+        "tool_start", "tool_end", "doctor_slots",
+        "tool_start", "tool_end", "appointment",
         "token", "message", "done"
     ]
-    assert events[1]["data"]["doctors"][0]["name"] == "周安宁"
-    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
-    assert events[2]["data"]["slots"][0]["schedule_id"] == 9
-    assert events[3]["data"]["notice"] == "病情摘要已发送给医生"
+    # trace 事件不带免责声明（非 AI 产出）
+    assert events[1]["data"]["tool_name"] == "recommend_doctors"
+    assert events[1]["data"]["tool_call_id"] == "call-1"
+    assert events[2]["data"]["result"] == "success"
+    assert events[3]["data"]["doctors"][0]["name"] == "周安宁"
+    assert events[3]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert events[6]["data"]["slots"][0]["schedule_id"] == 9
+    assert events[9]["data"]["notice"] == "病情摘要已发送给医生"
     assert events[-2]["data"]["content"] == "已为你挂号，病情摘要也已发送给医生。"
     assert http_calls == [
         (
@@ -316,7 +323,9 @@ def test_get_appointment_tool_uses_hidden_patient_context() -> None:
 
     assert requests[0].url.path == "/api/agent/appointments"
     assert requests[0].url.params["patient_id"] == "12"
-    assert events[1]["event"] == "appointments"
+    assert events[1]["event"] == "tool_start"
+    assert events[2]["event"] == "tool_end"
+    assert events[3]["event"] == "appointments"
 
 
 def test_find_hospitals_threads_coordinates_from_request_to_nearby_endpoint() -> None:
@@ -368,11 +377,13 @@ def test_find_hospitals_threads_coordinates_from_request_to_nearby_endpoint() ->
     assert requests[0].url.params["longitude"] == "121.4737"
     assert requests[0].url.params["latitude"] == "31.2304"
     assert [event["event"] for event in events] == [
-        "meta", "hospital_recommendations", "token", "message", "done"
+        "meta", "tool_start", "tool_end", "hospital_recommendations", "token", "message", "done"
     ]
-    assert events[1]["data"]["hospitals"][0]["name"] == "智愈市人民医院"
-    assert events[1]["data"]["hospitals"][0]["distance_km"] == 3.21
-    assert events[1]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert events[1]["data"]["tool_name"] == "find_hospitals"
+    assert events[2]["data"]["result"] == "success"
+    assert events[3]["data"]["hospitals"][0]["name"] == "智愈市人民医院"
+    assert events[3]["data"]["hospitals"][0]["distance_km"] == 3.21
+    assert events[3]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
     assert events[-2]["data"]["content"] == "已为你找到附近的医院。"
 
 
@@ -415,9 +426,14 @@ def test_find_hospitals_degrades_without_coordinates() -> None:
         asyncio.run(callback.aclose())
 
     assert requests == []  # 未授权定位不查库
-    assert events[1]["event"] == "hospital_recommendations"
-    assert events[1]["data"]["need_location"] is True
-    assert events[1]["data"]["hospitals"] == []
+    assert events[1]["event"] == "tool_start"
+    assert events[1]["data"]["tool_name"] == "find_hospitals"
+    assert events[2]["event"] == "tool_end"
+    # 定位拒绝归 skipped（静默降级，对用户不可见）
+    assert events[2]["data"]["result"] == "skipped"
+    assert events[3]["event"] == "hospital_recommendations"
+    assert events[3]["data"]["need_location"] is True
+    assert events[3]["data"]["hospitals"] == []
 
 
 def test_patient_agent_only_explains_general_medication_knowledge() -> None:
@@ -534,9 +550,15 @@ def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_st
     finally:
         asyncio.run(callback.aclose())
 
-    # 流完整到达 done；失败的预约不投影 appointment 卡片，模型解释替代
+    # 流完整到达 done；失败的预约不投影 appointment 卡片，模型解释替代。
+    # 三次工具调用各自 tool_start/tool_end：失败的 create_appointment 仍发 tool_end，
+    # 但 result 为 success（工具返回了结构化错误体，由模型解释；不投影卡片）。
     assert [event["event"] for event in events] == [
-        "meta", "doctor_recommendations", "doctor_slots", "token", "message", "done"
+        "meta",
+        "tool_start", "tool_end", "doctor_recommendations",
+        "tool_start", "tool_end", "doctor_slots",
+        "tool_start", "tool_end",
+        "token", "message", "done"
     ]
     assert events[-2]["data"]["content"] == "今天上午的号已约满，建议改约下午或其他医生。"
     assert events[-2]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"

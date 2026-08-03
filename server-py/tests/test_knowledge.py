@@ -122,8 +122,11 @@ def test_rag_retrieves_before_generation_and_emits_ok_event() -> None:
     # 先检索后生成：retriever 在 LLM 生成最终文本前被调用
     assert retriever.calls == ["胸闷气短"]
     kinds = [e["event"] for e in events]
-    assert kinds == ["meta", "knowledge", "token", "message", "done"]
-    knowledge = events[1]
+    # 知识工具只发 tool_end（不发 tool_start），其结果由 knowledge 元事件承担（票 24）
+    assert kinds == ["meta", "tool_end", "knowledge", "token", "message", "done"]
+    assert events[1]["data"]["tool_name"] == "search_knowledge"
+    assert events[1]["data"]["result"] == "success"
+    knowledge = events[2]
     assert knowledge["data"] == {"source": "rag", "status": "ok", "count": 1}
     # 最终文本引用了检索内容
     assert "心血管内科" in events[-2]["data"]["content"]
