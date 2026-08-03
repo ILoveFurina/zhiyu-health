@@ -41,13 +41,27 @@ def test_stream_event_constants_match_contract() -> None:
     ] == events
 
 
+def test_trace_events_are_disjoint_from_card_and_stream_events() -> None:
+    # 票 24：trace 事件名集合必须与 card_events/ai_card_kinds/stream_events 严格不相交，
+    # 且不得与 done 重名（done 是轮次终止信号，trace 不得冒充）。
+    sse = get_contracts().sse_events
+    assert sse.trace_events == ["tool_start", "tool_end"]
+    assert sse.trace_results == ["success", "error", "skipped"]
+    assert sse.trace_error_code_unknown == "TOOL_ERROR_UNKNOWN"
+    others = set(sse.card_events) | set(sse.ai_card_kinds) | set(sse.stream_events) | {sse.red_flag_event}
+    for trace in sse.trace_events:
+        assert trace not in others, f"trace 事件 {trace} 不得与其他事件重名"
+
+
 def test_agent_output_event_literal_matches_contract() -> None:
-    # Literal 无法动态化，这里钉死它与契约 card_events + token + knowledge 的一致
+    # Literal 无法动态化，这里钉死它与契约 card_events + token + knowledge + trace_events 的一致
     # knowledge 是检索元事件（非卡片），search_knowledge 工具结果投影成它
     knowledge_event = get_contracts().knowledge.knowledge_meta_event
     event_type = AgentOutput.__dataclass_fields__["event"].type
     assert _literal_values(event_type) == {
-        "token", knowledge_event, *get_contracts().sse_events.card_events
+        "token", knowledge_event,
+        *get_contracts().sse_events.card_events,
+        *get_contracts().sse_events.trace_events,
     }
 
 

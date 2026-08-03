@@ -90,6 +90,38 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void traceEventsAreDisjointFromCardAndStreamEvents() {
+        // 票 24：trace 事件名集合必须与 card_events/ai_card_kinds 严格不相交，
+        // 且不得与 done 重名（done 是轮次终止信号，trace 不得冒充）。
+        Contracts.SseEvents events = contracts.sseEvents();
+        assertThat(events.traceEvents()).containsExactly("tool_start", "tool_end");
+        assertThat(events.toolStartEvent()).isEqualTo("tool_start");
+        assertThat(events.toolEndEvent()).isEqualTo("tool_end");
+        assertThat(events.isTraceEvent("tool_start")).isTrue();
+        assertThat(events.isTraceEvent("tool_end")).isTrue();
+        assertThat(events.isTraceEvent("token")).isFalse();
+        assertThat(events.isTraceEvent("done")).isFalse();
+
+        Set<String> cardAndKinds = new HashSet<>();
+        cardAndKinds.addAll(events.cardEvents());
+        cardAndKinds.addAll(events.aiCardKinds());
+        cardAndKinds.add(events.redFlagEvent());
+        cardAndKinds.addAll(events.streamEvents());
+        for (String trace : events.traceEvents()) {
+            assertThat(cardAndKinds)
+                    .as("trace 事件 %s 不得与 card/kind/stream 事件重名", trace)
+                    .doesNotContain(trace);
+        }
+        // tool_end 结果枚举白名单
+        assertThat(events.traceResults()).containsExactly("success", "error", "skipped");
+        assertThat(events.isTraceResult("success")).isTrue();
+        assertThat(events.isTraceResult("error")).isTrue();
+        assertThat(events.isTraceResult("skipped")).isTrue();
+        assertThat(events.isTraceResult("ok")).isFalse();
+        assertThat(events.traceErrorCodeUnknown()).isEqualTo("TOOL_ERROR_UNKNOWN");
+    }
+
+    @Test
     void llmContextExclusionIsAiCardKindsPlusReportUpload() {
         // ConversationService.recentContext 的排除集 = 契约 ai_card_kinds + report_upload
         Set<String> excluded = new HashSet<>(contracts.sseEvents().aiCardKinds());
