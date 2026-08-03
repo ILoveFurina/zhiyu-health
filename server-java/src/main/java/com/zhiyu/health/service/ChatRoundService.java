@@ -41,6 +41,7 @@ public class ChatRoundService {
     private final ObjectMapper objectMapper;
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
+    private final AgentCallLogService agentCallLogs;
     private final Map<Long, RunningRound> running = new ConcurrentHashMap<>();
 
     /** 同一进程内串行化首次接受，配合数据库唯一约束封住重复消息与重复 Agent 调用。 */
@@ -179,6 +180,13 @@ public class ChatRoundService {
         try {
             runtime.recordUpstream(incoming.event());
             JsonNode raw = parseData(incoming.data());
+            // 工具进度事件（票 24）：trace 落库走独立可失败路径，不复用 persistEvent 同步事务。
+            // 写入失败只 log.warn 不连坐主对话流（ADR-0017：可用性优先于一致性）。
+            if (contracts.sseEvents().isTraceEvent(incoming.event())) {
+                persistTraceSafely(runtime.round, incoming.event(), raw);
+                runtime.emit(incoming.event(), raw);
+                return;
+            }
             JsonNode data = persistence.persistEvent(runtime.round, incoming.event(), raw);
             if (contracts.sseEvents().doneEvent().equals(incoming.event())) {
                 runtime.sawDone.set(true);
@@ -193,12 +201,34 @@ public class ChatRoundService {
         }
     }
 
+    /**
+     * trace 落库独立可失败路径（ADR-0017）：异常只 log.warn（不记异常 message 以免泄漏 SQL/连接串），
+     * 不向 C 端下发错误、不写 chat_rounds.error_code（trace 落库失败不是轮次失败）。
+     */
+    private void persistTraceSafely(ChatRound round, String eventName, JsonNode data) {
+        try {
+            agentCallLogs.append(
+                    new AgentCallLogService.ChatRoundState(
+                            round.getId(), round.getConversationId(), round.getPatientId()),
+                    eventName,
+                    data);
+        } catch (RuntimeException error) {
+            log.warn(
+                    "agent_call_logs append failed roundId={} event={} error={}",
+                    round.getId(),
+                    eventName,
+                    error.getClass().getSimpleName());
+        }
+    }
+
     private void fail(RunningRound runtime, Throwable error) {
         if (!runtime.terminal.compareAndSet(false, true)) {
             return;
         }
         persistence.markFailed(runtime.round.getId(), ERROR_AGENT_FAILED);
         running.remove(runtime.round.getId(), runtime);
+        // 清理 trace 配对状态，避免 roundStates 内存泄漏（票 24）
+        agentCallLogs.clearRound(runtime.round.getId());
         log.warn(
                 "chat round failed roundId={} events={} costMs={} error={}",
                 runtime.round.getId(),
@@ -306,6 +336,8 @@ public class ChatRoundService {
                 return;
             }
             running.remove(round.getId(), this);
+            // 清理 trace 配对状态，避免 roundStates 内存泄漏（票 24）
+            agentCallLogs.clearRound(round.getId());
             sink.tryEmitComplete();
             log.info("chat round complete roundId={} events={} costMs={}", round.getId(), events.get(), elapsedMs());
         }

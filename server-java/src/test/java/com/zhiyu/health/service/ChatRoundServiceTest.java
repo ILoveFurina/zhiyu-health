@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -170,10 +171,88 @@ class ChatRoundServiceTest {
         verify(fixture.persistence, never()).persistEvent(any(), eq("token"), any());
     }
 
+    /** 票 24：trace 事件经独立可失败路径落库，不进 persistEvent 事务、不连坐主对话流。 */
+    @Test
+    void traceEventsAreAppendedAndEmittedWithoutPersistEvent() throws Exception {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-trace")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-trace", null, "你好")).thenReturn(round);
+        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-trace"));
+
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("{\"tool_call_id\":\"call-1\",\"tool_name\":\"recommend_doctors\"}")
+                        .event("tool_start")
+                        .build());
+        fixture.upstream.tryEmitNext(ServerSentEvent.builder(
+                        "{\"tool_call_id\":\"call-1\",\"tool_name\":\"recommend_doctors\",\"result\":\"success\"}")
+                .event("tool_end")
+                .build());
+        fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
+        fixture.upstream.tryEmitComplete();
+
+        List<String> observed =
+                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+        assertThat(observed).containsExactly("meta", "tool_start", "tool_end", "done");
+        // trace 事件不进 persistEvent（不走 messages 落库事务）
+        verify(fixture.persistence, never()).persistEvent(eq(round), eq("tool_start"), any());
+        verify(fixture.persistence, never()).persistEvent(eq(round), eq("tool_end"), any());
+        // trace 经 AgentCallLogService 独立落库
+        verify(fixture.agentCallLogs)
+                .append(
+                        any(),
+                        eq("tool_start"),
+                        eq(fixture.mapper.readTree(
+                                "{\"tool_call_id\":\"call-1\",\"tool_name\":\"recommend_doctors\"}")));
+        verify(fixture.agentCallLogs)
+                .append(
+                        any(),
+                        eq("tool_end"),
+                        eq(
+                                fixture.mapper.readTree(
+                                        "{\"tool_call_id\":\"call-1\",\"tool_name\":\"recommend_doctors\",\"result\":\"success\"}")));
+        // 主对话流仍正常 markCompleted
+        verify(fixture.persistence).markCompleted(34L);
+    }
+
+    /** 票 24 / ADR-0017：trace 落库失败只 log.warn，主流程仍 emit + markCompleted，不写 error_code。 */
+    @Test
+    void traceAppendFailureDoesNotBreakMainStream() {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-trace-fail")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-trace-fail", null, "你好")).thenReturn(round);
+        // 模拟 trace 落库异常：不得连坐主对话流
+        doThrow(new DataIntegrityViolationException("connection lost"))
+                .when(fixture.agentCallLogs)
+                .append(any(), anyString(), any());
+        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-trace-fail"));
+
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("{\"tool_call_id\":\"call-1\",\"tool_name\":\"recommend_doctors\"}")
+                        .event("tool_start")
+                        .build());
+        fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
+        fixture.upstream.tryEmitComplete();
+
+        List<String> observed =
+                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+        // trace 事件仍透传给 C 端，主对话流正常完成
+        assertThat(observed).containsExactly("meta", "tool_start", "done");
+        verify(fixture.persistence).markCompleted(34L);
+        // 不写 chat_rounds.error_code（trace 落库失败不是轮次失败）
+        verify(fixture.persistence, never()).markFailed(any(), anyString());
+    }
+
     private static final class Fixture {
         private final AgentClient agentClient = mock(AgentClient.class);
         private final ChatRoundPersistence persistence = mock(ChatRoundPersistence.class);
         private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        private final AgentCallLogService agentCallLogs = mock(AgentCallLogService.class);
         private final ObjectMapper mapper = new ObjectMapper();
         private final Sinks.Many<ServerSentEvent<String>> upstream =
                 Sinks.many().replay().all();
@@ -190,7 +269,8 @@ class ChatRoundServiceTest {
                     new RedFlagRuleEngine(),
                     mapper,
                     TestContracts.instance(),
-                    healthProfiles);
+                    healthProfiles,
+                    agentCallLogs);
         }
 
         private ChatRound round(String status) {
