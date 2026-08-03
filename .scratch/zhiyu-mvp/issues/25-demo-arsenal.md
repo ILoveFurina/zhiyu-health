@@ -17,3 +17,10 @@
 ## Comments
 
 - 2026-07-29：运行时不再清空 pgvector/Neo4j，避免违反 server-py 只读与知识 seed 基线约束；一键重置收敛为受保护的业务演示数据重置。
+- 2026-08-03（grill-with-docs 对齐设计决策）：
+  - **范围与 blocker**：默认 24 正常（仅差浏览器实测），25 作为整票一分支推进，联调中若 24 暴露问题再回头修，不拆两轨。
+  - **演示边界（ADR-0020）**：演示三件套（看板/重置/对比开关写出口）HTTP 入口全部收口在 `/api/b/demo/**`，admin 鉴权；与业务 B 端 CRUD 物理隔离。CONTEXT.md 新增"演示武器包""演示重置"两个词条标明非业务实体。
+  - **重置**：① schedules 补进 `seed.sql`（用 `CURRENT_DATE + interval 'N day'` 动态生成未来 N 天排班，保证任意演示日当天有有效排班）；② 冻结全部 C 端 `/api/c/**`（返回 503 演示重置中），B 端只读与重置接口本身不冻结；③ 互斥锁用 server-java 进程内 `AtomicBoolean` CAS（单实例拓扑，不用 Redis 分布式锁）；④ 三重保护 = env `DEMO_RESET_ENABLED` 默认 `false` + 请求体确认短语 + 进程内锁，三者同时满足才执行；⑤ pgvector/Neo4j 基线数量存 `contracts/`，重置后只读断言，不等则重置失败；⑥ 中途失败保持冻结、返回步骤清单，接口幂等可从失败步重跑，不自动回滚。
+  - **对比开关（ADR-0019）**：① 运行时状态存 Redis 全局单键 `demo:knowledge_source`（值域 rag/graph/none，默认 none）；② B 端 `PUT /api/b/demo/knowledge-source`（admin）写键；③ server-java 在 C 端对话请求**未显式带** `knowledge_source` 时读键补位透传，优先级"请求 > 全局键 > scenario 默认"，server-py 不感知开关；④ 全局单键、串行切换（B 端切一次、C 端发新对话看效果），不做并行三路对比。
+  - **看板**：① 新增 `@ant-design/charts` 依赖（admin 现有仅 `@antv/g6` 关系图库，无统计图表库）；② 单接口 `GET /api/b/demo/dashboard` 返回聚合 DTO，严格四类指标（今日挂号量/科室分布/号源使用率/Agent 对话量与工具调用次数），不加分页与时间筛选；③ "今日"取服务器 `CURRENT_DATE`。
+  - **并发脚本**：N 个 demo patient 账号并发打"最后 1 号"的 schedule（`POST /api/c/appointments`），输出脱敏日志证明恰好 1 个 201、其余 409；脚本只调本地 server-java HTTP 入口，不新增 server-java 代码。
