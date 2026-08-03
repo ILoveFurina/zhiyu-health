@@ -128,3 +128,11 @@ _Avoid_: 进度气泡、加载气泡（"气泡"指消息流内的持久消息单
 **功能目录**:
 C 端首页的功能宫格：分"就医服务"（智能导诊、预约挂号、报告解读）与"健康管理"（健康档案、我的挂号、电子处方、药品订单）两组，是业务后端能力的图形化入口，与 Agent 卡片入口并存。宫格每个入口指向独立页面，不经对话中转；C 端主导航为 tabBar 三 tab（首页 / AI对话 / 我的）。
 _Avoid_: 功能列表、服务大厅
+
+**站内消息通道**:
+C 端消息页（`pages/messages`）聚合展示给患者的所有站内通知能力，是 UI/出口层面的概念，不等于某一张表。通道下挂两类物理来源：`in_app_messages` 装一次性事件（就诊小结等，append-only，`disclaimer NOT NULL`，`UNIQUE(related_appointment_id, type)` 幂等）；`med_checkin_records` 装服药打卡生命周期（PENDING->CHECKED 状态机，`due_date` 到点才在通道可见，打卡后离开通道进时间线）。两者物理分离、各守各的约束，只共用消息页 UI 与免责声明标注。
+_Avoid_: 站内消息表、消息中心（"通道"指出口能力，非某张具体表）
+
+**服药打卡**:
+基于已审核通过（APPROVED）电子处方的用法用量，由 server-java eager 预生成的到点服药提醒与打卡记录，承载在 `med_checkin_records` 表上。处方审核通过那一刻按 `duration` 解析出的天数展开为每日一条 PENDING 记录（`due_date` 到点才在站内消息通道可见），患者点"已服用"后状态机推进为 CHECKED 并落 `checked_at`，CHECKED 不可回退。连续天数（streak）由 server-java service 按打卡记录现算（漏一天归零），不存派生列。打卡记录直接归属 `health_profile_id`+`patient_id`（report_interpretations 先例），不经 appointment 中转；时间线第 4 分支读 CHECKED 记录。server-py 完全不参与。
+_Avoid_: 用药提醒（提醒只是 PENDING 态的别名，打卡才是完整生命周期）、服药记录（容易混成纯日志，实际是带生命周期的状态机记录）

@@ -31,6 +31,7 @@ public class Contracts {
     private final Contraindication contraindication;
     private final Knowledge knowledge;
     private final ChatRealtime chatRealtime;
+    private final MedCheckinFlow medCheckinFlow;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -53,6 +54,7 @@ public class Contracts {
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
+        this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -121,6 +123,10 @@ public class Contracts {
 
     public ChatRealtime chatRealtime() {
         return chatRealtime;
+    }
+
+    public MedCheckinFlow medCheckinFlow() {
+        return medCheckinFlow;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -355,6 +361,22 @@ public class Contracts {
             knowledgeSources = List.copyOf(knowledgeSources);
             knowledgeStatus = List.copyOf(knowledgeStatus);
             defaultByScenario = Map.copyOf(defaultByScenario);
+        }
+    }
+
+    /** 服药打卡流程：状态机 PENDING->CHECKED、决定值、站内消息类型与时间线类型（ADR-0017）。 */
+    public record MedCheckinFlow(
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            Map<String, String> decisions,
+            Map<String, String> messageTypes,
+            Map<String, String> timelineTypes) {
+        public MedCheckinFlow {
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            decisions = Map.copyOf(decisions);
+            messageTypes = Map.copyOf(messageTypes);
+            timelineTypes = Map.copyOf(timelineTypes);
         }
     }
 }

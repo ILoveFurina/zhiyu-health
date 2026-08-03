@@ -174,4 +174,14 @@ class ContractsTest {
                         "get_appointment", "appointments"));
         assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));
     }
+
+    @Test
+    void medCheckinFlowDefinesStatusesDecisionsAndTypes() {
+        Contracts.MedCheckinFlow flow = contracts.medCheckinFlow();
+        assertThat(flow.statuses()).containsEntry("pending", "PENDING").containsEntry("checked", "CHECKED");
+        assertThat(flow.statusLabels()).containsEntry("PENDING", "待打卡").containsEntry("CHECKED", "已服用");
+        assertThat(flow.decisions()).containsEntry("check", "CHECK");
+        assertThat(flow.messageTypes()).containsEntry("medication_reminder", "MEDICATION_REMINDER");
+        assertThat(flow.timelineTypes()).containsEntry("med_checkin", "MED_CHECKIN");
+    }
 }

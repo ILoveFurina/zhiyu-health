@@ -26,6 +26,8 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
     int activate(@Param("id") long id, @Param("patientId") long patientId);
 
     // 只读 UNION 将跨业务表记录投影成统一时间线；不双写聚合表，并以业务发生时间稳定倒序。
+    // 服药打卡分支读 CHECKED 记录，summary 只投影药名+剂量+频次的事实信息；
+    // 连续天数（streak）是跨记录聚合值，由打卡接口现算返回，不进单行时间线投影（ADR-0018）。
     @Select(
             """
             SELECT * FROM (
@@ -53,6 +55,12 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
                 FROM report_interpretations r
                 WHERE r.patient_id = #{patientId} AND r.health_profile_id = #{profileId}
                   AND r.status = 'SUCCEEDED'
+                UNION ALL
+                SELECT 'MED_CHECKIN', mc.id, mc.medication_name || ' 服药打卡',
+                       mc.dosage || ' · ' || mc.frequency, mc.checked_at, mc.disclaimer
+                FROM med_checkin_records mc
+                WHERE mc.patient_id = #{patientId} AND mc.health_profile_id = #{profileId}
+                  AND mc.status = 'CHECKED'
             ) timeline
             ORDER BY occurred_at DESC, record_id DESC
             """)
