@@ -1,11 +1,14 @@
 package com.zhiyu.health.controller.b.demo;
 
+import com.zhiyu.health.service.DemoDashboardService;
+import com.zhiyu.health.service.DemoDashboardService.DashboardView;
 import com.zhiyu.health.service.DemoResetService;
 import com.zhiyu.health.service.DemoResetService.ResetResult;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DemoController {
 
     private final DemoResetService resetService;
+    private final DemoDashboardService dashboardService;
 
     public record ResetRequest(@NotBlank String confirm) {}
 
@@ -32,5 +36,11 @@ public class DemoController {
         // 成功 200；中途失败 503（保持冻结，演示者可据 pendingSteps 重跑）
         return ResponseEntity.status(result.success() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
                 .body(result);
+    }
+
+    /** 演示看板：单接口返回聚合四类指标，数据经 server-java 实时读取。 */
+    @GetMapping("/dashboard")
+    public DashboardView dashboard() {
+        return dashboardService.dashboard();
     }
 }
