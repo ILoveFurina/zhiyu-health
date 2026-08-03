@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Sinks;
 
@@ -248,11 +250,46 @@ class ChatRoundServiceTest {
         verify(fixture.persistence, never()).markFailed(any(), anyString());
     }
 
+    /** ADR-0019：请求未带 knowledge_source 时读 Redis 全局键补位透传给 server-py。 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void knowledgeSourceFilledFromRedisWhenRequestOmits() {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-ks-redis")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-ks-redis", null, "你好")).thenReturn(round);
+        when(fixture.valueOps.get("demo:knowledge_source")).thenReturn("graph");
+
+        fixture.service.accept(fixture.command("req-ks-redis"));
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> body = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(fixture.agentClient).chat(body.capture());
+        assertThat(body.getValue().get("knowledge_source")).isEqualTo("graph");
+    }
+
+    /** ADR-0019：请求与 Redis 全局键皆空时省略 body 字段，交 server-py 走 scenario 默认。 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void knowledgeSourceOmittedWhenBothRequestAndRedisEmpty() {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-ks-none")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-ks-none", null, "你好")).thenReturn(round);
+
+        fixture.service.accept(fixture.command("req-ks-none"));
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> body = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(fixture.agentClient).chat(body.capture());
+        assertThat(body.getValue()).doesNotContainKey("knowledge_source");
+    }
+
     private static final class Fixture {
         private final AgentClient agentClient = mock(AgentClient.class);
         private final ChatRoundPersistence persistence = mock(ChatRoundPersistence.class);
         private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
         private final AgentCallLogService agentCallLogs = mock(AgentCallLogService.class);
+        private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        private final ValueOperations<String, String> valueOps = mock(ValueOperations.class);
         private final ObjectMapper mapper = new ObjectMapper();
         private final Sinks.Many<ServerSentEvent<String>> upstream =
                 Sinks.many().replay().all();
@@ -260,6 +297,9 @@ class ChatRoundServiceTest {
 
         private Fixture() {
             when(agentClient.chat(any())).thenReturn(upstream.asFlux());
+            when(redis.opsForValue()).thenReturn(valueOps);
+            // 默认 Redis 全局键不存在：保持"请求空且 Redis 空 -> 省略字段"的现状行为
+            when(valueOps.get(anyString())).thenReturn(null);
             when(persistence.recentContext(7L)).thenReturn(List.of(Map.of("role", "user", "content", "你好")));
             when(persistence.persistEvent(any(), anyString(), any()))
                     .thenAnswer(invocation -> invocation.getArgument(2));
@@ -270,7 +310,8 @@ class ChatRoundServiceTest {
                     mapper,
                     TestContracts.instance(),
                     healthProfiles,
-                    agentCallLogs);
+                    agentCallLogs,
+                    redis);
         }
 
         private ChatRound round(String status) {

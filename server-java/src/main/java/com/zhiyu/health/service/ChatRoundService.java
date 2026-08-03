@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -42,6 +43,8 @@ public class ChatRoundService {
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
     private final AgentCallLogService agentCallLogs;
+    // 知识源现场切换补位（ADR-0019）：请求未带 knowledge_source 时读 Redis 全局键
+    private final StringRedisTemplate redis;
     private final Map<Long, RunningRound> running = new ConcurrentHashMap<>();
 
     /** 同一进程内串行化首次接受，配合数据库唯一约束封住重复消息与重复 Agent 调用。 */
@@ -159,8 +162,12 @@ public class ChatRoundService {
         body.put(
                 "scenario",
                 blankToDefault(command.scenario(), contracts.chatDefaults().scenarioDefault()));
-        if (command.knowledgeSource() != null && !command.knowledgeSource().isBlank()) {
-            body.put("knowledge_source", command.knowledgeSource());
+        // 知识源现场切换（ADR-0019）：优先级"请求 > 全局键 > scenario 默认"。
+        // 请求未显式带值时读 Redis 全局键 demo:knowledge_source 补位；两者皆空则省略字段，
+        // 交 server-py 按 scenario 默认处理。server-py 完全不感知开关存在。
+        String knowledgeSource = resolveKnowledgeSource(command.knowledgeSource());
+        if (knowledgeSource != null) {
+            body.put("knowledge_source", knowledgeSource);
         }
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(round.getPatientId());
         if (profile != null) {
@@ -272,6 +279,18 @@ public class ChatRoundService {
 
     private String blankToDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    /**
+     * 知识源三级解析（ADR-0019）：请求带值用请求；请求空读 Redis 全局键；Redis 也空返回 null
+     * （调用方据此省略 body 字段，交 server-py 走 scenario 默认）。
+     */
+    private String resolveKnowledgeSource(String requested) {
+        if (requested != null && !requested.isBlank()) {
+            return requested;
+        }
+        String global = redis.opsForValue().get(contracts.demoArsenal().knowledgeSourceRedisKey());
+        return (global == null || global.isBlank()) ? null : global;
     }
 
     public record Command(

@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.b.demo;
 
 import com.zhiyu.health.service.DemoDashboardService;
 import com.zhiyu.health.service.DemoDashboardService.DashboardView;
+import com.zhiyu.health.service.DemoKnowledgeSourceService;
 import com.zhiyu.health.service.DemoResetService;
 import com.zhiyu.health.service.DemoResetService.ResetResult;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,8 +29,13 @@ public class DemoController {
 
     private final DemoResetService resetService;
     private final DemoDashboardService dashboardService;
+    private final DemoKnowledgeSourceService knowledgeSourceService;
 
     public record ResetRequest(@NotBlank String confirm) {}
+
+    public record KnowledgeSourceRequest(String knowledgeSource) {}
+
+    public record KnowledgeSourceView(String knowledgeSource) {}
 
     @PostMapping("/reset")
     public ResponseEntity<ResetResult> reset(@RequestBody ResetRequest request) {
@@ -42,5 +49,18 @@ public class DemoController {
     @GetMapping("/dashboard")
     public DashboardView dashboard() {
         return dashboardService.dashboard();
+    }
+
+    /** 读知识源现场切换全局键；缺失返回默认 none。 */
+    @GetMapping("/knowledge-source")
+    public KnowledgeSourceView getKnowledgeSource() {
+        return new KnowledgeSourceView(knowledgeSourceService.current());
+    }
+
+    /** 写知识源现场切换全局键（ADR-0019）；非法值由 service 抛 400。 */
+    @PutMapping("/knowledge-source")
+    public KnowledgeSourceView putKnowledgeSource(@RequestBody KnowledgeSourceRequest request) {
+        knowledgeSourceService.update(request.knowledgeSource());
+        return new KnowledgeSourceView(knowledgeSourceService.current());
     }
 }
