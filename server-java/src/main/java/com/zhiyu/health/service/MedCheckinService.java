@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 服药打卡业务服务（ADR-0017）：
+ * 服药打卡业务服务（ADR-0018）：
  * - eager 生成：处方审核通过时按 duration 解析的天数展开每日一条 PENDING，ON CONFLICT DO NOTHING 幂等；
  * - 打卡幂等：条件 UPDATE 只推进 PENDING，CHECKED 不可回退；
  * - streak 现算：从今天/昨天往前数连续 CHECKED 的 due_date，漏一天归零，不存派生列。
@@ -32,9 +32,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCheckinRecord> {
-    // 写死 Asia/Shanghai：本地三服务 + 云数据拓扑下不依赖 JVM/PG 时区漂移（ADR-0017 Q5）。
+    // 写死 Asia/Shanghai：本地三服务 + 云数据拓扑下不依赖 JVM/PG 时区漂移（ADR-0018 Q5）。
     private static final ZoneId STREAK_ZONE = ZoneId.of("Asia/Shanghai");
-    // duration 最小解析：数字 + 天/周/月单位；抓不到默认 7 天并记日志（ADR-0017 Q2）。
+    // duration 最小解析：数字 + 天/周/月单位；抓不到默认 7 天并记日志（ADR-0018 Q2）。
     private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)\\s*(天|日|周|月)");
     private static final int DEFAULT_DURATION_DAYS = 7;
 
@@ -57,7 +57,7 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
         if (prescription == null) {
             return;
         }
-        // 处方行不带 patient/health_profile，必须经 appointment 反查（ADR-0017 Q6 直接式 FK 的来源）。
+        // 处方行不带 patient/health_profile，必须经 appointment 反查（ADR-0018 Q6 直接式 FK 的来源）。
         Appointment appointment = appointmentMapper.selectById(prescription.getAppointmentId());
         if (appointment == null) {
             return;
@@ -117,7 +117,7 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
 
     /**
      * streak 现算：今天已打从今天数、今天未到点从昨天数、遇到第一个缺口停（漏一天归零）。
-     * 不存派生列，避免"存了 7 但昨天漏了"的一致性漂移（ADR-0017 Q5）。
+     * 不存派生列，避免"存了 7 但昨天漏了"的一致性漂移（ADR-0018 Q5）。
      */
     public int streak(long patientId, long profileId) {
         List<LocalDate> dates = checkinMapper.selectCheckedDatesDescending(patientId, profileId, status("checked"));

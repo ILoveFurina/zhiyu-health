@@ -19,7 +19,7 @@
   - **无 Mock 现状**：经代码核查，仓库无既有"服药提醒 Mock"，`spec.md:95` 的 `med_checkin_records` 为规划实体，本票为首次实现。正文"用药提醒从 Mock 升级为服药打卡"措辞沿用自早期设计文档（`docs/to-human/...design-v2.md:1547` 在 `GET /api/c/messages` schema 里举了 `care_reminder` type，亦为前向引用未实现），实际为新建。
   - **"复用站内消息"重解读**：不复用 `in_app_messages` 表（其 `disclaimer NOT NULL`、`UNIQUE(related_appointment_id, type)`、append-only 语义与带生命周期的服药提醒不兼容），改为复用站内消息通道/UI--新建 `med_checkin_records` 表承载 `PENDING->CHECKED` 全生命周期，C 端消息页聚合 `in_app_messages ∪ med_checkin_records(PENDING, due_date<=today)` 展示。`in_app_messages` 一字不改。
   - **归属层级直接式**：`med_checkin_records` 直接存 `patient_id`+`health_profile_id`+`prescription_id`+`prescription_item_id`（参照 `report_interpretations` 先例），不挂 appointment；生成时 `health_profile_id` 经 `prescription.appointment_id -> appointments.health_profile_id` 反查一次。
-  - **调度模型**：eager 预生成 + 查询时 `due_date<=today AND status=PENDING` 过滤，不起 `@Scheduled` 定时器（详见 ADR-0017）。
+  - **调度模型**：eager 预生成 + 查询时 `due_date<=today AND status=PENDING` 过滤，不起 `@Scheduled` 定时器（详见 ADR-0018）。
   - **粒度**：按天展开（`duration` 最小正则解析成天数，抓不到默认 7 天并记日志），`dosage`+`frequency` 进提醒文案不参与调度。
   - **幂等**：生成幂等 `UNIQUE(prescription_item_id, due_date)` + `ON CONFLICT DO NOTHING`；打卡幂等 `UPDATE WHERE status=PENDING` 看 affectedRows；CHECKED 不可回退。
   - **streak**：写死 `Asia/Shanghai` 取"今天"，今天已打从今天数、今天未到点从昨天数、漏一天归零；不存派生列，打卡接口现算。
