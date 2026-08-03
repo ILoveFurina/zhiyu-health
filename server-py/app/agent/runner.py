@@ -157,20 +157,10 @@ class LangGraphAgentRunner:
             if not isinstance(item, tuple):
                 continue
             chunk, metadata = item
-            # tool_start：模型节点产出的 AIMessage 携带 tool_calls 即工具发起。
-            # 每条 tool_call 产一个 tool_start（工具名 + tool_call_id 配对键）。
-            # 知识工具（search_knowledge/traverse_graph）不投影成卡片，只发 tool_end，
-            # 其结果由 knowledge 元事件承担（票 24 决策）。
             if isinstance(chunk, AIMessage) and metadata.get("langgraph_node") == "model":
-                for call in chunk.tool_calls or []:
-                    if call.get("name") in (KNOWLEDGE_TOOL, GRAPH_TOOL):
-                        continue
-                    yield AgentOutput("tool_start", {
-                        "tool_call_id": call.get("id"),
-                        "tool_name": call.get("name"),
-                    })
-                # AIMessage 可能同时携带文本 token 与 tool_calls（思考+调用），
-                # 文本部分仍按 token 投影。
+                # AIMessage 可能同时携带 tool_calls（工具发起）与文本 token（思考+调用）
+                for output in _tool_start_outputs(chunk):
+                    yield output
                 if isinstance(chunk.content, str) and chunk.content:
                     yield AgentOutput("token", chunk.content)
                 continue
@@ -178,14 +168,32 @@ class LangGraphAgentRunner:
                 # tool_end 必须先于对应卡片事件发送（保持"工具完成->结果呈现"因果顺序）。
                 # server-py 不背时钟：duration_ms 由 server-java 按 start->end 墙钟计算。
                 yield AgentOutput("tool_end", _tool_end_data(chunk))
-                output = _tool_output(chunk)
-                if output is not None:
-                    yield output
+                tool_output: AgentOutput | None = _tool_output(chunk)
+                if tool_output is not None:
+                    yield tool_output
                 continue
             if metadata.get("langgraph_node") != "model":
                 continue
             if isinstance(chunk.content, str) and chunk.content:
                 yield AgentOutput("token", chunk.content)
+
+
+def _tool_start_outputs(message: AIMessage) -> list[AgentOutput]:
+    """tool_start 投影：模型节点 AIMessage 携带 tool_calls 即工具发起。
+
+    每条 tool_call 产一个 tool_start（工具名 + tool_call_id 配对键）。
+    知识工具（search_knowledge/traverse_graph）不投影成卡片，只发 tool_end，
+    其结果由 knowledge 元事件承担（票 24 决策）。
+    """
+    outputs: list[AgentOutput] = []
+    for call in message.tool_calls or []:
+        if call.get("name") in (KNOWLEDGE_TOOL, GRAPH_TOOL):
+            continue
+        outputs.append(AgentOutput("tool_start", {
+            "tool_call_id": call.get("id"),
+            "tool_name": call.get("name"),
+        }))
+    return outputs
 
 
 def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
