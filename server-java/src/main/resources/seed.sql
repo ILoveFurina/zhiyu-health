@@ -70,6 +70,30 @@ INSERT INTO medications (id, name, generic_name, specification, instructions, pr
     (30, '呋喃妥因肠溶片', '呋喃妥因', '50mg*100片', '口服；硝基呋喃类过敏者禁用', 27.50, 160)
 ON CONFLICT (id) DO NOTHING;
 
+-- 排班（票 25）：用 CURRENT_DATE + interval 'N day' 动态生成未来 7 天排班，
+-- 保证任意演示日当天起仍有有效排班可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
+-- 重置 TRUNCATE schedules 后再执行本段可重新插入；已存在则跳过。
+-- 覆盖全部 15 个医生、上午/下午两时段、每段 10 号，满足演示与并发抢号脚本需求。
+INSERT INTO schedules (id, doctor_id, schedule_date, time_slot, total_slots, remaining_slots, is_active)
+SELECT
+    row_number() OVER (ORDER BY d.doctor_id, s.day, s.slot) AS id,
+    d.doctor_id,
+    (CURRENT_DATE + (s.day || ' day')::interval)::date AS schedule_date,
+    s.slot AS time_slot,
+    10 AS total_slots,
+    10 AS remaining_slots,
+    TRUE AS is_active
+FROM (VALUES
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)
+) AS d(doctor_id)
+CROSS JOIN (VALUES
+    (0),(1),(2),(3),(4),(5),(6)
+) AS s(day)
+CROSS JOIN (VALUES
+    ('上午'),('下午')
+) AS s(slot)
+ON CONFLICT (id) DO NOTHING;
+
 -- 知识库 50 场景（10 科室 × 5 症状，虚构非诊断性内容）。
 -- 向量列由离线 embedding 工具产出的 seed-knowledge.sql 回填；此处只 seed 文本。
 -- content 含症状+病因+建议科室+就医提示；红线场景（如胸痛伴冷汗）保留在库，
@@ -182,4 +206,5 @@ SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
 SELECT setval('departments_id_seq', (SELECT MAX(id) FROM departments));
 SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors));
 SELECT setval('medications_id_seq', (SELECT MAX(id) FROM medications));
+SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));

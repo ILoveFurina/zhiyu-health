@@ -51,3 +51,6 @@ zhiyu:
     embedding-dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:2048}
   rate-limit:
     permits-per-minute: 60
+  demo:
+    # 测试默认关闭；reset 中途失败等用例在 service 层用真实 enabled 构造
+    reset-enabled: ${DEMO_RESET_ENABLED:false}

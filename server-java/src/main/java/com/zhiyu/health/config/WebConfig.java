@@ -67,6 +67,19 @@ public class WebConfig implements WebMvcConfigurer {
         return bean;
     }
 
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(DemoFreezeGate.class)
+    public FilterRegistrationBean<DemoFreezeFilter> demoFreezeFilterRegistration(DemoFreezeGate demoFreezeGate) {
+        // 演示重置冻结：order 25，鉴权 20 之后、限流 30 之前；仅拦 C 端入口。
+        // @ConditionalOnBean：@WebMvcTest 切片不扫描普通 @Component，此时本 Bean 不创建，
+        // 避免切片上下文缺 DemoFreezeGate 而失败；全量上下文下正常注册。
+        FilterRegistrationBean<DemoFreezeFilter> bean =
+                new FilterRegistrationBean<>(new DemoFreezeFilter(demoFreezeGate));
+        bean.addUrlPatterns("/api/c/*");
+        bean.setOrder(25);
+        return bean;
+    }
+
     /**
      * B 端默认仅 admin 可操作；放行员工认证区（登录/资料，任何已登录员工可用）
      * 与接诊台（医生工作台，doctor 角色由 ReceptionService 在业务层校验）。

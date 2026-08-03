@@ -32,6 +32,7 @@ Thumbs.db
 # AI 工具 / 小程序构建产物
 .kimi-code/
 .claude/
+.zcode/
 miniprogram_npm/
 /miniprogram/.mini-ide/
 
