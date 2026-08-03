@@ -196,6 +196,21 @@ def _tool_start_outputs(message: AIMessage) -> list[AgentOutput]:
     return outputs
 
 
+def _parse_tool_payload(message: ToolMessage) -> dict[str, Any] | None:
+    """解析工具返回体为 dict；非字符串/非 JSON/非 dict 一律返回 None。
+
+    _classify_tool_result 与 _tool_output 共享此前半段，避免结果分类与卡片投影
+    的解析逻辑分叉（Duplicated Code）。
+    """
+    if not isinstance(message.content, str):
+        return None
+    try:
+        payload = json.loads(message.content)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
     """tool_end 负载：tool_call_id 配对键 + 工具名 + 结果枚举。
 
@@ -206,23 +221,16 @@ def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
     - success：工具返回可投影的结构化结果（卡片或非空知识召回）。
     duration_ms 不在此计算--server-py 不背时钟，由 server-java 按 start->end 墙钟算。
     """
-    result = _classify_tool_result(message)
     return {
         "tool_call_id": message.tool_call_id,
         "tool_name": message.name,
-        "result": result,
+        "result": _classify_tool_result(message),
     }
 
 
 def _classify_tool_result(message: ToolMessage) -> TraceResult:
-    # 解析复用 _tool_output 的判定，避免结果分类与卡片投影逻辑分叉。
-    if not isinstance(message.content, str):
-        return "error"
-    try:
-        payload = json.loads(message.content)
-    except json.JSONDecodeError:
-        return "error"
-    if not isinstance(payload, dict):
+    payload = _parse_tool_payload(message)
+    if payload is None:
         return "error"
     # find_hospitals 无定位降级：need_location=true 视为 skipped（静默，对用户不可见）
     if message.name == "find_hospitals" and payload.get("need_location") is True:
@@ -241,14 +249,9 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
     search_knowledge / traverse_graph 不在 tool_to_event（不投影成卡片），其结果投影成
     knowledge 元事件，携带 source/status/count（空召回标 degraded，ADR-0010/0013）。
     """
-    if not isinstance(message.content, str):
-        return None
-    try:
-        payload = json.loads(message.content)
-    except json.JSONDecodeError:
+    payload = _parse_tool_payload(message)
+    if payload is None:
         # 工具错误仍会回到模型解释；只有成功的结构化结果才投影成卡片。
-        return None
-    if not isinstance(payload, dict):
         return None
     if message.name == KNOWLEDGE_TOOL:
         count = int(payload.get("count", 0))

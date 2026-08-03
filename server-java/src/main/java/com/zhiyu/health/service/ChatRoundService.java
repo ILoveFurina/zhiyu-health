@@ -204,6 +204,7 @@ public class ChatRoundService {
     /**
      * trace 落库独立可失败路径（ADR-0017）：异常只 log.warn（不记异常 message 以免泄漏 SQL/连接串），
      * 不向 C 端下发错误、不写 chat_rounds.error_code（trace 落库失败不是轮次失败）。
+     * 只记 roundId/toolCallId/toolName/phase/异常类名，不记异常 message。
      */
     private void persistTraceSafely(ChatRound round, String eventName, JsonNode data) {
         try {
@@ -213,9 +214,18 @@ public class ChatRoundService {
                     eventName,
                     data);
         } catch (RuntimeException error) {
+            // 从 data 取 toolCallId/toolName 贴齐 ADR-0017 的日志字段集（不含异常 message）
+            String toolCallId = data != null && data.hasNonNull("tool_call_id")
+                    ? data.path("tool_call_id").asText()
+                    : null;
+            String toolName = data != null && data.hasNonNull("tool_name")
+                    ? data.path("tool_name").asText()
+                    : null;
             log.warn(
-                    "agent_call_logs append failed roundId={} event={} error={}",
+                    "agent_call_logs append failed roundId={} toolCallId={} toolName={} phase={} error={}",
                     round.getId(),
+                    toolCallId,
+                    toolName,
                     eventName,
                     error.getClass().getSimpleName());
         }
