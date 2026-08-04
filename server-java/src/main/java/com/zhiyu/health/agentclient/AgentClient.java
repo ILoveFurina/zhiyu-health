@@ -35,12 +35,22 @@ public class AgentClient {
     private final Contracts contracts;
     /** server-py 可产出码的白名单：唯一事实源是 contracts/vision-errors.json。 */
     private final Set<String> visionErrorCodes;
+    /** server-py 语音可产出码的白名单：唯一事实源是 contracts/voice.json（票 45）。 */
+    private final Set<String> voiceErrorCodes;
     /** 模型超时码（契约内码）：状态映射的判定点，取值由 ContractsConsistencyTest 钉死。 */
     private static final String CODE_MODEL_TIMEOUT = "VISION_MODEL_TIMEOUT";
     /** server-py 不可达时的本端兜底码：不在契约白名单内（契约只列 server-py 可产出码）。 */
     private static final String CODE_AGENT_UNAVAILABLE = "VISION_AGENT_UNAVAILABLE";
 
     private static final String MSG_AGENT_UNAVAILABLE = "报告解读服务暂不可用";
+    /** 语音未配置码（契约内码）：出口走降级文案，不报错给用户（票 45）。 */
+    private static final String CODE_VOICE_UNCONFIGURED = "VOICE_UNCONFIGURED";
+    /** 语音音频无效码（契约内码）：空音频/不可读。 */
+    private static final String CODE_VOICE_AUDIO_INVALID = "VOICE_AUDIO_INVALID";
+    /** 语音模型超时码（契约内码）。 */
+    private static final String CODE_VOICE_TIMEOUT = "VOICE_MODEL_TIMEOUT";
+    /** 语音服务不可达时的本端兜底码：不在契约白名单内。 */
+    private static final String CODE_VOICE_UNAVAILABLE = "VOICE_AGENT_UNAVAILABLE";
 
     public AgentClient(
             WebClient.Builder builder,
@@ -54,6 +64,7 @@ public class AgentClient {
         this.objectMapper = objectMapper;
         this.contracts = contracts;
         this.visionErrorCodes = Set.copyOf(contracts.visionErrors().codes());
+        this.voiceErrorCodes = Set.copyOf(contracts.voice().errorCodes());
     }
 
     /** 发起对话请求，返回 SSE 事件流 */
@@ -186,6 +197,116 @@ public class AgentClient {
         return response;
     }
 
+    /**
+     * 语音识别（票 45，ADR-0020）：转发录音 multipart 至 server-py /api/agent/asr，回识别文字。
+     * ASR/TTS 不进 agent_call_logs trace；调用方负责入口审计（调用类型+参数类型+结果码/长度，
+     * 不记音频与识别文字原文，硬约束 5）。未配置/超时/失败抛 VoiceAgentException 携稳定码。
+     */
+    public String recognizeSpeech(MultipartFile audio) {
+        Contracts.Voice voice = contracts.voice();
+        // 契约开关前置：未配置直接降级，不发起网络调用（省请求、避免 server-py 503 噪音）
+        if (!voice.asrEnabled()) {
+            throw new VoiceAgentException(CODE_VOICE_UNCONFIGURED, 503, voice.degradeHint());
+        }
+        MultipartBodyBuilder body = new MultipartBodyBuilder();
+        try {
+            String filename = audio.getOriginalFilename() == null ? "voice" : audio.getOriginalFilename();
+            ByteArrayResource resource = new ByteArrayResource(audio.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return filename;
+                }
+            };
+            body.part("files", resource)
+                    .contentType(MediaType.parseMediaType(
+                            audio.getContentType() == null ? "application/octet-stream" : audio.getContentType()));
+        } catch (IOException e) {
+            throw new VoiceAgentException(CODE_VOICE_AUDIO_INVALID, 422, voice.degradeHint());
+        }
+        AsrResponse response;
+        try {
+            response = webClient
+                    .post()
+                    .uri("/api/agent/asr")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(BodyInserters.fromMultipartData(body.build()))
+                    .retrieve()
+                    .bodyToMono(AsrResponse.class)
+                    .block(Duration.ofMillis(voice.asrTimeoutMs()));
+        } catch (WebClientResponseException e) {
+            throw mapVoiceError(e);
+        } catch (RuntimeException e) {
+            if (causedByTimeout(e)) {
+                throw new VoiceAgentException(CODE_VOICE_TIMEOUT, 504, voice.degradeHint());
+            }
+            throw new VoiceAgentException(CODE_VOICE_UNAVAILABLE, 502, voice.degradeHint());
+        }
+        if (response == null || response.text() == null || response.text().isBlank()) {
+            throw new VoiceAgentException(CODE_VOICE_UNAVAILABLE, 502, voice.degradeHint());
+        }
+        return response.text();
+    }
+
+    /**
+     * 语音合成（票 45，ADR-0020）：转发 text 至 server-py /api/agent/tts，回二进制音频。
+     * 按需点击触发、整条回复一次合成（MVP 简单）；音频全程内存流转不持久化。
+     * 未配置/超时/失败抛 VoiceAgentException 携稳定码。
+     */
+    public byte[] synthesizeSpeech(String text) {
+        Contracts.Voice voice = contracts.voice();
+        if (!voice.ttsEnabled()) {
+            throw new VoiceAgentException(CODE_VOICE_UNCONFIGURED, 503, voice.degradeHint());
+        }
+        byte[] audio;
+        try {
+            audio = webClient
+                    .post()
+                    .uri("/api/agent/tts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.ALL)
+                    .bodyValue(Map.of("text", text))
+                    .retrieve()
+                    .bodyToMono(byte[].class)
+                    .block(Duration.ofMillis(voice.ttsTimeoutMs()));
+        } catch (WebClientResponseException e) {
+            throw mapVoiceError(e);
+        } catch (RuntimeException e) {
+            if (causedByTimeout(e)) {
+                throw new VoiceAgentException(CODE_VOICE_TIMEOUT, 504, voice.degradeHint());
+            }
+            throw new VoiceAgentException(CODE_VOICE_UNAVAILABLE, 502, voice.degradeHint());
+        }
+        if (audio == null || audio.length == 0) {
+            throw new VoiceAgentException(CODE_VOICE_UNAVAILABLE, 502, voice.degradeHint());
+        }
+        return audio;
+    }
+
+    private VoiceAgentException mapVoiceError(WebClientResponseException error) {
+        String code = null;
+        try {
+            code = objectMapper
+                    .readTree(error.getResponseBodyAsString())
+                    .path("detail")
+                    .path("code")
+                    .asText(null);
+        } catch (Exception ignored) {
+            // 响应体仅用于提取白名单错误码，不记录语音原始内容。
+        }
+        if (!voiceErrorCodes.contains(code)) {
+            code = error.getStatusCode().value() == 504 ? CODE_VOICE_TIMEOUT : CODE_VOICE_UNAVAILABLE;
+        }
+        int status = CODE_VOICE_TIMEOUT.equals(code)
+                ? 504
+                : (CODE_VOICE_UNCONFIGURED.equals(code)
+                        ? 503
+                        : (CODE_VOICE_AUDIO_INVALID.equals(code)
+                                ? 422
+                                : (error.getStatusCode().is4xxClientError() ? 422 : 502)));
+        return new VoiceAgentException(code, status, contracts.voice().degradeHint());
+    }
+
     private VisionAgentException mapVisionError(WebClientResponseException error) {
         String code = null;
         try {
@@ -232,6 +353,9 @@ public class AgentClient {
 
     public record ClinicalResponse(String content, String disclaimer) {}
 
+    /** ASR 识别回执（票 45）：text 为识别文字，不落库、不记原文审计。 */
+    public record AsrResponse(String text) {}
+
     /** 图谱投影骨架（ADR-0013 决策 6）：最小拓扑 {nodes, edges}，不携带节点属性。 */
     public record GraphProjection(List<GraphProjectionNode> nodes, List<GraphProjectionEdge> edges) {}
 
@@ -246,6 +370,29 @@ public class AgentClient {
         private final int status;
 
         public VisionAgentException(String code, int status, String message) {
+            super(message);
+            this.code = code;
+            this.status = status;
+        }
+
+        public String code() {
+            return code;
+        }
+
+        public int status() {
+            return status;
+        }
+    }
+
+    /**
+     * 语音调用失败（票 45，ADR-0020）：携带契约 error_codes 中的稳定码，供 controller 出口映射。
+     * message 一律用契约 degradeHint（用户可见降级文案），绝不暴露 server-py 原始错误。
+     */
+    public static final class VoiceAgentException extends RuntimeException {
+        private final String code;
+        private final int status;
+
+        public VoiceAgentException(String code, int status, String message) {
             super(message);
             this.code = code;
             this.status = status;
