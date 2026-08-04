@@ -36,10 +36,11 @@ public class Message {
             SSE_EVENTS.messageKinds().get(7);
     public static final String KIND_REPORT_CONTEXT = SSE_EVENTS.messageKinds().get(8);
     // 票 15（ADR-0023）：拍照分析结果卡片与原图路径消息。
-    // skin_analysis 为 AI 产出的结构化卡片（ai_card_kinds），image 承载 MinIO 对象路径，
+    // skin_analysis/diet_analysis 为 AI 产出的结构化卡片（ai_card_kinds），image 承载 MinIO 对象路径，
     // 两者分离--图片是"输入留存"，卡片是"AI 产出"，与 report_upload 的即用即弃模型并存。
     public static final String KIND_SKIN_ANALYSIS = SSE_EVENTS.messageKinds().get(9);
     public static final String KIND_IMAGE = SSE_EVENTS.messageKinds().get(10);
+    public static final String KIND_DIET_ANALYSIS = SSE_EVENTS.messageKinds().get(11);
     private static final Set<String> AI_CARD_KINDS = Set.copyOf(SSE_EVENTS.aiCardKinds());
 
     @TableId(type = IdType.AUTO)
