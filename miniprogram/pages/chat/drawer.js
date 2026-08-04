@@ -100,19 +100,20 @@ const drawerMethods = {
       }
     }
     // image kind（票 15 ADR-0023）：content 是 {object_key, media_type} JSON，
-    // 回放为图片消息（前端按 object_key 回拉 MinIO 原图，MVP 以文字标签占位）。
+    // 回放为图片消息。MVP 暂以文字标签占位（MinIO 原图回拉待后续接入图片代理）。
     if (m.kind === 'image') {
-      let image = {}
+      let label = '皮肤照片'
       try {
-        image = JSON.parse(m.content)
+        const image = JSON.parse(m.content)
+        if (image.media_type) label = '皮肤照片'
       } catch (e) {
-        image = {}
+        // 解析失败时沿用默认标签
       }
       return {
         id: ++this._msgSeq,
         role: m.role,
         kind: 'image',
-        content: '皮肤照片',
+        content: label,
         disclaimer: '',
         streaming: false,
       }
