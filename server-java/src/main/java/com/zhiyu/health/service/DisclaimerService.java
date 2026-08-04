@@ -21,6 +21,12 @@ public class DisclaimerService {
         return contracts.disclaimer().text();
     }
 
+    /** 中医专属免责文案（ADR-0024，票 17 拍舌苔）：通用文案覆盖不到"面诊"这一中医特定语义。
+     * 舌诊卡片叠加通用 + 中医两条；其他 AI 产出仍只取通用 {@link #text()}。 */
+    public String tcmText() {
+        return contracts.disclaimer().tcmText();
+    }
+
     /** 卡片字段挂载（SSE 出口兜底）：已带正确文案的幂等跳过，缺失或被篡改的覆盖。 */
     public void mount(ObjectNode card) {
         if (!text().equals(card.path("disclaimer").asText())) {

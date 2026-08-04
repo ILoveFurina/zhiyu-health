@@ -33,7 +33,7 @@ const FEATURE_BUBBLES = [
   { key: 'pillbox', label: '拍药盒', icon: '⊗', enabled: false, action: 'pillbox' },
   { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
   { key: 'diet', label: '拍饮食', icon: '✦', enabled: true, action: 'diet' },
-  { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: false, action: 'tongue' },
+  { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: true, action: 'tongue' },
 ]
 
 /** 仅暴露已点亮气泡，供 axml a:for 渲染。 */

@@ -53,7 +53,8 @@ class ContractsConsistencyTest {
                         "report_context",
                         "skin_analysis",
                         "image",
-                        "diet_analysis");
+                        "diet_analysis",
+                        "tongue_analysis");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -69,6 +70,7 @@ class ContractsConsistencyTest {
         assertThat(Message.KIND_SKIN_ANALYSIS).isEqualTo(events.messageKinds().get(9));
         assertThat(Message.KIND_IMAGE).isEqualTo(events.messageKinds().get(10));
         assertThat(Message.KIND_DIET_ANALYSIS).isEqualTo(events.messageKinds().get(11));
+        assertThat(Message.KIND_TONGUE_ANALYSIS).isEqualTo(events.messageKinds().get(12));
     }
 
     @Test
@@ -85,6 +87,8 @@ class ContractsConsistencyTest {
         assertThat(Message.isAiCardKind(Message.KIND_SKIN_ANALYSIS)).isTrue();
         // diet_analysis 是 AI 产出的结构化卡片，属于 ai_card_kinds（票 16）
         assertThat(Message.isAiCardKind(Message.KIND_DIET_ANALYSIS)).isTrue();
+        // tongue_analysis 是 AI 产出的中医辨证卡片，属于 ai_card_kinds（票 17）
+        assertThat(Message.isAiCardKind(Message.KIND_TONGUE_ANALYSIS)).isTrue();
         // red_flag 是规则引擎产物，不属于 AI 卡片
         assertThat(Message.isAiCardKind("red_flag")).isFalse();
     }
@@ -150,6 +154,7 @@ class ContractsConsistencyTest {
                         "report_interpretation",
                         "skin_analysis",
                         "diet_analysis",
+                        "tongue_analysis",
                         "report_upload",
                         "image");
     }

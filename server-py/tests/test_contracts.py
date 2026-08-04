@@ -9,6 +9,8 @@ from app.core.contracts import _load, get_contracts
 
 def test_disclaimer_matches_authoritative_text() -> None:
     assert get_contracts().disclaimer.text == "仅供参考，不替代医生诊断"
+    # ADR-0024（票 17）：中医专属免责与通用文案并列，舌诊卡片叠加两条
+    assert get_contracts().disclaimer.tcm_text == "体质辨识仅供参考，不替代中医面诊"
 
 
 def test_sse_event_protocol_is_complete() -> None:
@@ -23,19 +25,20 @@ def test_sse_event_protocol_is_complete() -> None:
         "create_appointment": "appointment",
         "get_appointment": "appointments",
     }
-    assert len(events.message_kinds) == 12
+    assert len(events.message_kinds) == 13
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
     assert "skin_analysis" in events.message_kinds
     assert "image" in events.message_kinds
     assert "diet_analysis" in events.message_kinds
-    assert len(events.ai_card_kinds) == 8
+    assert "tongue_analysis" in events.message_kinds
+    assert len(events.ai_card_kinds) == 9
     assert len(events.event_to_kind) == 6
 
 
 def test_vision_error_codes_and_messages_are_loaded() -> None:
     errors = get_contracts().vision_errors
-    assert len(errors.codes) == 13
+    assert len(errors.codes) == 14
     # 错误码集合与文案表必须一一对应
     assert set(errors.messages) == set(errors.codes)
     assert errors.messages["VISION_MODEL_TIMEOUT"] == "报告解读服务响应超时"
@@ -51,6 +54,10 @@ def test_vision_error_codes_and_messages_are_loaded() -> None:
     assert (
         errors.messages["VISION_DIET_SCOPE_UNSUPPORTED"]
         == "请上传清晰的饮食照片，暂不支持医学影像或报告诊断"
+    )
+    assert (
+        errors.messages["VISION_TONGUE_SCOPE_UNSUPPORTED"]
+        == "请上传清晰的舌苔照片，暂不支持医学影像或报告诊断"
     )
     assert errors.messages["VISION_FILE_TOO_LARGE"] == "报告文件超出处理限制，请拆分或压缩后上传"
 

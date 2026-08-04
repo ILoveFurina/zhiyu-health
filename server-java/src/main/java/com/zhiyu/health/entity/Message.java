@@ -41,6 +41,8 @@ public class Message {
     public static final String KIND_SKIN_ANALYSIS = SSE_EVENTS.messageKinds().get(9);
     public static final String KIND_IMAGE = SSE_EVENTS.messageKinds().get(10);
     public static final String KIND_DIET_ANALYSIS = SSE_EVENTS.messageKinds().get(11);
+    // 票 17（ADR-0024）：中医辨证卡片，调理不出药材，叠加中医专属免责，急症软兜底不扩红线。
+    public static final String KIND_TONGUE_ANALYSIS = SSE_EVENTS.messageKinds().get(12);
     private static final Set<String> AI_CARD_KINDS = Set.copyOf(SSE_EVENTS.aiCardKinds());
 
     @TableId(type = IdType.AUTO)

@@ -128,6 +128,13 @@
         disclaimer="{{item.disclaimer}}"
       />
 
+      <tongue-card
+        a:elif="{{item.kind === 'tongue_analysis'}}"
+        card="{{item.card}}"
+        disclaimer="{{item.disclaimer}}"
+        tcmDisclaimer="{{item.tcmDisclaimer}}"
+      />
+
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
@@ -200,6 +207,23 @@
     </view>
     <view a:if="{{dietProgress}}" class="report-progress">{{dietProgress}}</view>
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingDiet">发送并分析</view>
+  </view>
+
+  <view a:if="{{pendingTongue}}" class="pending-report">
+    <view class="pending-head">
+      <view>
+        <view class="pending-title">待发送的舌苔照片</view>
+        <view class="pending-tip">将发送至多模态模型做中医体质辨证与调理方向；调理不出药材方剂，不替代中医面诊</view>
+      </view>
+      <view class="pending-count">{{pendingTongue.items.length}} 张</view>
+    </view>
+    <view a:for="{{pendingTongue.items}}" a:key="path" class="pending-item">
+      <view class="pending-index">{{index + 1}}</view>
+      <view class="pending-name">{{item.name}}</view>
+      <view class="remove-btn" data-index="{{index}}" onTap="removeTongueItem">×</view>
+    </view>
+    <view a:if="{{tongueProgress}}" class="report-progress">{{tongueProgress}}</view>
+    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingTongue">发送并辨证</view>
   </view>
 
   <!-- 免责声明常驻细条（双保险之二） -->

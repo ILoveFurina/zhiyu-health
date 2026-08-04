@@ -15,12 +15,14 @@ from app.schemas.vision import VisionResponse
 
 router = APIRouter(prefix="/agent/vision", tags=["agent-vision"])
 
-# 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片，饮食拒非饮食照片（票 15/16）。
-# 未登记的场景无 scope 概念时不会进此映射，VisionScopeError 仍兜底为 report 码。
+# 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片，饮食拒非饮食照片，
+# 舌苔拒非舌苔照片（票 15/16/17）。未登记的场景无 scope 概念时不会进此映射，
+# VisionScopeError 仍兜底为 report 码。
 _SCOPE_ERROR_CODES = {
     "REPORT": "VISION_REPORT_SCOPE_UNSUPPORTED",
     "SKIN": "VISION_SKIN_SCOPE_UNSUPPORTED",
     "DIET": "VISION_DIET_SCOPE_UNSUPPORTED",
+    "TONGUE": "VISION_TONGUE_SCOPE_UNSUPPORTED",
 }
 
 
@@ -60,4 +62,11 @@ async def interpret_vision(
         raise HTTPException(
             status_code=502, detail=_error_detail("VISION_OUTPUT_INVALID")
         ) from exc
-    return VisionResponse(result=result, page_count=document.page_count)
+    # ADR-0024 第 2 条：舌诊场景双栈同步注入中医专属免责（server-py 在此注入，
+    # server-java TonguePhotoService 出口兜底），其他场景 tcm_disclaimer 保持空串。
+    tcm_disclaimer = (
+        get_contracts().disclaimer.tcm_text if document.scenario == "TONGUE" else ""
+    )
+    return VisionResponse(
+        result=result, page_count=document.page_count, tcm_disclaimer=tcm_disclaimer
+    )

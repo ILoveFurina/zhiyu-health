@@ -156,8 +156,9 @@ public class Contracts {
         return voice;
     }
 
-    /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
-    public record Disclaimer(String text) {}
+    /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。text 为通用文案；
+     * tcmText 为中医专属文案（ADR-0024，票 17 拍舌苔），舌诊卡片叠加通用 + 中医两条。 */
+    public record Disclaimer(String text, String tcmText) {}
 
     /** SSE 事件协议：流事件名、工具名→事件名、消息 kind 与事件→kind 映射。 */
     public record SseEvents(

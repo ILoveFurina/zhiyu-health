@@ -1,0 +1,60 @@
+.tongue-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.tongue-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+}
+
+.constitution {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.tongue-features {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+}
+
+.section-label {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #0e8a7d;
+  margin-bottom: 8rpx;
+}
+
+.care-direction {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+
+.diet-principle {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+
+.urgency-hint {
+  font-size: 26rpx;
+  color: #faad14;
+  line-height: 1.5;
+  margin-bottom: 12rpx;
+}
+
+.need-doctor {
+  font-size: 26rpx;
+  color: #ff4d4f;
+  margin-bottom: 16rpx;
+}

@@ -23,6 +23,10 @@ const featureGuideMethods = {
       // 饮食场景差异化（票 16）：无激活档案时仍可分析，仅缺个性化提醒句，故不强制建档。
       this.openDietPicker()
     }
+    else if (action === 'tongue') {
+      // 舌苔中医辨证（票 17，ADR-0024）：无档案差异化需求，调理不出药材，不强制建档。
+      this.openTonguePicker()
+    }
   },
 
   enterTriage() {
