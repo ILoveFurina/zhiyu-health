@@ -38,4 +38,12 @@ class DisclaimerServiceTest {
         assertThat(disclaimers.mountIfPresent("主诉胸闷两天")).isEqualTo(disclaimers.text());
         assertThat(disclaimers.mountIfPresent(null)).isNull();
     }
+
+    @Test
+    void tcmTextReturnsAuthoritativeTcmDisclaimer() {
+        // ADR-0024（票 17）：中医专属免责与通用文案并列，舌诊卡片叠加两条
+        assertThat(disclaimers.tcmText()).isEqualTo("体质辨识仅供参考，不替代中医面诊");
+        // 通用文案不受影响
+        assertThat(disclaimers.text()).isEqualTo("仅供参考，不替代医生诊断");
+    }
 }
