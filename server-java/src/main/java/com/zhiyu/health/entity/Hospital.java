@@ -20,4 +20,8 @@ public class Hospital {
     private String address;
     private Double longitude;
     private Double latitude;
+    // 就诊指引卡静态来源（票 43）：演示用虚构医院静态 seed 值，非 LLM 生成
+    private String floor;
+    private String materials;
+    private String precautions;
 }

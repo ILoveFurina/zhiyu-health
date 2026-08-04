@@ -11,7 +11,11 @@ CREATE TABLE IF NOT EXISTS hospitals (
     level VARCHAR(30),
     address VARCHAR(255),
     longitude DOUBLE PRECISION,
-    latitude DOUBLE PRECISION
+    latitude DOUBLE PRECISION,
+    -- 就诊指引卡静态来源（票 43）：地址错误后果重，演示用虚构医院静态值，非 LLM 生成
+    floor VARCHAR(30),
+    materials TEXT,
+    precautions TEXT
 );
 
 CREATE TABLE IF NOT EXISTS departments (

@@ -1,9 +1,15 @@
 -- 幂等 seed：仅组织演示数据（虚构），ON CONFLICT DO NOTHING + 显式 id
 -- 由 spring.sql.init.data-locations 在启动时执行
 
-INSERT INTO hospitals (id, name, level, address, longitude, latitude) VALUES
-    (1, '智愈市人民医院', '三级甲等', '智愈市安康路 88 号', 121.4737, 31.2304),
-    (2, '智愈市第二医院', '三级乙等', '智愈市江宁路 200 号', 121.4901, 31.2486)
+INSERT INTO hospitals (id, name, level, address, longitude, latitude, floor, materials, precautions) VALUES
+    (1, '智愈市人民医院', '三级甲等', '智愈市安康路 88 号', 121.4737, 31.2304,
+     '门诊楼 1 层导诊台',
+     E'身份证或医保卡\n既往病历与检查报告\n近期待用药品清单',
+     E'建议提前 30 分钟到达并完成取号\n请携带既往病历便于医生参考\n就诊前避免进食油腻食物'),
+    (2, '智愈市第二医院', '三级乙等', '智愈市江宁路 200 号', 121.4901, 31.2486,
+     '门诊楼 1 层咨询台',
+     E'身份证或医保卡\n既往手术记录\n影像胶片或报告',
+     E'建议提前 30 分钟到达并完成取号\n骨科患者请穿宽松衣物便于检查\n眼科患者请勿自行驾车前往')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO departments (id, hospital_id, name, floor, location) VALUES
