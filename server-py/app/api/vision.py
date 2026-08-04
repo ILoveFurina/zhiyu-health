@@ -15,11 +15,12 @@ from app.schemas.vision import VisionResponse
 
 router = APIRouter(prefix="/agent/vision", tags=["agent-vision"])
 
-# 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片（票 15）。
+# 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片，饮食拒非饮食照片（票 15/16）。
 # 未登记的场景无 scope 概念时不会进此映射，VisionScopeError 仍兜底为 report 码。
 _SCOPE_ERROR_CODES = {
     "REPORT": "VISION_REPORT_SCOPE_UNSUPPORTED",
     "SKIN": "VISION_SKIN_SCOPE_UNSUPPORTED",
+    "DIET": "VISION_DIET_SCOPE_UNSUPPORTED",
 }
 
 

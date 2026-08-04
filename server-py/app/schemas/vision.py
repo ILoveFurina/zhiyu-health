@@ -1,6 +1,6 @@
 """视觉场景结构化契约。
 
-报告解读（REPORT）与拍照分析（SKIN）共用同一 scenario 驱动管道（票 15）：
+报告解读（REPORT）与拍照分析（SKIN/DIET）共用同一 scenario 驱动管道（票 15）：
 每个场景在 scenarios.py 注册自己的 system_prompt 与 result_model，interpreter 按
 policy.result_model 动态校验，document 按场景分发预处理。各 result_model 字段互不
 耦合，新增场景只追加模型与策略，不改动既有 REPORT 结构。
@@ -64,6 +64,47 @@ class SkinAnalysis(BaseModel):
     skin_type: str = Field(min_length=1)
     findings: list[SkinFinding]
     care_summary: str = Field(min_length=1)
+    need_doctor: bool
+    scope_supported: bool = Field(exclude=True)
+
+
+class DietFood(BaseModel):
+    """饮食分析识别的单项食材/菜品。
+
+    risk_level 与报告 priority 解耦：饮食场景不做营养诊断，risk_level 只表达"日常可食 /
+    注意限量 / 过敏风险"的轻重度提示，red 仅表示命中过敏原或明显不适宜，不表示急救
+    （硬约束 1/2）。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    # 估算摄入量（如"约 200g""一碗"），看不清时不得猜测，可为"无法估量"
+    estimated_amount: str = Field(min_length=1)
+    risk_level: Literal["green", "yellow", "red"]
+    explanation: str = Field(min_length=1)
+
+
+class DietAnalysis(BaseModel):
+    """拍照饮食分析结果模型（票 16，照搬 15 皮肤模板的第二个拍照分析场景）。
+
+    差异化点（见票 16）：结合健康档案过敏史给出个性化一句提醒。档案注入由 interpreter
+    的 _content_blocks 统一完成（scenario 无关），饮食 prompt 收到过敏史后在识别出食材
+    后比对过敏原，命中则把对应 DietFood.risk_level 置 red 并在 personal_tip 产出风险提示。
+    无激活档案时正常分析，仅缺个性化提醒句。scope_supported 为 false 时表示照片不属于
+    饮食场景（如医学影像/皮肤/舌苔照片），由饮食场景策略拒绝。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    meal_type: str = Field(min_length=1)
+    foods: list[DietFood]
+    # 估算总热量（千卡）；看不清时可为"无法估量"
+    estimated_calories: str = Field(min_length=1)
+    nutrition_summary: str = Field(min_length=1)
+    diet_advice: str = Field(min_length=1)
+    # 个性化一句提醒：命中过敏原时为风险提示，否则为年龄/性别通用话术；无档案时为空串
+    personal_tip: str = ""
     need_doctor: bool
     scope_supported: bool = Field(exclude=True)
 
