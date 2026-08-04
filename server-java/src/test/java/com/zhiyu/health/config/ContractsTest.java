@@ -34,10 +34,17 @@ class ContractsTest {
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments");
         assertThat(events.messageKinds())
-                .hasSize(13)
+                .hasSize(15)
                 .contains(
-                        "text", "report_interpretation", "skin_analysis", "image", "diet_analysis", "tongue_analysis");
-        assertThat(events.aiCardKinds()).hasSize(9);
+                        "text",
+                        "report_interpretation",
+                        "skin_analysis",
+                        "image",
+                        "diet_analysis",
+                        "tongue_analysis",
+                        "medication_info",
+                        "medication_safety");
+        assertThat(events.aiCardKinds()).hasSize(11);
         assertThat(events.eventToKind())
                 .hasSize(6)
                 .containsEntry("hospital_recommendations", "hospital_recommendations");
@@ -46,15 +53,16 @@ class ContractsTest {
     @Test
     void visionErrorCodesAndMessagesAreLoaded() {
         Contracts.VisionErrors errors = contracts.visionErrors();
-        assertThat(errors.codes()).hasSize(14);
+        assertThat(errors.codes()).hasSize(15);
         assertThat(errors.messages())
-                .hasSize(14)
+                .hasSize(15)
                 .containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时")
                 .containsEntry("VISION_OUTPUT_INVALID", "本次未能生成可靠的结构化解读，请重试")
                 .containsEntry("VISION_REPORT_SCOPE_UNSUPPORTED", "请上传报告文字页，暂不支持原始医学影像诊断")
                 .containsEntry("VISION_SKIN_SCOPE_UNSUPPORTED", "请上传清晰的皮肤照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_DIET_SCOPE_UNSUPPORTED", "请上传清晰的饮食照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_TONGUE_SCOPE_UNSUPPORTED", "请上传清晰的舌苔照片，暂不支持医学影像或报告诊断")
+                .containsEntry("VISION_PILL_BOX_SCOPE_UNSUPPORTED", "请上传清晰的药盒照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_FILE_TOO_LARGE", "报告文件超出处理限制，请拆分或压缩后上传");
         // 错误码集合与文案表必须一一对应。
         assertThat(errors.messages().keySet()).containsExactlyInAnyOrderElementsOf(errors.codes());

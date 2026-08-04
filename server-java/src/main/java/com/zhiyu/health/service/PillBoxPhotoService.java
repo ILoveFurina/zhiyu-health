@@ -132,7 +132,7 @@ public class PillBoxPhotoService {
 
     public record PillBoxPhotoView(
             @JsonProperty("conversation_id") Long conversationId,
-            JsonNode medicationInfo,
-            JsonNode medicationSafety,
+            @JsonProperty("medication_info") JsonNode medicationInfo,
+            @JsonProperty("medication_safety") JsonNode medicationSafety,
             @JsonProperty("not_found") boolean notFound) {}
 }
