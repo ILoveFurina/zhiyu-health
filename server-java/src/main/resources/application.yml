@@ -48,6 +48,14 @@ zhiyu:
     uri: ${NEO4J_URI:bolt://localhost:7687}
     user: ${NEO4J_USER:neo4j}
     password: ${NEO4J_PASSWORD:}
+  minio:
+    # 拍照分析原图持久化（ADR-0023）：旁路存储，MinIO 不可用时降级为不留原图不阻断分析。
+    # enabled=false 时跳过一切 MinIO 调用（云端未部署时本地仍可开发与测试）。
+    enabled: ${MINIO_ENABLED:false}
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:}
+    secret-key: ${MINIO_SECRET_KEY:}
+    bucket: ${MINIO_BUCKET:zhiyu-photos}
   knowledge:
     # 向量维度路径 B（ADR-0010）：DDL 写死 vector(2048)，yml 配置默认值，
     # 启动期校验配置维度 == DDL 维度 == endpoint 实际返回，不一致 fail-fast。

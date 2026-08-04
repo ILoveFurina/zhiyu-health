@@ -93,6 +93,13 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- 拍照分析原图持久化（ADR-0023）：MinIO 对象存储 SDK，仅 server-java 使用，
+             旁路持久化语义，不介入视觉分析热路径，server-py 不引入此依赖。 -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
+        </dependency>
         <!-- 本阶段仅接基础设施，mapper 接口在 P4 阶段引入 -->
         <dependency>
             <groupId>org.mapstruct</groupId>
