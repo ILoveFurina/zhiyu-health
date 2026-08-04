@@ -40,7 +40,7 @@ class SkinPhotoServiceTest {
                 {"skin_type":"偏干性","findings":[],"care_summary":"注意保湿","need_doctor":false}
                 """);
         when(agentClient.interpretVision(anyList(), any(), eq("SKIN")))
-                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", 1));
+                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", null, 1));
         MinioStorageService minioStorage = mock(MinioStorageService.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         when(healthProfiles.agentContext(12L))

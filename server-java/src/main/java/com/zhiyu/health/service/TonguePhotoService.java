@@ -81,15 +81,17 @@ public class TonguePhotoService {
             throw new ApiException(502, "舌苔辨证结果损坏");
         }
         // ADR-0024 第 2 条：舌诊卡片叠加通用免责 + 中医专属免责两条。
+        // 双栈同步：server-py 在 VisionResponse.tcm_disclaimer 注入，此处出口兜底--
+        // 若 server-py 未带（旧版兼容或非舌诊路径）则用本地契约 tcmText() 兜底。
+        String tcmDisclaimer = response.tcmDisclaimer() != null ? response.tcmDisclaimer() : disclaimers.tcmText();
         ObjectNode card = objectMapper.createObjectNode();
         card.set("result", response.result());
         card.put("disclaimer", disclaimers.text());
-        card.put("tcm_disclaimer", disclaimers.tcmText());
+        card.put("tcm_disclaimer", tcmDisclaimer);
         // tongue_analysis 卡片作为 AI 消息回落会话；content 存卡片 JSON 供历史回放渲染。
         conversations.appendMessage(
                 conversation.getId(), "assistant", card.toString(), Message.KIND_TONGUE_ANALYSIS, null, null, null);
-        return new TongueAnalysisView(
-                conversation.getId(), response.result(), disclaimers.text(), disclaimers.tcmText());
+        return new TongueAnalysisView(conversation.getId(), response.result(), disclaimers.text(), tcmDisclaimer);
     }
 
     private void validate(List<MultipartFile> files) {

@@ -43,7 +43,7 @@ class TonguePhotoServiceTest {
                 "urgency_hint":"","need_doctor":false}
                 """);
         when(agentClient.interpretVision(anyList(), any(), eq("TONGUE")))
-                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", 1));
+                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", "体质辨识仅供参考，不替代中医面诊", 1));
         MinioStorageService minioStorage = mock(MinioStorageService.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         when(healthProfiles.agentContext(12L))

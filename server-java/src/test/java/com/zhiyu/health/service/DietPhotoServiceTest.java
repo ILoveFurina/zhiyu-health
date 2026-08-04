@@ -41,7 +41,7 @@ class DietPhotoServiceTest {
                 "nutrition_summary":"碳水为主","diet_advice":"增加蔬菜","personal_tip":"","need_doctor":false}
                 """);
         when(agentClient.interpretVision(anyList(), any(), eq("DIET")))
-                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", 1));
+                .thenReturn(new AgentClient.VisionResponse(result, "仅供参考，不替代医生诊断", null, 1));
         MinioStorageService minioStorage = mock(MinioStorageService.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         when(healthProfiles.agentContext(12L))

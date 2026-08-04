@@ -52,7 +52,7 @@ module.exports = {
   },
 
   finishTongue(items, data) {
-    // 图片消息（image kind）：后端已落 MinIO 并写 image 消息，前端同步展示缩略提示。
+    // 图片消息（image kind）：server-java 已落 MinIO 并写 image 消息，前端同步展示缩略提示。
     const imageMessage = {
       id: ++this._msgSeq, role: 'user', kind: 'image',
       content: `舌苔照片（${items.length}张）`,
@@ -61,7 +61,7 @@ module.exports = {
       id: ++this._msgSeq, role: 'assistant', kind: 'tongue_analysis',
       card: data.result,
       disclaimer: data.disclaimer,
-      // ADR-0024 第 2 条：中医专属免责叠加（后端 tcm_disclaimer 字段）
+      // ADR-0024 第 2 条：中医专属免责叠加（server-java tcm_disclaimer 字段，双栈注入）
       tcmDisclaimer: data.tcm_disclaimer || '',
     }
     this.setData({

@@ -352,7 +352,11 @@ public class AgentClient {
         return false;
     }
 
-    public record VisionResponse(JsonNode result, String disclaimer, @JsonProperty("page_count") Integer pageCount) {}
+    public record VisionResponse(
+            JsonNode result,
+            String disclaimer,
+            @JsonProperty("tcm_disclaimer") String tcmDisclaimer,
+            @JsonProperty("page_count") Integer pageCount) {}
 
     public record ClinicalResponse(String content, String disclaimer) {}
 

@@ -646,6 +646,8 @@ def test_tongue_image_returns_structured_card_with_disclaimer() -> None:
     assert body["result"]["need_doctor"] is False
     # 通用免责仍挂载（硬约束 1）
     assert body["disclaimer"] == "仅供参考，不替代医生诊断"
+    # ADR-0024 第 2 条双栈注入：server-py 在 VisionResponse.tcm_disclaimer 注入中医专属免责
+    assert body["tcm_disclaimer"] == "体质辨识仅供参考，不替代中医面诊"
     # scope_supported 是 exclude 字段，不暴露给卡片
     assert "scope_supported" not in body["result"]
     # 舌苔 prompt 走场景策略，system_prompt 必须含中医舌苔辨证约束
@@ -758,3 +760,49 @@ def test_tongue_out_of_scope_image_is_rejected_with_tongue_code() -> None:
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "VISION_TONGUE_SCOPE_UNSUPPORTED"
     assert len(raw_model.calls) == 1
+
+
+def test_non_tongue_scenario_has_empty_tcm_disclaimer() -> None:
+    # ADR-0024 第 2 条：中医专属免责仅舌诊场景注入，其他场景 tcm_disclaimer 为空串，不泄漏。
+    model = FakeRawVisionModel([_diet_result()])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "DIET"},
+            files=[("files", ("meal.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert response.json()["tcm_disclaimer"] == ""
+
+
+def test_tongue_need_doctor_without_urgency_hint_is_rejected() -> None:
+    # ADR-0024 第 3 条软兜底保证：need_doctor=true 时 urgency_hint 不得为空。
+    # prompt 已声明该约束，此处验证 schema 层兜底防 LLM 漏填就医话术。
+    # model_validator 抛 ValidationError，interpreter 重试一次后仍失败 -> 502。
+    invalid = """{
+      "constitution":"待辨明","tongue_features":"舌面光如镜面",
+      "care_direction":"建议就医","diet_principle":"暂缓调理",
+      "urgency_hint":"","need_doctor":true,"scope_supported":true
+    }"""
+    model = FakeRawVisionModel([invalid, invalid])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "TONGUE"},
+            files=[("files", ("tongue.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    # model_validator 拒绝 -> 两次重试均失败 -> VisionOutputError -> 502 VISION_OUTPUT_INVALID
+    assert response.status_code == 502
+    assert response.json()["detail"]["code"] == "VISION_OUTPUT_INVALID"

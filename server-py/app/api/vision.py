@@ -62,4 +62,11 @@ async def interpret_vision(
         raise HTTPException(
             status_code=502, detail=_error_detail("VISION_OUTPUT_INVALID")
         ) from exc
-    return VisionResponse(result=result, page_count=document.page_count)
+    # ADR-0024 第 2 条：舌诊场景双栈同步注入中医专属免责（server-py 在此注入，
+    # server-java TonguePhotoService 出口兜底），其他场景 tcm_disclaimer 保持空串。
+    tcm_disclaimer = (
+        get_contracts().disclaimer.tcm_text if document.scenario == "TONGUE" else ""
+    )
+    return VisionResponse(
+        result=result, page_count=document.page_count, tcm_disclaimer=tcm_disclaimer
+    )

@@ -8,7 +8,8 @@ policy.result_model 动态校验，document 按场景分发预处理。各 resul
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+from pydantic_core import PydanticCustomError
 
 from app.core.contracts import get_contracts
 
@@ -137,6 +138,15 @@ class TongueAnalysis(BaseModel):
     need_doctor: bool
     scope_supported: bool = Field(exclude=True)
 
+    @model_validator(mode="after")
+    def _need_doctor_requires_urgency_hint(self) -> "TongueAnalysis":
+        # ADR-0024 第 3 条软兜底保证：need_doctor 为 true 时必须给出就医话术，
+        # 否则软兜底沦为空引导。prompt 已声明该约束，此处 schema 层兜底防 LLM 漏填。
+        # 用 PydanticCustomError 而非裸 ValueError：前者 ctx 可 JSON 序列化，
+        # interpreter 把 ValidationError.errors() 喂回 LLM 重试时不会因序列化失败崩溃。
+        if self.need_doctor and not self.urgency_hint:
+            raise PydanticCustomError("need_doctor_requires_urgency_hint", "need_doctor 为 true 时 urgency_hint 不得为空")
+        return self
 
 class VisionResponse(BaseModel):
     """视觉分析统一出口：result 为分场景的结构化结果，page_count 为预处理页数。
@@ -146,8 +156,11 @@ class VisionResponse(BaseModel):
     """
 
     result: BaseModel
-    # 文案以跨栈契约为唯一事实源；default_factory 在实例化时取值，避免 import 期副作用。
+    # 通用免责文案以跨栈契约为唯一事实源；default_factory 在实例化时取值，避免 import 期副作用。
     disclaimer: str = Field(default_factory=lambda: get_contracts().disclaimer.text)
+    # 中医专属免责（ADR-0024 第 2 条）：仅舌诊场景注入 tcm_text，其他场景为空串。
+    # 双栈同步：server-py 在此注入，server-java TonguePhotoService 出口兜底。
+    tcm_disclaimer: str = ""
     page_count: int = Field(ge=1)
 
     @field_serializer("result")

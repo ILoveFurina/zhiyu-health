@@ -119,6 +119,7 @@ class ReportInterpretationServiceTest {
                          "action":"咨询医生","page":1}],"actions":["咨询医生"],"unreadable":[]}
                         """),
                 "仅供参考，不替代医生诊断",
+                null,
                 1);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
