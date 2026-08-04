@@ -7,6 +7,7 @@
     "hospital-card": "/components/hospital-card/index",
     "appointment-card": "/components/appointment-card/index",
     "skin-card": "/components/skin-card/index",
-    "diet-card": "/components/diet-card/index"
+    "diet-card": "/components/diet-card/index",
+    "tongue-card": "/components/tongue-card/index"
   }
 }

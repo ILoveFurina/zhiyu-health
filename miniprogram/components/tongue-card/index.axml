@@ -1,0 +1,17 @@
+<view class="tongue-card">
+  <view class="tongue-card-title">中医辨证</view>
+  <view class="constitution">体质辨识：{{card.constitution}}</view>
+  <view class="tongue-features">舌象特征：{{card.tongue_features}}</view>
+
+  <view class="section-label">调理方向</view>
+  <view class="care-direction">{{card.care_direction}}</view>
+
+  <view class="section-label">饮食原则</view>
+  <view class="diet-principle">{{card.diet_principle}}</view>
+
+  <view a:if="{{card.urgency_hint}}" class="urgency-hint">{{card.urgency_hint}}</view>
+  <view a:if="{{card.need_doctor}}" class="need-doctor">建议尽快就医，由中医面诊确认。</view>
+
+  <ai-disclaimer text="{{disclaimer}}" />
+  <ai-disclaimer text="{{tcmDisclaimer}}" />
+</view>

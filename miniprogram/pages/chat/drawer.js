@@ -154,6 +154,17 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
+      // tongue_analysis 与 diet 同构，但叠加中医专属免责（ADR-0024，票 17）
+      if (m.kind === 'tongue_analysis' && card.result) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: card.result,
+          disclaimer: card.disclaimer || m.disclaimer,
+          tcmDisclaimer: card.tcm_disclaimer || '',
+        }
+      }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }
     return {
