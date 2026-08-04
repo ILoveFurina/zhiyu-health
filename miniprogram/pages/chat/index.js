@@ -6,6 +6,8 @@ const reportComposer = require('./report-composer')
 const skinComposer = require('./skin-composer')
 const dietComposer = require('./diet-composer')
 const tongueComposer = require('./tongue-composer')
+const pillboxComposer = require('./pillbox-composer')
+const medicationLookupComposer = require('./medication-lookup-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
@@ -64,6 +66,10 @@ Page({
     dietProgress: '',
     pendingTongue: null,
     tongueProgress: '',
+    pendingPillbox: null,
+    pillboxProgress: '',
+    pendingMedLookup: null,
+    medLookupProgress: '',
     profileLoaded: false,
     currentProfile: null,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
@@ -84,6 +90,8 @@ Page({
   ...skinComposer,
   ...dietComposer,
   ...tongueComposer,
+  ...pillboxComposer,
+  ...medicationLookupComposer,
   ...hospitalRoutingMethods,
   ...featureGuideMethods,
 

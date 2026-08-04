@@ -1,0 +1,25 @@
+<view class="med-safety-card">
+  <view class="med-safety-title">用药安全</view>
+
+  <view class="decision-row">
+    <view class="decision-badge {{card.decision === 'BLOCKED' ? 'badge-blocked' : card.decision === 'REVIEW_REQUIRED' ? 'badge-review' : 'badge-safe'}}">
+      {{card.decision === 'BLOCKED' ? '存在禁忌' : card.decision === 'REVIEW_REQUIRED' ? '需复核' : '未发现禁忌'}}
+    </view>
+  </view>
+
+  <view a:if="{{card.message}}" class="safety-message">{{card.message}}</view>
+
+  <view a:if="{{card.reasons && card.reasons.length}}" class="reasons">
+    <view class="reasons-label">原因：</view>
+    <view a:for="{{card.reasons}}" a:key="*this" class="reason-item">· {{item}}</view>
+  </view>
+
+  <view a:if="{{card.advice}}" class="advice-box">
+    <view class="advice-label">建议</view>
+    <view class="advice-text">{{card.advice}}</view>
+  </view>
+
+  <view class="consult-hint">如需用药指导，请咨询医生或药师。</view>
+
+  <ai-disclaimer text="{{disclaimer}}" />
+</view>

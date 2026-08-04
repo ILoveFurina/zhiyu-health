@@ -165,6 +165,16 @@ const drawerMethods = {
           tcmDisclaimer: card.tcm_disclaimer || '',
         }
       }
+      // medication_info/medication_safety 与 skin/diet 同构：content 是 {result, disclaimer} 包裹（票 14）
+      if ((m.kind === 'medication_info' || m.kind === 'medication_safety') && card.result) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: card.result,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
+      }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }
     return {

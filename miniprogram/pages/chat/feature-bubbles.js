@@ -30,10 +30,12 @@ const FEATURE_BUBBLES = [
     action: 'report',
   },
   // 拍照类入口随各自票单落地再点亮；未落地前 enabled:false 不渲染（D8 可插拔纪律）
-  { key: 'pillbox', label: '拍药盒', icon: '⊗', enabled: false, action: 'pillbox' },
+  { key: 'pillbox', label: '拍药盒', icon: '⊗', enabled: true, action: 'pillbox' },
   { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
   { key: 'diet', label: '拍饮食', icon: '✦', enabled: true, action: 'diet' },
   { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: true, action: 'tongue' },
+  // 票 14 文字版入口（ADR-0025 差异化点 4）：与拍药盒共用同一查询与规则出口
+  { key: 'medlookup', label: '查药品', icon: 'ⓘ', enabled: true, action: 'medlookup' },
 ]
 
 /** 仅暴露已点亮气泡，供 axml a:for 渲染。 */
