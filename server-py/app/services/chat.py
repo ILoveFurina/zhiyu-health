@@ -14,8 +14,10 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 
 from collections.abc import AsyncIterator
 
+from app.agent.emotion import EmotionJudge, LazyEmotionJudge
 from app.agent.runner import AgentContext, AgentRunner, HealthProfileContext
 from app.core.contracts import get_contracts
+from app.schemas.emotion import emotion_soothing_text
 from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
 
 # SSE 流事件名唯一事实源是 contracts/sse-events.json；协议顺序固定，
@@ -35,10 +37,14 @@ class AgentChatService:
         *,
         rag_available: bool = False,
         graph_available: bool = False,
+        emotion_judge: EmotionJudge | None = None,
     ) -> None:
         self._agent_runner = agent_runner
         self._rag_available = rag_available
         self._graph_available = graph_available
+        # 情绪反馈判断器（票 44，ADR-0019）：主回复完成后串行二次非流式 LLM 调用；
+        # 默认懒装配，测试可注入 fake 断言调用与降级行为。
+        self._emotion_judge = emotion_judge or LazyEmotionJudge()
         # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
         # 装配期取出缓存，禁止在本地另立文案常量。
         self._disclaimer = get_contracts().disclaimer.text
@@ -122,13 +128,25 @@ class AgentChatService:
                     "event": output.event,
                     "data": {**output.data, "disclaimer": self._disclaimer},
                 }
-        yield {
-            "event": EVENT_MESSAGE,
-            "data": {
-                "role": "assistant",
-                "content": "".join(parts),
-                "disclaimer": self._disclaimer,
-                "effort": effort,
-            },
+        # 票 44：主回复 token 流完成后、message 事件发出前，串行非流式 LLM 调用判情绪。
+        # emotion 挂 message 事件（不新增 SSE 事件）；判断失败/超时降级 calm 不阻塞回复。
+        # 仅取最后一条用户消息作为情绪判断输入（避免把整段历史塞进二次调用）。
+        last_user_text = next(
+            (m["content"] for m in reversed(messages) if m.get("role") == "user"),
+            "",
+        )
+        emotion_result = await self._emotion_judge.judge(last_user_text)
+        soothing = emotion_soothing_text(emotion_result.emotion)
+        message_data: dict[str, object] = {
+            "role": "assistant",
+            "content": "".join(parts),
+            "disclaimer": self._disclaimer,
+            "effort": effort,
+            "emotion": emotion_result.emotion,
         }
+        # calm 无安抚语（映射缺省即无）；anxious/fearful 附一条确定性安抚文案，
+        # 与回复共用同一条免责声明，不单独标注、不作为独立消息、不进 messages 数组。
+        if soothing is not None:
+            message_data["soothing_text"] = soothing
+        yield {"event": EVENT_MESSAGE, "data": message_data}
         yield {"event": EVENT_DONE, "data": {}}
