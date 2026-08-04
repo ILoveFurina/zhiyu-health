@@ -250,7 +250,7 @@ Python 依赖由 `pyproject.toml` 声明、`uv.lock` 精确锁定；B 端和小�
 ## 文档
 
 - 领域术语：`CONTEXT.md`
-- 架构决策：`docs/adr/0001`–`0012`
+- 架构决策：`docs/adr/0001`–`0022`
 - 产品规格：`.scratch/zhiyu-mvp/spec.md`
 - UI 约定：`docs/specs/0002-ui-conventions.md`
 - 施工票单：`.scratch/zhiyu-mvp/issues/`

@@ -1,5 +1,7 @@
 # 情绪反馈由主回复完成后的串行二次 LLM 调用产生
 
+Status: accepted（票 44 emotion 情感化核心）
+
 C 端 Agent 回复需携带三档情绪标注（calm/anxious/fearful）驱动气泡变色与安抚语（票 44）。对话主链路当前是纯 free-text token 流（票 40 刚完成 TTFT 提速），不使用结构化输出。决定：emotion 由 server-py 在主回复 token 流结束、`message` 事件发出之前，发起一次**非流式** LLM 调用，prompt 为判断用户消息情绪，`response_format=json_object` + pydantic 校验 + 2 次重试（复用 `agent/vision/interpreter.py` 已验证的结构化输出范式），产出 `EmotionResult(emotion, rationale)`，`emotion` 挂到 `message` 事件下发，`rationale` 仅调试用不下发；调用失败/超时降级 calm，不阻塞回复。
 
 被否决的方案：

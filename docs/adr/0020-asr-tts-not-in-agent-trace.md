@@ -1,5 +1,7 @@
 # ASR/TTS 调用不进 agent_call_logs trace
 
+Status: accepted（票 45 语音双向 ASR/TTS）
+
 语音双向（ASR/TTS，票 45）引入两类新调用：端侧录音经 server-java 转发 server-py 调火山 ASR 识别、按需 TTS 合成。决定：这两类调用**不进** `agent_call_logs`（票 24 工具调用日志），仅在 server-java 入口审计记一笔（调用类型 + 参数类型 + 结果码/长度，不记音频与识别/合成文字原文，遵循硬约束 5 脱敏）。
 
 理由：`agent_call_logs` 记的是 LangGraph 工具循环内的工具调用（`tool_start`/`tool_end` 配对，白名单字段无原文列）。ASR/TTS 不在 LangGraph 循环内--ASR 是对话发起前的输入方式、TTS 是对话完成后的输出呈现，都是端侧发起的独立 HTTP 请求，不是 Agent 工具。强行塞进 trace 会污染"工具调用"语义，且要改 `agent_call_logs` 白名单加列、改 `contracts/sse-events.json` 的 trace 事件集合，违反不越票原则。
