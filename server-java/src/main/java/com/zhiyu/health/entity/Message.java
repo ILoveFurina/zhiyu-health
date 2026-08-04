@@ -45,6 +45,9 @@ public class Message {
     private String kind;
     private String content;
     private String effort;
+    // 票 44：C 端 Agent 回复的情绪标注（calm/anxious/fearful），由 server-py 串行二次
+    // LLM 调用产生挂 message 事件，server-java 透传落库供历史回看复现情绪色；用户消息为 NULL。
+    private String emotion;
     private Long reportInterpretationId;
     private OffsetDateTime createdAt;
 

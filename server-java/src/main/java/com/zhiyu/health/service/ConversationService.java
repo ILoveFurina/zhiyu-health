@@ -98,6 +98,7 @@ public class ConversationService {
                         message.getKind(),
                         message.getContent(),
                         message.getEffort(),
+                        message.getEmotion(),
                         isAiOutput(message) ? disclaimers.text() : null,
                         message.getCreatedAt() == null
                                 ? null
@@ -107,14 +108,33 @@ public class ConversationService {
 
     @Transactional
     public Message appendMessage(Long conversationId, String role, String content, String kind, String effort) {
-        return appendMessage(conversationId, role, content, kind, effort, null);
+        return appendMessage(conversationId, role, content, kind, effort, null, null);
     }
 
     @Transactional
     public Message appendMessage(
             Long conversationId, String role, String content, String kind, String effort, Long reportInterpretationId) {
+        return appendMessage(conversationId, role, content, kind, effort, reportInterpretationId, null);
+    }
+
+    /**
+     * 落一条消息；emotion 仅 assistant 文本回复携带（票 44），其余调用方传 null。
+     * reportInterpretationId 与 emotion 互不影响，合并为单入口避免重载爆炸。
+     * emotion 字段自然透传（票 44 决策：对 message 不做白名单），脏值兜底由
+     * schema.sql 的 CHECK 约束在 DB 层拦截，service 层不再重复校验。
+     */
+    @Transactional
+    public Message appendMessage(
+            Long conversationId,
+            String role,
+            String content,
+            String kind,
+            String effort,
+            Long reportInterpretationId,
+            String emotion) {
         Message message = new Message(null, conversationId, role, kind, content, effort);
         message.setReportInterpretationId(reportInterpretationId);
+        message.setEmotion(emotion);
         messageMapper.insert(message);
         conversationMapper.update(
                 null,
@@ -162,7 +182,14 @@ public class ConversationService {
     }
 
     public record MessageView(
-            Long id, String role, String kind, String content, String effort, String disclaimer, String createdAt) {}
+            Long id,
+            String role,
+            String kind,
+            String content,
+            String effort,
+            String emotion,
+            String disclaimer,
+            String createdAt) {}
 
     /** 对话记录列表项；严格三字段，不加预览（见票 27 决策 11/12）。 */
     public record ConversationSummary(Long id, String title, String lastActiveAt) {}
