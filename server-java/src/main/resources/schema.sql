@@ -122,8 +122,13 @@ CREATE TABLE IF NOT EXISTS messages (
     kind VARCHAR(32) NOT NULL DEFAULT 'text',
     content TEXT NOT NULL,
     effort VARCHAR(10),
+    -- 票 44：C 端 Agent 回复的情绪标注（calm/anxious/fearful），由 server-py 串行二次
+    -- LLM 调用产生挂 message 事件，server-java 透传落库供历史回看复现情绪色；用户消息为 NULL。
+    -- VARCHAR(16) 容纳枚举最长值 fearful(7) 并留余量；CHECK 限定取值，防脏值写入。
+    emotion VARCHAR(16),
     report_interpretation_id BIGINT REFERENCES report_interpretations(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT ck_messages_emotion CHECK (emotion IS NULL OR emotion IN ('calm', 'anxious', 'fearful'))
 );
 
 CREATE TABLE IF NOT EXISTS chat_rounds (
