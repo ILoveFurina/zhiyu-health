@@ -49,6 +49,7 @@ miniprogram_npm/
 .scratch/*.pem
 .scratch/*.crt
 .scratch/*.cer
+.scratch/*.p12
 .scratch/*.pid
 .scratch/application-local-wss.yml
 .scratch/wss-probe.py
