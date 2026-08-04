@@ -148,6 +148,38 @@ class TongueAnalysis(BaseModel):
             raise PydanticCustomError("need_doctor_requires_urgency_hint", "need_doctor 为 true 时 urgency_hint 不得为空")
         return self
 
+class PillCandidate(BaseModel):
+    """药盒视觉识别的单个候选药名（票 14，ADR-0025）。
+
+    vision 只提候选药名，不做药品分析；药品匹配与禁忌判定全在 server-java 完成。
+    name 为商品名或通用名均可，看不清的部分不得猜测。name_type 标注识别来源类型，
+    仅供 server-java 双列查时参考，不影响业务判定。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    name_type: Literal["brand", "generic", "unknown"] = "unknown"
+
+
+class PillBoxRecognition(BaseModel):
+    """拍药盒识别结果模型（票 14，ADR-0025）：只提候选药名，不做药品分析。
+
+    与 Skin/Diet/Tongue 根本不同：视觉只负责 OCR 提名器角色，药品业务查询与禁忌判定
+    全在 server-java 完成。server-py 不做药品分析、不给用法用量、不做禁忌判断。
+    candidates 为识别到的候选药名列表；看不清或多药混拍时放入 unreadable_hint。
+    scope_supported 为 false 时表示照片不属于药盒场景（如医学影像/皮肤/舌苔/饮食照片），
+    由药盒场景策略拒绝。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    candidates: list[PillCandidate]
+    # 多药混拍、文字模糊、包装遮挡等无法可靠识别时的兜底说明；正常识别时为空串
+    unreadable_hint: str = ""
+    scope_supported: bool = Field(exclude=True)
+
+
 class VisionResponse(BaseModel):
     """视觉分析统一出口：result 为分场景的结构化结果，page_count 为预处理页数。
 
