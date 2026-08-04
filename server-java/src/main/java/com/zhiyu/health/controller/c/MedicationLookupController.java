@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.c;
 
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.service.MedicationLookupService;
+import com.zhiyu.health.service.MedicationLookupService.MedicationLookupView;
 import com.zhiyu.health.service.PillBoxPhotoService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code POST /api/c/pill-box-photos}：拍照版，server-py vision 提候选药名
  *   <li>{@code POST /api/c/medication-lookups}：文字版，直接收药名
  * </ul>
+ * 两者返回同一 {@link MedicationLookupView}（双出口 medication_info + medication_safety）。
  * 纯薄壳，只校验与装配，业务在 service。
  */
 @Validated
@@ -33,7 +35,7 @@ public class MedicationLookupController {
 
     /** 拍药盒：上传药盒照片 -> vision OCR 提名 -> 双出口卡片回落。 */
     @PostMapping("/api/c/pill-box-photos")
-    public PillBoxPhotoService.PillBoxPhotoView analyzePillBox(
+    public MedicationLookupView analyzePillBox(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @RequestParam("request_id") @NotBlank String requestId,
             @RequestParam(value = "conversation_id", required = false) Long conversationId,
@@ -43,7 +45,7 @@ public class MedicationLookupController {
 
     /** 查药品（文字版）：直接输入药名 -> 双出口卡片回落，与拍照版共用同一规则出口。 */
     @PostMapping("/api/c/medication-lookups")
-    public MedicationLookupService.MedicationLookupView lookupByName(
+    public MedicationLookupView lookupByName(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @RequestParam("request_id") @NotBlank String requestId,
             @RequestParam("medication_name") @NotBlank String medicationName,

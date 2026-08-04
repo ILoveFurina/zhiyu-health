@@ -814,8 +814,8 @@ def test_tongue_need_doctor_without_urgency_hint_is_rejected() -> None:
 def _pill_box_result() -> str:
     return """{
       "candidates":[
-        {"name":"阿莫西林胶囊","name_type":"brand"},
-        {"name":"阿莫西林","name_type":"generic"}
+        {"name":"阿莫西林胶囊"},
+        {"name":"阿莫西林"}
       ],
       "unreadable_hint":"",
       "scope_supported":true
@@ -842,7 +842,6 @@ def test_pill_box_image_returns_candidate_names_only() -> None:
     body = response.json()
     assert len(body["result"]["candidates"]) == 2
     assert body["result"]["candidates"][0]["name"] == "阿莫西林胶囊"
-    assert body["result"]["candidates"][0]["name_type"] == "brand"
     assert body["result"]["unreadable_hint"] == ""
     # 通用免责仍挂载（硬约束 1）
     assert body["disclaimer"] == "仅供参考，不替代医生诊断"

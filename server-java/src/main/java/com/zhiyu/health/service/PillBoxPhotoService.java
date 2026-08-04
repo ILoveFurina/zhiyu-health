@@ -1,6 +1,5 @@
 package com.zhiyu.health.service;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
@@ -8,6 +7,7 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
+import com.zhiyu.health.service.MedicationLookupService.MedicationLookupView;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,6 @@ public class PillBoxPhotoService {
     private final ObjectMapper objectMapper;
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
-    private final DisclaimerService disclaimers;
     private final MinioStorageService minioStorage;
     private final MedicationLookupService medicationLookup;
 
@@ -48,7 +47,8 @@ public class PillBoxPhotoService {
      * @param requestId 客户端幂等键；药盒场景无独立状态表，当前仅用于审计追溯。
      * @return 双出口视图（medication_info + medication_safety）；vision 未识别药名时 notFound=true
      */
-    public PillBoxPhotoView analyze(Long patientId, Long conversationId, String requestId, List<MultipartFile> files) {
+    public MedicationLookupView analyze(
+            Long patientId, Long conversationId, String requestId, List<MultipartFile> files) {
         validate(files);
         // 档案注入仍透传给 prompt（药盒场景无差异化需求，但保持一致注入点）。
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
@@ -74,14 +74,17 @@ public class PillBoxPhotoService {
             // vision 未识别到任何药名（多药混拍/文字模糊）：落一条 text 消息引导用户重拍或使用查药品入口。
             String hint = "未能识别药盒上的药名，请重拍清晰的药盒照片或使用「查药品」入口输入药名。";
             conversations.appendMessage(conversation.getId(), "assistant", hint, Message.KIND_TEXT, null, null, null);
-            return new PillBoxPhotoView(conversation.getId(), null, null, true);
+            return new MedicationLookupView(
+                    conversation.getId(),
+                    null,
+                    null,
+                    true,
+                    contracts.disclaimer().text());
         }
 
         // 双出口：委托 MedicationLookupService 查询 + 规则引擎 + 双卡片回落。
-        MedicationLookupService.MedicationLookupView view =
-                medicationLookup.lookupAndAppend(patientId, conversation.getId(), "拍药盒", candidateNames);
-        return new PillBoxPhotoView(
-                view.conversationId(), view.medicationInfo(), view.medicationSafety(), view.notFound());
+        // 传入已建会话 id（非 null），确保图片与双出口卡片落入同一会话，不会因 null 重复建会话。
+        return medicationLookup.lookupAndAppend(patientId, conversation.getId(), "拍药盒", candidateNames);
     }
 
     /** 从 PILL_BOX vision 结果提取候选药名列表。 */
@@ -129,10 +132,4 @@ public class PillBoxPhotoService {
                 : "药盒识别暂不可用，请重拍或使用「查药品」入口输入药名，也可咨询医生或药师。";
         conversations.appendMessage(conversationId, "assistant", hint, Message.KIND_TEXT, null, null, null);
     }
-
-    public record PillBoxPhotoView(
-            @JsonProperty("conversation_id") Long conversationId,
-            @JsonProperty("medication_info") JsonNode medicationInfo,
-            @JsonProperty("medication_safety") JsonNode medicationSafety,
-            @JsonProperty("not_found") boolean notFound) {}
 }

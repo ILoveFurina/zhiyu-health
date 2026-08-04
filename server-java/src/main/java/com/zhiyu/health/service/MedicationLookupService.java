@@ -79,7 +79,7 @@ public class MedicationLookupService {
             String names = String.join("、", candidateNames);
             String hint = "未找到药品『" + names + "』，请核对药名或咨询医生/药师。";
             conversations.appendMessage(conversation.getId(), "assistant", hint, Message.KIND_TEXT, null, null, null);
-            return new MedicationLookupView(conversation.getId(), null, null, true);
+            return new MedicationLookupView(conversation.getId(), null, null, true, disclaimers.text());
         }
 
         // 取激活档案过敏原；无档案优雅降级为空列表（C 端说明书始终可用，安全检查尽力而为）。
@@ -104,7 +104,8 @@ public class MedicationLookupService {
                 null,
                 null);
 
-        return new MedicationLookupView(conversation.getId(), infoCard.get("result"), safetyCard.get("result"), false);
+        return new MedicationLookupView(
+                conversation.getId(), infoCard.get("result"), safetyCard.get("result"), false, disclaimers.text());
     }
 
     /** 药名双列查：先精确（name 或 generic_name 等值），无果再 LIKE 模糊匹配兜底。 */
@@ -215,5 +216,6 @@ public class MedicationLookupService {
             @JsonProperty("conversation_id") Long conversationId,
             @JsonProperty("medication_info") JsonNode medicationInfo,
             @JsonProperty("medication_safety") JsonNode medicationSafety,
-            @JsonProperty("not_found") boolean notFound) {}
+            @JsonProperty("not_found") boolean notFound,
+            String disclaimer) {}
 }

@@ -17,8 +17,8 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.Message;
+import com.zhiyu.health.service.MedicationLookupService.MedicationLookupView;
 import com.zhiyu.health.support.TestContracts;
-import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -39,8 +39,8 @@ class PillBoxPhotoServiceTest {
         AgentClient agentClient = mock(AgentClient.class);
         JsonNode visionResult = objectMapper.readTree(
                 """
-                {"candidates":[{"name":"阿莫西林胶囊","name_type":"brand"},\
-                {"name":"阿莫西林","name_type":"generic"}],\
+                {"candidates":[{"name":"阿莫西林胶囊"},\
+                {"name":"阿莫西林"}],\
                 "unreadable_hint":""}""");
         when(agentClient.interpretVision(anyList(), any(), eq("PILL_BOX")))
                 .thenReturn(new AgentClient.VisionResponse(visionResult, "仅供参考，不替代医生诊断", "", 1));
@@ -51,18 +51,18 @@ class PillBoxPhotoServiceTest {
                         31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of()));
         MedicationLookupService medicationLookup = mock(MedicationLookupService.class);
         when(medicationLookup.lookupAndAppend(eq(12L), eq(7L), eq("拍药盒"), anyList()))
-                .thenReturn(new MedicationLookupService.MedicationLookupView(
+                .thenReturn(new MedicationLookupView(
                         7L,
                         objectMapper.readTree("{\"medications\":[{\"name\":\"阿莫西林胶囊\"}]}"),
                         objectMapper.readTree("{\"decision\":\"SAFE\",\"blocked\":false}"),
-                        false));
+                        false,
+                        "仅供参考，不替代医生诊断"));
         PillBoxPhotoService service = new PillBoxPhotoService(
                 conversations,
                 agentClient,
                 objectMapper,
                 TestContracts.instance(),
                 healthProfiles,
-                TestDisclaimers.instance(),
                 minioStorage,
                 medicationLookup);
 
@@ -70,7 +70,7 @@ class PillBoxPhotoServiceTest {
         when(file.getContentType()).thenReturn("image/jpeg");
         when(file.getSize()).thenReturn(100L);
         when(file.isEmpty()).thenReturn(false);
-        PillBoxPhotoService.PillBoxPhotoView view = service.analyze(12L, null, "pill-001", List.of(file));
+        MedicationLookupView view = service.analyze(12L, null, "pill-001", List.of(file));
 
         assertThat(view.conversationId()).isEqualTo(7L);
         assertThat(view.notFound()).isFalse();
@@ -104,7 +104,6 @@ class PillBoxPhotoServiceTest {
                 objectMapper,
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
-                TestDisclaimers.instance(),
                 mock(MinioStorageService.class),
                 medicationLookup);
 
@@ -112,7 +111,7 @@ class PillBoxPhotoServiceTest {
         when(file.getContentType()).thenReturn("image/jpeg");
         when(file.getSize()).thenReturn(100L);
         when(file.isEmpty()).thenReturn(false);
-        PillBoxPhotoService.PillBoxPhotoView view = service.analyze(12L, null, "pill-001", List.of(file));
+        MedicationLookupView view = service.analyze(12L, null, "pill-001", List.of(file));
 
         assertThat(view.notFound()).isTrue();
         verify(conversations)
@@ -141,7 +140,6 @@ class PillBoxPhotoServiceTest {
                 objectMapper,
                 TestContracts.instance(),
                 healthProfiles,
-                TestDisclaimers.instance(),
                 mock(MinioStorageService.class),
                 mock(MedicationLookupService.class));
 
@@ -166,7 +164,6 @@ class PillBoxPhotoServiceTest {
                 objectMapper,
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
-                TestDisclaimers.instance(),
                 mock(MinioStorageService.class),
                 mock(MedicationLookupService.class));
         MultipartFile file = mock(MultipartFile.class);

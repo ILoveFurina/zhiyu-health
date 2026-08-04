@@ -55,7 +55,7 @@
 ## server-java 复用票 11 规则引擎
 
 - [x] server-java 复用票 11 的 `rule/` 确定性规则引擎做当前档案过敏史联动，命中禁忌时阻断推荐并突出警告
-- [x] DTO/Entity/View 映射使用 MapStruct；契约值从 `contracts/` 加载
+- [x] 契约值从 `contracts/` 加载（disclaimer/contraindication 枚举均取自契约）；DTO/Entity/View 映射无 entity->DTO 转换需求（view record 字段由 ObjectMapper 直接构造 ObjectNode），不适用 MapStruct
 
 ## Comments
 

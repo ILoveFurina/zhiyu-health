@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.service.MedicationLookupService;
+import com.zhiyu.health.service.MedicationLookupService.MedicationLookupView;
 import com.zhiyu.health.service.PillBoxPhotoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -28,7 +29,7 @@ class MedicationLookupControllerTest {
         PillBoxPhotoService pillBoxService = mock(PillBoxPhotoService.class);
         ObjectMapper objectMapper = new ObjectMapper();
         when(pillBoxService.analyze(eq(12L), isNull(), eq("pill-001"), org.mockito.ArgumentMatchers.anyList()))
-                .thenReturn(new PillBoxPhotoService.PillBoxPhotoView(
+                .thenReturn(new MedicationLookupService.MedicationLookupView(
                         7L,
                         objectMapper.readTree(
                                 """
@@ -41,7 +42,8 @@ class MedicationLookupControllerTest {
                                 "blocked":false,"reasons":[],\
                                 "message":"未发现当前健康档案与候选药品之间的已知禁忌。",\
                                 "advice":null,"medications":[{"name":"阿莫西林胶囊","generic_name":"阿莫西林"}]}"""),
-                        false));
+                        false,
+                        "仅供参考，不替代医生诊断"));
         MedicationLookupService lookupService = mock(MedicationLookupService.class);
         MockMvc mvc = standaloneSetup(new MedicationLookupController(pillBoxService, lookupService))
                 .build();
@@ -71,7 +73,7 @@ class MedicationLookupControllerTest {
         MedicationLookupService lookupService = mock(MedicationLookupService.class);
         ObjectMapper objectMapper = new ObjectMapper();
         when(lookupService.lookupAndAppend(eq(12L), isNull(), eq("查药品"), org.mockito.ArgumentMatchers.anyList()))
-                .thenReturn(new MedicationLookupService.MedicationLookupView(
+                .thenReturn(new MedicationLookupView(
                         7L,
                         objectMapper.readTree(
                                 """
@@ -85,7 +87,8 @@ class MedicationLookupControllerTest {
                                 "message":"检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",\
                                 "advice":"请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。",\
                                 "medications":[{"name":"布洛芬胶囊","generic_name":"布洛芬"}]}"""),
-                        false));
+                        false,
+                        "仅供参考，不替代医生诊断"));
         MockMvc mvc = standaloneSetup(new MedicationLookupController(pillBoxService, lookupService))
                 .build();
 

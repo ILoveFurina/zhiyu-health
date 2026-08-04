@@ -60,25 +60,19 @@ module.exports = {
     }
     const newMessages = [imageMessage]
     // ADR-0025 差异化点 3：双出口两条独立 AI 消息。
-    // not_found（未识别/未匹配）时后端已落 text 消息，前端只补一条提示。
-    if (data.not_found) {
-      newMessages.push({
-        id: ++this._msgSeq, role: 'assistant', kind: 'text',
-        content: '未能识别药盒上的药名或未匹配到药品，请重拍清晰的药盒照片或使用「查药品」入口输入药名。',
-        disclaimer: '仅供参考，不替代医生诊断',
-      })
-    } else {
+    // not_found（未识别/未匹配）时后端已落 text 消息，前端不再重复补本地消息，仅刷新会话。
+    if (!data.not_found) {
       // 说明书卡片（medication_info）
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'medication_info',
         card: data.medication_info,
-        disclaimer: '仅供参考，不替代医生诊断',
+        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
       })
       // 安全结果卡片（medication_safety）
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'medication_safety',
         card: data.medication_safety,
-        disclaimer: '仅供参考，不替代医生诊断',
+        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
       })
     }
     this.setData({

@@ -152,14 +152,12 @@ class PillCandidate(BaseModel):
     """药盒视觉识别的单个候选药名（票 14，ADR-0025）。
 
     vision 只提候选药名，不做药品分析；药品匹配与禁忌判定全在 server-java 完成。
-    name 为商品名或通用名均可，看不清的部分不得猜测。name_type 标注识别来源类型，
-    仅供 server-java 双列查时参考，不影响业务判定。
+    name 为商品名或通用名均可，看不清的部分不得猜测。
     """
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1)
-    name_type: Literal["brand", "generic", "unknown"] = "unknown"
 
 
 class PillBoxRecognition(BaseModel):

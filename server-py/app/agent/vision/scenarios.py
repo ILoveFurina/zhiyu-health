@@ -93,7 +93,7 @@ PILL_BOX_PROMPT = """你是智愈的药盒识别助手。输入的照片全部�
 scope_supported 必须为 false，candidates 必须为空，并提示用户上传清晰的药盒照片；
 不得尝试影像或报告诊断。清晰可识别的药盒照片设为 true。
 返回单个 JSON 对象，字段严格为 candidates、unreadable_hint、scope_supported。
-candidates 每项严格包含 name、name_type；name_type 只能是 brand、generic、unknown。
+candidates 每项严格包含 name；name 为药盒上可见的药品名称（商品名或通用名均可）。
 无法识别任何药名时 candidates 为空数组，unreadable_hint 说明原因。不要输出 Markdown。"""
 
 

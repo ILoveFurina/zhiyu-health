@@ -45,24 +45,18 @@ module.exports = {
 
   finishMedLookup(data) {
     const newMessages = []
-    if (data.not_found) {
-      // 未匹配：后端已落 text 消息，前端补一条提示
-      newMessages.push({
-        id: ++this._msgSeq, role: 'assistant', kind: 'text',
-        content: '未找到匹配的药品，请核对药名或咨询医生/药师。',
-        disclaimer: '仅供参考，不替代医生诊断',
-      })
-    } else {
+    // not_found：后端已落 text 消息，前端不再重复补本地消息，仅刷新会话。
+    if (!data.not_found) {
       // 双出口：medication_info + medication_safety 两条独立 AI 消息
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'medication_info',
         card: data.medication_info,
-        disclaimer: '仅供参考，不替代医生诊断',
+        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
       })
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'medication_safety',
         card: data.medication_safety,
-        disclaimer: '仅供参考，不替代医生诊断',
+        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
       })
     }
     this.setData({
