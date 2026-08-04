@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import httpx
-from conftest import TEST_AGENT_SECRET, StubHealthService
+from conftest import TEST_AGENT_SECRET, FakeEmotionJudge, StubHealthService
 from fastapi.testclient import TestClient
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
@@ -45,6 +45,18 @@ def _post_chat(client, payload: dict) -> list[dict]:
     return events
 
 
+def _build_app(agent_runner) -> tuple[TestClient, FakeEmotionJudge]:
+    """装配测试 app 并注入 fake emotion judge，避免命中真实方舟调用。"""
+    fake_emotion = FakeEmotionJudge()
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_runner=agent_runner,
+        agent_auth_secret=TEST_AGENT_SECRET,
+        emotion_judge=fake_emotion,
+    )
+    return TestClient(app), fake_emotion
+
+
 def test_chat_streams_tokens_and_final_message_with_disclaimer(harness: SimpleNamespace) -> None:
     events = _post_chat(
         harness.client, {"messages": [{"role": "user", "content": "最近总是咳嗽怎么办"}]}
@@ -61,6 +73,11 @@ def test_chat_streams_tokens_and_final_message_with_disclaimer(harness: SimpleNa
     assert final["data"]["content"] == "你好，我是小愈。"
     assert final["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
     assert final["data"]["effort"] == "disabled"  # 自动档普通对话关闭模型思考
+    # 票 44：message 事件携带 emotion（fake 默认降级 calm）；calm 无 soothing_text
+    assert final["data"]["emotion"] == "calm"
+    assert "soothing_text" not in final["data"]
+    # fake emotion judge 收到的是最后一条用户消息
+    assert harness.emotion.calls == ["最近总是咳嗽怎么办"]
 
 
 def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None:
@@ -234,12 +251,8 @@ def test_http_agent_streams_structured_cards_from_business_tools_in_call_order()
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(
                 client, {"messages": [{"role": "user", "content": "医生还有号吗"}]}
             )
@@ -311,12 +324,8 @@ def test_get_appointment_tool_uses_hidden_patient_context() -> None:
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(client, {"messages": [{"role": "user", "content": "我的挂号"}]})
     finally:
         asyncio.run(callback.aclose())
@@ -359,12 +368,8 @@ def test_find_hospitals_threads_coordinates_from_request_to_nearby_endpoint() ->
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(client, {
                 "messages": [{"role": "user", "content": "附近有什么医院"}],
                 "longitude": 121.4737,
@@ -412,12 +417,8 @@ def test_find_hospitals_degrades_without_coordinates() -> None:
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(client, {
                 "messages": [{"role": "user", "content": "附近医院"}],
                 # 故意不传 longitude/latitude
@@ -462,12 +463,8 @@ def test_patient_agent_only_explains_general_medication_knowledge() -> None:
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(client, {
                 "messages": [{"role": "user", "content": "阿莫西林是什么药"}],
                 "health_profile": {
@@ -538,12 +535,8 @@ def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_st
     runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
 
     try:
-        app = create_app(
-            health_service=StubHealthService(),
-            agent_runner=runner,
-            agent_auth_secret=TEST_AGENT_SECRET,
-        )
-        with TestClient(app) as client:
+        client, _ = _build_app(runner)
+        with client:
             events = _post_chat(
                 client, {"messages": [{"role": "user", "content": "帮我挂周安宁医生今天上午的号"}]}
             )

@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 # server-py/app/core/contracts.py → parents[3] 即仓库根
 _DEFAULT_DIR = Path(__file__).resolve().parents[3] / "contracts"
@@ -103,6 +103,20 @@ class KnowledgeContract(BaseModel):
     similarity_threshold: float
 
 
+class EmotionContract(BaseModel):
+    """情绪反馈（票 44，ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。
+
+    emotion 挂 message 事件下发（_carried_by=message），枚举、默认值与安抚语
+    在此契约单一事实源；calm 无安抚语（映射缺省即无），anxious/fearful 各一条。
+    """
+
+    emotions: list[str]
+    default: str
+    # JSON 键是 _carried_by（下划线前缀说明性字段命名约定），用 alias 对齐。
+    carried_by: str = Field(alias="_carried_by")
+    soothing_texts: dict[str, str]
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -113,6 +127,7 @@ class Contracts(BaseModel):
     payment_flow: PaymentFlowContract
     contraindication: ContraindicationContract
     knowledge: KnowledgeContract
+    emotion: EmotionContract
 
 
 def _contracts_dir() -> Path:
@@ -158,6 +173,7 @@ def _load(dir_path: Path) -> Contracts:
                 _read_json(dir_path, "contraindication.json")
             ),
             knowledge=KnowledgeContract.model_validate(_read_json(dir_path, "knowledge.json")),
+            emotion=EmotionContract.model_validate(_read_json(dir_path, "emotion.json")),
         )
     except ValidationError as exc:
         raise RuntimeError(f"跨栈契约结构校验失败（需双栈同步检查 contracts/）: {exc}") from exc

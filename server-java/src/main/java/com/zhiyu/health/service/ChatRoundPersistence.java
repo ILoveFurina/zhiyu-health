@@ -75,12 +75,18 @@ public class ChatRoundPersistence {
                 object.put("conversation_id", round.getConversationId());
             } else if (sse.messageEvent().equals(eventName)) {
                 disclaimers.mount(object);
+                // 票 44：emotion 由 server-py 串行二次 LLM 调用产生挂 message 事件，
+                // 落 messages.emotion 列供历史回看复现情绪色；字段自然透传（对 message 不做白名单），
+                // 脏值兜底由 schema.sql 的 CHECK 约束在 DB 层拦截。
+                String emotion = nullableText(object.get("emotion"));
                 Message saved = conversations.appendMessage(
                         round.getConversationId(),
                         "assistant",
                         object.path("content").asText(),
                         Message.KIND_TEXT,
-                        nullableText(object.get("effort")));
+                        nullableText(object.get("effort")),
+                        null,
+                        emotion);
                 object.put("message_id", saved.getId());
                 round.setAssistantMessageId(saved.getId());
                 roundMapper.update(

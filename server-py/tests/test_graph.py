@@ -8,7 +8,7 @@ import json
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
-from conftest import TEST_AGENT_SECRET, FakeGraphTraverser, FakeKnowledgeRetriever, StubHealthService
+from conftest import TEST_AGENT_SECRET, FakeEmotionJudge, FakeGraphTraverser, FakeKnowledgeRetriever, StubHealthService
 from fastapi.testclient import TestClient
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolCall
@@ -92,6 +92,7 @@ def _build_app(
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,
         graph_available=graph_available,
+        emotion_judge=FakeEmotionJudge(),
     )
     return TestClient(app)
 
@@ -230,6 +231,7 @@ def test_graph_and_rag_are_mutually_exclusive() -> None:
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,
         graph_available=True,
+        emotion_judge=FakeEmotionJudge(),
     )
     with TestClient(app) as client:
         _post_chat(client, {

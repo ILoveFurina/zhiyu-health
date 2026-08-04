@@ -62,7 +62,7 @@ flowchart LR
     T42["42 小程序首页与tabBar"]
 
     T43["[x]43 挂号后关怀消息+就诊指引卡"]
-    T44["44 emotion情感化核心"]
+    T44["[x]44 emotion情感化核心"]
     T45["45 语音双向ASR+TTS"]
 
     T28 --> T29

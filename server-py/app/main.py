@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.runner import AgentRunner, LazySettingsAgentRunner
 from app.agent.clinical import ClinicalGenerator, LazyClinicalGenerator
+from app.agent.emotion import EmotionJudge
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.api.agent import router as agent_router
 from app.api.clinical import router as clinical_router
@@ -44,6 +45,7 @@ def create_app(
     rag_available: bool = False,
     graph_available: bool = False,
     graph_projector: object | None = None,
+    emotion_judge: EmotionJudge | None = None,
 ) -> FastAPI:
     # uvicorn 只配置自身 logger；app.* 的流生命周期日志需显式接管（票 33）
     configure_logging()
@@ -56,6 +58,7 @@ def create_app(
                 agent_runner or LazySettingsAgentRunner(),
                 rag_available=rag_available,
                 graph_available=graph_available,
+                emotion_judge=emotion_judge,
             )
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret

@@ -24,7 +24,14 @@ public class ConversationController {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record MessageOut(
-            Long id, String role, String kind, String content, String effort, String disclaimer, String createdAt) {}
+            Long id,
+            String role,
+            String kind,
+            String content,
+            String effort,
+            String emotion,
+            String disclaimer,
+            String createdAt) {}
 
     /** 对话记录列表项；严格三字段（见票 27 决策 12）。 */
     public record ConversationOut(Long id, String title, @JsonProperty("last_active_at") String lastActiveAt) {}
@@ -53,6 +60,7 @@ public class ConversationController {
                         message.kind(),
                         message.content(),
                         message.effort(),
+                        message.emotion(),
                         message.disclaimer(),
                         message.createdAt()))
                 .toList();

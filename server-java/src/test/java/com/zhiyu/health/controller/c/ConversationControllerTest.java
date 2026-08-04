@@ -27,6 +27,7 @@ class ConversationControllerTest {
         ConversationService conversations = mock(ConversationService.class);
         Message user = message(1L, "user", "text", "我头疼");
         Message assistant = message(2L, "assistant", "text", "建议挂神经内科");
+        assistant.setEmotion("anxious");
         Message redFlag = message(3L, "assistant", "red_flag", "请拨打 120");
         when(conversations.listMessagesForPatient(7L, 12L))
                 .thenReturn(List.of(view(user, null), view(assistant, "仅供参考，不替代医生诊断"), view(redFlag, null)));
@@ -35,7 +36,9 @@ class ConversationControllerTest {
         mvc.perform(get("/api/c/conversations/7/messages").requestAttr("authSubject", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].disclaimer").doesNotExist())
+                .andExpect(jsonPath("$[0].emotion").doesNotExist()) // 用户消息无情绪标注
                 .andExpect(jsonPath("$[1].disclaimer").value("仅供参考，不替代医生诊断"))
+                .andExpect(jsonPath("$[1].emotion").value("anxious")) // 历史回看复现情绪色
                 .andExpect(jsonPath("$[2].disclaimer").doesNotExist());
     }
 
@@ -115,6 +118,7 @@ class ConversationControllerTest {
                 message.getKind(),
                 message.getContent(),
                 message.getEffort(),
+                message.getEmotion(),
                 disclaimer,
                 message.getCreatedAt().toString());
     }

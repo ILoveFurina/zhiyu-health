@@ -4,16 +4,16 @@
 
 **Blocked by:** 31 - 对话主干双栈化；40 - 对话 TTFT 与 WebSocket
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 新建 `contracts/emotion.json`：`emotions=[calm,anxious,fearful]`、`default=calm`、`soothing_texts` 映射（calm 无、anxious/fearful 各一条）、`_carried_by=message`
-- [ ] `schema.sql`：`messages` 加 `emotion VARCHAR(16)` 列
-- [ ] server-py `services/chat.py`：主回复 token 流完成后、`message` 事件发出前，串行非流式 LLM 调用判 emotion（prompt 判断用户消息情绪，`response_format=json_object` + pydantic `EmotionResult(emotion, rationale)` + 2 次重试，复用 `agent/vision/interpreter.py` 范式）；`rationale` 仅调试不下发；失败/超时降级 calm
-- [ ] server-py `message` 事件 dict 加 `emotion` 字段（`chat.py:125-133`）
-- [ ] server-java `ChatRoundPersistence.persistEvent`：`message` 事件落库时写 `emotion` 列（对 message 不做白名单，字段自然透传）
-- [ ] 端侧 `chat-stream.js` `onAssistant`：读 `data.emotion`；`index.axml`/`index.acss`：按 emotion 分支气泡配色（calm 白泡/anxious 暖橙 `#fff4e6`+`#ff8c00`/fearful 暖红 `#fff0f0`+`#e64545`）+ 安抚语（附气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注、不进 messages 数组）
-- [ ] server-py fake LLM 测试：断言 emotion 调用、降级 calm、`message` 事件携带 emotion
-- [ ] 票 20 验收要求：固定 3 条焦虑表达样例及期望 emotion/UI/安抚文案，三条均通过方可验收
+- [x] 新建 `contracts/emotion.json`：`emotions=[calm,anxious,fearful]`、`default=calm`、`soothing_texts` 映射（calm 无、anxious/fearful 各一条）、`_carried_by=message`
+- [x] `schema.sql`：`messages` 加 `emotion VARCHAR(16)` 列
+- [x] server-py `services/chat.py`：主回复 token 流完成后、`message` 事件发出前，串行非流式 LLM 调用判 emotion（prompt 判断用户消息情绪，`response_format=json_object` + pydantic `EmotionResult(emotion, rationale)` + 2 次重试，复用 `agent/vision/interpreter.py` 范式）；`rationale` 仅调试不下发；失败/超时降级 calm
+- [x] server-py `message` 事件 dict 加 `emotion` 字段（`chat.py:125-133`）
+- [x] server-java `ChatRoundPersistence.persistEvent`：`message` 事件落库时写 `emotion` 列（对 message 不做白名单，字段自然透传）
+- [x] 端侧 `chat-stream.js` `onAssistant`：读 `data.emotion`；`index.axml`/`index.acss`：按 emotion 分支气泡配色（calm 白泡/anxious 暖橙 `#fff4e6`+`#ff8c00`/fearful 暖红 `#fff0f0`+`#e64545`）+ 安抚语（附气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注、不进 messages 数组）
+- [x] server-py fake LLM 测试：断言 emotion 调用、降级 calm、`message` 事件携带 emotion
+- [x] 票 20 验收要求：固定 3 条焦虑表达样例及期望 emotion/UI/安抚文案，三条均通过方可验收
 
 ## Comments
 

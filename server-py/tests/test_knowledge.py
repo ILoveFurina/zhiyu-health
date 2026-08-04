@@ -8,7 +8,7 @@ import json
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
-from conftest import TEST_AGENT_SECRET, FakeKnowledgeRetriever, StubHealthService
+from conftest import TEST_AGENT_SECRET, FakeEmotionJudge, FakeKnowledgeRetriever, StubHealthService
 from fastapi.testclient import TestClient
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolCall
@@ -91,6 +91,7 @@ def _build_app(
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,
         rag_available=rag_available,
+        emotion_judge=FakeEmotionJudge(),
     )
     return TestClient(app)
 

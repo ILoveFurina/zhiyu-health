@@ -112,9 +112,10 @@
         <ai-disclaimer text="{{item.disclaimer}}" />
       </view>
 
-      <view a:else class="bubble ai" id="msg-{{item.id}}">
+      <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
+        <view a:if="{{!item.streaming && item.soothingText}}" class="soothing">{{item.soothingText}}</view>
         <ai-disclaimer a:if="{{!item.streaming && item.disclaimer}}" text="{{item.disclaimer}}" />
       </view>
     </view>
