@@ -109,6 +109,17 @@ def test_knowledge_contract_values_are_loaded() -> None:
     assert knowledge.similarity_threshold == 0.3
 
 
+def test_emotion_contract_values_are_loaded() -> None:
+    emotion = get_contracts().emotion
+    assert emotion.emotions == ["calm", "anxious", "fearful"]
+    assert emotion.default == "calm"
+    assert emotion.carried_by == "message"
+    # calm 无安抚语（映射缺省），anxious/fearful 各一条
+    assert set(emotion.soothing_texts) == {"anxious", "fearful"}
+    assert "别太担心" in emotion.soothing_texts["anxious"]
+    assert "120" in emotion.soothing_texts["fearful"]
+
+
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="跨栈契约加载失败"):
         _load(tmp_path / "missing")

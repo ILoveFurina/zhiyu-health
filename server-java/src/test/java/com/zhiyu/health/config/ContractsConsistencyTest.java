@@ -163,4 +163,23 @@ class ContractsConsistencyTest {
         assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
         assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
     }
+
+    @Test
+    void emotionValuesFitDatabaseColumn() throws Exception {
+        // 票 44：契约 emotion 枚举必须装得下 messages.emotion VARCHAR(16) 列宽
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Matcher matcher = Pattern.compile("emotion\\s+VARCHAR\\((\\d+)\\)").matcher(schema);
+        assertThat(matcher.find()).as("schema.sql 必须存在 emotion VARCHAR(n) 列定义").isTrue();
+        int columnWidth = Integer.parseInt(matcher.group(1));
+        for (String emotion : contracts.emotion().emotions()) {
+            assertThat(emotion.length())
+                    .as("契约 emotion %s 长度必须装进 messages.emotion VARCHAR(%d)", emotion, columnWidth)
+                    .isLessThanOrEqualTo(columnWidth);
+        }
+        // 默认值同样须在白名单内（降级 calm）
+        assertThat(contracts.emotion().emotions()).contains(contracts.emotion().defaultEmotion());
+    }
 }

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
+from app.schemas.emotion import EmotionResult
 from app.tools.graph import GraphNeighbor
 from app.tools.knowledge import KnowledgeChunk
 
@@ -42,6 +43,18 @@ class FakeAgentRunner:
         self.calls.append({"messages": messages, "effort": effort, "context": context})
         for token in self.tokens:
             yield AgentOutput("token", token)
+
+
+class FakeEmotionJudge:
+    """情绪判断 seam 的 fake：固定返回 calm，记录收到的用户文本。"""
+
+    def __init__(self, result: EmotionResult | None = None) -> None:
+        self._result = result or EmotionResult.calm_default()
+        self.calls: list[str] = []
+
+    async def judge(self, user_text: str) -> EmotionResult:
+        self.calls.append(user_text)
+        return self._result
 
 
 class FakeKnowledgeRetriever:
@@ -87,10 +100,12 @@ class FakeGraphTraverser:
 @pytest.fixture
 def harness() -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
+    fake_emotion = FakeEmotionJudge()
     app = create_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,
+        emotion_judge=fake_emotion,
     )
     with TestClient(app) as client:
-        yield SimpleNamespace(client=client, agent=fake_agent)
+        yield SimpleNamespace(client=client, agent=fake_agent, emotion=fake_emotion)

@@ -226,4 +226,23 @@ class ContractsTest {
                         "materials",
                         "precautions");
     }
+
+    @Test
+    void emotionContractIsLoaded() {
+        // 票 44：三档情绪标注 + 默认值 + 安抚语映射来自契约单一事实源
+        Contracts.Emotion emotion = contracts.emotion();
+        assertThat(emotion.emotions()).containsExactly("calm", "anxious", "fearful");
+        assertThat(emotion.defaultEmotion()).isEqualTo("calm");
+        assertThat(emotion.carriedBy()).isEqualTo("message");
+        // calm 无安抚语（映射缺省即无），anxious/fearful 各一条确定性文案
+        assertThat(emotion.soothingTexts()).hasSize(2);
+        assertThat(emotion.soothingTexts()).containsKey("anxious").containsKey("fearful");
+        assertThat(emotion.soothingText("calm")).isNull();
+        assertThat(emotion.soothingText("anxious")).isNotBlank();
+        assertThat(emotion.soothingText("fearful")).contains("120");
+        // 白名单校验：防脏值写入 messages.emotion
+        assertThat(emotion.isKnown("calm")).isTrue();
+        assertThat(emotion.isKnown("angry")).isFalse();
+        assertThat(emotion.isKnown(null)).isFalse();
+    }
 }
