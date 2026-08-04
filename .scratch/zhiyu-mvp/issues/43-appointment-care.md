@@ -4,14 +4,14 @@
 
 **Blocked by:** 07 - 挂号闭环；09 - 电子处方（站内消息通道）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `schema.sql`：`hospitals` 加 `address/floor/precautions/materials` 四列；seed 填虚构静态值
-- [ ] 新建 `contracts/appointment-care.json`：`message_type=appointment_care` + content schema（greeting/hospital_name/department_name/doctor_name/schedule_time/address/floor/materials[]/precautions[]）
-- [ ] server-java `AppointmentService.create()`：事务内联查 hospitals+排班拼装 content，INSERT `in_app_messages`（type=`appointment_care`，disclaimer 注入）；覆盖所有挂号入口
-- [ ] 幂等：重复挂号请求靠 `UNIQUE(related_appointment_id, type)` 不重复写
-- [ ] 端侧 `pages/messages/index.{axml,js,acss}`：加 `appointment_care` type 分支渲染卡片（地址/楼层/材料列表/注意事项列表），底部 disclaimer
-- [ ] MockMvc 覆盖：挂号成功即写关怀消息 + 重复挂号不重复写；端侧浏览器实测消息页渲染卡片
+- [x] `schema.sql`：`hospitals` 加 `address/floor/precautions/materials` 四列；seed 填虚构静态值
+- [x] 新建 `contracts/appointment-care.json`：`message_type=appointment_care` + content schema（greeting/hospital_name/department_name/doctor_name/schedule_time/address/floor/materials[]/precautions[]）
+- [x] server-java `AppointmentService.create()`：事务内联查 hospitals+排班拼装 content，INSERT `in_app_messages`（type=`appointment_care`，disclaimer 注入）；覆盖所有挂号入口
+- [x] 幂等：重复挂号请求靠 `UNIQUE(related_appointment_id, type)` 不重复写
+- [x] 端侧 `pages/messages/index.{axml,js,acss}`：加 `appointment_care` type 分支渲染卡片（地址/楼层/材料列表/注意事项列表），底部 disclaimer
+- [x] MockMvc 覆盖：挂号成功即写关怀消息 + 重复挂号不重复写；端侧浏览器实测消息页渲染卡片
 
 ## Comments
 
