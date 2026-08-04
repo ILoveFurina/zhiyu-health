@@ -32,7 +32,8 @@
     "report_interpretation",
     "report_context",
     "skin_analysis",
-    "image"
+    "image",
+    "diet_analysis"
   ],
   "ai_card_kinds": [
     "doctor_recommendations",
@@ -41,7 +42,8 @@
     "appointment",
     "appointments",
     "report_interpretation",
-    "skin_analysis"
+    "skin_analysis",
+    "diet_analysis"
   ],
   "event_to_kind": {
     "doctor_recommendations": "doctor_recommendations",
