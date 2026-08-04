@@ -135,6 +135,18 @@
         tcmDisclaimer="{{item.tcmDisclaimer}}"
       />
 
+      <medication-info-card
+        a:elif="{{item.kind === 'medication_info'}}"
+        card="{{item.card}}"
+        disclaimer="{{item.disclaimer}}"
+      />
+
+      <medication-safety-card
+        a:elif="{{item.kind === 'medication_safety'}}"
+        card="{{item.card}}"
+        disclaimer="{{item.disclaimer}}"
+      />
+
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
@@ -224,6 +236,41 @@
     </view>
     <view a:if="{{tongueProgress}}" class="report-progress">{{tongueProgress}}</view>
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingTongue">发送并辨证</view>
+  </view>
+
+  <view a:if="{{pendingPillbox}}" class="pending-report">
+    <view class="pending-head">
+      <view>
+        <view class="pending-title">待发送的药盒照片</view>
+        <view class="pending-tip">将识别药盒上的药名并查询说明书与用药安全；禁忌判断仅供参考，不替代医生诊断</view>
+      </view>
+      <view class="pending-count">{{pendingPillbox.items.length}} 张</view>
+    </view>
+    <view a:for="{{pendingPillbox.items}}" a:key="path" class="pending-item">
+      <view class="pending-index">{{index + 1}}</view>
+      <view class="pending-name">{{item.name}}</view>
+      <view class="remove-btn" data-index="{{index}}" onTap="removePillboxItem">×</view>
+    </view>
+    <view a:if="{{pillboxProgress}}" class="report-progress">{{pillboxProgress}}</view>
+    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingPillbox">发送并识别</view>
+  </view>
+
+  <view a:if="{{pendingMedLookup}}" class="pending-report">
+    <view class="pending-head">
+      <view>
+        <view class="pending-title">查药品</view>
+        <view class="pending-tip">输入药品名称（商品名或通用名），查询说明书与用药安全</view>
+      </view>
+      <view class="remove-btn" onTap="cancelMedLookup">×</view>
+    </view>
+    <input
+      class="medlookup-input"
+      placeholder="如：阿莫西林、布洛芬"
+      value="{{pendingMedLookup.name}}"
+      onInput="onMedLookupInput"
+    />
+    <view a:if="{{medLookupProgress}}" class="report-progress">{{medLookupProgress}}</view>
+    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingMedLookup">查询</view>
   </view>
 
   <!-- 免责声明常驻细条（双保险之二） -->

@@ -27,6 +27,14 @@ const featureGuideMethods = {
       // 舌苔中医辨证（票 17，ADR-0024）：无档案差异化需求，调理不出药材，不强制建档。
       this.openTonguePicker()
     }
+    else if (action === 'pillbox') {
+      // 拍药盒（票 14，ADR-0025）：无档案时安全检查降级为空过敏列表，说明书仍可用，不强制建档。
+      this.openPillboxPicker()
+    }
+    else if (action === 'medlookup') {
+      // 查药品文字版（票 14）：与拍药盒共用同一查询与规则出口。
+      this.openMedicationLookup()
+    }
   },
 
   enterTriage() {
