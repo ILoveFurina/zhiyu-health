@@ -193,7 +193,10 @@ public class DemoResetService {
         List<Schedule> schedules = scheduleMapper.selectList(null);
         // 号源只经 SlotAccounting（ArchUnit 强制）：每个排班独立初始化，事务体只做 Redis 写
         for (Schedule s : schedules) {
-            slotAccounting.withInitialization(init -> init.init(s.getId(), s.getRemainingSlots()));
+            slotAccounting.withInitialization(init -> {
+                init.init(s.getId(), s.getRemainingSlots());
+                return null;
+            });
         }
     }
 
