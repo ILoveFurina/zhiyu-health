@@ -4,16 +4,30 @@
 
 **Blocked by:** 31 - 对话主干双栈化；40 - 对话 TTFT 与 WebSocket
 
-**Status:** ready-for-agent（火山语音服务开通前置）
+**Status:** ready-for-agent（火山语音服务开通前置；骨架+fake 阶段已落地，见下方实施备注）
 
-- [ ] 新建 `contracts/voice.json`：完整骨架带占位（asr_enabled/asr_format null/asr_timeout_ms=10000/asr_max_duration_ms=60000/tts_enabled/tts_format null/tts_timeout_ms=15000/tts_voice null/error_codes/degrade_hint）
-- [ ] server-py `app/services/voice.py`：`AsrClient`/`TtsClient` 接口 + `FakeAsrClient`/`FakeTtsClient`；开通后加 `VolcAsrClient`/`VolcTtsClient`，按 `contracts/voice.json` 的 enabled + 环境密钥选实例
-- [ ] server-java `POST /c/asr`：multipart 音频转发 server-py `POST /api/agent/asr` 回文字
-- [ ] server-java `POST /c/tts`：按 message_id/text 转发 server-py `POST /api/agent/tts` 回二进制音频（`Content-Type: audio/mpeg` 等，按开通后格式）
-- [ ] 端侧 `pages/chat/`：按住说话（`my.getRecorderManager`，识别结果填输入框可见可改不自动发）+ AI 气泡播放/停止（`my.createInnerAudioContext`）
-- [ ] 审计：server-java 入口记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）；ASR/TTS 不进 `agent_call_logs` trace（见 ADR-0020）
-- [ ] 降级：契约开关（`asr_enabled`/`tts_enabled`）控制 UI 入口显示 + 运行时密钥检测兜底；未配置/超时/失败三情况降级文字，不阻塞演示
-- [ ] 测试：fake 覆盖正常/超时/未配置/失败；火山语音开通后真实 smoke
+- [x] 新建 `contracts/voice.json`：完整骨架带占位（asr_enabled/asr_format null/asr_timeout_ms=10000/asr_max_duration_ms=60000/tts_enabled/tts_format null/tts_timeout_ms=15000/tts_voice null/error_codes/degrade_hint）
+- [x] server-py `app/services/voice.py`：`AsrClient`/`TtsClient` 接口 + `FakeAsrClient`/`FakeTtsClient`；开通后加 `VolcAsrClient`/`VolcTtsClient`，按 `contracts/voice.json` 的 enabled + 环境密钥选实例
+- [x] server-java `POST /c/asr`：multipart 音频转发 server-py `POST /api/agent/asr` 回文字
+- [x] server-java `POST /c/tts`：按 message_id/text 转发 server-py `POST /api/agent/tts` 回二进制音频（`Content-Type: audio/mpeg` 等，按开通后格式）；另提供 `GET /c/tts`（query 传 text）供小程序 `my.downloadFile` 拉取音频临时文件播放
+- [x] 端侧 `pages/chat/`：按住说话（`my.getRecorderManager`，识别结果填输入框可见可改不自动发）+ AI 气泡播放/停止（`my.createInnerAudioContext`）
+- [x] 审计：server-java 入口记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）；ASR/TTS 不进 `agent_call_logs` trace（见 ADR-0020）
+- [x] 降级：契约开关（`asr_enabled`/`tts_enabled`）控制 UI 入口显示 + 运行时密钥检测兜底；未配置/超时/失败三情况降级文字，不阻塞演示
+- [x] 测试：fake 覆盖正常/超时/未配置/失败；火山语音开通后真实 smoke（待开通）
+
+## Comments
+
+### 2026-08-04 - 骨架+fake 阶段落地
+
+按设计澄清的"密钥开通前只做契约+server-py client 骨架+端侧 UI 骨架+fake 测试"策略先行落地，**未标 done**（火山语音服务开通前置未解除）：
+
+- **契约**：`contracts/voice.json` 完整骨架带占位（enabled=false、格式字段 null、超时/最大时长占位值、error_codes、degrade_hint）；双栈 `Contracts` 接入（server-java `Voice` record + 访问器 + `ContractsConsistencyTest`；server-py `VoiceContract` + `test_contracts.py`）。
+- **server-py**：`app/services/voice.py` 定义 `AsrClient`/`TtsClient` Protocol + `FakeAsrClient`/`FakeTtsClient` + `VolcAsrClient`/`VolcTtsClient` 占位（`NotImplementedError`）+ `VoiceService` 按 enabled+密钥选实例；`app/api/voice.py` 暴露 `POST /api/agent/asr`（multipart -> 文字）与 `POST /api/agent/tts`（JSON -> 二进制音频），均经 `AgentCallbackAuth` 鉴权；`test_voice_api.py` 覆盖正常/超时/未配置/失败/空音频/缺令牌六路径。
+- **server-java**：`AgentClient` 加 `recognizeSpeech`/`synthesizeSpeech` 转发方法（契约开关前置、超时映射、稳定错误码）；`VoiceService` 做降级映射 + 脱敏审计（`voice-audit` logger：type/param/result/code|len，不记原文）；`VoiceController` 暴露 `POST /c/asr`（multipart）+ `POST /c/tts`（body）+ `GET /c/tts`（query，供小程序 downloadFile）；`VoiceControllerTest` + `VoiceServiceTest` 覆盖正常/未配置/超时/失败/空音频/空文本。
+- **端侧**：`utils/voice.js` 封装 ASR（`my.uploadFile` multipart）+ TTS（`my.downloadFile` GET query）；`pages/chat` 加按住说话话筒（`my.getRecorderManager` 录音 -> 识别文字填输入框可见可改不自动发）+ AI 气泡播报/停止按钮（`my.createInnerAudioContext`，按需点击不自动播放）；契约开关（`asrEnabled`/`ttsEnabled`）控制入口可见性，骨架阶段两端 false -> 纯文字输入降级。
+- **未做**：`VolcAsrClient`/`VolcTtsClient` 留 `NotImplementedError` 占位；真实火山 smoke 待开通。`.env` 字段名等开通后按实际凭据定（火山 ASR 与 TTS 可能用不同服务形态）。
+
+回归：server-py 111 tests + ruff + mypy 全绿；server-java 301 tests + spotless 全绿。
 
 ## Comments
 
