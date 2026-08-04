@@ -164,10 +164,15 @@ public class ConversationService {
                 .toList();
     }
 
-    /** LLM 上下文排除集 = 契约 ai_card_kinds + report_upload（上传记录同样不是自然语言）。 */
+    /**
+     * LLM 上下文排除集 = 契约 ai_card_kinds + report_upload + image。
+     * 卡片 JSON 与图片路径用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文。
+     */
     private List<String> contextExcludedKinds() {
         List<String> excluded = new ArrayList<>(contracts.sseEvents().aiCardKinds());
         excluded.add(Message.KIND_REPORT_UPLOAD);
+        // image 消息 content 存 MinIO 对象路径，非自然语言，不进 LLM 上下文（ADR-0023）
+        excluded.add(Message.KIND_IMAGE);
         return excluded;
     }
 
