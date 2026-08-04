@@ -76,6 +76,25 @@ INSERT INTO medications (id, name, generic_name, specification, instructions, pr
     (30, '呋喃妥因肠溶片', '呋喃妥因', '50mg*100片', '口服；硝基呋喃类过敏者禁用', 27.50, 160)
 ON CONFLICT (id) DO NOTHING;
 
+-- 演示患者与健康档案（票 26）：显式 id + ON CONFLICT DO NOTHING 幂等。
+-- patients/health_profiles/health_profile_allergies 均在 DemoResetService 清表清单内，
+-- 重置 TRUNCATE 后随本段重灌。「林小满」带青霉素过敏（主线+禁忌拦截支线用），
+-- 「周晓舟」无过敏（对照用）；mock 登录按 nickname 命中即复用，不新建（PatientService.mockLogin）。
+INSERT INTO patients (id, nickname) VALUES
+    (1, '林小满'),
+    (2, '周晓舟')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO health_profiles (id, patient_id, display_name, gender, birth_date, relationship, active) VALUES
+    (1, 1, '林小满', '女', '1992-05-12', '本人', TRUE),
+    (2, 2, '周晓舟', '男', '1988-11-03', '本人', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+-- 林小满青霉素过敏：禁忌拦截支线对阿莫西林（medications.id=1，含青霉素类成分）的拦截依据。
+INSERT INTO health_profile_allergies (health_profile_id, allergen) VALUES
+    (1, '青霉素')
+ON CONFLICT (health_profile_id, allergen) DO NOTHING;
+
 -- 排班（票 25）：用 CURRENT_DATE + interval 'N day' 动态生成未来 7 天排班，
 -- 保证任意演示日当天起仍有有效排班可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
 -- 重置 TRUNCATE schedules 后再执行本段可重新插入；已存在则跳过。
@@ -213,5 +232,8 @@ SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
 SELECT setval('departments_id_seq', (SELECT MAX(id) FROM departments));
 SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors));
 SELECT setval('medications_id_seq', (SELECT MAX(id) FROM medications));
+SELECT setval('patients_id_seq', (SELECT COALESCE(MAX(id), 1) FROM patients));
+SELECT setval('health_profiles_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_profiles));
+SELECT setval('health_profile_allergies_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_profile_allergies));
 SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));
