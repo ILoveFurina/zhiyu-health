@@ -1,0 +1,10 @@
+{
+  "_doc": "情绪反馈（票 44，ADR-0019）：C 端 Agent 回复携带的三档情绪标注 calm/anxious/fearful，驱动 AI 气泡配色与安抚语。emotion 字段挂 message 事件（不新增 SSE 事件），server-java 对 message 不白名单、字段自然透传，并落 messages.emotion 列供历史回看复现情绪色。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "emotions": ["calm", "anxious", "fearful"],
+  "default": "calm",
+  "_carried_by": "message",
+  "soothing_texts": {
+    "anxious": "别太担心，我会一步步陪你看懂接下来怎么做。",
+    "fearful": "这听起来确实让人紧张，建议尽快联系医生或拨打 120。"
+  }
+}

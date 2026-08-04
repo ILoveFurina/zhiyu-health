@@ -1,5 +1,6 @@
 package com.zhiyu.health.config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -34,6 +35,7 @@ public class Contracts {
     private final MedCheckinFlow medCheckinFlow;
     private final DemoArsenal demoArsenal;
     private final AppointmentCare appointmentCare;
+    private final Emotion emotion;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -59,6 +61,7 @@ public class Contracts {
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
         this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
         this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
+        this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -139,6 +142,11 @@ public class Contracts {
 
     public AppointmentCare appointmentCare() {
         return appointmentCare;
+    }
+
+    /** 情绪反馈（票 44，ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。 */
+    public Emotion emotion() {
+        return emotion;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -418,6 +426,32 @@ public class Contracts {
     public record AppointmentCare(String messageType, String title, List<String> contentSchema) {
         public AppointmentCare {
             contentSchema = List.copyOf(contentSchema);
+        }
+    }
+
+    /**
+     * 情绪反馈（票 44，ADR-0019）：C 端 Agent 回复携带的三档情绪标注 calm/anxious/fearful，
+     * 驱动 AI 气泡配色与安抚语。emotion 挂 message 事件（_carried_by=message），
+     * 落 messages.emotion 列供历史回看复现情绪色。calm 无安抚语（映射缺省即无）。
+     */
+    public record Emotion(
+            List<String> emotions,
+            @JsonProperty("default") String defaultEmotion,
+            @JsonProperty("_carried_by") String carriedBy,
+            Map<String, String> soothingTexts) {
+        public Emotion {
+            emotions = List.copyOf(emotions);
+            soothingTexts = Map.copyOf(soothingTexts);
+        }
+
+        /** emotion 是否属于契约白名单（落库前校验，防脏值写入 messages.emotion）。 */
+        public boolean isKnown(String value) {
+            return value != null && emotions.contains(value);
+        }
+
+        /** 安抚语：calm 无（映射缺省返回 null）；anxious/fearful 各一条确定性文案。 */
+        public String soothingText(String value) {
+            return value == null ? null : soothingTexts.get(value);
         }
     }
 }
