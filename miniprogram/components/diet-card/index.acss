@@ -1,0 +1,109 @@
+.diet-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.diet-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+}
+
+.meal-type {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.calories {
+  font-size: 28rpx;
+  color: #0e8a7d;
+  margin-bottom: 16rpx;
+}
+
+.foods {
+  margin-bottom: 16rpx;
+}
+
+.food {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.food:last-child {
+  border-bottom: none;
+}
+
+.food-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.risk-label {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  margin-right: 16rpx;
+  color: #fff;
+}
+
+.risk-green {
+  background: #52c41a;
+}
+
+.risk-yellow {
+  background: #faad14;
+}
+
+.risk-red {
+  background: #ff4d4f;
+}
+
+.food-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.food-amount {
+  font-size: 24rpx;
+  color: #999;
+  margin-left: 12rpx;
+}
+
+.food-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+}
+
+.nutrition-summary {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 12rpx;
+}
+
+.diet-advice {
+  font-size: 26rpx;
+  color: #0e8a7d;
+  line-height: 1.5;
+  margin-bottom: 12rpx;
+}
+
+.personal-tip {
+  font-size: 26rpx;
+  color: #faad14;
+  line-height: 1.5;
+  margin-bottom: 12rpx;
+}
+
+.need-doctor {
+  font-size: 26rpx;
+  color: #ff4d4f;
+  margin-bottom: 16rpx;
+}

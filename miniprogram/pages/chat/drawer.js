@@ -144,6 +144,16 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
+      // diet_analysis 与 skin_analysis 同构：content 是 {result, disclaimer} 包裹（票 16）
+      if (m.kind === 'diet_analysis' && card.result) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: card.result,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
+      }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }
     return {

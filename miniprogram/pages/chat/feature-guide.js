@@ -19,6 +19,10 @@ const featureGuideMethods = {
         this.startHealthProfile()
       } else this.openSkinPicker()
     }
+    else if (action === 'diet') {
+      // 饮食场景差异化（票 16）：无激活档案时仍可分析，仅缺个性化提醒句，故不强制建档。
+      this.openDietPicker()
+    }
   },
 
   enterTriage() {
