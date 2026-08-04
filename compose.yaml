@@ -69,7 +69,28 @@ services:
       timeout: 5s
       retries: 12
 
+  # 拍照分析原图持久化（ADR-0023）：仅存拍照分析图片，业务数据仍走 PostgreSQL。
+  # MinIO 是旁路持久化，不介入视觉分析热路径，server-py 取图仍由 server-java 字节流透传。
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请在 .env 中设置 MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请在 .env 中设置 MINIO_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
 volumes:
   postgres-data:
   redis-data:
   neo4j-data:
+  minio-data:

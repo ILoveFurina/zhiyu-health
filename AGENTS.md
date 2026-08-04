@@ -7,12 +7,12 @@
 - `server-java/`：Java / Spring Boot / MyBatis-Plus 单体服务；禁止引入 Spring Cloud、Dubbo、注册中心或网关中间件
 - `server-py/`：Python 3.12+ / FastAPI / LangChain / LangGraph；依赖由根目录 `pyproject.toml` 和 `uv.lock` 管理，代码必须对照锁定版本及其官方文档
 - LLM：火山方舟 OpenAI 兼容协议；对话/视觉用 `doubao-seed-2.1-turbo`，embedding 用 `doubao-embedding-vision`，语音识别/TTS 用火山引擎；调用仅发生在 server-py
-- 存储：PostgreSQL 16 + pgvector、Redis、Neo4j；业务数据只存 PostgreSQL，医学知识图谱只存 Neo4j
+- 存储：PostgreSQL 16 + pgvector、Redis、Neo4j、MinIO；业务数据只存 PostgreSQL，医学知识图谱只存 Neo4j，拍照分析原图存 MinIO（ADR-0023）
 - 前端：支付宝原生小程序 + antd-mini；B 端使用 React + TypeScript + Umi + Ant Design + AntV + Zustand
 
 ### 运行拓扑（硬约束）
 
-- 云服务器只提供已部署的 PostgreSQL、Redis、Neo4j 数据服务；server-java、server-py、admin、小程序开发者工具和全部测试均在本地运行
+- 云服务器只提供已部署的 PostgreSQL、Redis、Neo4j、MinIO 数据服务；server-java、server-py、admin、小程序开发者工具和全部测试均在本地运行
 - 未经用户明确要求，禁止通过 SSH 登录云服务器、上传代码、部署应用、执行远程命令、重启服务或改动云端 Compose；数据库连接失败时只检查本地配置和安全组白名单并报告
 - 日常开发不得执行 `docker compose up`；`compose.yaml` 仅供人工进行云数据库首次部署或维护
 - 本地进程通过 `.env` 中的云数据库地址直连；不得打印 `.env` 内容或连接凭据
@@ -65,7 +65,7 @@ npm --prefix miniprogram ci
 
 1. 所有 AI 产出必须带“仅供参考，不替代医生诊断”：server-py 生成时注入，server-java 出口兜底，界面无例外。
 2. 红线症状由 server-java 在 C 端对话入口确定性判断；用药禁忌仅在 B 端医生开方流程由 server-java 确定性判断。C 端 Agent 不做个性化用药决策，只提供通用药品知识解释并引导咨询医生或药师。
-3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
+3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；MinIO 只存拍照分析原图（ADR-0023）；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
 4. 号源扣减必须使用 Redis 原子 DECR + PostgreSQL 事务对账，禁止先查后改。
 5. `.env` 永不入库、不打印、不写进代码或测试。审计日志和 Agent trace 不记录患者敏感原文，只记录脱敏摘要、工具名、参数类型与结果；审计统一在 server-java 入口执行。
 6. schema 由 `schema.sql` + 幂等 seed 管理，不使用迁移工具；开发期变更统一 drop + recreate + seed。
