@@ -9,6 +9,7 @@ import pymupdf
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 
+from app.agent.vision.scenarios import POLICIES, policy_for
 from app.core.contracts import get_contracts
 from app.schemas.chat import HealthProfilePayload
 
@@ -58,7 +59,8 @@ class PreparedPage:
 
 @dataclass(frozen=True)
 class PreparedDocument:
-    scenario: Literal["REPORT"]
+    # scenario 驱动分发：REPORT 走 PDF/多页文本，拍照分析场景（SKIN 等）只走图片分支。
+    scenario: str
     pages: tuple[PreparedPage, ...]
     health_profile: HealthProfilePayload | None = None
 
@@ -68,16 +70,19 @@ class PreparedDocument:
 
 
 async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDocument:
-    if scenario != "REPORT":
+    # 场景白名单：未注册策略一律拒绝，防止 C 端注入任意场景标识。
+    if scenario not in POLICIES:
         raise _input_error("VISION_SCENARIO_UNSUPPORTED")
+    policy = policy_for(scenario)
     if not _MIN_FILES <= len(files) <= _MAX_FILES:
         raise _input_error("VISION_FILE_COUNT_INVALID")
 
+    # PDF 仅 report 场景支持；拍照分析场景收到 PDF 直接拒绝（皮肤/饮食/舌苔为图片场景）。
     if any(upload.content_type == "application/pdf" for upload in files):
-        if len(files) != 1:
+        if not policy.supports_pdf or len(files) != 1:
             raise _input_error("VISION_FILE_COUNT_INVALID")
         data = await files[0].read()
-        return _prepare_pdf(data)
+        return _prepare_pdf(data, scenario)
 
     pages: list[PreparedPage] = []
     total_bytes = 0
@@ -99,10 +104,10 @@ async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDo
                 media_type="image/jpeg",
             )
         )
-    return PreparedDocument(scenario="REPORT", pages=tuple(pages))
+    return PreparedDocument(scenario=scenario, pages=tuple(pages))
 
 
-def _prepare_pdf(data: bytes) -> PreparedDocument:
+def _prepare_pdf(data: bytes, scenario: str) -> PreparedDocument:
     if len(data) > MAX_FILE_BYTES:
         raise _input_error("VISION_FILE_TOO_LARGE")
     try:
@@ -123,7 +128,7 @@ def _prepare_pdf(data: bytes) -> PreparedDocument:
             _prepare_pdf_page(document.load_page(index), index + 1)
             for index in range(document.page_count)
         )
-        return PreparedDocument(scenario="REPORT", pages=pages)
+        return PreparedDocument(scenario=scenario, pages=pages)
     finally:
         document.close()
 
