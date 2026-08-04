@@ -93,4 +93,34 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             WHERE id = #{scheduleId} AND remaining_slots < total_slots
             """)
     int incrementRemainingSlots(@Param("scheduleId") long scheduleId);
+
+    /**
+     * 挂号后就诊指引卡数据来源（票 43）：联查排班->医生->科室->医院，取关怀消息 content 所需静态字段。
+     * hospitals 的 floor/materials/precautions 是演示用虚构静态 seed 值，非 LLM 生成。
+     */
+    @org.apache.ibatis.annotations.Select(
+            """
+            SELECT s.schedule_date AS scheduleDate, s.time_slot AS timeSlotValue,
+                   d.name AS doctorName, dep.name AS departmentName,
+                   h.name AS hospitalName, h.address AS address,
+                   h.floor AS floor, h.materials AS materials, h.precautions AS precautions
+            FROM schedules s
+            JOIN doctors d ON d.id = s.doctor_id
+            JOIN departments dep ON dep.id = d.department_id
+            JOIN hospitals h ON h.id = dep.hospital_id
+            WHERE s.id = #{scheduleId}
+            """)
+    CareContext selectCareContextBySchedule(@Param("scheduleId") long scheduleId);
+
+    /** 就诊指引卡拼装上下文：record 字段名与 SELECT 别名一致。 */
+    record CareContext(
+            java.time.LocalDate scheduleDate,
+            String timeSlotValue,
+            String doctorName,
+            String departmentName,
+            String hospitalName,
+            String address,
+            String floor,
+            String materials,
+            String precautions) {}
 }

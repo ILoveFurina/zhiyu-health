@@ -1,10 +1,14 @@
 package com.zhiyu.health.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import java.math.BigDecimal;
@@ -19,12 +23,15 @@ public class AppointmentService {
 
     private final AppointmentMapper appointmentMapper;
     private final ScheduleMapper scheduleMapper;
+    private final InAppMessageMapper messageMapper;
     private final SlotAccounting slotAccounting;
     private final TransactionTemplate transactionTemplate;
     private final HealthProfileService healthProfiles;
     private final PaymentService payments;
     private final Contracts contracts;
     private final AppointmentDtoMapper appointmentDtos;
+    private final DisclaimerService disclaimers;
+    private final ObjectMapper objectMapper;
 
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         CreatedAppointment created = reserve(patientId, conversationId, scheduleId, DuplicatePolicy.RETURN_EXISTING);
@@ -76,9 +83,64 @@ public class AppointmentService {
                     appointment.setRegistrationFee(schedule.getRegistrationFee());
                     appointment.setStatus(Appointment.STATUS_BOOKED);
                     appointmentMapper.insert(appointment);
+                    writeAppointmentCareMessage(patientId, scheduleId, appointment.getId());
                     return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
                 }));
         return created;
+    }
+
+    /**
+     * 挂号后就诊指引卡（票 43）：事务内联查排班->医院拼装结构化 content，写一条
+     * type=appointment_care 的站内消息。地址/楼层/材料/注意事项取自 hospitals 表静态 seed
+     * 值，非 LLM 生成。与挂号同事务，失败即回滚（含 Redis 号源回补）。
+     * 幂等：重复挂号请求在 reserve() 早返回分支不触达此处；DB UNIQUE(related_appointment_id,type) 兜底竞态。
+     */
+    private void writeAppointmentCareMessage(long patientId, long scheduleId, long appointmentId) {
+        ScheduleMapper.CareContext care = scheduleMapper.selectCareContextBySchedule(scheduleId);
+        // 排班刚写入即可联查（外键保证 join 命中），缺失属数据完整性异常；
+        // 抛出触发事务回滚（含 Redis 号源回补），符合"失败一起回滚无悬空"硬约束，不留悬空挂号。
+        if (care == null) {
+            throw new IllegalStateException("就诊指引卡上下文缺失，挂号事务回滚：scheduleId=" + scheduleId);
+        }
+        String scheduleTime =
+                (care.scheduleDate() == null ? "" : care.scheduleDate().toString()) + " " + care.timeSlotValue();
+        var content = new java.util.LinkedHashMap<String, Object>();
+        content.put("greeting", "挂号成功，请按时就诊");
+        content.put("hospital_name", care.hospitalName());
+        content.put("department_name", care.departmentName());
+        content.put("doctor_name", care.doctorName());
+        content.put("schedule_time", scheduleTime.trim());
+        content.put("address", care.address());
+        content.put("floor", care.floor());
+        // materials/precautions 在 seed 中以换行分隔，拆成数组供端侧渲染列表
+        content.put("materials", splitLines(care.materials()));
+        content.put("precautions", splitLines(care.precautions()));
+        String contentJson;
+        try {
+            contentJson = objectMapper.writeValueAsString(content);
+        } catch (JsonProcessingException exception) {
+            // content 全为结构化静态值，序列化失败属装配错误，抛出以触发事务回滚暴露问题。
+            throw new IllegalStateException("就诊指引卡 content 序列化失败", exception);
+        }
+        InAppMessage message = new InAppMessage();
+        message.setPatientId(patientId);
+        message.setType(contracts.appointmentCare().messageType());
+        message.setTitle(contracts.appointmentCare().title());
+        message.setContent(contentJson);
+        // server-java 出口兜底：免责声明一律经 DisclaimerService 从契约注入，不信任上游。
+        message.setDisclaimer(disclaimers.text());
+        message.setRelatedAppointmentId(appointmentId);
+        messageMapper.insert(message);
+    }
+
+    private static List<String> splitLines(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split("\\r?\\n"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 
     public List<AppointmentView> listForPatient(long patientId) {
