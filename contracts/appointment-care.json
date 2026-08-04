@@ -1,0 +1,16 @@
+{
+  "_doc": "挂号后就诊指引卡（票 43）：挂号成功由 server-java AppointmentService.create() 事务内写一条 in_app_messages（type=appointment_care），content 存结构化 JSON。本文件是双栈共享常量的单一事实源，message_type 与 content_schema 均在此定义。地址/楼层/材料/注意事项来自 hospitals 表静态 seed 值，非 LLM 生成。",
+  "message_type": "appointment_care",
+  "title": "就诊指引",
+  "content_schema": [
+    "greeting",
+    "hospital_name",
+    "department_name",
+    "doctor_name",
+    "schedule_time",
+    "address",
+    "floor",
+    "materials",
+    "precautions"
+  ]
+}

@@ -33,6 +33,7 @@ public class Contracts {
     private final ChatRealtime chatRealtime;
     private final MedCheckinFlow medCheckinFlow;
     private final DemoArsenal demoArsenal;
+    private final AppointmentCare appointmentCare;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -57,6 +58,7 @@ public class Contracts {
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
         this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
+        this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -133,6 +135,10 @@ public class Contracts {
 
     public DemoArsenal demoArsenal() {
         return demoArsenal;
+    }
+
+    public AppointmentCare appointmentCare() {
+        return appointmentCare;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -401,6 +407,17 @@ public class Contracts {
         public DemoArsenal {
             knowledgeSourceValues = List.copyOf(knowledgeSourceValues);
             knowledgeBaselines = Map.copyOf(knowledgeBaselines);
+        }
+    }
+
+    /**
+     * 挂号后就诊指引卡（票 43）：挂号成功由 server-java 事务内写一条 in_app_messages，
+     * type=message_type、title=title、content 存 content_schema 定义的结构化 JSON。
+     * 地址/楼层/材料/注意事项来自 hospitals 表静态 seed 值，非 LLM 生成。
+     */
+    public record AppointmentCare(String messageType, String title, List<String> contentSchema) {
+        public AppointmentCare {
+            contentSchema = List.copyOf(contentSchema);
         }
     }
 }
