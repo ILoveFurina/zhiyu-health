@@ -3,6 +3,7 @@ const { createChatChannel } = require('../../utils/chat-stream')
 const { SOOTHING_TEXTS } = require('../../utils/emotion')
 const { drawerMethods } = require('./drawer')
 const reportComposer = require('./report-composer')
+const skinComposer = require('./skin-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
@@ -55,6 +56,8 @@ Page({
     conversations: [],
     pendingReport: null,
     reportProgress: '',
+    pendingSkin: null,
+    skinProgress: '',
     profileLoaded: false,
     currentProfile: null,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
@@ -72,6 +75,7 @@ Page({
   _audioCtx: null,
 
   ...reportComposer,
+  ...skinComposer,
   ...hospitalRoutingMethods,
   ...featureGuideMethods,
 
@@ -182,6 +186,10 @@ Page({
       toolProgressError: false,
       voiceHint: '',
       voiceHintError: false,
+      pendingReport: null,
+      reportProgress: '',
+      pendingSkin: null,
+      skinProgress: '',
     })
   },
 

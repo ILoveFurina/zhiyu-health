@@ -37,7 +37,11 @@
     </view>
 
     <view a:for="{{messages}}" a:key="id">
-      <view a:if="{{item.role === 'user'}}" class="bubble user">{{item.content}}</view>
+      <view a:if="{{item.role === 'user' && item.kind !== 'image'}}" class="bubble user">{{item.content}}</view>
+
+      <view a:elif="{{item.kind === 'image'}}" class="bubble user image-bubble">
+        <view class="image-msg-label">📷 {{item.content}}</view>
+      </view>
 
       <view a:elif="{{item.kind === 'red_flag'}}" class="redflag-card">
         <view class="rf-card-title">⚠ 紧急提醒</view>
@@ -112,6 +116,12 @@
         <ai-disclaimer text="{{item.disclaimer}}" />
       </view>
 
+      <skin-card
+        a:elif="{{item.kind === 'skin_analysis'}}"
+        card="{{item.card}}"
+        disclaimer="{{item.disclaimer}}"
+      />
+
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
@@ -150,6 +160,23 @@
     </view>
     <view a:if="{{reportProgress}}" class="report-progress">{{reportProgress}}，正在安全处理…</view>
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingReport">发送并解读</view>
+  </view>
+
+  <view a:if="{{pendingSkin}}" class="pending-report">
+    <view class="pending-head">
+      <view>
+        <view class="pending-title">待发送的皮肤照片</view>
+        <view class="pending-tip">将发送至多模态模型分析肤质与常见皮肤问题；照片原图会留存于历史会话供回看</view>
+      </view>
+      <view class="pending-count">{{pendingSkin.items.length}} 张</view>
+    </view>
+    <view a:for="{{pendingSkin.items}}" a:key="path" class="pending-item">
+      <view class="pending-index">{{index + 1}}</view>
+      <view class="pending-name">{{item.name}}</view>
+      <view class="remove-btn" data-index="{{index}}" onTap="removeSkinItem">×</view>
+    </view>
+    <view a:if="{{skinProgress}}" class="report-progress">{{skinProgress}}</view>
+    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingSkin">发送并分析</view>
   </view>
 
   <!-- 免责声明常驻细条（双保险之二） -->

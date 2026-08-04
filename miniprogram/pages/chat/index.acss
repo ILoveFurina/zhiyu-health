@@ -125,6 +125,16 @@
   width: fit-content;
 }
 
+/* 票 15：image kind 消息，用户上传的拍照原图占位（MinIO 路径不直出 URL，MVP 以标签展示） */
+.image-bubble {
+  display: flex;
+  align-items: center;
+}
+
+.image-msg-label {
+  font-size: 26rpx;
+}
+
 .bubble.ai {
   margin-right: auto;
   background: #fff;

@@ -31,7 +31,7 @@ const FEATURE_BUBBLES = [
   },
   // 拍照类入口随各自票单落地再点亮；未落地前 enabled:false 不渲染（D8 可插拔纪律）
   { key: 'pillbox', label: '拍药盒', icon: '⊗', enabled: false, action: 'pillbox' },
-  { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: false, action: 'skin' },
+  { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
   { key: 'diet', label: '拍饮食', icon: '✦', enabled: false, action: 'diet' },
   { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: false, action: 'tongue' },
 ]

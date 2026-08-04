@@ -1,0 +1,21 @@
+<view class="skin-card">
+  <view class="skin-card-title">皮肤分析</view>
+  <view class="skin-type">肤质：{{card.skin_type}}</view>
+
+  <view a:if="{{card.findings.length}}" class="findings">
+    <view a:for="{{card.findings}}" a:for-item="finding" a:key="index" class="finding">
+      <view class="finding-head">
+        <view class="severity-label severity-{{finding.severity}}">
+          {{finding.severity === 'red' ? '建议就医' : (finding.severity === 'yellow' ? '需关注' : '日常护理')}}
+        </view>
+        <text class="finding-name">{{finding.name}}</text>
+      </view>
+      <view class="finding-text">{{finding.explanation}}</view>
+      <view class="finding-advice">护理建议：{{finding.care_advice}}</view>
+    </view>
+  </view>
+
+  <view class="care-summary">{{card.care_summary}}</view>
+  <view a:if="{{card.need_doctor}}" class="need-doctor">建议尽早就医，由皮肤科医生面诊确认。</view>
+  <ai-disclaimer text="{{disclaimer}}" />
+</view>
