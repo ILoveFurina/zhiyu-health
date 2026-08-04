@@ -29,3 +29,4 @@ Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔）
 - `messages` 表 `image` kind 需进 `contracts/sse-events.json` 的 `message_kinds`，双端同步，`ContractsConsistencyTest` 钉死。
 - 删除会话时图片是否级联删除（MinIO 侧孤儿对象清理）是后续需明确的运维点；两周 demo 范围内可接受孤儿不清理。
 - server-py 取图方式已定：**旁路持久化**，server-java 照旧 multipart 字节流透传给 server-py 分析，MinIO 不介入分析热路径，server-py 不新增 MinIO 客户端依赖。MinIO 仅服务"前端历史会话回看原照"。
+- **MinIO 不可用时的降级（实现硬约束）**：MinIO 写入失败**不阻断分析主流程**--降级为不留原图（不落 `image` 消息）但分析卡片正常产出回落会话，记可观测错误日志。这使 14-17 在云端 MinIO 未部署时仍可交付与测试：分析主流程、禁忌判定、卡片契约等测试不依赖 MinIO 连接；图片持久化相关测试用 mock MinIO 客户端覆盖。云端 MinIO 部署需远端服务器权限，待权限就绪后启动，不阻塞 14-17 实现与测试。
