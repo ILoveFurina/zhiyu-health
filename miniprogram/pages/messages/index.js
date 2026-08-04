@@ -7,7 +7,16 @@ Page({
     ensureLogin()
       .then(() => Promise.all([listMessages(), listMedCheckins()]))
       .then(([messages, reminders]) => {
-        this.setData({ messages, reminders })
+        // 就诊指引卡（票 43）：appointment_care 的 content 是结构化 JSON，解析后挂到 item.care 供卡片渲染。
+        const decorated = messages.map((item) => {
+          if (item.type !== 'appointment_care') return item
+          try {
+            return { ...item, care: JSON.parse(item.content) }
+          } catch (e) {
+            return item
+          }
+        })
+        this.setData({ messages: decorated, reminders })
       })
       .catch(() => my.showToast({ content: '消息加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))

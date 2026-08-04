@@ -17,7 +17,25 @@
     <view a:if="{{messages.length > 0}}" class="section-title">站内消息</view>
     <view a:for="{{messages}}" a:key="id" class="card">
       <view class="head"><view class="title">{{item.title}}</view><view class="time">{{item.created_at}}</view></view>
-      <view class="content">{{item.content}}</view>
+      <!-- 就诊指引卡（票 43）：appointment_care 渲染结构化卡片，其余 type 走文本 -->
+      <block a:if="{{item.type === 'appointment_care' && item.care}}">
+        <view class="care-greeting">{{item.care.greeting}}</view>
+        <view class="care-row"><text class="care-label">医院</text><text class="care-value">{{item.care.hospital_name}}</text></view>
+        <view class="care-row"><text class="care-label">科室</text><text class="care-value">{{item.care.department_name}}</text></view>
+        <view class="care-row"><text class="care-label">医生</text><text class="care-value">{{item.care.doctor_name}}</text></view>
+        <view class="care-row"><text class="care-label">时间</text><text class="care-value">{{item.care.schedule_time}}</text></view>
+        <view class="care-row"><text class="care-label">地址</text><text class="care-value">{{item.care.address}}</text></view>
+        <view class="care-row"><text class="care-label">楼层</text><text class="care-value">{{item.care.floor}}</text></view>
+        <view a:if="{{item.care.materials.length > 0}}" class="care-block">
+          <view class="care-block-title">携带材料</view>
+          <view a:for="{{item.care.materials}}" a:for-item="m" a:key="*this" class="care-list-item">· {{m}}</view>
+        </view>
+        <view a:if="{{item.care.precautions.length > 0}}" class="care-block">
+          <view class="care-block-title">注意事项</view>
+          <view a:for="{{item.care.precautions}}" a:for-item="p" a:key="*this" class="care-list-item">· {{p}}</view>
+        </view>
+      </block>
+      <view a:else class="content">{{item.content}}</view>
       <ai-disclaimer text="{{item.disclaimer}}" />
     </view>
   </block>

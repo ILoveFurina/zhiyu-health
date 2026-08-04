@@ -9,3 +9,11 @@
 .content { margin-top: 18rpx; color: var(--zy-text-title); font-size: 26rpx; line-height: 1.75; }
 .reminder-action { margin-top: 20rpx; display: flex; justify-content: flex-end; }
 .checkin-btn { background: #4caf93; color: #fff; font-size: 26rpx; padding: 0 36rpx; height: 64rpx; line-height: 64rpx; border-radius: 32rpx; border: none; }
+/* 就诊指引卡（票 43）：结构化卡片样式 */
+.care-greeting { margin-top: 16rpx; color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.care-row { display: flex; margin-top: 12rpx; font-size: 26rpx; line-height: 1.6; }
+.care-label { flex: 0 0 96rpx; color: var(--zy-text-weak); }
+.care-value { flex: 1; color: var(--zy-text-title); }
+.care-block { margin-top: 16rpx; }
+.care-block-title { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; margin-bottom: 6rpx; }
+.care-list-item { color: var(--zy-text-title); font-size: 25rpx; line-height: 1.7; }
