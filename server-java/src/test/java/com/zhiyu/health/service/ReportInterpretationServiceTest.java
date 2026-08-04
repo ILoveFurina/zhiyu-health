@@ -124,7 +124,7 @@ class ReportInterpretationServiceTest {
         HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
                 31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
         when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
-        when(agentClient.interpretVision(List.of(file), profile)).thenReturn(vision);
+        when(agentClient.interpretVision(List.of(file), profile, "REPORT")).thenReturn(vision);
         when(persistence.succeed(eq(processing), eq(vision), anyString(), anyString()))
                 .thenAnswer(invocation -> {
                     processing.setStatus("SUCCEEDED");
@@ -150,7 +150,7 @@ class ReportInterpretationServiceTest {
         assertThat(result.result().path("summary").asText()).isEqualTo("血红蛋白偏低");
         InOrder order = inOrder(persistence, agentClient);
         order.verify(persistence).start(12L, null, "req-002", List.of(file));
-        order.verify(agentClient).interpretVision(List.of(file), profile);
+        order.verify(agentClient).interpretVision(List.of(file), profile, "REPORT");
         order.verify(persistence).succeed(eq(processing), eq(vision), anyString(), anyString());
     }
 
@@ -197,7 +197,7 @@ class ReportInterpretationServiceTest {
         HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
                 31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
         when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
-        when(agentClient.interpretVision(List.of(file), profile))
+        when(agentClient.interpretVision(List.of(file), profile, "REPORT"))
                 .thenThrow(new AgentClient.VisionAgentException("VISION_MODEL_TIMEOUT", 504, "报告解读服务响应超时"));
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence,

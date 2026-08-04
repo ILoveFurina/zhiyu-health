@@ -63,7 +63,7 @@ public class ReportInterpretationService {
             // 网络调用故意不在 @Transactional 方法内，避免长事务占用连接与锁。
             HealthProfileService.AgentProfileContext profile =
                     healthProfiles.agentContext(patientId, processing.getHealthProfileId());
-            AgentClient.VisionResponse response = agentClient.interpretVision(files, profile);
+            AgentClient.VisionResponse response = agentClient.interpretVision(files, profile, "REPORT");
             String resultJson = objectMapper.writeValueAsString(response.result());
             String contextSummary = contextSummary(response.result());
             return toView(persistence.succeed(processing, response, resultJson, contextSummary));

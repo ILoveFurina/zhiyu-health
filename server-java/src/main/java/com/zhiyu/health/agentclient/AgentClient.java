@@ -151,11 +151,14 @@ public class AgentClient {
         }
     }
 
-    /** 同步报告解读；调用方确保该网络等待不处于数据库事务中。 */
+    /**
+     * 同步视觉分析；调用方确保该网络等待不处于数据库事务中。
+     * scenario 参数化（票 15）：REPORT 走报告解读，SKIN 走皮肤分析，由调用方按场景传入。
+     */
     public VisionResponse interpretVision(
-            List<MultipartFile> files, HealthProfileService.AgentProfileContext healthProfile) {
+            List<MultipartFile> files, HealthProfileService.AgentProfileContext healthProfile, String scenario) {
         MultipartBodyBuilder body = new MultipartBodyBuilder();
-        body.part("scenario", "REPORT");
+        body.part("scenario", scenario);
         try {
             body.part("health_profile", objectMapper.writeValueAsString(healthProfile));
             for (MultipartFile file : files) {

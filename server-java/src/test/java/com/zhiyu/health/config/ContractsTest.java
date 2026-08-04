@@ -31,8 +31,10 @@ class ContractsTest {
                 .containsEntry("find_hospitals", "hospital_recommendations")
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments");
-        assertThat(events.messageKinds()).hasSize(9).contains("text", "report_interpretation");
-        assertThat(events.aiCardKinds()).hasSize(6);
+        assertThat(events.messageKinds())
+                .hasSize(11)
+                .contains("text", "report_interpretation", "skin_analysis", "image");
+        assertThat(events.aiCardKinds()).hasSize(7);
         assertThat(events.eventToKind())
                 .hasSize(6)
                 .containsEntry("hospital_recommendations", "hospital_recommendations");
@@ -41,12 +43,13 @@ class ContractsTest {
     @Test
     void visionErrorCodesAndMessagesAreLoaded() {
         Contracts.VisionErrors errors = contracts.visionErrors();
-        assertThat(errors.codes()).hasSize(11);
+        assertThat(errors.codes()).hasSize(12);
         assertThat(errors.messages())
-                .hasSize(11)
+                .hasSize(12)
                 .containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时")
                 .containsEntry("VISION_OUTPUT_INVALID", "本次未能生成可靠的结构化解读，请重试")
                 .containsEntry("VISION_REPORT_SCOPE_UNSUPPORTED", "请上传报告文字页，暂不支持原始医学影像诊断")
+                .containsEntry("VISION_SKIN_SCOPE_UNSUPPORTED", "请上传清晰的皮肤照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_FILE_TOO_LARGE", "报告文件超出处理限制，请拆分或压缩后上传");
         // 错误码集合与文案表必须一一对应。
         assertThat(errors.messages().keySet()).containsExactlyInAnyOrderElementsOf(errors.codes());

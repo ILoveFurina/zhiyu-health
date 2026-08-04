@@ -1,0 +1,90 @@
+.skin-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.skin-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+}
+
+.skin-type {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.findings {
+  margin-bottom: 16rpx;
+}
+
+.finding {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.finding:last-child {
+  border-bottom: none;
+}
+
+.finding-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.severity-label {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  margin-right: 16rpx;
+  color: #fff;
+}
+
+.severity-green {
+  background: #52c41a;
+}
+
+.severity-yellow {
+  background: #faad14;
+}
+
+.severity-red {
+  background: #ff4d4f;
+}
+
+.finding-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.finding-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 8rpx;
+}
+
+.finding-advice {
+  font-size: 26rpx;
+  color: #0e8a7d;
+  line-height: 1.5;
+}
+
+.care-summary {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+
+.need-doctor {
+  font-size: 26rpx;
+  color: #ff4d4f;
+  margin-bottom: 16rpx;
+}

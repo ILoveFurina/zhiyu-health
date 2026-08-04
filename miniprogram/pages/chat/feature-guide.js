@@ -13,6 +13,12 @@ const featureGuideMethods = {
         this.startHealthProfile()
       } else this.openReportPicker()
     }
+    else if (action === 'skin') {
+      if (!this.data.currentProfile) {
+        my.showToast({ content: '请先创建健康档案', type: 'none' })
+        this.startHealthProfile()
+      } else this.openSkinPicker()
+    }
   },
 
   enterTriage() {

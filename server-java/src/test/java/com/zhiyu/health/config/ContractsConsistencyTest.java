@@ -50,7 +50,9 @@ class ContractsConsistencyTest {
                         "appointments",
                         "report_upload",
                         "report_interpretation",
-                        "report_context");
+                        "report_context",
+                        "skin_analysis",
+                        "image");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -63,6 +65,8 @@ class ContractsConsistencyTest {
         assertThat(Message.KIND_REPORT_INTERPRETATION)
                 .isEqualTo(events.messageKinds().get(7));
         assertThat(Message.KIND_REPORT_CONTEXT).isEqualTo(events.messageKinds().get(8));
+        assertThat(Message.KIND_SKIN_ANALYSIS).isEqualTo(events.messageKinds().get(9));
+        assertThat(Message.KIND_IMAGE).isEqualTo(events.messageKinds().get(10));
     }
 
     @Test
@@ -73,6 +77,10 @@ class ContractsConsistencyTest {
         assertThat(Message.isAiCardKind(Message.KIND_TEXT)).isFalse();
         assertThat(Message.isAiCardKind(Message.KIND_REPORT_UPLOAD)).isFalse();
         assertThat(Message.isAiCardKind(Message.KIND_REPORT_CONTEXT)).isFalse();
+        // image 是用户上传的原图路径消息，不属于 AI 产出卡片（ADR-0023）
+        assertThat(Message.isAiCardKind(Message.KIND_IMAGE)).isFalse();
+        // skin_analysis 是 AI 产出的结构化卡片，属于 ai_card_kinds
+        assertThat(Message.isAiCardKind(Message.KIND_SKIN_ANALYSIS)).isTrue();
         // red_flag 是规则引擎产物，不属于 AI 卡片
         assertThat(Message.isAiCardKind("red_flag")).isFalse();
     }
@@ -122,10 +130,12 @@ class ContractsConsistencyTest {
     }
 
     @Test
-    void llmContextExclusionIsAiCardKindsPlusReportUpload() {
-        // ConversationService.recentContext 的排除集 = 契约 ai_card_kinds + report_upload
+    void llmContextExclusionIsAiCardKindsPlusReportUploadAndImage() {
+        // ConversationService.recentContext 的排除集 = 契约 ai_card_kinds + report_upload + image。
+        // 卡片 JSON 与图片路径用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文（ADR-0023）。
         Set<String> excluded = new HashSet<>(contracts.sseEvents().aiCardKinds());
         excluded.add(Message.KIND_REPORT_UPLOAD);
+        excluded.add(Message.KIND_IMAGE);
         assertThat(excluded)
                 .containsExactlyInAnyOrder(
                         "doctor_recommendations",
@@ -134,7 +144,9 @@ class ContractsConsistencyTest {
                         "appointment",
                         "appointments",
                         "report_interpretation",
-                        "report_upload");
+                        "skin_analysis",
+                        "report_upload",
+                        "image");
     }
 
     @Test

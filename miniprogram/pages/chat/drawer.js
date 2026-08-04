@@ -99,6 +99,25 @@ const drawerMethods = {
         streaming: false,
       }
     }
+    // image kind（票 15 ADR-0023）：content 是 {object_key, media_type} JSON，
+    // 回放为图片消息。MVP 暂以文字标签占位（MinIO 原图回拉待后续接入图片代理）。
+    if (m.kind === 'image') {
+      let label = '皮肤照片'
+      try {
+        const image = JSON.parse(m.content)
+        if (image.media_type) label = '皮肤照片'
+      } catch (e) {
+        // 解析失败时沿用默认标签
+      }
+      return {
+        id: ++this._msgSeq,
+        role: m.role,
+        kind: 'image',
+        content: label,
+        disclaimer: '',
+        streaming: false,
+      }
+    }
     if (isCardKind(m.kind)) {
       let card = m.content
       try {
@@ -107,6 +126,16 @@ const drawerMethods = {
         card = { raw: m.content }
       }
       if (m.kind === 'report_interpretation' && card.result) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: card.result,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
+      }
+      // skin_analysis 与 report_interpretation 同构：content 是 {result, disclaimer} 包裹
+      if (m.kind === 'skin_analysis' && card.result) {
         return {
           id: ++this._msgSeq,
           role: m.role,
