@@ -1,0 +1,18 @@
+{
+  "_doc": "语音双向（票 45，ADR-0020）：ASR 输入与 TTS 播报的跨栈开关、格式占位与降级提示。本文件是双栈共享常量的单一事实源，结构一次性钉死：火山语音开通前 enabled=false、格式字段留 null（骨架+fake 阶段）；开通后只填值不改结构，不双栈二次发版。ASR/TTS 不进 agent_call_logs trace，仅 server-java 入口审计记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）。",
+  "asr_enabled": false,
+  "asr_format": null,
+  "asr_timeout_ms": 10000,
+  "asr_max_duration_ms": 60000,
+  "tts_enabled": false,
+  "tts_format": null,
+  "tts_timeout_ms": 15000,
+  "tts_voice": null,
+  "error_codes": [
+    "VOICE_UNCONFIGURED",
+    "VOICE_AUDIO_INVALID",
+    "VOICE_MODEL_TIMEOUT",
+    "VOICE_MODEL_FAILED"
+  ],
+  "degrade_hint": "语音功能暂不可用，已切换为文字输入"
+}

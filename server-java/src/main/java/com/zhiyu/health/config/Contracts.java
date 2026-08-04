@@ -36,6 +36,7 @@ public class Contracts {
     private final DemoArsenal demoArsenal;
     private final AppointmentCare appointmentCare;
     private final Emotion emotion;
+    private final Voice voice;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -62,6 +63,7 @@ public class Contracts {
         this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
         this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
         this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
+        this.voice = read(mapper, dir, "voice.json", Voice.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -147,6 +149,11 @@ public class Contracts {
     /** 情绪反馈（票 44，ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。 */
     public Emotion emotion() {
         return emotion;
+    }
+
+    /** 语音双向（票 45，ADR-0020）：ASR/TTS 开关、格式占位、超时与降级提示。 */
+    public Voice voice() {
+        return voice;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。 */
@@ -452,6 +459,35 @@ public class Contracts {
         /** 安抚语：calm 无（映射缺省返回 null）；anxious/fearful 各一条确定性文案。 */
         public String soothingText(String value) {
             return value == null ? null : soothingTexts.get(value);
+        }
+    }
+
+    /**
+     * 语音双向（票 45，ADR-0020）：ASR 输入与 TTS 播报的跨栈开关、格式占位与降级提示。
+     *
+     * 结构一次性钉死：火山语音开通前 asrEnabled/ttsEnabled=false、格式字段留 null
+     * （骨架+fake 阶段）；开通后只填值不改结构，不双栈二次发版。ASR/TTS 不进
+     * agent_call_logs trace，仅 server-java 入口审计记调用类型+参数类型+结果码/长度，
+     * 不记音频与识别/合成文字原文（硬约束 5）。
+     */
+    public record Voice(
+            boolean asrEnabled,
+            String asrFormat,
+            int asrTimeoutMs,
+            int asrMaxDurationMs,
+            boolean ttsEnabled,
+            String ttsFormat,
+            int ttsTimeoutMs,
+            String ttsVoice,
+            List<String> errorCodes,
+            String degradeHint) {
+        public Voice {
+            errorCodes = List.copyOf(errorCodes);
+        }
+
+        /** 错误码是否属于契约白名单（出口映射前校验，防脏值透传）。 */
+        public boolean isKnownCode(String code) {
+            return code != null && errorCodes.contains(code);
         }
     }
 }

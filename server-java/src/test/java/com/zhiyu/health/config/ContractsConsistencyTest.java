@@ -182,4 +182,25 @@ class ContractsConsistencyTest {
         // 默认值同样须在白名单内（降级 calm）
         assertThat(contracts.emotion().emotions()).contains(contracts.emotion().defaultEmotion());
     }
+
+    @Test
+    void voiceContractSkeletonIsLoaded() {
+        // 票 45：骨架阶段 enabled=false、格式字段留 null；开通后只填值不改结构
+        Contracts.Voice voice = contracts.voice();
+        assertThat(voice.asrEnabled()).isFalse();
+        assertThat(voice.ttsEnabled()).isFalse();
+        assertThat(voice.asrFormat()).isNull();
+        assertThat(voice.ttsFormat()).isNull();
+        assertThat(voice.ttsVoice()).isNull();
+        // 超时/最大时长占位值钉死（开通后可按火山产品形态调整）
+        assertThat(voice.asrTimeoutMs()).isEqualTo(10000);
+        assertThat(voice.asrMaxDurationMs()).isEqualTo(60000);
+        assertThat(voice.ttsTimeoutMs()).isEqualTo(15000);
+        // 错误码集合与降级提示必须存在（开通前后均需）
+        assertThat(voice.errorCodes())
+                .contains("VOICE_UNCONFIGURED", "VOICE_AUDIO_INVALID", "VOICE_MODEL_TIMEOUT", "VOICE_MODEL_FAILED");
+        assertThat(voice.degradeHint()).contains("语音功能暂不可用");
+        assertThat(voice.isKnownCode("VOICE_MODEL_TIMEOUT")).isTrue();
+        assertThat(voice.isKnownCode("UNKNOWN")).isFalse();
+    }
 }

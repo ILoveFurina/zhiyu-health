@@ -120,6 +120,27 @@ def test_emotion_contract_values_are_loaded() -> None:
     assert "120" in emotion.soothing_texts["fearful"]
 
 
+def test_voice_contract_skeleton_is_loaded() -> None:
+    # 票 45：骨架阶段 enabled=false、格式字段留 null；开通后只填值不改结构
+    voice = get_contracts().voice
+    # 开通前 enabled 必须为 false（骨架+fake 阶段，避免误调真实火山服务）
+    assert voice.asr_enabled is False
+    assert voice.tts_enabled is False
+    assert voice.asr_format is None
+    assert voice.tts_format is None
+    assert voice.tts_voice is None
+    # 超时/最大时长占位值钉死（开通后可按火山产品形态调整）
+    assert voice.asr_timeout_ms == 10000
+    assert voice.asr_max_duration_ms == 60000
+    assert voice.tts_timeout_ms == 15000
+    # 错误码集合与降级提示必须存在（开通前后均需）
+    assert "VOICE_UNCONFIGURED" in voice.error_codes
+    assert "VOICE_MODEL_TIMEOUT" in voice.error_codes
+    assert "VOICE_MODEL_FAILED" in voice.error_codes
+    assert "VOICE_AUDIO_INVALID" in voice.error_codes
+    assert "语音功能暂不可用" in voice.degrade_hint
+
+
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="跨栈契约加载失败"):
         _load(tmp_path / "missing")

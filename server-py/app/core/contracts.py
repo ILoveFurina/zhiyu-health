@@ -117,6 +117,26 @@ class EmotionContract(BaseModel):
     soothing_texts: dict[str, str]
 
 
+class VoiceContract(BaseModel):
+    """语音双向（票 45，ADR-0020）：ASR/TTS 开关、格式占位、超时与降级提示。
+
+    结构一次性钉死：火山语音开通前 enabled=false、格式字段留 null（骨架+fake 阶段）；
+    开通后只填值不改结构。ASR/TTS 不进 agent_call_logs trace，仅 server-java 入口
+    审计记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）。
+    """
+
+    asr_enabled: bool
+    asr_format: str | None
+    asr_timeout_ms: int
+    asr_max_duration_ms: int
+    tts_enabled: bool
+    tts_format: str | None
+    tts_timeout_ms: int
+    tts_voice: str | None
+    error_codes: list[str]
+    degrade_hint: str
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -128,6 +148,7 @@ class Contracts(BaseModel):
     contraindication: ContraindicationContract
     knowledge: KnowledgeContract
     emotion: EmotionContract
+    voice: VoiceContract
 
 
 def _contracts_dir() -> Path:
@@ -174,6 +195,7 @@ def _load(dir_path: Path) -> Contracts:
             ),
             knowledge=KnowledgeContract.model_validate(_read_json(dir_path, "knowledge.json")),
             emotion=EmotionContract.model_validate(_read_json(dir_path, "emotion.json")),
+            voice=VoiceContract.model_validate(_read_json(dir_path, "voice.json")),
         )
     except ValidationError as exc:
         raise RuntimeError(f"跨栈契约结构校验失败（需双栈同步检查 contracts/）: {exc}") from exc
