@@ -30,7 +30,9 @@
     "appointments",
     "report_upload",
     "report_interpretation",
-    "report_context"
+    "report_context",
+    "skin_analysis",
+    "image"
   ],
   "ai_card_kinds": [
     "doctor_recommendations",
@@ -38,7 +40,8 @@
     "hospital_recommendations",
     "appointment",
     "appointments",
-    "report_interpretation"
+    "report_interpretation",
+    "skin_analysis"
   ],
   "event_to_kind": {
     "doctor_recommendations": "doctor_recommendations",

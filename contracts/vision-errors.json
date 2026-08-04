@@ -11,7 +11,8 @@
     "VISION_OUTPUT_INVALID",
     "VISION_MODEL_TIMEOUT",
     "VISION_SCENARIO_UNSUPPORTED",
-    "VISION_REPORT_SCOPE_UNSUPPORTED"
+    "VISION_REPORT_SCOPE_UNSUPPORTED",
+    "VISION_SKIN_SCOPE_UNSUPPORTED"
   ],
   "messages": {
     "VISION_FILE_UNREADABLE": "报告文件无法可靠读取，请检查后重试",
@@ -24,6 +25,7 @@
     "VISION_OUTPUT_INVALID": "本次未能生成可靠的结构化解读，请重试",
     "VISION_MODEL_TIMEOUT": "报告解读服务响应超时",
     "VISION_SCENARIO_UNSUPPORTED": "报告文件无法可靠读取，请检查后重试",
-    "VISION_REPORT_SCOPE_UNSUPPORTED": "请上传报告文字页，暂不支持原始医学影像诊断"
+    "VISION_REPORT_SCOPE_UNSUPPORTED": "请上传报告文字页，暂不支持原始医学影像诊断",
+    "VISION_SKIN_SCOPE_UNSUPPORTED": "请上传清晰的皮肤照片，暂不支持医学影像或报告诊断"
   }
 }
