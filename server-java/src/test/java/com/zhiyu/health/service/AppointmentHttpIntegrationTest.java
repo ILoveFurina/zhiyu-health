@@ -10,14 +10,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.controller.agent.AppointmentToolController;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.HealthProfile;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Payment;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.PaymentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
@@ -41,18 +44,25 @@ class AppointmentHttpIntegrationTest {
     void creatingAppointmentPersistsUnpaidFeeAndReturnsPrice() throws Exception {
         AppointmentMapper appointments = mock(AppointmentMapper.class);
         ScheduleMapper schedules = mock(ScheduleMapper.class);
+        InAppMessageMapper messages = mock(InAppMessageMapper.class);
         PaymentMapper paymentMapper = mock(PaymentMapper.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         AtomicReference<Appointment> savedAppointment = new AtomicReference<>();
         AtomicReference<Payment> savedPayment = new AtomicReference<>();
+        AtomicReference<InAppMessage> savedMessage = new AtomicReference<>();
 
         when(schedules.selectByIdForUpdate(9L)).thenReturn(schedule());
         when(schedules.decrementRemainingSlots(9L)).thenReturn(1);
+        when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
             appointment.setId(21L);
             savedAppointment.set(appointment);
+            return 1;
+        });
+        when(messages.insert(any(InAppMessage.class))).thenAnswer(invocation -> {
+            savedMessage.set(invocation.getArgument(0));
             return 1;
         });
         when(paymentMapper.insertUnpaid(any(Payment.class))).thenAnswer(invocation -> {
@@ -75,12 +85,15 @@ class AppointmentHttpIntegrationTest {
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                messages,
                 new SlotAccounting(slots),
                 immediateTransaction(),
                 healthProfiles,
                 payments,
                 TestContracts.instance(),
-                Mappers.getMapper(AppointmentDtoMapper.class));
+                Mappers.getMapper(AppointmentDtoMapper.class),
+                TestDisclaimers.instance(),
+                new ObjectMapper());
         MockMvc mvc = standaloneSetup(new AppointmentToolController(
                         service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .build();
@@ -102,6 +115,26 @@ class AppointmentHttpIntegrationTest {
         assertThat(savedPayment.get().getAmount()).isEqualByComparingTo("30.00");
         assertThat(savedPayment.get().getStatus()).isEqualTo("UNPAID");
         assertThat(slots.values.get(9L)).hasValue(0);
+        // 票 43：挂号成功同时写入就诊指引卡关怀消息，type 与 disclaimer 来自契约
+        InAppMessage careMessage = savedMessage.get();
+        assertThat(careMessage).as("挂号成功必须写入就诊指引卡关怀消息").isNotNull();
+        assertThat(careMessage.getType()).isEqualTo("appointment_care");
+        assertThat(careMessage.getTitle()).isEqualTo("就诊指引");
+        assertThat(careMessage.getDisclaimer()).isEqualTo("仅供参考，不替代医生诊断");
+        assertThat(careMessage.getRelatedAppointmentId()).isEqualTo(21L);
+    }
+
+    private ScheduleMapper.CareContext careContext() {
+        return new ScheduleMapper.CareContext(
+                LocalDate.parse("2026-07-29"),
+                "上午",
+                "周安宁",
+                "心血管内科",
+                "智愈市人民医院",
+                "智愈市安康路 88 号",
+                "门诊楼 1 层导诊台",
+                "身份证或医保卡\n既往病历与检查报告",
+                "建议提前 30 分钟到达并完成取号");
     }
 
     private TransactionTemplate immediateTransaction() {

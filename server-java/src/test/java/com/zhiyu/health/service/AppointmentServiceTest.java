@@ -10,15 +10,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.HealthProfile;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.transaction.TransactionStatus;
@@ -29,10 +34,12 @@ class AppointmentServiceTest {
 
     private final AppointmentMapper appointmentMapper = mock(AppointmentMapper.class);
     private final ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
+    private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
     private final PaymentService payments = mock(PaymentService.class);
     private final AppointmentDtoMapper appointmentDtos = Mappers.getMapper(AppointmentDtoMapper.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -126,6 +133,75 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void creatingAppointmentWritesCareMessageInTransaction() throws Exception {
+        // 票 43：挂号成功事务内写一条 appointment_care 关怀消息，disclaimer 经契约注入
+        java.util.concurrent.atomic.AtomicReference<InAppMessage> savedMessage =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 3));
+        when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
+        when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
+        when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
+            Appointment appointment = invocation.getArgument(0);
+            appointment.setId(21L);
+            return 1;
+        });
+        when(messageMapper.insert(any(InAppMessage.class))).thenAnswer(invocation -> {
+            savedMessage.set(invocation.getArgument(0));
+            return 1;
+        });
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+        slotCounter.initialize(9L, 3);
+
+        service().create(12L, 7L, 9L);
+
+        InAppMessage message = savedMessage.get();
+        assertThat(message).as("挂号成功必须写入就诊指引卡关怀消息").isNotNull();
+        assertThat(message.getType()).isEqualTo("appointment_care");
+        assertThat(message.getTitle()).isEqualTo("就诊指引");
+        assertThat(message.getPatientId()).isEqualTo(12L);
+        assertThat(message.getRelatedAppointmentId()).isEqualTo(21L);
+        assertThat(message.getDisclaimer()).isEqualTo("仅供参考，不替代医生诊断");
+        // content 是结构化 JSON：含医院/科室/医生/地址/楼层/材料/注意事项
+        com.fasterxml.jackson.databind.JsonNode content = objectMapper.readTree(message.getContent());
+        assertThat(content.get("hospital_name").asText()).isEqualTo("智愈市人民医院");
+        assertThat(content.get("department_name").asText()).isEqualTo("心血管内科");
+        assertThat(content.get("doctor_name").asText()).isEqualTo("周安宁");
+        assertThat(content.get("schedule_time").asText()).isEqualTo("2026-07-29 上午");
+        assertThat(content.get("address").asText()).isEqualTo("智愈市安康路 88 号");
+        assertThat(content.get("materials").isArray()).isTrue();
+        assertThat(content.get("materials").size()).isEqualTo(2);
+        assertThat(content.get("precautions").isArray()).isTrue();
+        assertThat(content.get("precautions").size()).isEqualTo(2);
+    }
+
+    @Test
+    void duplicateAppointmentDoesNotWriteCareMessage() {
+        // 票 43 幂等：重复挂号走 RETURN_EXISTING 早返回分支，不触达关怀消息写入
+        Appointment existing = appointment(21L, "BOOKED");
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(existing);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+        slotCounter.initialize(9L, 2);
+
+        service().create(12L, 7L, 9L);
+
+        verify(messageMapper, never()).insert(any(InAppMessage.class));
+    }
+
+    @Test
+    void directDuplicateRejectsBeforeWritingCareMessage() {
+        // 票 43 幂等：B 端直接挂号重复走 REJECT 抛 409，不触达关怀消息写入
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        slotCounter.initialize(9L, 2);
+
+        assertThatThrownBy(() -> service().createDirect(12L, 9L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("请勿重复挂号");
+        verify(messageMapper, never()).insert(any(InAppMessage.class));
+    }
+
+    @Test
     void duplicateWithSummaryReturnsExistingResultWithoutRewritingFromNewConversation() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
         when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
@@ -190,8 +266,12 @@ class AppointmentServiceTest {
     void databaseCommitFailureRefundsRedisDeduction() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
         when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
+        when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
         when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
-        when(appointmentMapper.insert(any(Appointment.class))).thenReturn(1);
+        when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
+            invocation.<Appointment>getArgument(0).setId(21L);
+            return 1;
+        });
         slotCounter.initialize(9L, 1);
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
@@ -203,12 +283,15 @@ class AppointmentServiceTest {
         AppointmentService service = new AppointmentService(
                 appointmentMapper,
                 scheduleMapper,
+                messageMapper,
                 new SlotAccounting(slotCounter),
                 transaction,
                 activeProfileService(),
                 payments,
                 TestContracts.instance(),
-                appointmentDtos);
+                appointmentDtos,
+                TestDisclaimers.instance(),
+                objectMapper);
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
@@ -247,6 +330,8 @@ class AppointmentServiceTest {
     }
 
     private AppointmentService service() {
+        // 关怀消息上下文：默认提供一份联查结果，覆盖正常挂号路径
+        when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);
@@ -255,12 +340,28 @@ class AppointmentServiceTest {
         return new AppointmentService(
                 appointmentMapper,
                 scheduleMapper,
+                messageMapper,
                 new SlotAccounting(slotCounter),
                 transaction,
                 activeProfileService(),
                 payments,
                 TestContracts.instance(),
-                appointmentDtos);
+                appointmentDtos,
+                TestDisclaimers.instance(),
+                objectMapper);
+    }
+
+    private ScheduleMapper.CareContext careContext() {
+        return new ScheduleMapper.CareContext(
+                LocalDate.parse("2026-07-29"),
+                "上午",
+                "周安宁",
+                "心血管内科",
+                "智愈市人民医院",
+                "智愈市安康路 88 号",
+                "门诊楼 1 层导诊台",
+                "身份证或医保卡\n既往病历与检查报告",
+                "建议提前 30 分钟到达并完成取号\n请携带既往病历便于医生参考");
     }
 
     private HealthProfileService activeProfileService() {

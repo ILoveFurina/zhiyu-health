@@ -139,12 +139,15 @@ class AppointmentPaymentControllerTest {
         return new AppointmentService(
                 appointments,
                 mock(ScheduleMapper.class),
+                mock(com.zhiyu.health.mapper.InAppMessageMapper.class),
                 mock(SlotAccounting.class),
                 transactionTemplate(),
                 healthProfiles,
                 service,
                 TestContracts.instance(),
-                Mappers.getMapper(AppointmentDtoMapper.class));
+                Mappers.getMapper(AppointmentDtoMapper.class),
+                TestDisclaimers.instance(),
+                new ObjectMapper());
     }
 
     private Appointment appointment(String paymentStatus) {

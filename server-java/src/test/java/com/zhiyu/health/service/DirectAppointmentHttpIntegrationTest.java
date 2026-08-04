@@ -12,14 +12,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.c.AppointmentController;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.HealthProfile;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -40,6 +43,7 @@ class DirectAppointmentHttpIntegrationTest {
 
     private final AppointmentMapper appointments = mock(AppointmentMapper.class);
     private final ScheduleMapper schedules = mock(ScheduleMapper.class);
+    private final InAppMessageMapper messages = mock(InAppMessageMapper.class);
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
     private final PaymentService payments = mock(PaymentService.class);
     private final InMemorySlotCounter slots = new InMemorySlotCounter();
@@ -50,15 +54,20 @@ class DirectAppointmentHttpIntegrationTest {
         HealthProfile profile = new HealthProfile();
         profile.setId(31L);
         when(healthProfiles.requireActive(anyLong())).thenReturn(profile);
+        // B 端直接挂号成功也会写就诊指引卡关怀消息（票 43 覆盖所有入口）
+        when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                messages,
                 new SlotAccounting(slots),
                 immediateTransaction(),
                 healthProfiles,
                 payments,
                 TestContracts.instance(),
-                Mappers.getMapper(AppointmentDtoMapper.class));
+                Mappers.getMapper(AppointmentDtoMapper.class),
+                TestDisclaimers.instance(),
+                new ObjectMapper());
         mvc = standaloneSetup(new AppointmentController(
                         service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .setControllerAdvice(new ApiExceptionHandler())
@@ -74,6 +83,7 @@ class DirectAppointmentHttpIntegrationTest {
             invocation.<Appointment>getArgument(0).setId(21L);
             return 1;
         });
+        when(messages.insert(any(InAppMessage.class))).thenReturn(1);
         when(appointments.selectViewById(21L)).thenReturn(view());
         slots.initialize(9L, 1);
 
@@ -87,6 +97,8 @@ class DirectAppointmentHttpIntegrationTest {
         assertThat(slots.values.get(9L)).hasValue(0);
         verify(schedules).decrementRemainingSlots(9L);
         verify(payments, never()).createUnpaid(anyLong(), any());
+        // 票 43：B 端直接挂号成功也写就诊指引卡关怀消息，覆盖所有挂号入口
+        verify(messages).insert(any(InAppMessage.class));
     }
 
     @Test
@@ -121,6 +133,19 @@ class DirectAppointmentHttpIntegrationTest {
 
         assertThat(slots.values.get(9L)).hasValue(2);
         verify(schedules, never()).decrementRemainingSlots(9L);
+    }
+
+    private ScheduleMapper.CareContext careContext() {
+        return new ScheduleMapper.CareContext(
+                LocalDate.parse("2026-08-03"),
+                "上午",
+                "周安宁",
+                "心血管内科",
+                "智愈市人民医院",
+                "智愈市安康路 88 号",
+                "门诊楼 1 层导诊台",
+                "身份证或医保卡\n既往病历与检查报告",
+                "建议提前 30 分钟到达并完成取号");
     }
 
     private TransactionTemplate immediateTransaction() {

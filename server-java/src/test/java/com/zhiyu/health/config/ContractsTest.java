@@ -207,4 +207,23 @@ class ContractsTest {
                 .containsExactlyElementsOf(
                         List.of("rag", "graph", contracts.knowledge().noneSource()));
     }
+
+    @Test
+    void appointmentCareContractIsLoaded() {
+        // 票 43：就诊指引卡消息 type 与 content schema 来自契约单一事实源
+        Contracts.AppointmentCare care = contracts.appointmentCare();
+        assertThat(care.messageType()).isEqualTo("appointment_care");
+        assertThat(care.title()).isEqualTo("就诊指引");
+        assertThat(care.contentSchema())
+                .containsExactly(
+                        "greeting",
+                        "hospital_name",
+                        "department_name",
+                        "doctor_name",
+                        "schedule_time",
+                        "address",
+                        "floor",
+                        "materials",
+                        "precautions");
+    }
 }

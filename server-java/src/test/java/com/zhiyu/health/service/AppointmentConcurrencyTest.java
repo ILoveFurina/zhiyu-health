@@ -5,14 +5,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.HealthProfile;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +34,7 @@ class AppointmentConcurrencyTest {
     void concurrentPatientsCompetingForLastSlotProduceExactlyOneAppointment() throws Exception {
         AppointmentMapper appointments = mock(AppointmentMapper.class);
         ScheduleMapper schedules = mock(ScheduleMapper.class);
+        InAppMessageMapper messages = mock(InAppMessageMapper.class);
         InMemorySlotCounter redis = new InMemorySlotCounter();
         AtomicInteger pgRemaining = new AtomicInteger(1);
         AtomicInteger inserts = new AtomicInteger();
@@ -36,6 +42,17 @@ class AppointmentConcurrencyTest {
         when(schedules.selectByIdForUpdate(9L)).thenAnswer(invocation -> schedule(pgRemaining.get()));
         when(schedules.decrementRemainingSlots(9L))
                 .thenAnswer(invocation -> pgRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0 ? 1 : 0);
+        when(schedules.selectCareContextBySchedule(9L))
+                .thenReturn(new ScheduleMapper.CareContext(
+                        LocalDate.parse("2026-07-29"),
+                        "上午",
+                        "周安宁",
+                        "心血管内科",
+                        "智愈市人民医院",
+                        "智愈市安康路 88 号",
+                        "门诊楼 1 层导诊台",
+                        "身份证或医保卡",
+                        "建议提前 30 分钟到达"));
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
@@ -44,6 +61,7 @@ class AppointmentConcurrencyTest {
             inserts.incrementAndGet();
             return 1;
         });
+        when(messages.insert(any(InAppMessage.class))).thenReturn(1);
         when(appointments.selectViewById(21L)).thenAnswer(invocation -> {
             Appointment appointment = saved.get(21L);
             appointment.setDoctorName("周安宁");
@@ -59,12 +77,15 @@ class AppointmentConcurrencyTest {
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                messages,
                 new SlotAccounting(redis),
                 serializedTransaction(),
                 healthProfiles,
                 mock(PaymentService.class),
                 TestContracts.instance(),
-                Mappers.getMapper(AppointmentDtoMapper.class));
+                Mappers.getMapper(AppointmentDtoMapper.class),
+                TestDisclaimers.instance(),
+                new ObjectMapper());
         AtomicInteger successes = new AtomicInteger();
         var executor = Executors.newFixedThreadPool(10);
         try {
