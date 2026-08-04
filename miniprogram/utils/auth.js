@@ -18,7 +18,7 @@ function ensureLogin() {
     my.request({
       url: `${apiBaseUrl}/c/auth/mock-login`,
       method: 'POST',
-      data: {},
+      data: { nickname: '演示患者' },
       headers: { 'Content-Type': 'application/json' },
       success: (res) => {
         if (res.status === 200 && res.data && res.data.token) {
