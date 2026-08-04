@@ -1,0 +1,24 @@
+<view class="diet-card">
+  <view class="diet-card-title">饮食分析</view>
+  <view class="meal-type">餐次：{{card.meal_type}}</view>
+  <view class="calories">估算热量：{{card.estimated_calories}}</view>
+
+  <view a:if="{{card.foods.length}}" class="foods">
+    <view a:for="{{card.foods}}" a:for-item="food" a:key="index" class="food">
+      <view class="food-head">
+        <view class="risk-label risk-{{food.risk_level}}">
+          {{food.risk_level === 'red' ? '过敏风险' : (food.risk_level === 'yellow' ? '注意限量' : '日常可食')}}
+        </view>
+        <text class="food-name">{{food.name}}</text>
+        <text class="food-amount">{{food.estimated_amount}}</text>
+      </view>
+      <view class="food-text">{{food.explanation}}</view>
+    </view>
+  </view>
+
+  <view class="nutrition-summary">{{card.nutrition_summary}}</view>
+  <view class="diet-advice">饮食建议：{{card.diet_advice}}</view>
+  <view a:if="{{card.personal_tip}}" class="personal-tip">{{card.personal_tip}}</view>
+  <view a:if="{{card.need_doctor}}" class="need-doctor">建议咨询医生或营养师，获取个性化饮食指导。</view>
+  <ai-disclaimer text="{{disclaimer}}" />
+</view>
