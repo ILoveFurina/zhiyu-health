@@ -26,6 +26,7 @@ from app.api.clinical import router as clinical_router
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
 from app.api.vision import router as vision_router
+from app.api.voice import router as voice_router
 from app.config import get_settings, get_web_settings
 from app.core.logging import configure_logging
 from app.db.clients import create_knowledge_clients
@@ -33,6 +34,7 @@ from app.services.chat import AgentChatService
 from app.services.graph import build_graph_projector, build_graph_traverser
 from app.services.health import HealthChecker, HealthService
 from app.services.knowledge import build_knowledge_retriever
+from app.services.voice import LazyVoiceService, VoiceService
 from app.tools.business import BusinessCallbackClient, build_business_tools
 
 
@@ -46,6 +48,7 @@ def create_app(
     graph_available: bool = False,
     graph_projector: object | None = None,
     emotion_judge: EmotionJudge | None = None,
+    voice_service: VoiceService | None = None,
 ) -> FastAPI:
     # uvicorn 只配置自身 logger；app.* 的流生命周期日志需显式接管（票 33）
     configure_logging()
@@ -65,6 +68,7 @@ def create_app(
             app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
             app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
             app.state.graph_projector = graph_projector
+            app.state.voice_service = voice_service or LazyVoiceService()
             yield
             return
         settings = get_settings()
@@ -91,6 +95,7 @@ def create_app(
         app.state.graph_projector = built_projector
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
+        app.state.voice_service = voice_service or LazyVoiceService()
         try:
             yield
         finally:
@@ -110,6 +115,7 @@ def create_app(
     application.include_router(vision_router, prefix="/api")
     application.include_router(clinical_router, prefix="/api")
     application.include_router(knowledge_router, prefix="/api")
+    application.include_router(voice_router, prefix="/api")
     return application
 
 
