@@ -109,6 +109,35 @@ class DietAnalysis(BaseModel):
     scope_supported: bool = Field(exclude=True)
 
 
+class TongueAnalysis(BaseModel):
+    """拍舌苔中医辨证结果模型（票 17，照搬 15/16 拍照模板的第三个场景）。
+
+    差异化合规边界（ADR-0024）：调理建议只讲方向，不出药材/方剂/剂量。constitution 为
+    体质辨识结论，care_direction 给作息/运动/饮食原则/通用食材（如山药红枣等日常食物）
+    类调理方向，禁止出现纯药材（如黄芩/附子）、方剂名或剂量。这是中医辨证场景能落在
+    硬约束 2 与 ADR-0016"通用知识解释"白名单内的前提，不触碰"个性化用药决策"红线。
+    舌象急症（如镜面舌/霉酱苔）只做软兜底：need_doctor 为 true 时引导"建议尽快就医"，
+    不回流到 RedFlagRuleEngine 确定性规则通道（与 15 拍皮肤软兜底先例同构）。
+    scope_supported 为 false 时表示照片不属于舌苔场景（如医学影像/皮肤/饮食照片），
+    由舌苔场景策略拒绝。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # 体质辨识结论（如"气虚质""湿热质"），不含药材/方剂/剂量
+    constitution: str = Field(min_length=1)
+    # 舌象特征摘要（如舌质/舌苔颜色形态），看不清时不得猜测
+    tongue_features: str = Field(min_length=1)
+    # 调理方向：作息/运动/饮食原则/通用食材等日常食物方向，禁止药材/方剂/剂量（ADR-0024）
+    care_direction: str = Field(min_length=1)
+    # 通用饮食原则提示（如"少食生冷""饮食有节"），不含个性化用药
+    diet_principle: str = Field(min_length=1)
+    # 急症软兜底话术：舌象指向重病特征（如镜面舌/霉酱苔）时为"建议尽快就医"，否则为空串
+    urgency_hint: str = ""
+    need_doctor: bool
+    scope_supported: bool = Field(exclude=True)
+
+
 class VisionResponse(BaseModel):
     """视觉分析统一出口：result 为分场景的结构化结果，page_count 为预处理页数。
 

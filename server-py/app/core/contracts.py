@@ -17,9 +17,15 @@ _DEFAULT_DIR = Path(__file__).resolve().parents[3] / "contracts"
 
 
 class DisclaimerContract(BaseModel):
-    """免责声明标注：一切 AI 产出必须携带（硬约束 1）。"""
+    """免责声明标注：一切 AI 产出必须携带（硬约束 1）。
+
+    text 为通用文案，所有 AI 产出一律挂载；tcm_text 为中医专属文案（ADR-0024，票 17），
+    舌诊卡片叠加通用 + 中医两条，其他 AI 产出仍只取通用。
+    """
 
     text: str
+    # 中医专属免责：通用文案覆盖不到"面诊"这一中医特定语义，故单列（ADR-0024）。
+    tcm_text: str
 
 
 class SseEventsContract(BaseModel):
