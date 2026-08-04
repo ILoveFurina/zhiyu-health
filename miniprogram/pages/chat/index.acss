@@ -134,6 +134,27 @@
   width: fit-content;
 }
 
+/* 票 44：情绪反馈气泡配色--calm 白泡（默认）、anxious 暖橙、fearful 暖红 */
+.bubble.ai-anxious {
+  background: #fff4e6;
+  border-left: 4rpx solid #ff8c00;
+}
+
+.bubble.ai-fearful {
+  background: #fff0f0;
+  border-left: 4rpx solid #e64545;
+}
+
+/* 安抚语：附 AI 气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注 */
+.soothing {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+  font-size: 24rpx;
+  line-height: 1.55;
+  color: var(--zy-text-weak);
+}
+
 .cursor {
   color: var(--zy-color-primary);
 }

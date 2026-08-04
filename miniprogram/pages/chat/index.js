@@ -1,5 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 const { createChatChannel } = require('../../utils/chat-stream')
+const { SOOTHING_TEXTS } = require('../../utils/emotion')
 const { drawerMethods } = require('./drawer')
 const reportComposer = require('./report-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
@@ -115,6 +116,8 @@ Page({
       kind: 'text',
       content: '',
       disclaimer: '',
+      emotion: 'calm',
+      soothingText: '',
       streaming: true,
     }
     this.setData({
@@ -138,7 +141,7 @@ Page({
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
         onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
-        onAssistant: (data) => this.finishAssistant(aiMsg.id, data.content, data.disclaimer),
+        onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
         onToolStart: (data) => this.onToolStart(data),
         onToolEnd: (data) => this.onToolEnd(data),
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
@@ -172,8 +175,18 @@ Page({
     this.setData({ anchorId: 'thread-bottom' })
   },
 
-  finishAssistant(id, content, disclaimer) {
-    this.patchMessage(id, (msg) => ({ ...msg, content, disclaimer, streaming: false }))
+  finishAssistant(id, data) {
+    // 票 44：emotion 驱动气泡配色与安抚语；soothing_text 仅 anxious/fearful 携带（calm 无）。
+    // 安抚语附气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注、不进 messages 数组。
+    const patch = (msg) => ({
+      ...msg,
+      content: data.content,
+      disclaimer: data.disclaimer,
+      emotion: data.emotion || 'calm',
+      soothingText: data.soothing_text || '',
+      streaming: false,
+    })
+    this.patchMessage(id, patch)
   },
 
   /** 工具进度状态条（票 24）：tool_start 显示"正在{文案}…"，瞬态不进 messages。 */

@@ -2,6 +2,7 @@ const { listConversations, listMessages, deleteConversation } = require('../../s
 const { formatRelativeTime } = require('../../utils/time')
 const { ensureLogin } = require('../../utils/auth')
 const { isCardKind } = require('../../utils/message-kinds')
+const { soothingTextFor } = require('../../utils/emotion')
 
 /**
  * 对话记录抽屉逻辑（票 27 决策 6/9/13）。
@@ -122,6 +123,9 @@ const drawerMethods = {
       kind: m.kind,
       content: m.content,
       disclaimer: m.disclaimer,
+      // 票 44：历史回看复现情绪色；安抚语按本地映射补回（后端只存 emotion 列不存 soothing_text）
+      emotion: m.emotion || 'calm',
+      soothingText: soothingTextFor(m.emotion),
       streaming: false,
     }
   },
