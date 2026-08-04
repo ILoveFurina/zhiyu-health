@@ -40,6 +40,7 @@ zhiyu:
   seed:
     admin-password: ${SEED_ADMIN_PASSWORD:}
     doctor-password: ${SEED_DOCTOR_PASSWORD:}
+    doctor2-password: ${SEED_DOCTOR2_PASSWORD:}
   agent:
     base-url: ${SERVER_PY_BASE_URL:http://localhost:8000}
     callback-secret: ${AGENT_CALLBACK_SECRET}
