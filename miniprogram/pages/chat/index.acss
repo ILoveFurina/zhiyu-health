@@ -275,3 +275,47 @@
   background: #fff2f0;
   color: #cf1322;
 }
+
+/* ===== 票 45：语音双向 UI ===== */
+/* 按住说话按钮：输入框左侧话筒，长按录音、松开识别（asrEnabled=false 时不渲染） */
+.voice-btn {
+  flex: 0 0 auto;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-btn-active {
+  background: #e64545;
+  transform: scale(1.08);
+}
+
+.voice-btn-disabled {
+  opacity: 0.45;
+}
+
+/* TTS 播报按钮：AI 气泡底部，按需点击触发（不自动播放） */
+.tts-btn {
+  margin-top: 12rpx;
+  align-self: flex-start;
+  padding: 8rpx 22rpx;
+  border-radius: 24rpx;
+  background: #f0f5ff;
+  color: var(--zy-color-primary);
+  font-size: 22rpx;
+}
+
+.tts-btn-loading {
+  opacity: 0.6;
+}
+
+.tts-btn-playing {
+  background: var(--zy-color-primary);
+  color: #fff;
+}

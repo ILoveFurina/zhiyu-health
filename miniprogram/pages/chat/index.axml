@@ -116,6 +116,17 @@
         <text>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
         <view a:if="{{!item.streaming && item.soothingText}}" class="soothing">{{item.soothingText}}</view>
+        <!-- 票 45：TTS 播放/停止按钮（按需点击触发，不自动播放）。ttsEnabled=false 时不渲染 -->
+        <view
+          a:if="{{!item.streaming && ttsEnabled && item.content}}"
+          class="tts-btn {{ttsLoadingId === item.id ? 'tts-btn-loading' : ''}} {{ttsPlayingId === item.id ? 'tts-btn-playing' : ''}}"
+          data-id="{{item.id}}"
+          onTap="onPlayTts"
+        >
+          <text a:if="{{ttsLoadingId === item.id}}">合成中…</text>
+          <text a:elif="{{ttsPlayingId === item.id}}">⏸ 停止</text>
+          <text a:else>▶ 播报</text>
+        </view>
         <ai-disclaimer a:if="{{!item.streaming && item.disclaimer}}" text="{{item.disclaimer}}" />
       </view>
     </view>
@@ -164,16 +175,30 @@
     <text>{{toolProgress}}</text>
   </view>
 
+  <!-- 票 45：语音输入提示条（录音中/识别中/失败），瞬态，不进 messages 数组 -->
+  <view a:if="{{voiceHint}}" class="tool-progress {{voiceHintError ? 'tool-progress-error' : ''}}">
+    <view a:if="{{!voiceHintError && recording}}" class="tool-progress-spinner" />
+    <text>{{voiceHint}}</text>
+  </view>
+
   <!-- 输入栏（双行结构） -->
   <view class="composer">
     <view class="c-row1">
+      <!-- 票 45：按住说话（asrEnabled=false 时不渲染，降级纯文字输入） -->
+      <view
+        a:if="{{asrEnabled}}"
+        class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"
+        onTouchStart="onVoiceTouchStart"
+        onTouchEnd="onVoiceTouchEnd"
+        onTouchCancel="onVoiceTouchCancel"
+      >{{recording ? '松开' : '🎙'}}</view>
       <input
         class="c-input"
         value="{{inputValue}}"
         onInput="onInput"
         onConfirm="send"
         confirm-type="send"
-        placeholder="发消息或按住说话…"
+        placeholder="{{asrEnabled ? '发消息或按住话筒说话…' : '发消息…'}}"
         disabled="{{sending}}"
       />
     </view>

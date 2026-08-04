@@ -7,6 +7,7 @@ const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
+const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -56,9 +57,19 @@ Page({
     reportProgress: '',
     profileLoaded: false,
     currentProfile: null,
+    // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
+    asrEnabled: isAsrEnabled(),
+    ttsEnabled: isTtsEnabled(),
+    recording: false, // 按住说话中
+    voiceHint: '', // 录音/识别中提示
+    voiceHintError: false, // 识别失败提示
+    ttsLoadingId: 0, // 正在合成的 AI 气泡 id
+    ttsPlayingId: 0, // 正在播放的 AI 气泡 id
   },
 
   _msgSeq: 0,
+  _recorder: null,
+  _audioCtx: null,
 
   ...reportComposer,
   ...hospitalRoutingMethods,
@@ -87,6 +98,7 @@ Page({
 
   onUnload() {
     if (this._chatChannel) this._chatChannel.close()
+    this.stopTts()
   },
 
   onInput(e) {
@@ -158,6 +170,7 @@ Page({
 
   /** 重置聊天空态：messages/conversationId，供「新对话」与删除当前会话复用（决策 6/13）。 */
   resetChatState() {
+    this.stopTts()
     this.setData({
       messages: [],
       conversationId: null,
@@ -167,6 +180,8 @@ Page({
       redFlag: null,
       toolProgress: '',
       toolProgressError: false,
+      voiceHint: '',
+      voiceHintError: false,
     })
   },
 
@@ -285,6 +300,106 @@ Page({
     }))
     this.setData({ sending: false })
     if (this._chatChannel) this._chatChannel.finishRound()
+  },
+
+  // ===== 票 45：语音双向（ASR 按住说话 + TTS 按需播报）=====
+  // 按住说话：my.getRecorderManager 录音 -> POST /c/asr -> 识别文字填输入框（可见可改不自动发）。
+  // 未配置/超时/失败三情况降级文字，不阻塞演示（语音入口在 asrEnabled=false 时根本不渲染）。
+  // 监听器只在首次创建 recorder 时注册一次（getRecorderManager 返回单例，
+  // 每次 start 重复注册 onStop 会导致 N 次按下后触发 N 个并行识别回调）。
+  ensureRecorder() {
+    if (this._recorder) return
+    this._recorder = my.getRecorderManager()
+    this._recorder.onStop((res) => {
+      this.setData({ recording: false, voiceHint: '识别中…', voiceHintError: false })
+      // 取消（手指划出）不识别：onVoiceTouchCancel 置位 _voiceCancelled 后 stop
+      if (this._voiceCancelled) {
+        this._voiceCancelled = false
+        this.setData({ voiceHint: '' })
+        return
+      }
+      recognizeSpeech({ filePath: res.tempFilePath })
+        .then((result) => {
+          // 识别结果填输入框，可见可改、不自动发（ASR 可能有错字，对话流入口统一走 startRound）
+          this.setData({
+            inputValue: result.text || '',
+            canSend: (result.text || '').trim().length > 0,
+            voiceHint: '',
+            voiceHintError: false,
+          })
+        })
+        .catch(() => {
+          this.setData({ voiceHint: '语音识别失败，请直接打字', voiceHintError: true })
+        })
+    })
+    this._recorder.onError(() => {
+      this.setData({ recording: false, voiceHint: '录音失败，请直接打字', voiceHintError: true })
+    })
+  },
+
+  onVoiceTouchStart() {
+    if (!this.data.asrEnabled || this.data.sending || this.data.recording) return
+    this.ensureRecorder()
+    this._voiceCancelled = false
+    this._recorder.start({ duration: 60000, sampleRate: 16000, numberOfChannels: 1, format: 'wav' })
+    this.setData({ recording: true, voiceHint: '松开发送识别', voiceHintError: false })
+  },
+
+  onVoiceTouchEnd() {
+    if (!this.data.recording) return
+    this.setData({ recording: false, voiceHint: '识别中…', voiceHintError: false })
+    if (this._recorder) this._recorder.stop()
+  },
+
+  onVoiceTouchCancel() {
+    // 手指划出输入区取消：停止录音但不识别（与常见按住说话交互一致）
+    if (!this.data.recording) return
+    this._voiceCancelled = true
+    this.setData({ recording: false, voiceHint: '' })
+    if (this._recorder) this._recorder.stop()
+  },
+
+  // AI 气泡播放/停止：按需点击触发（不自动播放，医疗场景打扰、公共场合、按需省调用）。
+  // 整条回复一次合成（MVP 简单），my.createInnerAudioContext 播放/停止。
+  onPlayTts(e) {
+    if (!this.data.ttsEnabled) return
+    const id = e.currentTarget.dataset.id
+    const msg = this.data.messages.find((m) => m.id === id)
+    if (!msg || !msg.content) return
+    // 正在播放同一条：停止
+    if (this.data.ttsPlayingId === id) {
+      this.stopTts()
+      return
+    }
+    this.stopTts()
+    this.setData({ ttsLoadingId: id })
+    synthesizeSpeech({ text: msg.content })
+      .then((apFilePath) => {
+        const ctx = my.createInnerAudioContext()
+        ctx.src = apFilePath
+        ctx.onEnded(() => this.setData({ ttsPlayingId: 0 }))
+        ctx.onError(() => this.setData({ ttsLoadingId: 0, ttsPlayingId: 0 }))
+        ctx.play()
+        this._audioCtx = ctx
+        this.setData({ ttsLoadingId: 0, ttsPlayingId: id })
+      })
+      .catch(() => {
+        this.setData({ ttsLoadingId: 0 })
+        my.showToast({ content: '语音播报暂不可用', type: 'fail' })
+      })
+  },
+
+  stopTts() {
+    if (this._audioCtx) {
+      try {
+        this._audioCtx.stop()
+        this._audioCtx.destroy()
+      } catch (_) {
+        // 忽略已销毁上下文
+      }
+      this._audioCtx = null
+    }
+    this.setData({ ttsPlayingId: 0, ttsLoadingId: 0 })
   },
 
   patchMessage(id, patch) {
