@@ -357,3 +357,269 @@ CREATE INDEX IF NOT EXISTS idx_agent_call_logs_round ON agent_call_logs(round_id
 CREATE INDEX IF NOT EXISTS idx_med_checkin_patient_profile
     ON med_checkin_records(patient_id, health_profile_id, due_date DESC, status);
 CREATE INDEX IF NOT EXISTS idx_med_checkin_prescription ON med_checkin_records(prescription_id);
+
+-- =============================================================================
+-- 表与字段注释（COMMENT 语句幂等，可重复执行；集中置末尾便于维护）
+-- =============================================================================
+
+-- hospitals 医院
+COMMENT ON TABLE hospitals IS '医院信息表：维护演示用虚构医院基本资料与就诊指引静态来源';
+COMMENT ON COLUMN hospitals.id IS '主键，BIGINT 标识列（BY DEFAULT IDENTITY，支持幂等 seed 写显式 id）';
+COMMENT ON COLUMN hospitals.name IS '医院名称，唯一';
+COMMENT ON COLUMN hospitals.level IS '医院等级，如三甲、三乙';
+COMMENT ON COLUMN hospitals.address IS '医院地址';
+COMMENT ON COLUMN hospitals.longitude IS '医院所在经度（地图定位）';
+COMMENT ON COLUMN hospitals.latitude IS '医院所在纬度（地图定位）';
+COMMENT ON COLUMN hospitals.floor IS '就诊楼层/楼宇指引（票 43 就诊指引卡静态来源，非 LLM 生成）';
+COMMENT ON COLUMN hospitals.materials IS '就诊所需材料说明';
+COMMENT ON COLUMN hospitals.precautions IS '就诊注意事项';
+
+-- departments 科室
+COMMENT ON TABLE departments IS '科室信息表：医院下属科室及其院内位置';
+COMMENT ON COLUMN departments.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN departments.hospital_id IS '所属医院 ID，外键 hospitals(id)';
+COMMENT ON COLUMN departments.name IS '科室名称';
+COMMENT ON COLUMN departments.floor IS '科室所在楼层/楼宇';
+COMMENT ON COLUMN departments.location IS '科室院内位置描述';
+
+-- doctors 医生
+COMMENT ON TABLE doctors IS '医生信息表：医生排班与挂号的基础资料';
+COMMENT ON COLUMN doctors.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN doctors.department_id IS '所属科室 ID，外键 departments(id)';
+COMMENT ON COLUMN doctors.name IS '医生姓名';
+COMMENT ON COLUMN doctors.title IS '医生职称，如主任医师、副主任医师';
+COMMENT ON COLUMN doctors.registration_fee IS '挂号费（DECIMAL(10,2)，默认 0）';
+COMMENT ON COLUMN doctors.specialty IS '擅长方向说明';
+COMMENT ON COLUMN doctors.photo_url IS '医生头像 URL';
+
+-- schedules 排班
+COMMENT ON TABLE schedules IS '医生排班表：号源总量与余量的权威来源';
+COMMENT ON COLUMN schedules.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN schedules.doctor_id IS '排班医生 ID，外键 doctors(id)';
+COMMENT ON COLUMN schedules.schedule_date IS '排班日期';
+COMMENT ON COLUMN schedules.time_slot IS '时段，如上午/下午';
+COMMENT ON COLUMN schedules.total_slots IS '总号源数（必须 > 0）';
+COMMENT ON COLUMN schedules.remaining_slots IS '剩余号源（0 ≤ remaining ≤ total，号源扣减走 Redis 原子 DECR）';
+COMMENT ON COLUMN schedules.is_active IS '是否生效，FALSE 时不可挂号';
+
+-- patients 患者（C 端用户）
+COMMENT ON TABLE patients IS '患者表：C 端用户主体，昵称唯一';
+COMMENT ON COLUMN patients.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN patients.nickname IS '患者昵称，唯一';
+COMMENT ON COLUMN patients.created_at IS '记录创建时间（默认 now()）';
+
+-- staff_users 员工账号（B 端）
+COMMENT ON TABLE staff_users IS '员工账号表：B 端登录账号，可绑定医生';
+COMMENT ON COLUMN staff_users.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN staff_users.username IS '登录用户名，唯一';
+COMMENT ON COLUMN staff_users.password_hash IS '密码哈希';
+COMMENT ON COLUMN staff_users.role IS '角色，如 admin/doctor';
+COMMENT ON COLUMN staff_users.doctor_id IS '绑定的医生 ID，外键 doctors(id)，删除医生置空';
+
+-- conversations 会话
+COMMENT ON TABLE conversations IS '会话表：患者一次问诊对话的容器';
+COMMENT ON COLUMN conversations.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN conversations.patient_id IS '会话所属患者 ID，外键 patients(id)';
+COMMENT ON COLUMN conversations.title IS '会话标题';
+COMMENT ON COLUMN conversations.created_at IS '会话创建时间';
+COMMENT ON COLUMN conversations.last_active_at IS '会话最近活跃时间';
+
+-- health_profiles 就诊人档案
+COMMENT ON TABLE health_profiles IS '就诊人档案表：患者名下的家庭成员健康档案，每个患者仅一个 active 档案';
+COMMENT ON COLUMN health_profiles.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN health_profiles.patient_id IS '所属患者 ID，外键 patients(id)';
+COMMENT ON COLUMN health_profiles.display_name IS '就诊人姓名';
+COMMENT ON COLUMN health_profiles.gender IS '性别';
+COMMENT ON COLUMN health_profiles.birth_date IS '出生日期';
+COMMENT ON COLUMN health_profiles.relationship IS '与患者关系，如本人/父母/子女';
+COMMENT ON COLUMN health_profiles.active IS '是否为当前激活档案（每个患者仅一个 active，由唯一部分索引约束）';
+COMMENT ON COLUMN health_profiles.created_at IS '记录创建时间';
+COMMENT ON COLUMN health_profiles.updated_at IS '记录更新时间';
+
+-- health_profile_allergies 档案过敏史
+COMMENT ON TABLE health_profile_allergies IS '就诊人过敏史表：档案下的过敏原明细';
+COMMENT ON COLUMN health_profile_allergies.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN health_profile_allergies.health_profile_id IS '所属档案 ID，外键 health_profiles(id)，删除档案级联删除';
+COMMENT ON COLUMN health_profile_allergies.allergen IS '过敏原，同一档案内唯一';
+
+-- report_interpretations 报告解读
+COMMENT ON TABLE report_interpretations IS '报告解读表：患者上传报告文件的解读任务记录与结果';
+COMMENT ON COLUMN report_interpretations.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN report_interpretations.patient_id IS '发起患者 ID，外键 patients(id)';
+COMMENT ON COLUMN report_interpretations.health_profile_id IS '就诊人档案 ID，外键 health_profiles(id)';
+COMMENT ON COLUMN report_interpretations.conversation_id IS '关联会话 ID，外键 conversations(id)，删除会话置空';
+COMMENT ON COLUMN report_interpretations.request_id IS '解读请求 ID（患者维度唯一）';
+COMMENT ON COLUMN report_interpretations.file_type IS '文件类型，如 pdf/image';
+COMMENT ON COLUMN report_interpretations.file_name IS '上传文件名';
+COMMENT ON COLUMN report_interpretations.page_count IS '文件页数';
+COMMENT ON COLUMN report_interpretations.status IS '解读状态：PROCESSING/SUCCEEDED/FAILED';
+COMMENT ON COLUMN report_interpretations.result_json IS '解读结果 JSON';
+COMMENT ON COLUMN report_interpretations.context_summary IS '上下文摘要';
+COMMENT ON COLUMN report_interpretations.error_code IS '失败错误码';
+COMMENT ON COLUMN report_interpretations.disclaimer IS '免责声明（必填，硬约束 1 兜底）';
+COMMENT ON COLUMN report_interpretations.created_at IS '记录创建时间';
+COMMENT ON COLUMN report_interpretations.updated_at IS '记录更新时间';
+
+-- messages 消息
+COMMENT ON TABLE messages IS '消息表：会话内逐条对话记录（用户/助手消息）';
+COMMENT ON COLUMN messages.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN messages.conversation_id IS '所属会话 ID，外键 conversations(id)，删除会话级联删除';
+COMMENT ON COLUMN messages.role IS '消息角色，如 user/assistant';
+COMMENT ON COLUMN messages.kind IS '消息类型，默认 text（列宽 32 由 ContractsConsistencyTest 钉死，防溢出）';
+COMMENT ON COLUMN messages.content IS '消息内容';
+COMMENT ON COLUMN messages.effort IS '助手消息的推理投入档位';
+COMMENT ON COLUMN messages.emotion IS 'C 端 Agent 回复的情绪标注（calm/anxious/fearful），用户消息为 NULL';
+COMMENT ON COLUMN messages.report_interpretation_id IS '关联报告解读 ID，外键 report_interpretations(id)';
+COMMENT ON COLUMN messages.created_at IS '消息创建时间';
+
+-- chat_rounds 对话轮次
+COMMENT ON TABLE chat_rounds IS '对话轮次表：一次用户提问到助手回复完成的执行追踪';
+COMMENT ON COLUMN chat_rounds.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN chat_rounds.patient_id IS '发起患者 ID，外键 patients(id)';
+COMMENT ON COLUMN chat_rounds.request_id IS '请求 ID（患者维度唯一，幂等键）';
+COMMENT ON COLUMN chat_rounds.conversation_id IS '所属会话 ID，外键 conversations(id)';
+COMMENT ON COLUMN chat_rounds.user_message_id IS '用户消息 ID，外键 messages(id)';
+COMMENT ON COLUMN chat_rounds.assistant_message_id IS '助手回复消息 ID，外键 messages(id)';
+COMMENT ON COLUMN chat_rounds.status IS '轮次状态：ACCEPTED/RUNNING/COMPLETED/FAILED';
+COMMENT ON COLUMN chat_rounds.error_code IS '失败错误码';
+COMMENT ON COLUMN chat_rounds.accepted_at IS '请求受理时间';
+COMMENT ON COLUMN chat_rounds.started_at IS '处理开始时间';
+COMMENT ON COLUMN chat_rounds.completed_at IS '处理完成时间';
+
+-- appointments 预约挂号
+COMMENT ON TABLE appointments IS '预约挂号表：患者对某排班的挂号记录';
+COMMENT ON COLUMN appointments.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN appointments.patient_id IS '挂号患者 ID，外键 patients(id)';
+COMMENT ON COLUMN appointments.health_profile_id IS '就诊人档案 ID，外键 health_profiles(id)';
+COMMENT ON COLUMN appointments.conversation_id IS '关联会话 ID，外键 conversations(id)，删除会话置空';
+COMMENT ON COLUMN appointments.schedule_id IS '预约排班 ID，外键 schedules(id)';
+COMMENT ON COLUMN appointments.sequence_number IS '就诊序号（同一排班内唯一）';
+COMMENT ON COLUMN appointments.registration_fee IS '挂号费（DECIMAL(10,2)）';
+COMMENT ON COLUMN appointments.status IS '挂号状态：BOOKED/CANCELLED/VISITED，默认 BOOKED';
+COMMENT ON COLUMN appointments.condition_summary IS '病情摘要';
+COMMENT ON COLUMN appointments.created_at IS '记录创建时间';
+COMMENT ON COLUMN appointments.cancelled_at IS '取消时间';
+
+-- payments 支付
+COMMENT ON TABLE payments IS '支付表：挂号费支付记录，一个预约一条支付';
+COMMENT ON COLUMN payments.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN payments.appointment_id IS '关联预约 ID，外键 appointments(id)，唯一';
+COMMENT ON COLUMN payments.amount IS '支付金额';
+COMMENT ON COLUMN payments.status IS '支付状态：UNPAID/PAID，默认 UNPAID';
+COMMENT ON COLUMN payments.created_at IS '记录创建时间';
+COMMENT ON COLUMN payments.paid_at IS '支付完成时间';
+
+-- consultation_records 就诊记录
+COMMENT ON TABLE consultation_records IS '就诊记录表：医生接诊后填写的诊断与医嘱';
+COMMENT ON COLUMN consultation_records.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN consultation_records.appointment_id IS '关联预约 ID，外键 appointments(id)，唯一';
+COMMENT ON COLUMN consultation_records.doctor_id IS '接诊医生 ID，外键 doctors(id)';
+COMMENT ON COLUMN consultation_records.diagnosis IS '诊断结果';
+COMMENT ON COLUMN consultation_records.advice IS '医嘱建议';
+COMMENT ON COLUMN consultation_records.created_at IS '记录创建时间';
+
+-- medications 药品
+COMMENT ON TABLE medications IS '药品目录表：药品基础信息与库存';
+COMMENT ON COLUMN medications.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN medications.name IS '药品商品名，唯一';
+COMMENT ON COLUMN medications.generic_name IS '通用名';
+COMMENT ON COLUMN medications.specification IS '规格';
+COMMENT ON COLUMN medications.instructions IS '用药说明';
+COMMENT ON COLUMN medications.price IS '单价（DECIMAL(10,2)）';
+COMMENT ON COLUMN medications.stock IS '库存数量';
+COMMENT ON COLUMN medications.is_active IS '是否上架生效';
+
+-- knowledge_chunks 知识库分块
+COMMENT ON TABLE knowledge_chunks IS '知识库分块表：一场景一 chunk，server-py 只读做向量检索（导诊科室推荐）';
+COMMENT ON COLUMN knowledge_chunks.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN knowledge_chunks.department IS '关联科室名称（衔接导诊推荐）';
+COMMENT ON COLUMN knowledge_chunks.title IS '场景标题';
+COMMENT ON COLUMN knowledge_chunks.content IS '知识正文';
+COMMENT ON COLUMN knowledge_chunks.vector IS '2048 维嵌入向量（doubao-embedding-vision，路径 B ADR-0010，由 seed-knowledge.sql 离线回填）';
+COMMENT ON COLUMN knowledge_chunks.created_at IS '记录创建时间';
+
+-- prescriptions 处方
+COMMENT ON TABLE prescriptions IS '处方表：医生针对预约开具的处方及审核流转记录';
+COMMENT ON COLUMN prescriptions.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN prescriptions.appointment_id IS '关联预约 ID，外键 appointments(id)，唯一';
+COMMENT ON COLUMN prescriptions.doctor_id IS '开方医生 ID，外键 doctors(id)';
+COMMENT ON COLUMN prescriptions.status IS '处方状态：PENDING/APPROVED/REJECTED，默认 PENDING';
+COMMENT ON COLUMN prescriptions.notes IS '医生开方备注';
+COMMENT ON COLUMN prescriptions.review_reason IS '审核意见/驳回原因';
+COMMENT ON COLUMN prescriptions.reviewed_by IS '审核人 ID，外键 staff_users(id)';
+COMMENT ON COLUMN prescriptions.interpretation IS '患者可见的用药解读（APPROVED 必填）';
+COMMENT ON COLUMN prescriptions.disclaimer IS '免责声明（APPROVED 必填，硬约束 1）';
+COMMENT ON COLUMN prescriptions.created_at IS '记录创建时间';
+COMMENT ON COLUMN prescriptions.reviewed_at IS '审核完成时间';
+
+-- prescription_items 处方明细
+COMMENT ON TABLE prescription_items IS '处方明细表：处方下的药品条目';
+COMMENT ON COLUMN prescription_items.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN prescription_items.prescription_id IS '所属处方 ID，外键 prescriptions(id)，删除处方级联删除';
+COMMENT ON COLUMN prescription_items.medication_id IS '药品 ID，外键 medications(id)';
+COMMENT ON COLUMN prescription_items.dosage IS '单次剂量';
+COMMENT ON COLUMN prescription_items.frequency IS '用药频次';
+COMMENT ON COLUMN prescription_items.duration IS '用药时长';
+COMMENT ON COLUMN prescription_items.notes IS '条目备注';
+
+-- drug_orders 购药订单
+COMMENT ON TABLE drug_orders IS '购药订单表：基于处方生成的药品订单与支付状态';
+COMMENT ON COLUMN drug_orders.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN drug_orders.patient_id IS '下单患者 ID，外键 patients(id)';
+COMMENT ON COLUMN drug_orders.prescription_id IS '关联处方 ID，外键 prescriptions(id)';
+COMMENT ON COLUMN drug_orders.status IS '订单状态：UNPAID/PAID/DONE/CANCELLED，默认 UNPAID';
+COMMENT ON COLUMN drug_orders.total_amount IS '订单总金额';
+COMMENT ON COLUMN drug_orders.created_at IS '记录创建时间';
+COMMENT ON COLUMN drug_orders.paid_at IS '支付完成时间';
+COMMENT ON COLUMN drug_orders.cancelled_at IS '取消时间';
+
+-- drug_order_items 购药订单明细
+COMMENT ON TABLE drug_order_items IS '购药订单明细表：订单下的药品条目与小计';
+COMMENT ON COLUMN drug_order_items.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN drug_order_items.drug_order_id IS '所属订单 ID，外键 drug_orders(id)，删除订单级联删除';
+COMMENT ON COLUMN drug_order_items.medication_id IS '药品 ID，外键 medications(id)';
+COMMENT ON COLUMN drug_order_items.quantity IS '购买数量（必须 > 0）';
+COMMENT ON COLUMN drug_order_items.unit_price IS '下单时单价';
+COMMENT ON COLUMN drug_order_items.subtotal IS '小计金额';
+
+-- in_app_messages 站内消息
+COMMENT ON TABLE in_app_messages IS '站内消息表：C 端消息页推送给患者的事件通知';
+COMMENT ON COLUMN in_app_messages.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN in_app_messages.patient_id IS '接收患者 ID，外键 patients(id)';
+COMMENT ON COLUMN in_app_messages.type IS '消息类型';
+COMMENT ON COLUMN in_app_messages.title IS '消息标题';
+COMMENT ON COLUMN in_app_messages.content IS '消息正文';
+COMMENT ON COLUMN in_app_messages.disclaimer IS '免责声明（必填，硬约束 1）';
+COMMENT ON COLUMN in_app_messages.related_appointment_id IS '关联预约 ID，外键 appointments(id)';
+COMMENT ON COLUMN in_app_messages.created_at IS '记录创建时间';
+
+-- agent_call_logs Agent 调用日志
+COMMENT ON TABLE agent_call_logs IS 'Agent 调用日志表：工具进度事件逐行记录，仅存白名单字段，不含患者敏感原文（硬约束 5）';
+COMMENT ON COLUMN agent_call_logs.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN agent_call_logs.round_id IS '所属对话轮次 ID，外键 chat_rounds(id)';
+COMMENT ON COLUMN agent_call_logs.conversation_id IS '所属会话 ID，外键 conversations(id)';
+COMMENT ON COLUMN agent_call_logs.patient_id IS '发起患者 ID，外键 patients(id)';
+COMMENT ON COLUMN agent_call_logs.tool_call_id IS 'LangGraph 工具调用 ID，tool_start/tool_end 配对键';
+COMMENT ON COLUMN agent_call_logs.tool_name IS '工具名称';
+COMMENT ON COLUMN agent_call_logs.phase IS '阶段：tool_start/tool_end';
+COMMENT ON COLUMN agent_call_logs.result IS 'tool_end 结果枚举：success/error/skipped，tool_start 时为 NULL';
+COMMENT ON COLUMN agent_call_logs.duration_ms IS '工具执行耗时（毫秒，server-java 按墙钟计算）';
+COMMENT ON COLUMN agent_call_logs.error_code IS '契约白名单错误码，非白名单统一记 TOOL_ERROR_UNKNOWN';
+COMMENT ON COLUMN agent_call_logs.seq IS '轮内事件序号，B 端按 round_id + seq 还原顺序';
+COMMENT ON COLUMN agent_call_logs.created_at IS '记录创建时间';
+
+-- med_checkin_records 服药打卡记录
+COMMENT ON TABLE med_checkin_records IS '服药打卡记录表：处方审核通过时预生成每日 PENDING，到点推进 CHECKED（ADR-0018 状态机）';
+COMMENT ON COLUMN med_checkin_records.id IS '主键，BIGINT 标识列';
+COMMENT ON COLUMN med_checkin_records.patient_id IS '患者 ID，外键 patients(id)';
+COMMENT ON COLUMN med_checkin_records.health_profile_id IS '就诊人档案 ID，外键 health_profiles(id)';
+COMMENT ON COLUMN med_checkin_records.prescription_id IS '所属处方 ID，外键 prescriptions(id)';
+COMMENT ON COLUMN med_checkin_records.prescription_item_id IS '所属处方明细 ID，外键 prescription_items(id)';
+COMMENT ON COLUMN med_checkin_records.medication_name IS '药品名称（冗余，便于展示）';
+COMMENT ON COLUMN med_checkin_records.dosage IS '单次剂量';
+COMMENT ON COLUMN med_checkin_records.frequency IS '用药频次';
+COMMENT ON COLUMN med_checkin_records.due_date IS '应打卡日期';
+COMMENT ON COLUMN med_checkin_records.status IS '打卡状态：PENDING/CHECKED';
+COMMENT ON COLUMN med_checkin_records.checked_at IS '实际打卡时间（CHECKED 必填，PENDING 必空）';
+COMMENT ON COLUMN med_checkin_records.disclaimer IS '免责声明（必填，硬约束 1）';
+COMMENT ON COLUMN med_checkin_records.created_at IS '记录创建时间';
