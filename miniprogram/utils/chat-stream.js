@@ -1,5 +1,5 @@
 const { apiBaseUrl } = require('./config')
-const { getToken } = require('./auth')
+const { ensureLogin, getToken } = require('./auth')
 
 function websocketUrl() {
   return `${apiBaseUrl.replace(/^http/, 'ws')}/c/chat/ws`
@@ -59,21 +59,26 @@ function createChatChannel() {
     if (websocketUnavailable) return Promise.reject(new Error('WebSocket 建连失败'))
     if (open) return Promise.resolve()
     if (connectPromise) return connectPromise
-    connectPromise = new Promise((resolve, reject) => {
-      connectResolve = resolve
-      connectReject = reject
-      my.connectSocket({
-        url: websocketUrl(),
-        // 票 34 设计：握手仅经 Authorization 头携带患者 JWT（禁入 URL）；
-        // devtools 会给 header 值包一层双引号，server-java 已兼容剥离。
-        header: { Authorization: `Bearer ${getToken()}` },
-        fail: () => reject(new Error('WebSocket 建连失败')),
+    // 先等登录态就绪再握手，避免启动期 token 尚未落 storage 导致握手 401
+    connectPromise = ensureLogin()
+      .then(() => {
+        return new Promise((resolve, reject) => {
+          connectResolve = resolve
+          connectReject = reject
+          my.connectSocket({
+            url: websocketUrl(),
+            // 票 34 设计：握手仅经 Authorization 头携带患者 JWT（禁入 URL）；
+            // devtools 会给 header 值包一层双引号，server-java 已兼容剥离。
+            header: { Authorization: `Bearer ${getToken()}` },
+            fail: () => reject(new Error('WebSocket 建连失败')),
+          })
+        })
       })
-    }).catch((error) => {
-      websocketUnavailable = true
-      connectPromise = null
-      throw error
-    })
+      .catch((error) => {
+        websocketUnavailable = true
+        connectPromise = null
+        throw error
+      })
     return connectPromise
   }
 
@@ -145,32 +150,35 @@ function requestData(params) {
 }
 
 function streamSse(params) {
-  my.request({
-    url: `${apiBaseUrl}/c/chat`,
-    method: 'POST',
-    dataType: 'text',
-    responseType: 'text',
-    timeout: 300000,
-    data: { request_id: params.requestId, ...requestData(params) },
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
-    },
-    success: (res) => {
-      if (res.status !== 200) {
-        params.handlers.onError(new Error(`请求失败（${res.status}）`))
-        return
-      }
-      try {
-        parseSse(String(res.data || '')).forEach(({ event, data }) =>
-          dispatchEvent(event, data, params.handlers)
-        )
-      } catch (err) {
-        params.handlers.onError(err)
-      }
-    },
-    fail: () => params.handlers.onError(new Error('无法连接服务器')),
-  })
+  // 降级路径同样等登录就绪，保证 Authorization 带有效 token
+  ensureLogin().then(() => {
+    my.request({
+      url: `${apiBaseUrl}/c/chat`,
+      method: 'POST',
+      dataType: 'text',
+      responseType: 'text',
+      timeout: 300000,
+      data: { request_id: params.requestId, ...requestData(params) },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getToken()}`,
+      },
+      success: (res) => {
+        if (res.status !== 200) {
+          params.handlers.onError(new Error(`请求失败（${res.status}）`))
+          return
+        }
+        try {
+          parseSse(String(res.data || '')).forEach(({ event, data }) =>
+            dispatchEvent(event, data, params.handlers)
+          )
+        } catch (err) {
+          params.handlers.onError(err)
+        }
+      },
+      fail: () => params.handlers.onError(new Error('无法连接服务器')),
+    })
+  }).catch((err) => params.handlers.onError(err))
 }
 
 function parseSse(raw) {
