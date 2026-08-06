@@ -4,7 +4,7 @@
 
 **Blocked by:** 无（14 - 拍药盒已完成；本票取代其 C 端个性化安全部分）
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 ## 施工顺序与 commit 约定
 
@@ -52,9 +52,9 @@
 
 ## 7. 验证与收口
 
-- [ ] `mvn -f server-java/pom.xml test`、`spotless:check`、`uv run pytest`、`uv run ruff check server-py`、`uv run mypy server-py/app`、`uv run lint-imports` 全绿
+- [x] `mvn -f server-java/pom.xml test`、`spotless:check`、`uv run pytest`、`uv run ruff check server-py`、`uv run mypy server-py/app`、`uv run lint-imports` 全绿
 - [ ] 支付宝开发者工具人工走查三态：可识别药盒（流式说明书 + 流尾话术 + 免责声明）、非药盒照片（scope 拒绝提示）、模糊照片（未识别引导），无控制台错误
-- [ ] 性能前后计时记入 Comments；票单 checklist 同步更新；置 `done` 前 README 节点更新为 `T51["[x]51 拍药盒收口与说明书流"]`
+- [ ] 性能前后计时记入 Comments；票单 checklist 同步更新；置 `done` 前 README 节点更新为 `T51["[x]51 拍药盒收口与说明书流"]`（节点与边已建，待人工走查通过后加 `[x]`）
 
 ## Comments
 
@@ -63,3 +63,4 @@
 - 2026-08-06（§6 文档收口）：新增 ADR-0028 并将 ADR-0025 标 partially superseded；spec.md 16 条改写为 B 端开方禁忌场景、36 条删除「含过敏禁忌提醒」；CONTEXT.md 重写「药品查询」词条、补充「通用药品知识解释」与「会话」词条；票 14 Comments 已追加取代说明；AGENTS.md 无双出口残留，未改。
 - 2026-08-06（偏离说明）：§4 checklist 要求「未识别到药名与非药盒拒绝的 hint 文案维持现状」，但原文案含「使用『查药品』入口」的死引用（该入口本票已删），hint 已改为引导「直接输入药名」；其余语义不变。
 - 2026-08-06（§5 压缩说明）：`pillbox-picker.js` 票 14 已接入 `my.compressImage`（compressLevel 2），满足「上传前压缩」；长边归一化由 server-py 视觉管道 2048px 兜底，本票未改压缩代码。
+- 2026-08-06（§7 自动化验证）：mvn 全量测试（337 个）绿、spotless:check 绿、uv run pytest 146 绿、ruff 绿、lint-imports 3 kept 0 broken、mypy 仅 2 个 Windows 平台预存错误（main.py/seed_embeddings.py 的 WindowsSelectorEventLoopPolicy，基线已有）。/code-review 两轴审查后修复：WS 信封互斥校验对齐 HTTP 的 XOR 规则并补「两空拒绝」测试、javadoc 错别字。README 依赖图已建 T51 节点与 T14/T46 边；因前端验收需支付宝开发者工具人工三态走查（§7 item 2），票暂置 claimed，走查通过后加 `[x]` 并置 done。
