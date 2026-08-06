@@ -45,8 +45,15 @@ module.exports = {
 
   finishMedLookup(data) {
     const newMessages = []
-    // not_found：后端已落 text 消息，前端不再重复补本地消息，仅刷新会话。
-    if (!data.not_found) {
+    if (data.not_found) {
+      // not_found：响应携带 hint，前端追加文本气泡展示后端已落库的引导文案（票 46 延伸修复）。
+      if (data.hint) {
+        newMessages.push({
+          id: ++this._msgSeq, role: 'assistant', kind: 'text',
+          content: data.hint,
+        })
+      }
+    } else {
       // 双出口：medication_info + medication_safety 两条独立 AI 消息
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'medication_info',
@@ -58,6 +65,13 @@ module.exports = {
         card: data.medication_safety,
         disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
       })
+      // 未填过敏史时后端追加的 agent 提醒（响应携带 reminder），不阻断查药。
+      if (data.reminder) {
+        newMessages.push({
+          id: ++this._msgSeq, role: 'assistant', kind: 'text',
+          content: data.reminder,
+        })
+      }
     }
     this.setData({
       messages: [...this.data.messages, ...newMessages],

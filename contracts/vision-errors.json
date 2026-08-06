@@ -15,7 +15,8 @@
     "VISION_SKIN_SCOPE_UNSUPPORTED",
     "VISION_DIET_SCOPE_UNSUPPORTED",
     "VISION_TONGUE_SCOPE_UNSUPPORTED",
-    "VISION_PILL_BOX_SCOPE_UNSUPPORTED"
+    "VISION_PILL_BOX_SCOPE_UNSUPPORTED",
+    "VISION_PROFILE_INVALID"
   ],
   "messages": {
     "VISION_FILE_UNREADABLE": "报告文件无法可靠读取，请检查后重试",
@@ -32,6 +33,7 @@
     "VISION_SKIN_SCOPE_UNSUPPORTED": "请上传清晰的皮肤照片，暂不支持医学影像或报告诊断",
     "VISION_DIET_SCOPE_UNSUPPORTED": "请上传清晰的饮食照片，暂不支持医学影像或报告诊断",
     "VISION_TONGUE_SCOPE_UNSUPPORTED": "请上传清晰的舌苔照片，暂不支持医学影像或报告诊断",
-    "VISION_PILL_BOX_SCOPE_UNSUPPORTED": "请上传清晰的药盒照片，暂不支持医学影像或报告诊断"
+    "VISION_PILL_BOX_SCOPE_UNSUPPORTED": "请上传清晰的药盒照片，暂不支持医学影像或报告诊断",
+    "VISION_PROFILE_INVALID": "请求信息无法解析，请重试"
   }
 }

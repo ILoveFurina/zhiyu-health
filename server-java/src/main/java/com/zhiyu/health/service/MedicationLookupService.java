@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Medication;
@@ -60,6 +61,7 @@ public class MedicationLookupService {
     private final ContraindicationRuleEngine ruleEngine;
     private final ObjectMapper objectMapper;
     private final DisclaimerService disclaimers;
+    private final Contracts contracts;
 
     /**
      * 按候选药名查询药品并做禁忌判定，双出口卡片回落会话。
@@ -79,7 +81,7 @@ public class MedicationLookupService {
             String names = String.join("、", candidateNames);
             String hint = "未找到药品『" + names + "』，请核对药名或咨询医生/药师。";
             conversations.appendMessage(conversation.getId(), "assistant", hint, Message.KIND_TEXT, null, null, null);
-            return new MedicationLookupView(conversation.getId(), null, null, true, disclaimers.text());
+            return new MedicationLookupView(conversation.getId(), null, null, true, hint, null, disclaimers.text());
         }
 
         // 取激活档案过敏原；无档案优雅降级为空列表（C 端说明书始终可用，安全检查尽力而为）。
@@ -87,6 +89,7 @@ public class MedicationLookupService {
 
         List<Long> medicationIds = matched.stream().map(Medication::getId).toList();
         ContraindicationResult result = judgeContraindication(allergies, medicationIds);
+        result = withUnknownHistoryMessage(result, allergies);
 
         // 双出口卡片 1：说明书（medication_info）
         ObjectNode infoCard = buildMedicationInfoCard(matched, candidateNames);
@@ -104,8 +107,22 @@ public class MedicationLookupService {
                 null,
                 null);
 
+        // 空过敏史(无档案或未填)不阻断查药,但追加一条助手 text 提醒引导完善档案(票 46 延伸)。
+        // 与 safe_without_history 卡片文案互补:卡片说明"无法完整确认",此处给出行动建议。
+        String reminder = null;
+        if (allergies.isEmpty()) {
+            reminder = contracts.contraindication().messages().get("remind_profile");
+            conversations.appendMessage(
+                    conversation.getId(), "assistant", reminder, Message.KIND_TEXT, null, null, null);
+        }
         return new MedicationLookupView(
-                conversation.getId(), infoCard.get("result"), safetyCard.get("result"), false, disclaimers.text());
+                conversation.getId(),
+                infoCard.get("result"),
+                safetyCard.get("result"),
+                false,
+                null,
+                reminder,
+                disclaimers.text());
     }
 
     /** 药名双列查：先精确（name 或 generic_name 等值），无果再 LIKE 模糊匹配兜底。 */
@@ -161,6 +178,24 @@ public class MedicationLookupService {
         return ruleEngine.judge(allergies, medicationIds, facts);
     }
 
+    /**
+     * 空过敏史不得把 SAFE 说成"已确认安全"（票 46；与票 16"空过敏史=未提供"同约定）：
+     * 无档案或未填过敏史时，安全卡片文案改为"无法完整确认"，决定本身仍由规则引擎产出。
+     */
+    private ContraindicationResult withUnknownHistoryMessage(ContraindicationResult result, List<String> allergies) {
+        Contracts.Contraindication contract = contracts.contraindication();
+        if (!allergies.isEmpty() || !contract.decisions().get("safe").equals(result.decision())) {
+            return result;
+        }
+        return new ContraindicationResult(
+                result.decision(),
+                result.messageType(),
+                result.blocked(),
+                result.reasons(),
+                contract.messages().get("safe_without_history"),
+                result.advice());
+    }
+
     /** 说明书卡片：medications.instructions 承载适应症/用法用量/注意事项。 */
     private ObjectNode buildMedicationInfoCard(List<Medication> matched, List<String> candidateNames) {
         ObjectNode card = objectMapper.createObjectNode();
@@ -212,10 +247,16 @@ public class MedicationLookupService {
         return card;
     }
 
+    /**
+     * 双出口视图。hint 仅在 notFound=true 时携带(未识别/未匹配的引导文案);
+     * reminder 仅在成功但过敏史为空时携带(引导完善健康档案)。两者可空,前端据其追加文本消息。
+     */
     public record MedicationLookupView(
             @JsonProperty("conversation_id") Long conversationId,
             @JsonProperty("medication_info") JsonNode medicationInfo,
             @JsonProperty("medication_safety") JsonNode medicationSafety,
             @JsonProperty("not_found") boolean notFound,
+            String hint,
+            String reminder,
             String disclaimer) {}
 }

@@ -40,11 +40,12 @@ def test_sse_event_protocol_is_complete() -> None:
 
 def test_vision_error_codes_and_messages_are_loaded() -> None:
     errors = get_contracts().vision_errors
-    assert len(errors.codes) == 15
+    assert len(errors.codes) == 16
     # 错误码集合与文案表必须一一对应
     assert set(errors.messages) == set(errors.codes)
     assert errors.messages["VISION_MODEL_TIMEOUT"] == "报告解读服务响应超时"
     assert errors.messages["VISION_OUTPUT_INVALID"] == "本次未能生成可靠的结构化解读，请重试"
+    assert errors.messages["VISION_PROFILE_INVALID"] == "请求信息无法解析，请重试"
     assert (
         errors.messages["VISION_REPORT_SCOPE_UNSUPPORTED"]
         == "请上传报告文字页，暂不支持原始医学影像诊断"
@@ -118,6 +119,7 @@ def test_contraindication_values_are_loaded() -> None:
     }
     assert contract.message_types["warning"] == "contraindication_warning"
     assert "请咨询医生或药师" in contract.messages["blocked"]
+    assert "无法完整确认" in contract.messages["safe_without_history"]
 
 
 def test_knowledge_contract_values_are_loaded() -> None:

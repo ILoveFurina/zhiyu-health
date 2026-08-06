@@ -968,3 +968,93 @@ def test_non_pill_box_scenario_has_empty_tcm_disclaimer() -> None:
         )
     assert response.status_code == 200
     assert response.json()["tcm_disclaimer"] == ""
+
+
+# ---- 可选健康档案编码（票 46）：无档案是合法业务状态，不得成为拍药盒前置条件 ----
+
+
+def _pill_box_fake_app(fake: FakeVisionInterpreter):
+    return create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=fake,
+    )
+
+
+def test_pill_box_missing_profile_field_enters_vision_with_none_profile() -> None:
+    # 字段未传：契约上唯一的"无档案"表达，等价进入 vision 且 health_profile 为 None。
+    fake = FakeVisionInterpreter()
+    with TestClient(_pill_box_fake_app(fake)) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX"},
+            files=[("files", ("box.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert fake.calls[0].health_profile is None
+
+
+def test_pill_box_literal_null_profile_is_treated_as_missing() -> None:
+    # 票 46 兼容：历史调用方曾把空档案序列化为字面 "null" 发出，等价视为字段未传，
+    # 不再抛裸 500（原 bug：model_validate_json("null") 的 ValidationError 未捕获）。
+    fake = FakeVisionInterpreter()
+    with TestClient(_pill_box_fake_app(fake)) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX", "health_profile": "null"},
+            files=[("files", ("box.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert fake.calls[0].health_profile is None
+
+
+def test_pill_box_valid_profile_is_injected() -> None:
+    # 有档案时保持现有行为：档案上下文正常注入 document。
+    fake = FakeVisionInterpreter()
+    with TestClient(_pill_box_fake_app(fake)) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={
+                "scenario": "PILL_BOX",
+                "health_profile": """{"id":31,"display_name":"妈妈","gender":"女",
+                "birth_date":"1962-05-08","relationship":"母亲","allergies":["青霉素"]}""",
+            },
+            files=[("files", ("box.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert fake.calls[0].health_profile.display_name == "妈妈"
+    assert fake.calls[0].health_profile.allergies == ["青霉素"]
+
+
+def test_malformed_profile_json_returns_structured_422() -> None:
+    # 畸形 JSON：契约化 422（VISION_PROFILE_INVALID），禁止泄漏为裸 500。
+    # raise_server_exceptions 默认开启：若异常逃逸为 500，TestClient 会直接抛出使测试失败。
+    fake = FakeVisionInterpreter()
+    with TestClient(_pill_box_fake_app(fake)) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX", "health_profile": "{不是合法 JSON"},
+            files=[("files", ("box.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "VISION_PROFILE_INVALID"
+    assert fake.calls == []
+
+
+def test_incomplete_profile_json_returns_structured_422() -> None:
+    # 不完整档案（缺必填字段）：同样契约化 422，不进入 vision。
+    fake = FakeVisionInterpreter()
+    with TestClient(_pill_box_fake_app(fake)) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX", "health_profile": """{"id":31}"""},
+            files=[("files", ("box.jpg", _png(), "image/jpeg"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "VISION_PROFILE_INVALID"
+    assert fake.calls == []
