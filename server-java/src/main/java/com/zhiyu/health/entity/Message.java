@@ -43,12 +43,6 @@ public class Message {
     public static final String KIND_DIET_ANALYSIS = SSE_EVENTS.messageKinds().get(11);
     // 票 17（ADR-0024）：中医辨证卡片，调理不出药材，叠加中医专属免责，急症软兜底不扩红线。
     public static final String KIND_TONGUE_ANALYSIS = SSE_EVENTS.messageKinds().get(12);
-    // 票 14（ADR-0025）：拍药盒与文字查药双出口。medication_info 为药品说明书卡片（适应症/用法用量/
-    // 注意事项来自 medications.instructions），medication_safety 为禁忌安全结果卡片（决定 + 引导
-    // 咨询医生/药师）。两条独立 AI 消息，均挂通用免责。视觉只提候选药名，业务全在 server-java。
-    public static final String KIND_MEDICATION_INFO = SSE_EVENTS.messageKinds().get(13);
-    public static final String KIND_MEDICATION_SAFETY =
-            SSE_EVENTS.messageKinds().get(14);
     private static final Set<String> AI_CARD_KINDS = Set.copyOf(SSE_EVENTS.aiCardKinds());
 
     @TableId(type = IdType.AUTO)
