@@ -34,8 +34,8 @@ const FEATURE_BUBBLES = [
   { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
   { key: 'diet', label: '拍饮食', icon: '✦', enabled: true, action: 'diet' },
   { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: true, action: 'tongue' },
-  // 票 14 文字版入口（ADR-0025 差异化点 4）：与拍药盒共用同一查询与规则出口
-  { key: 'medlookup', label: '查药品', icon: 'ⓘ', enabled: true, action: 'medlookup' },
+  // 票 51：「查药品」入口已隐藏（与拍药盒能力重复且挤占气泡栏）；
+  // 文字版能力经 chat 信封 medication_name 保留（拍药盒识别后自动携带）
 ]
 
 /** 仅暴露已点亮气泡，供 axml a:for 渲染。 */

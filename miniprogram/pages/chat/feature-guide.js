@@ -28,12 +28,8 @@ const featureGuideMethods = {
       this.openTonguePicker()
     }
     else if (action === 'pillbox') {
-      // 拍药盒（票 14，ADR-0025）：无档案时安全检查降级为空过敏列表，说明书仍可用，不强制建档。
+      // 拍药盒（票 51，ADR-0028）：说明书为通用药品知识流，不读档案不做个性化禁忌，不强制建档。
       this.openPillboxPicker()
-    }
-    else if (action === 'medlookup') {
-      // 查药品文字版（票 14）：与拍药盒共用同一查询与规则出口。
-      this.openMedicationLookup()
     }
   },
 
