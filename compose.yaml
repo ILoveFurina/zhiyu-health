@@ -71,19 +71,30 @@ services:
 
   # 拍照分析原图持久化（ADR-0023）：仅存拍照分析图片，业务数据仍走 PostgreSQL。
   # MinIO 是旁路持久化，不介入视觉分析热路径，server-py 取图仍由 server-java 字节流透传。
+  #
+  # 云服务器一键启停（与 PG/Redis/Neo4j 同姿态）：
+  #   1) 服务器 .env 补齐 MINIO_ACCESS_KEY / MINIO_SECRET_KEY / MINIO_BUCKET
+  #      （全新部署跑 deploy/bootstrap-env.sh 会一并生成；旧 .env 直接追加三个变量即可）
+  #   2) docker compose up -d  # 启动全部云数据服务（含 MinIO）
+  #      docker compose down   # 停止容器；named volume 保留数据，启停不丢
+  #   3) 校验：docker compose ps 中 minio 为 healthy 即就绪
   minio:
+    # latest 指向最近稳定发布，便于一键启停；如需固定版本可改为具体 RELEASE tag（格式 RELEASE.YYYY-MM-DDTHH-MM-SSZ）。
     image: minio/minio:latest
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
+      # MINIO_ROOT_USER 即根访问密钥、MINIO_ROOT_PASSWORD 即根秘密密钥，对应 .env 的
+      # MINIO_ACCESS_KEY / MINIO_SECRET_KEY（access key ≥3 位、secret key ≥8 位）。
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请在 .env 中设置 MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请在 .env 中设置 MINIO_SECRET_KEY}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"   # S3 API：server-java 的 MINIO_ENDPOINT 直连，云服务器安全组需放行
+      - "9001:9001"   # Web 管理台：http://<服务器IP>:9001
     volumes:
       - minio-data:/data
     healthcheck:
+      # 官方镜像自带 mc 且预置 local 别名（镜像内不含 curl）；`mc ready local` 探测 :9000 就绪。
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
