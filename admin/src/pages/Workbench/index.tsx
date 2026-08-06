@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Space, Typography } from 'antd';
+import { App } from 'antd';
 import {
   completeAppointment,
   fetchAppointmentDetail,
@@ -12,6 +12,7 @@ import ConsultationDrawer from './components/ConsultationDrawer';
 import { createPrescription, fetchMedications, type Medication, type PrescriptionInput } from '@/services/prescription';
 import ReceptionQueue from './components/ReceptionQueue';
 import ScheduleOverview from './components/ScheduleOverview';
+import PageHead from '@/components/PageHead';
 
 export default function WorkbenchPage() {
   const { message } = App.useApp();
@@ -71,12 +72,15 @@ export default function WorkbenchPage() {
   };
 
   return (
-    <PageContainer title="医生接诊台">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Typography.Text type="secondary">{dashboard?.date ?? '今日'} · 仅展示当前医生的排班与挂号患者</Typography.Text>
-        <ScheduleOverview schedules={dashboard?.schedules ?? []} />
-        <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
-      </Space>
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="医生接诊台"
+        description={`${dashboard?.date ?? '今日'} · 仅展示当前医生的排班与挂号患者`}
+        tags={['排班概览', '挂号队列']}
+      />
+      <ScheduleOverview schedules={dashboard?.schedules ?? []} />
+      <div style={{ height: 16 }} />
+      <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
       <ConsultationDrawer open={open} loading={loadingDetail} submitting={submitting}
         detail={detail} medications={medications} prescriptionSubmitting={prescriptionSubmitting}
         prescriptionCreated={prescriptionCreated} onPrescribe={prescribe}

@@ -9,12 +9,15 @@ import {
   type Doctor,
 } from '@/services/organization';
 import DoctorForm from './components/DoctorForm';
+import StatCards from '@/components/StatCards';
+import PageHead from '@/components/PageHead';
 
 export default function DoctorPage() {
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Doctor | undefined>();
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [rows, setRows] = useState<Doctor[]>([]);
 
   // 列表列头需把 department_id 翻译成科室名，与表格数据并行拉一次
   useEffect(() => {
@@ -56,20 +59,32 @@ export default function DoctorPage() {
           编辑
         </a>,
         <Popconfirm key="delete" title="确认删除该医生？" onConfirm={async () => { await removeDoctor(row.id); reload(); }}>
-          <a style={{ color: '#ff4d4f' }}>删除</a>
+          <Button type="link" danger>删除</Button>
         </Popconfirm>,
       ],
     },
   ];
 
+  const stats = [
+    { label: '医生总数', value: rows.length, suffix: '人' },
+    { label: '所属科室', value: new Set(rows.map((r) => r.department_id)).size, suffix: '个' },
+  ];
+
   return (
-    <PageContainer title={false}>
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="医生管理"
+        description="维护医生档案、所属科室与挂号费，为排班与接诊提供基础数据"
+        tags={['职称', '挂号费', '擅长领域']}
+      />
+      <StatCards items={stats} />
       <ProTable<Doctor>
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
         pagination={false}
-        request={async () => ({ data: await listDoctors(), success: true })}
+        search={false}
+        headerTitle="医生列表"
         toolBarRender={() => [
           <Button
             key="create"
@@ -79,9 +94,14 @@ export default function DoctorPage() {
               setOpen(true);
             }}
           >
-            新建医生
+            + 新建医生
           </Button>,
         ]}
+        request={async () => {
+          const data = await listDoctors();
+          setRows(data);
+          return { data, success: true };
+        }}
       />
       <DoctorForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
     </PageContainer>

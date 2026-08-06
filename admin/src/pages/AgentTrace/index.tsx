@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Drawer, Skeleton, Table, Tag, Timeline, type TableColumnsType } from 'antd';
+import { App, Card, Drawer, Skeleton, Table, Tag, Timeline, type TableColumnsType } from 'antd';
 import {
   fetchTraceConversations,
   fetchTraceLogs,
   type AgentCallLogView,
   type ConversationTraceView,
 } from '@/services/agentTrace';
+import StatCards from '@/components/StatCards';
+import PageHead from '@/components/PageHead';
 
 // tool_end 结果枚举配色（success/error/skipped）
 const RESULT_COLORS: Record<string, string> = {
@@ -115,8 +117,17 @@ export default function AgentTracePage() {
   }, [logs]);
 
   return (
-    <PageContainer title="Agent 调用日志">
-      <div style={{ background: '#fff', padding: 16, borderRadius: 8 }}>
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="Agent 调用日志"
+        description="查看 Agent 会话与工具调用链，按 round_id 还原调用顺序"
+        tags={['会话级', '调用链明细']}
+      />
+      <StatCards items={[
+        { label: '会话总数', value: conversations.length, suffix: '个' },
+        { label: '当前查看', value: activeConversation ? `#${activeConversation.conversation_id}` : '-' },
+      ]} />
+      <Card title="会话列表">
         <Table
           rowKey="conversation_id"
           columns={columns}
@@ -125,7 +136,7 @@ export default function AgentTracePage() {
           pagination={{ pageSize: 20, showSizeChanger: false }}
           size="small"
         />
-      </div>
+      </Card>
 
       <Drawer
         title={activeConversation ? `调用链明细 - 会话 #${activeConversation.conversation_id}` : '调用链明细'}

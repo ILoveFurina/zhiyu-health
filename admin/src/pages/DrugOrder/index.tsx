@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Button, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
+import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
 import { orderStatusLabels, orderStatuses } from '@/contracts/order';
 import {
   cancelDrugOrder,
@@ -10,6 +10,8 @@ import {
   type DrugOrder,
   type DrugOrderStatus,
 } from '@/services/drugOrder';
+import StatCards from '@/components/StatCards';
+import PageHead from '@/components/PageHead';
 
 const statusColors: Record<string, string> = {
   [orderStatuses.unpaid]: 'gold',
@@ -63,30 +65,48 @@ export default function DrugOrderPage() {
     },
   ], [modal, load]);
 
-  return <PageContainer title="药品订单管理" extra={[
-    <Select key="status" allowClear placeholder="全部状态" value={status} style={{ width: 160 }}
-      onChange={(value) => setStatus(value)} options={Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label }))} />,
-  ]}>
-    <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 10 }}
-      locale={{ emptyText: '暂无药品订单' }} />
-    <Drawer title={detail ? `药品订单 #${detail.id}` : '药品订单明细'} width={620} open={!!detail}
-      onClose={() => setDetail(undefined)}>
-      {detail && <>
-        <Descriptions column={2} bordered size="small" items={[
-          { key: 'patient', label: '患者 ID', children: detail.patient_id },
-          { key: 'prescription', label: '电子处方', children: `#${detail.prescription_id}` },
-          { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
-          { key: 'amount', label: '订单金额', children: `¥${Number(detail.total_amount).toFixed(2)}` },
-        ]} />
-        <Table style={{ marginTop: 20 }} rowKey={(item) => `${item.medication_id}-${item.name}`}
-          pagination={false} dataSource={detail.items} columns={[
-            { title: '药品', dataIndex: 'name' },
-            { title: '规格', dataIndex: 'specification' },
-            { title: '单价', dataIndex: 'unit_price', render: (value) => `¥${Number(value).toFixed(2)}` },
-            { title: '数量', dataIndex: 'quantity' },
-            { title: '小计', dataIndex: 'subtotal', render: (value) => `¥${Number(value).toFixed(2)}` },
+  const countBy = (s: string) => rows.filter((r) => r.status === s).length;
+  const stats = [
+    { label: '订单总数', value: rows.length, suffix: '单' },
+    { label: '待支付', value: countBy(orderStatuses.unpaid), suffix: '单' },
+    { label: '已支付', value: countBy(orderStatuses.paid), suffix: '单' },
+    { label: '已完成', value: countBy(orderStatuses.done), suffix: '单' },
+  ];
+
+  return (
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="药品订单管理"
+        description="管理患者药品订单的状态流转，取消订单将回补预扣库存"
+        tags={['状态流转', '库存回补']}
+      />
+      <StatCards items={stats} />
+      <Card title="药品订单列表" extra={
+        <Select allowClear placeholder="全部状态" value={status} style={{ width: 160 }}
+          onChange={(value) => setStatus(value)} options={Object.entries(orderStatusLabels).map(([value, label]) => ({ value, label }))} />
+      }>
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 10 }}
+          locale={{ emptyText: '暂无药品订单' }} />
+      </Card>
+      <Drawer title={detail ? `药品订单 #${detail.id}` : '药品订单明细'} width={620} open={!!detail}
+        onClose={() => setDetail(undefined)}>
+        {detail && <>
+          <Descriptions column={2} bordered size="small" items={[
+            { key: 'patient', label: '患者 ID', children: detail.patient_id },
+            { key: 'prescription', label: '电子处方', children: `#${detail.prescription_id}` },
+            { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
+            { key: 'amount', label: '订单金额', children: `¥${Number(detail.total_amount).toFixed(2)}` },
           ]} />
-      </>}
-    </Drawer>
-  </PageContainer>;
+          <Table style={{ marginTop: 20 }} rowKey={(item) => `${item.medication_id}-${item.name}`}
+            pagination={false} dataSource={detail.items} columns={[
+              { title: '药品', dataIndex: 'name' },
+              { title: '规格', dataIndex: 'specification' },
+              { title: '单价', dataIndex: 'unit_price', render: (value) => `¥${Number(value).toFixed(2)}` },
+              { title: '数量', dataIndex: 'quantity' },
+              { title: '小计', dataIndex: 'subtotal', render: (value) => `¥${Number(value).toFixed(2)}` },
+            ]} />
+        </>}
+      </Drawer>
+    </PageContainer>
+  );
 }

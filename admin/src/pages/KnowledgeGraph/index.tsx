@@ -8,6 +8,7 @@ import {
   type GraphNode,
   type GraphNodeDetail,
 } from '@/services/knowledgeGraph';
+import PageHead from '@/components/PageHead';
 
 // 五类节点颜色（按 group 着色，grilling 决策 6）
 const GROUP_COLORS: Record<string, string> = {
@@ -210,7 +211,12 @@ export default function KnowledgeGraphPage() {
   }
 
   return (
-    <PageContainer title="医学知识图谱">
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="医学知识图谱"
+        description="可视化症状、疾病、科室、药品与禁忌的关联关系，点击节点查看详情"
+        tags={['力导向图', '五类节点']}
+      />
       <div style={{ background: '#fff', padding: 16, borderRadius: 8 }}>
         {/* 图例 */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>

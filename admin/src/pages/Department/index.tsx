@@ -9,12 +9,15 @@ import {
   type Hospital,
 } from '@/services/organization';
 import DepartmentForm from './components/DepartmentForm';
+import StatCards from '@/components/StatCards';
+import PageHead from '@/components/PageHead';
 
 export default function DepartmentPage() {
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Department | undefined>();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [rows, setRows] = useState<Department[]>([]);
 
   // 列表列头需把 hospital_id 翻译成医院名，与表格数据并行拉一次
   useEffect(() => {
@@ -49,20 +52,32 @@ export default function DepartmentPage() {
           编辑
         </a>,
         <Popconfirm key="delete" title="确认删除该科室？" onConfirm={async () => { await removeDepartment(row.id); reload(); }}>
-          <a style={{ color: '#ff4d4f' }}>删除</a>
+          <Button type="link" danger>删除</Button>
         </Popconfirm>,
       ],
     },
   ];
 
+  const stats = [
+    { label: '科室总数', value: rows.length },
+    { label: '挂靠医院', value: new Set(rows.map((r) => r.hospital_id)).size, suffix: '家' },
+  ];
+
   return (
-    <PageContainer title={false}>
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="科室管理"
+        description="维护医院下的科室信息与位置，为医生排班与挂号提供基础数据"
+        tags={['所属医院', '楼层位置']}
+      />
+      <StatCards items={stats} />
       <ProTable<Department>
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
         pagination={false}
-        request={async () => ({ data: await listDepartments(), success: true })}
+        search={false}
+        headerTitle="科室列表"
         toolBarRender={() => [
           <Button
             key="create"
@@ -72,9 +87,14 @@ export default function DepartmentPage() {
               setOpen(true);
             }}
           >
-            新建科室
+            + 新建科室
           </Button>,
         ]}
+        request={async () => {
+          const data = await listDepartments();
+          setRows(data);
+          return { data, success: true };
+        }}
       />
       <DepartmentForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
     </PageContainer>

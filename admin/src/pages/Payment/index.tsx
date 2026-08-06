@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Button, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
+import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
 import { paymentMessages, paymentStatusLabels, paymentStatuses } from '@/contracts/payment';
 import {
   getPayment,
@@ -9,6 +9,8 @@ import {
   type Payment,
   type PaymentStatus,
 } from '@/services/payment';
+import StatCards from '@/components/StatCards';
+import PageHead from '@/components/PageHead';
 
 const statusColors = {
   [paymentStatuses.unpaid]: 'gold',
@@ -59,21 +61,39 @@ export default function PaymentPage() {
     },
   ], [modal, load]);
 
-  return <PageContainer title="收费管理" extra={[
-    <Select key="status" allowClear placeholder="全部状态" value={status} style={{ width: 160 }}
-      onChange={(value) => setStatus(value)} options={Object.entries(paymentStatusLabels).map(([value, label]) => ({ value, label }))} />,
-  ]}>
-    <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 10 }}
-      locale={{ emptyText: '暂无挂号收费记录' }} />
-    <Drawer title={detail ? `收费记录 #${detail.id}` : '收费明细'} width={520} open={!!detail}
-      onClose={() => setDetail(undefined)}>
-      {detail && <Descriptions column={1} bordered size="small" items={[
-        { key: 'appointment', label: '挂号单', children: `#${detail.appointment_id}` },
-        { key: 'amount', label: '诊查费', children: `¥${Number(detail.amount).toFixed(2)}` },
-        { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
-        { key: 'created', label: '创建时间', children: detail.created_at || '-' },
-        { key: 'paid', label: '支付时间', children: detail.paid_at || '-' },
-      ]} />}
-    </Drawer>
-  </PageContainer>;
+  const countBy = (s: string) => rows.filter((r) => r.status === s).length;
+  const stats = [
+    { label: '收费记录', value: rows.length, suffix: '条' },
+    { label: '待支付', value: countBy(paymentStatuses.unpaid), suffix: '条' },
+    { label: '已支付', value: countBy(paymentStatuses.paid), suffix: '条' },
+    { label: '应收总额', value: rows.reduce((s, r) => s + Number(r.amount ?? 0), 0).toFixed(0), suffix: '元' },
+  ];
+
+  return (
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="收费管理"
+        description="管理挂号收费记录，支持模拟支付以串联药品订单流程"
+        tags={['挂号收费', '模拟支付']}
+      />
+      <StatCards items={stats} />
+      <Card title="收费记录列表" extra={
+        <Select allowClear placeholder="全部状态" value={status} style={{ width: 160 }}
+          onChange={(value) => setStatus(value)} options={Object.entries(paymentStatusLabels).map(([value, label]) => ({ value, label }))} />
+      }>
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 10 }}
+          locale={{ emptyText: '暂无挂号收费记录' }} />
+      </Card>
+      <Drawer title={detail ? `收费记录 #${detail.id}` : '收费明细'} width={520} open={!!detail}
+        onClose={() => setDetail(undefined)}>
+        {detail && <Descriptions column={1} bordered size="small" items={[
+          { key: 'appointment', label: '挂号单', children: `#${detail.appointment_id}` },
+          { key: 'amount', label: '诊查费', children: `¥${Number(detail.amount).toFixed(2)}` },
+          { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
+          { key: 'created', label: '创建时间', children: detail.created_at || '-' },
+          { key: 'paid', label: '支付时间', children: detail.paid_at || '-' },
+        ]} />}
+      </Drawer>
+    </PageContainer>
+  );
 }

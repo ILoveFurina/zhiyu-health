@@ -26,6 +26,7 @@ import {
   type ResetResult,
 } from '@/services/demo';
 import { knowledgeSourceValues as KS_VALUES } from '@/contracts/demoArsenal';
+import PageHead from '@/components/PageHead';
 
 const KS_LABELS: Record<string, string> = {
   rag: 'RAG 知识库',
@@ -118,7 +119,12 @@ export default function DemoPage() {
   }, [dashboard]);
 
   return (
-    <PageContainer title="演示武器包">
+    <PageContainer header={{ title: null }}>
+      <PageHead
+        title="演示武器包"
+        description="演示看板、知识源现场切换与演示重置三件套，仅管理员可用"
+        tags={['看板', '知识源切换', '重置保护']}
+      />
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* 演示看板 */}
         <Card title="演示看板" extra={<Button onClick={loadDashboard}>刷新</Button>}>
