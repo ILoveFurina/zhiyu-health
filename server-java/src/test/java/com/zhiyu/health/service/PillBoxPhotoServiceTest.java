@@ -57,6 +57,8 @@ class PillBoxPhotoServiceTest {
                         objectMapper.readTree("{\"medications\":[{\"name\":\"阿莫西林胶囊\"}]}"),
                         objectMapper.readTree("{\"decision\":\"SAFE\",\"blocked\":false}"),
                         false,
+                        null,
+                        null,
                         "仅供参考，不替代医生诊断"));
         PillBoxPhotoService service = new PillBoxPhotoService(
                 conversations,
@@ -110,6 +112,8 @@ class PillBoxPhotoServiceTest {
                         objectMapper.readTree("{\"medications\":[{\"name\":\"阿莫西林胶囊\"}]}"),
                         objectMapper.readTree("{\"decision\":\"SAFE\",\"blocked\":false}"),
                         false,
+                        null,
+                        null,
                         "仅供参考，不替代医生诊断"));
         PillBoxPhotoService service = new PillBoxPhotoService(
                 conversations,
@@ -164,6 +168,8 @@ class PillBoxPhotoServiceTest {
         MedicationLookupView view = service.analyze(12L, null, "pill-001", List.of(file));
 
         assertThat(view.notFound()).isTrue();
+        // 响应携带 hint 供前端展示后端已落库的引导文案
+        assertThat(view.hint()).contains("未能识别药盒");
         verify(conversations)
                 .appendMessage(eq(7L), eq("assistant"), anyString(), eq(Message.KIND_TEXT), any(), any(), any());
         // 不调 MedicationLookupService（无药名可查）

@@ -81,7 +81,7 @@ public class MedicationLookupService {
             String names = String.join("、", candidateNames);
             String hint = "未找到药品『" + names + "』，请核对药名或咨询医生/药师。";
             conversations.appendMessage(conversation.getId(), "assistant", hint, Message.KIND_TEXT, null, null, null);
-            return new MedicationLookupView(conversation.getId(), null, null, true, disclaimers.text());
+            return new MedicationLookupView(conversation.getId(), null, null, true, hint, null, disclaimers.text());
         }
 
         // 取激活档案过敏原；无档案优雅降级为空列表（C 端说明书始终可用，安全检查尽力而为）。
@@ -107,8 +107,22 @@ public class MedicationLookupService {
                 null,
                 null);
 
+        // 空过敏史(无档案或未填)不阻断查药,但追加一条助手 text 提醒引导完善档案(票 46 延伸)。
+        // 与 safe_without_history 卡片文案互补:卡片说明"无法完整确认",此处给出行动建议。
+        String reminder = null;
+        if (allergies.isEmpty()) {
+            reminder = contracts.contraindication().messages().get("remind_profile");
+            conversations.appendMessage(
+                    conversation.getId(), "assistant", reminder, Message.KIND_TEXT, null, null, null);
+        }
         return new MedicationLookupView(
-                conversation.getId(), infoCard.get("result"), safetyCard.get("result"), false, disclaimers.text());
+                conversation.getId(),
+                infoCard.get("result"),
+                safetyCard.get("result"),
+                false,
+                null,
+                reminder,
+                disclaimers.text());
     }
 
     /** 药名双列查：先精确（name 或 generic_name 等值），无果再 LIKE 模糊匹配兜底。 */
@@ -233,10 +247,16 @@ public class MedicationLookupService {
         return card;
     }
 
+    /**
+     * 双出口视图。hint 仅在 notFound=true 时携带(未识别/未匹配的引导文案);
+     * reminder 仅在成功但过敏史为空时携带(引导完善健康档案)。两者可空,前端据其追加文本消息。
+     */
     public record MedicationLookupView(
             @JsonProperty("conversation_id") Long conversationId,
             @JsonProperty("medication_info") JsonNode medicationInfo,
             @JsonProperty("medication_safety") JsonNode medicationSafety,
             @JsonProperty("not_found") boolean notFound,
+            String hint,
+            String reminder,
             String disclaimer) {}
 }

@@ -86,6 +86,11 @@ class MedicationLookupServiceTest {
         assertThat(view.medicationSafety().path("decision").asText()).isEqualTo("SAFE");
         assertThat(view.medicationSafety().path("blocked").asBoolean()).isFalse();
         assertThat(view.medicationSafety().path("message").asText()).contains("无法完整确认");
+        // 空过敏史(未提供)不阻断查药,但响应携带 reminder 引导完善档案,并追加一条 text 消息
+        assertThat(view.reminder()).contains("过敏史");
+        verify(conversations)
+                .appendMessage(
+                        eq(7L), eq("assistant"), anyString(), eq(Message.KIND_TEXT), eq(null), eq(null), eq(null));
         // 双出口两条消息按序回落
         verify(conversations)
                 .appendMessage(
@@ -120,6 +125,9 @@ class MedicationLookupServiceTest {
         assertThat(view.notFound()).isTrue();
         assertThat(view.medicationInfo()).isNull();
         assertThat(view.medicationSafety()).isNull();
+        // 响应携带 hint 供前端展示后端已落库的引导文案,无 reminder
+        assertThat(view.hint()).contains("未找到药品");
+        assertThat(view.reminder()).isNull();
         // 落一条 text 消息，不落 medication_info/medication_safety
         verify(conversations)
                 .appendMessage(
@@ -194,6 +202,8 @@ class MedicationLookupServiceTest {
         assertThat(view.medicationSafety().path("blocked").asBoolean()).isTrue();
         assertThat(view.medicationSafety().path("message").asText()).contains("禁忌");
         assertThat(view.medicationSafety().path("advice").asText()).contains("咨询医生或药师");
+        // 有过敏史时不追加 reminder
+        assertThat(view.reminder()).isNull();
     }
 
     @Test
@@ -238,6 +248,8 @@ class MedicationLookupServiceTest {
         assertThat(view.medicationSafety().path("message").asText()).contains("无法完整确认");
         // 不查过敏原（无档案）
         verify(allergyMapper, org.mockito.Mockito.never()).selectAllergens(org.mockito.ArgumentMatchers.anyLong());
+        // 无档案=空过敏史:追加 reminder 引导完善档案,不阻断查药
+        assertThat(view.reminder()).contains("过敏史");
     }
 
     @Test
@@ -254,14 +266,23 @@ class MedicationLookupServiceTest {
 
         service.lookupAndAppend(12L, null, "查药品", List.of("阿莫西林胶囊"));
 
-        // 两条 appendMessage 的 content（卡片 JSON）都应含 disclaimer 字段
+        // 说明书卡与安全卡都应含 disclaimer 字段;空过敏史时另有一条 reminder 文本(无 disclaimer),不在此断言范围
         org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(conversations, org.mockito.Mockito.times(2))
+        verify(conversations)
                 .appendMessage(
                         eq(7L),
                         eq("assistant"),
                         captor.capture(),
-                        org.mockito.ArgumentMatchers.anyString(),
+                        eq(Message.KIND_MEDICATION_INFO),
+                        eq(null),
+                        eq(null),
+                        eq(null));
+        verify(conversations)
+                .appendMessage(
+                        eq(7L),
+                        eq("assistant"),
+                        captor.capture(),
+                        eq(Message.KIND_MEDICATION_SAFETY),
                         eq(null),
                         eq(null),
                         eq(null));

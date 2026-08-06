@@ -43,6 +43,8 @@ class MedicationLookupControllerTest {
                                 "message":"未发现当前健康档案与候选药品之间的已知禁忌。",\
                                 "advice":null,"medications":[{"name":"阿莫西林胶囊","generic_name":"阿莫西林"}]}"""),
                         false,
+                        null,
+                        null,
                         "仅供参考，不替代医生诊断"));
         MedicationLookupService lookupService = mock(MedicationLookupService.class);
         MockMvc mvc = standaloneSetup(new MedicationLookupController(pillBoxService, lookupService))
@@ -88,6 +90,8 @@ class MedicationLookupControllerTest {
                                 "advice":"请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。",\
                                 "medications":[{"name":"布洛芬胶囊","generic_name":"布洛芬"}]}"""),
                         false,
+                        null,
+                        null,
                         "仅供参考，不替代医生诊断"));
         MockMvc mvc = standaloneSetup(new MedicationLookupController(pillBoxService, lookupService))
                 .build();
@@ -104,6 +108,46 @@ class MedicationLookupControllerTest {
                 .andExpect(jsonPath("$.medication_safety.blocked").value(true))
                 .andExpect(jsonPath("$.medication_safety.advice").exists());
         verify(lookupService).lookupAndAppend(eq(12L), isNull(), eq("查药品"), org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void notFoundCarriesHintAndEmptyAllergyCarriesReminder() throws Exception {
+        // 票 46 延伸：notFound 响应携带 hint 供前端展示后端已落库的引导文案;
+        // 成功但空过敏史时携带 reminder 引导完善档案。两者经 HTTP seam 序列化透出。
+        PillBoxPhotoService pillBoxService = mock(PillBoxPhotoService.class);
+        MedicationLookupService lookupService = mock(MedicationLookupService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        when(pillBoxService.analyze(eq(12L), isNull(), eq("pill-nf"), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(new MedicationLookupView(
+                        7L, null, null, true, "未找到药品『××』，请核对药名或咨询医生/药师。", null, "仅供参考，不替代医生诊断"));
+        when(pillBoxService.analyze(eq(12L), isNull(), eq("pill-remind"), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(new MedicationLookupView(
+                        7L,
+                        objectMapper.readTree("{\"medications\":[{\"name\":\"阿莫西林胶囊\"}]}"),
+                        objectMapper.readTree("{\"decision\":\"SAFE\",\"blocked\":false}"),
+                        false,
+                        null,
+                        "你还没有在健康档案中填写过敏史，建议完善后能更准确地判断用药安全。",
+                        "仅供参考，不替代医生诊断"));
+        MockMvc mvc = standaloneSetup(new MedicationLookupController(pillBoxService, lookupService))
+                .build();
+        MockMultipartFile image = new MockMultipartFile("files", "box.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        mvc.perform(multipart("/api/c/pill-box-photos")
+                        .file(image)
+                        .param("request_id", "pill-nf")
+                        .requestAttr("authSubject", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.not_found").value(true))
+                .andExpect(jsonPath("$.hint").value("未找到药品『××』，请核对药名或咨询医生/药师。"));
+
+        mvc.perform(multipart("/api/c/pill-box-photos")
+                        .file(image)
+                        .param("request_id", "pill-remind")
+                        .requestAttr("authSubject", "12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.not_found").value(false))
+                .andExpect(jsonPath("$.reminder").value("你还没有在健康档案中填写过敏史，建议完善后能更准确地判断用药安全。"));
     }
 
     @Test

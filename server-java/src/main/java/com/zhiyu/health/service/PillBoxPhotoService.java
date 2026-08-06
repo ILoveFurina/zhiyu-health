@@ -79,6 +79,8 @@ public class PillBoxPhotoService {
                     null,
                     null,
                     true,
+                    hint,
+                    null,
                     contracts.disclaimer().text());
         }
 
