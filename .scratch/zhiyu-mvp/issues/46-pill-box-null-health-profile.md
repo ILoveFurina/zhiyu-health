@@ -36,7 +36,7 @@
 - [x] server-py TestClient 覆盖 PILL_BOX 的三种输入：字段缺失、字面 `null`、合法档案对象；前两者均以 `document.health_profile is None` 进入 fake vision，合法对象仍正确注入。
 - [x] server-py TestClient 覆盖畸形/不完整档案 JSON，断言返回结构化 422 而不是裸 500。
 - [x] server-java HTTP 或跨栈集成测试覆盖“无档案患者上传药盒照片”，断言不再返回 502，并能得到 `not_found` 引导或 `medication_info` + `medication_safety` 双出口之一。
-- [ ] 重跑原始复现：本地 server-java + server-py 下，无档案患者通过 `POST /api/c/pill-box-photos` 不再出现“药盒识别服务暂不可用”。
+- [x] 重跑原始复现：本地 server-java + server-py 下，无档案患者通过 `POST /api/c/pill-box-photos` 不再出现“药盒识别服务暂不可用”。
 - [x] 运行 `mvn -f server-java/pom.xml test`、`mvn -f server-java/pom.xml spotless:check`、`uv run pytest`、`uv run ruff check server-py`、`uv run mypy server-py/app`、`uv run lint-imports`。
 - [ ] 使用支付宝开发者工具人工走通“无档案登录 → AI 对话 → 拍药盒 → 选择照片 → 返回结果/合理的非药盒拒绝提示”，确认无控制台错误。
 - [ ] 票单置 `done` 时，将 README 依赖图节点更新为 `T46["[x]46 拍药盒无档案修复"]`。
@@ -45,3 +45,4 @@
 
 - 2026-08-06（诊断）：确认这是跨栈可选字段编码不一致，不是“拍药盒业务必须依赖健康档案”。产品约定仍是：有档案时用过敏史增强安全提醒，无档案时正常查说明书并以空过敏列表降级。
 - 2026-08-06（实施）：server-java `AgentClient` 抽取 `buildVisionMultipart`，档案为 null 时省略 `health_profile` part（DIET/TONGUE/SKIN/REPORT 共用，一并修复）；server-py 新增 `parse_optional_health_profile`（document.py），字面 `null` 兼容为无档案，畸形/不完整 JSON 抛契约码 `VISION_PROFILE_INVALID`（contracts/vision-errors.json 新增，双端钉死测试同步 15→16）。空过敏史 SAFE 文案改为 contracts/contraindication.json 新增 `safe_without_history`（“未提供过敏史，无法完整确认用药安全”），仅 MedicationLookupService 出口替换，B 端开方路径不受影响。测试：AgentClientTest 含真实 WebClient + JDK HttpServer 桩的 HTTP 级回归（无档案请求无 health_profile part、200 正常解析不再 502）；server-py TestClient 覆盖三种输入 + 两种畸形 JSON。全量检查通过（mvn 337 tests、spotless、pytest 137、ruff、mypy、lint-imports）。剩余人工项：本地双服务复现与支付宝开发者工具走查未执行（需人工环境）。
+- 2026-08-06（真实复现通过）：本地起修复版 server-java（8081）+ server-py（8000），新建无档案虚构患者走 `POST /api/c/pill-box-photos`：HTTP 200，vision 经真实方舟模型提名“阿莫西林胶囊”，双出口 `medication_info` + `medication_safety` 回落，安全卡片文案为新契约 `safe_without_history`。直调新 server-py 历史负载 `health_profile=null` 返回 200（原裸 500）；畸形 JSON 返回 422 `VISION_PROFILE_INVALID`。对照组：09:42 启动的旧 server-java（仍发字面 null）→ 旧 server-py 仍 502，确认修复边界。注意：`.env` 未配 `MINIO_ENABLED/ENDPOINT` 时 MinIO 默认关闭；强制启用后 `43.139.160.223:9000` 从本机不可达（疑安全组未放行 9000），旁路按 ADR-0023 静默降级不阻断主流程。仅剩支付宝开发者工具人工走查未执行。
