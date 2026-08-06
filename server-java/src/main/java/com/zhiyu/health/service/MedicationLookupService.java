@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Conversation;
 import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Medication;
@@ -60,6 +61,7 @@ public class MedicationLookupService {
     private final ContraindicationRuleEngine ruleEngine;
     private final ObjectMapper objectMapper;
     private final DisclaimerService disclaimers;
+    private final Contracts contracts;
 
     /**
      * 按候选药名查询药品并做禁忌判定，双出口卡片回落会话。
@@ -87,6 +89,7 @@ public class MedicationLookupService {
 
         List<Long> medicationIds = matched.stream().map(Medication::getId).toList();
         ContraindicationResult result = judgeContraindication(allergies, medicationIds);
+        result = withUnknownHistoryMessage(result, allergies);
 
         // 双出口卡片 1：说明书（medication_info）
         ObjectNode infoCard = buildMedicationInfoCard(matched, candidateNames);
@@ -159,6 +162,24 @@ public class MedicationLookupService {
             facts = new ContraindicationFacts(List.of(), List.of(), false);
         }
         return ruleEngine.judge(allergies, medicationIds, facts);
+    }
+
+    /**
+     * 空过敏史不得把 SAFE 说成"已确认安全"（票 46；与票 16"空过敏史=未提供"同约定）：
+     * 无档案或未填过敏史时，安全卡片文案改为"无法完整确认"，决定本身仍由规则引擎产出。
+     */
+    private ContraindicationResult withUnknownHistoryMessage(ContraindicationResult result, List<String> allergies) {
+        Contracts.Contraindication contract = contracts.contraindication();
+        if (!allergies.isEmpty() || !contract.decisions().get("safe").equals(result.decision())) {
+            return result;
+        }
+        return new ContraindicationResult(
+                result.decision(),
+                result.messageType(),
+                result.blocked(),
+                result.reasons(),
+                contract.messages().get("safe_without_history"),
+                result.advice());
     }
 
     /** 说明书卡片：medications.instructions 承载适应症/用法用量/注意事项。 */

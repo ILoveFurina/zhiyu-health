@@ -51,7 +51,8 @@ class MedicationLookupServiceTest {
             factRepository,
             ruleEngine,
             objectMapper,
-            TestDisclaimers.instance());
+            TestDisclaimers.instance(),
+            TestContracts.instance());
 
     @Test
     void matchedMedicationProducesDualOutputCardsWithSafeDecision() {
@@ -81,9 +82,10 @@ class MedicationLookupServiceTest {
                         .path("instructions")
                         .asText())
                 .isEqualTo("适应症/用法用量/注意事项");
-        // 安全结果：无过敏原 -> SAFE
+        // 安全结果：无过敏原 -> SAFE；档案过敏史为空同样视为"未提供"（票 16/46 同约定）
         assertThat(view.medicationSafety().path("decision").asText()).isEqualTo("SAFE");
         assertThat(view.medicationSafety().path("blocked").asBoolean()).isFalse();
+        assertThat(view.medicationSafety().path("message").asText()).contains("无法完整确认");
         // 双出口两条消息按序回落
         verify(conversations)
                 .appendMessage(
@@ -231,8 +233,9 @@ class MedicationLookupServiceTest {
         assertThat(view.notFound()).isFalse();
         assertThat(view.medicationInfo().path("medications").get(0).path("name").asText())
                 .isEqualTo("阿莫西林胶囊");
-        // 无过敏原 -> SAFE（尽力而为）
+        // 无过敏原 -> SAFE（尽力而为）；空过敏史=未提供（票 46/票 16 同约定），文案不得声称已确认
         assertThat(view.medicationSafety().path("decision").asText()).isEqualTo("SAFE");
+        assertThat(view.medicationSafety().path("message").asText()).contains("无法完整确认");
         // 不查过敏原（无档案）
         verify(allergyMapper, org.mockito.Mockito.never()).selectAllergens(org.mockito.ArgumentMatchers.anyLong());
     }

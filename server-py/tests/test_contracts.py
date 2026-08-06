@@ -119,6 +119,7 @@ def test_contraindication_values_are_loaded() -> None:
     }
     assert contract.message_types["warning"] == "contraindication_warning"
     assert "请咨询医生或药师" in contract.messages["blocked"]
+    assert "无法完整确认" in contract.messages["safe_without_history"]
 
 
 def test_knowledge_contract_values_are_loaded() -> None:

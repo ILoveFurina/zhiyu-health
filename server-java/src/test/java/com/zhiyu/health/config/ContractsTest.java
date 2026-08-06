@@ -135,6 +135,7 @@ class ContractsTest {
                 .containsEntry("review_required", "REVIEW_REQUIRED");
         assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
         assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
+        assertThat(contraindication.messages().get("safe_without_history")).contains("无法完整确认");
     }
 
     @Test
