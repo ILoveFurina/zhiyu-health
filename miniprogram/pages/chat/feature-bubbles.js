@@ -15,13 +15,8 @@ const FEATURE_BUBBLES = [
     enabled: true,
     action: 'triage',
   },
-  {
-    key: 'hospital',
-    label: '找医院',
-    icon: '⚑',
-    enabled: true,
-    action: 'hospital',
-  },
+  // 「找医院」气泡已于票 49 移除：自助挂号收敛到 AI挂号助手主卡与首页宫格，
+  // 不再作为对话内自助入口；Agent 侧医院推荐卡（hospital-card）由票 50 接管
   {
     key: 'report',
     label: '看报告',

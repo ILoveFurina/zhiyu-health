@@ -429,7 +429,7 @@ public class Contracts {
     /**
      * 挂号后就诊指引卡（票 43）：挂号成功由 server-java 事务内写一条 in_app_messages，
      * type=message_type、title=title、content 存 content_schema 定义的结构化 JSON。
-     * 地址/楼层/材料/注意事项来自 hospitals 表静态 seed 值，非 LLM 生成。
+     * 地址/楼层/材料/注意事项来自 hospital_campuses 表静态 seed 值（票 49），非 LLM 生成。
      */
     public record AppointmentCare(String messageType, String title, List<String> contentSchema) {
         public AppointmentCare {

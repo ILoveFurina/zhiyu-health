@@ -8,6 +8,28 @@
 
 .state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
 
+/* 14 天日期选择器 */
+.day-scroll { margin-top: var(--zy-space-md); width: 100%; }
+.day-row { display: flex; gap: var(--zy-space-xs); }
+.day {
+  width: 96rpx;
+  flex-shrink: 0;
+  padding: var(--zy-space-xs) 0;
+  border-radius: 16rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.day-active { background: var(--zy-color-primary); }
+.day-active .day-week, .day-active .day-label { color: #fff; }
+.day-week { color: var(--zy-text-secondary); font-size: 20rpx; }
+.day-label { margin-top: 4rpx; color: var(--zy-text-title); font-size: 24rpx; font-weight: 600; }
+.day-dot { margin-top: 4rpx; width: 8rpx; height: 8rpx; border-radius: 50%; background: transparent; }
+.day-dot-on { background: var(--zy-color-primary); }
+.day-active .day-dot-on { background: #fff; }
+
 .group { margin-top: var(--zy-space-lg); }
 .group-date { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; }
 .group-card {

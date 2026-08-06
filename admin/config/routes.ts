@@ -8,6 +8,24 @@ export default [
     access: 'canAdmin',
   },
   {
+    name: '院区管理',
+    path: '/campuses',
+    component: './Campus',
+    access: 'canAdmin',
+  },
+  {
+    name: '科室分类',
+    path: '/department-categories',
+    component: './DepartmentCategory',
+    access: 'canAdmin',
+  },
+  {
+    name: '标准科室目录',
+    path: '/standard-departments',
+    component: './StandardDepartment',
+    access: 'canAdmin',
+  },
+  {
     name: '科室管理',
     path: '/departments',
     component: './Department',

@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Agent 业务工具回调 seam：按距离排序返回就近医院。 */
+/** Agent 业务工具回调 seam：按距离排序返回就近医院（票 49：院区粒度，附带 campus_name）。 */
 @WebMvcTest(HospitalRecommendationController.class)
 @Import(ApiExceptionHandler.class)
 class HospitalRecommendationControllerTest {
@@ -32,26 +32,28 @@ class HospitalRecommendationControllerTest {
 
     @Test
     void returnsNearbyHospitalsSortedByDistance() throws Exception {
-        when(recommendationService.recommendNearby(121.4737, 31.2304))
+        when(recommendationService.recommendNearby(113.6458, 34.7572))
                 .thenReturn(List.of(
                         new HospitalRecommendationService.HospitalRecommendation(
-                                1L, "智愈市人民医院", "三级甲等", "智愈市安康路 88 号", 0.0),
+                                1L, "郑州智愈综合医院", "三级甲等", "郑州市金水区健康路 88 号", "主院区", 0.0),
                         new HospitalRecommendationService.HospitalRecommendation(
-                                2L, "智愈市第二医院", "三级乙等", "智愈市江宁路 200 号", 2.4)));
+                                2L, "郑州智愈儿童医院", "三级甲等", "郑州市中原区桐柏路 156 号", "西院区", 4.2)));
 
         mockMvc.perform(get("/api/agent/hospitals/nearby")
                         .header(AgentCallbackAuthFilter.HEADER_NAME, CALLBACK_SECRET)
-                        .param("longitude", "121.4737")
-                        .param("latitude", "31.2304"))
+                        .param("longitude", "113.6458")
+                        .param("latitude", "34.7572"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hospitals.length()").value(2))
                 .andExpect(jsonPath("$.hospitals[0].hospital_id").value(1))
-                .andExpect(jsonPath("$.hospitals[0].name").value("智愈市人民医院"))
+                .andExpect(jsonPath("$.hospitals[0].name").value("郑州智愈综合医院"))
                 .andExpect(jsonPath("$.hospitals[0].level").value("三级甲等"))
-                .andExpect(jsonPath("$.hospitals[0].address").value("智愈市安康路 88 号"))
+                .andExpect(jsonPath("$.hospitals[0].address").value("郑州市金水区健康路 88 号"))
+                .andExpect(jsonPath("$.hospitals[0].campus_name").value("主院区"))
                 .andExpect(jsonPath("$.hospitals[0].distance_km").value(0.0))
                 .andExpect(jsonPath("$.hospitals[1].hospital_id").value(2))
-                .andExpect(jsonPath("$.hospitals[1].distance_km").value(2.4));
+                .andExpect(jsonPath("$.hospitals[1].campus_name").value("西院区"))
+                .andExpect(jsonPath("$.hospitals[1].distance_km").value(4.2));
     }
 
     @Test

@@ -1,0 +1,5 @@
+/* 科室号源卡页面 */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+.refresh-tip { margin-top: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 22rpx; text-align: center; }

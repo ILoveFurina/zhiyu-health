@@ -1,46 +1,99 @@
 -- 幂等 seed：仅组织演示数据（虚构），ON CONFLICT DO NOTHING + 显式 id
 -- 由 spring.sql.init.data-locations 在启动时执行
 
-INSERT INTO hospitals (id, name, level, address, longitude, latitude, floor, materials, precautions) VALUES
-    (1, '智愈市人民医院', '三级甲等', '智愈市安康路 88 号', 121.4737, 31.2304,
+-- 票 49：3 家郑州虚构医院为 B 端正式业务数据（不建演示副本）；医院只存名称与等级。
+INSERT INTO hospitals (id, name, level) VALUES
+    (1, '郑州智愈综合医院', '三级甲等'),
+    (2, '郑州智愈儿童医院', '三级甲等'),
+    (3, '郑州智愈中心医院', '三级乙等')
+ON CONFLICT (id) DO NOTHING;
+
+-- 院区：服务城市由本表动态聚合（当前 seed 只覆盖郑州市 410100），
+-- 地址/经纬度/就诊指引静态值均为虚构演示数据。B 端新增其他城市院区后自动形成新服务城市。
+INSERT INTO hospital_campuses (id, hospital_id, name, city_code, city_name, address, longitude, latitude, floor, materials, precautions) VALUES
+    (11, 1, '主院区', '410100', '郑州市', '郑州市金水区健康路 88 号', 113.6458, 34.7572,
      '门诊楼 1 层导诊台',
      E'身份证或医保卡\n既往病历与检查报告\n近期待用药品清单',
      E'建议提前 30 分钟到达并完成取号\n请携带既往病历便于医生参考\n就诊前避免进食油腻食物'),
-    (2, '智愈市第二医院', '三级乙等', '智愈市江宁路 200 号', 121.4901, 31.2486,
+    (12, 1, '郑东院区', '410100', '郑州市', '郑州市郑东新区龙湖中路 66 号', 113.7362, 34.7754,
+     '门诊楼 1 层咨询台',
+     E'身份证或医保卡\n既往病历与检查报告',
+     E'建议提前 30 分钟到达并完成取号\n院区较大请预留步行时间'),
+    (13, 1, '南院区', '410100', '郑州市', '郑州市二七区南屏路 21 号', 113.6521, 34.7012,
+     '门诊楼 1 层导诊台',
+     E'身份证或医保卡\n既往病历与检查报告',
+     E'建议提前 30 分钟到达并完成取号'),
+    (21, 2, '西院区', '410100', '郑州市', '郑州市中原区桐柏路 156 号', 113.5988, 34.7483,
+     '门诊楼 1 层预检台',
+     E'监护人身份证\n儿童医保卡\n预防接种证',
+     E'建议提前 30 分钟到达\n发热患儿请先到预检台测温'),
+    (22, 2, '东院区', '410100', '郑州市', '郑州市郑东新区心怡路 9 号', 113.7105, 34.7461,
+     '门诊楼 1 层预检台',
+     E'监护人身份证\n儿童医保卡\n既往检查报告',
+     E'建议提前 30 分钟到达'),
+    (31, 3, '主院区', '410100', '郑州市', '郑州市管城区城东路 45 号', 113.6822, 34.7335,
      '门诊楼 1 层咨询台',
      E'身份证或医保卡\n既往手术记录\n影像胶片或报告',
      E'建议提前 30 分钟到达并完成取号\n骨科患者请穿宽松衣物便于检查\n眼科患者请勿自行驾车前往')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO departments (id, hospital_id, name, floor, location) VALUES
-    (1, 1, '心血管内科', '门诊楼 3 层', '东区 301 室'),
-    (2, 1, '皮肤科', '门诊楼 2 层', '西区 205 室'),
-    (3, 1, '呼吸内科', '门诊楼 3 层', '东区 305 室'),
-    (4, 1, '消化内科', '门诊楼 4 层', '东区 402 室'),
-    (5, 1, '神经内科', '门诊楼 4 层', '东区 408 室'),
-    (6, 1, '内分泌科', '门诊楼 5 层', '东区 503 室'),
-    (7, 2, '骨科', '门诊楼 1 层', '西区 108 室'),
-    (8, 2, '眼科', '门诊楼 2 层', '西区 210 室'),
-    (9, 2, '儿科', '门诊楼 3 层', '西区 302 室'),
-    (10, 2, '妇科', '门诊楼 4 层', '西区 405 室')
+-- 平台标准科室目录（科类 → 标准科室）：跨医院导航与号源匹配的唯一依据。
+INSERT INTO standard_departments (id, category, name, sort_order) VALUES
+    (1, '内科', '心血管内科', 1),
+    (2, '内科', '呼吸内科', 2),
+    (3, '内科', '消化内科', 3),
+    (4, '内科', '神经内科', 4),
+    (5, '内科', '内分泌科', 5),
+    (6, '外科', '骨科', 1),
+    (7, '皮肤科', '皮肤科', 1),
+    (8, '五官科', '眼科', 1),
+    (9, '儿科', '儿科', 1),
+    (10, '妇产科', '妇科', 1)
+ON CONFLICT (id) DO NOTHING;
+
+-- 医院科室分类：各医院自维护的分类体系，该院区共享。
+INSERT INTO department_categories (id, hospital_id, name, sort_order) VALUES
+    (11, 1, '内科', 1),
+    (12, 1, '外科', 2),
+    (13, 1, '皮肤科', 3),
+    (21, 2, '儿内科', 1),
+    (22, 2, '儿外科', 2),
+    (31, 3, '内科', 1),
+    (32, 3, '外科', 2),
+    (33, 3, '五官科', 3),
+    (34, 3, '妇产科', 4)
+ON CONFLICT (id) DO NOTHING;
+
+-- 实际科室：归属院区 + 医院分类 + 非空标准科室映射。
+INSERT INTO departments (id, campus_id, category_id, standard_department_id, name, floor, location) VALUES
+    (1, 11, 11, 1, '心血管内科', '门诊楼 3 层', '东区 301 室'),
+    (2, 11, 11, 2, '呼吸内科', '门诊楼 3 层', '东区 305 室'),
+    (3, 11, 11, 3, '消化内科', '门诊楼 4 层', '东区 402 室'),
+    (4, 12, 11, 4, '神经内科', '门诊楼 4 层', '东区 408 室'),
+    (5, 12, 11, 5, '内分泌科', '门诊楼 5 层', '东区 503 室'),
+    (6, 13, 13, 7, '皮肤科', '门诊楼 2 层', '西区 205 室'),
+    (7, 21, 21, 9, '儿科', '门诊楼 3 层', '西区 302 室'),
+    (8, 31, 32, 6, '骨科', '门诊楼 1 层', '西区 108 室'),
+    (9, 31, 33, 8, '眼科', '门诊楼 2 层', '西区 210 室'),
+    (10, 31, 34, 10, '妇科', '门诊楼 4 层', '西区 405 室')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO doctors (id, department_id, name, title, registration_fee, specialty, photo_url) VALUES
     (1, 1, '林知远', '主任医师', 50.00, '高血压、冠心病、心律失常', 'https://example.com/demo/lin-zhiyuan.jpg'),
     (2, 1, '周安宁', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'https://example.com/demo/zhou-anning.jpg'),
-    (3, 2, '陈清禾', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
-    (4, 3, '苏明哲', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
-    (5, 3, '李婉清', '副主任医师', 30.00, '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
-    (6, 4, '赵启明', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
-    (7, 4, '吴佩珊', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
-    (8, 5, '孙立航', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
-    (9, 5, '郑雅文', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
-    (10, 6, '马俊杰', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
-    (11, 6, '何静怡', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
-    (12, 7, '黄志远', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
-    (13, 7, '梁书瑶', '主治医师', 20.00, '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
-    (14, 8, '冯雪松', '主任医师', 50.00, '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
-    (15, 9, '韩思敏', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
+    (3, 6, '陈清禾', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
+    (4, 2, '苏明哲', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
+    (5, 2, '李婉清', '副主任医师', 30.00, '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
+    (6, 3, '赵启明', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
+    (7, 3, '吴佩珊', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
+    (8, 4, '孙立航', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
+    (9, 4, '郑雅文', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
+    (10, 5, '马俊杰', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
+    (11, 5, '何静怡', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
+    (12, 8, '黄志远', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
+    (13, 8, '梁书瑶', '主治医师', 20.00, '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
+    (14, 9, '冯雪松', '主任医师', 50.00, '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
+    (15, 7, '韩思敏', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO medications (id, name, generic_name, specification, instructions, price, stock) VALUES
@@ -95,8 +148,8 @@ INSERT INTO health_profile_allergies (health_profile_id, allergen) VALUES
     (1, '青霉素')
 ON CONFLICT (health_profile_id, allergen) DO NOTHING;
 
--- 排班（票 25）：用 CURRENT_DATE + interval 'N day' 动态生成未来 7 天排班，
--- 保证任意演示日当天起仍有有效排班可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
+-- 排班（票 25/49）：用 CURRENT_DATE + interval 'N day' 动态生成今天起连续 14 天排班，
+-- 保证任意演示日当天起仍有完整 14 天号源可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
 -- 重置 TRUNCATE schedules 后再执行本段可重新插入；已存在则跳过。
 -- 覆盖全部 15 个医生、上午/下午两时段、每段 10 号，满足演示与并发抢号脚本需求。
 -- 时段值与 TimeSlot 枚举字面量一致（schema 用枚举存中文）；中文读取靠 spring.sql.init.encoding=UTF-8。
@@ -113,7 +166,7 @@ FROM (VALUES
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)
 ) AS d(doctor_id)
 CROSS JOIN (VALUES
-    (0),(1),(2),(3),(4),(5),(6)
+    (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13)
 ) AS days(day)
 CROSS JOIN (VALUES
     ('上午'),('下午')
@@ -246,6 +299,9 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 显式 id 不推进 identity 序列：对齐到当前 MAX(id)，避免后续业务写入撞主键
 SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
+SELECT setval('hospital_campuses_id_seq', (SELECT MAX(id) FROM hospital_campuses));
+SELECT setval('standard_departments_id_seq', (SELECT MAX(id) FROM standard_departments));
+SELECT setval('department_categories_id_seq', (SELECT MAX(id) FROM department_categories));
 SELECT setval('departments_id_seq', (SELECT MAX(id) FROM departments));
 SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors));
 SELECT setval('medications_id_seq', (SELECT MAX(id) FROM medications));
