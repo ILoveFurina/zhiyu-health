@@ -227,6 +227,23 @@ INSERT INTO knowledge_chunks (id, department, title, content) VALUES
      '慢性盆腔不适、排卵痛或肠道问题均可致下腹隐痛。建议记录疼痛与月经周期关系。若隐痛持续或加重、伴发热或异常出血，建议到妇科进一步检查。')
 ON CONFLICT (id) DO NOTHING;
 
+-- 处方模板（票 47）：doctor.lin（doctors.id=1，心内科）与 doctor.zhou（doctors.id=2）各备虚构常用药组合，
+-- 药品 id 均引用上方 medications 既有条目；显式 id + ON CONFLICT DO NOTHING 幂等。
+INSERT INTO prescription_templates (id, name, doctor_id) VALUES
+    (1, '高血压基础用药', 1),
+    (2, '冠心病二级预防', 1),
+    (3, '胸痛随访用药', 2)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO prescription_template_items (id, template_id, medication_id, dosage, frequency, duration, notes) VALUES
+    (1, 1, 12, '5mg', '每日1次', '30天', '晨起服用，按医嘱监测血压'),
+    (2, 1, 13, '150mg', '每日1次', '30天', '按医嘱监测血压'),
+    (3, 2, 17, '100mg', '每日1次', '30天', '餐后服用，有出血风险者须遵医嘱'),
+    (4, 2, 15, '20mg', '每晚1次', '30天', '按医嘱监测肝功能'),
+    (5, 3, 17, '100mg', '每日1次', '14天', '有出血风险者须遵医嘱'),
+    (6, 3, 16, '10mg', '每晚1次', '14天', '按医嘱监测肝功能')
+ON CONFLICT (id) DO NOTHING;
+
 -- 显式 id 不推进 identity 序列：对齐到当前 MAX(id)，避免后续业务写入撞主键
 SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
 SELECT setval('departments_id_seq', (SELECT MAX(id) FROM departments));
@@ -237,3 +254,5 @@ SELECT setval('health_profiles_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health
 SELECT setval('health_profile_allergies_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_profile_allergies));
 SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));
+SELECT setval('prescription_templates_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_templates));
+SELECT setval('prescription_template_items_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_template_items));

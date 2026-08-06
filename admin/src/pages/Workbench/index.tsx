@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Space, Typography } from 'antd';
+import { App, Button, Space, Typography } from 'antd';
 import {
   completeAppointment,
   fetchAppointmentDetail,
@@ -12,6 +12,7 @@ import ConsultationDrawer from './components/ConsultationDrawer';
 import { createPrescription, fetchMedications, type Medication, type PrescriptionInput } from '@/services/prescription';
 import ReceptionQueue from './components/ReceptionQueue';
 import ScheduleOverview from './components/ScheduleOverview';
+import TemplateManageDrawer from './components/TemplateManageDrawer';
 
 export default function WorkbenchPage() {
   const { message } = App.useApp();
@@ -23,6 +24,7 @@ export default function WorkbenchPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
   const [prescriptionCreated, setPrescriptionCreated] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setDashboard(await fetchReceptionDashboard());
@@ -71,7 +73,7 @@ export default function WorkbenchPage() {
   };
 
   return (
-    <PageContainer title="医生接诊台">
+    <PageContainer title="医生接诊台" extra={<Button onClick={() => setTemplateOpen(true)}>处方模板</Button>}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Typography.Text type="secondary">{dashboard?.date ?? '今日'} · 仅展示当前医生的排班与挂号患者</Typography.Text>
         <ScheduleOverview schedules={dashboard?.schedules ?? []} />
@@ -81,6 +83,7 @@ export default function WorkbenchPage() {
         detail={detail} medications={medications} prescriptionSubmitting={prescriptionSubmitting}
         prescriptionCreated={prescriptionCreated} onPrescribe={prescribe}
         onClose={() => setOpen(false)} onSubmit={complete} />
+      <TemplateManageDrawer open={templateOpen} onClose={() => setTemplateOpen(false)} />
     </PageContainer>
   );
 }

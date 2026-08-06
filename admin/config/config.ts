@@ -20,4 +20,6 @@ export default defineConfig({
     },
   },
   npmClient: 'npm',
+  // 多 async chunk 下 esbuild minify helper 可能被分别注入同名定义，产物校验（esbuildHelperChecker）要求统一 IIFE 包裹
+  esbuildMinifyIIFE: true,
 });
