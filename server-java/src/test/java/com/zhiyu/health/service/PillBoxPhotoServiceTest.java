@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,7 +21,6 @@ import com.zhiyu.health.service.PillBoxPhotoService.PillBoxPhotoView;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.springframework.web.multipart.MultipartFile;
 
 /** 拍药盒照片编排（票 51，ADR-0028）：图片旁路持久化、vision OCR 提名与失败兜底。 */
@@ -64,10 +62,9 @@ class PillBoxPhotoServiceTest {
         assertThat(view.recognized()).isTrue();
         assertThat(view.drugNames()).containsExactly("阿莫西林胶囊", "阿莫西林");
         assertThat(view.hint()).isNull();
-        // 图片旁路持久化先行，vision 随后；识别成功不再落任何卡片/文本消息
-        InOrder order = inOrder(minioStorage, agentClient);
-        order.verify(minioStorage).persistPhotosAndMessages(eq(7L), anyList());
-        order.verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
+        // 旁路持久化与 vision 并行发起（票 51），返回前两者均已完成
+        verify(minioStorage).persistPhotosAndMessages(eq(7L), anyList());
+        verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
         verify(conversations, org.mockito.Mockito.never())
                 .appendMessage(any(), anyString(), anyString(), anyString(), any(), any(), any());
     }

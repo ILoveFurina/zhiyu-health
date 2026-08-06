@@ -27,8 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
  *      -> 响应 {request_id, conversation_id, recognized, drug_names[], hint?}
  * </pre>
  *
- * <p>网络调用（interpretVision）故意不在事务内：图片消息已先行落库（MinIO 旁路），
- * 分析调用失败时不回滚已落库的图片消息，保证用户至少看到"我拍过什么"的回看价值。
+ * <p>网络调用（interpretVision 与 MinIO 上传）故意不在事务内且相互并行（票 51）：图片消息
+ * 经旁路独立事务落库，分析调用失败时不回滚已落库的图片消息，保证用户至少看到"我拍过什么"的回看价值。
  */
 @Service
 @RequiredArgsConstructor
@@ -54,8 +54,11 @@ public class PillBoxPhotoService {
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, "拍药盒");
 
-        // MinIO 旁路持久化：图片消息先行落库（image kind），失败静默降级不留原图（ADR-0023）。
-        minioStorage.persistPhotosAndMessages(conversation.getId(), files);
+        // MinIO 旁路持久化与 vision 调用并行（票 51）：两个网络调用重叠，端到端取较大者而非求和。
+        // best-effort 语义不变（ADR-0023）：图片消息独立事务落库、单项失败静默降级不留原图；
+        // persist 的未捕获异常仍在下方 join 处原样上抛，与串行版失败语义一致。
+        java.util.concurrent.CompletableFuture<Void> persist = java.util.concurrent.CompletableFuture.runAsync(
+                () -> minioStorage.persistPhotosAndMessages(conversation.getId(), files));
 
         AgentClient.VisionResponse response;
         try {
@@ -67,6 +70,8 @@ public class PillBoxPhotoService {
             appendFallbackCard(conversation.getId(), null);
             throw new ApiException(502, "药盒识别服务暂不可用");
         }
+        // vision 已出结果，persist 通常也已完成；join 只为保持"返回前图片落库完毕"的串行语义
+        persist.join();
 
         // vision 只提候选药名：从 result.candidates[].name 提取药名列表。
         List<String> candidateNames = extractCandidateNames(response.result());
