@@ -6,11 +6,14 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from openai import APITimeoutError
 
-from app.agent.vision.document import VisionInputError, prepare_document
+from app.agent.vision.document import (
+    VisionInputError,
+    parse_optional_health_profile,
+    prepare_document,
+)
 from app.agent.vision.interpreter import VisionOutputError, VisionScopeError
 from app.api.deps import AgentCallbackAuth
 from app.core.contracts import get_contracts
-from app.schemas.chat import HealthProfilePayload
 from app.schemas.vision import VisionResponse
 
 router = APIRouter(prefix="/agent/vision", tags=["agent-vision"])
@@ -42,11 +45,9 @@ async def interpret_vision(
 ) -> VisionResponse:
     try:
         document = await prepare_document(files, scenario)
-        if health_profile is not None:
-            document = replace(
-                document,
-                health_profile=HealthProfilePayload.model_validate_json(health_profile),
-            )
+        profile = parse_optional_health_profile(health_profile)
+        if profile is not None:
+            document = replace(document, health_profile=profile)
     except VisionInputError as exc:
         raise HTTPException(status_code=422, detail=_error_detail(exc.code)) from exc
     try:

@@ -53,9 +53,9 @@ class ContractsTest {
     @Test
     void visionErrorCodesAndMessagesAreLoaded() {
         Contracts.VisionErrors errors = contracts.visionErrors();
-        assertThat(errors.codes()).hasSize(15);
+        assertThat(errors.codes()).hasSize(16);
         assertThat(errors.messages())
-                .hasSize(15)
+                .hasSize(16)
                 .containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时")
                 .containsEntry("VISION_OUTPUT_INVALID", "本次未能生成可靠的结构化解读，请重试")
                 .containsEntry("VISION_REPORT_SCOPE_UNSUPPORTED", "请上传报告文字页，暂不支持原始医学影像诊断")
@@ -63,6 +63,7 @@ class ContractsTest {
                 .containsEntry("VISION_DIET_SCOPE_UNSUPPORTED", "请上传清晰的饮食照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_TONGUE_SCOPE_UNSUPPORTED", "请上传清晰的舌苔照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_PILL_BOX_SCOPE_UNSUPPORTED", "请上传清晰的药盒照片，暂不支持医学影像或报告诊断")
+                .containsEntry("VISION_PROFILE_INVALID", "请求信息无法解析，请重试")
                 .containsEntry("VISION_FILE_TOO_LARGE", "报告文件超出处理限制，请拆分或压缩后上传");
         // 错误码集合与文案表必须一一对应。
         assertThat(errors.messages().keySet()).containsExactlyInAnyOrderElementsOf(errors.codes());
