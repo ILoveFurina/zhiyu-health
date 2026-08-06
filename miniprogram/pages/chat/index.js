@@ -7,12 +7,13 @@ const skinComposer = require('./skin-composer')
 const dietComposer = require('./diet-composer')
 const tongueComposer = require('./tongue-composer')
 const pillboxComposer = require('./pillbox-composer')
-const medicationLookupComposer = require('./medication-lookup-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
+const { loadRegistrationSummary } = require('../../services/registration')
+const { relocate } = require('../../utils/location')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -68,10 +69,12 @@ Page({
     tongueProgress: '',
     pendingPillbox: null,
     pillboxProgress: '',
-    pendingMedLookup: null,
-    medLookupProgress: '',
     profileLoaded: false,
     currentProfile: null,
+    // AI挂号助手主卡（票 49，空态展示）：与首页同一组件、同一份装配 service
+    regCityName: '',
+    regHospitals: [],
+    regTotal: 0,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
     asrEnabled: isAsrEnabled(),
     ttsEnabled: isTtsEnabled(),
@@ -91,7 +94,6 @@ Page({
   ...dietComposer,
   ...tongueComposer,
   ...pillboxComposer,
-  ...medicationLookupComposer,
   ...hospitalRoutingMethods,
   ...featureGuideMethods,
 
@@ -114,6 +116,41 @@ Page({
     // 报告解读入口页已完成分段上传的待解读请求、报告记录指定的待打开会话
     this.consumeReportEntry()
     this.consumeOpenConversation()
+    // 空态 AI挂号助手主卡数据：失败静默降级为空主卡，不影响对话
+    this.loadRegistrationCard()
+  },
+
+  loadRegistrationCard() {
+    return loadRegistrationSummary()
+      .then(({ cityName, hospitals, total }) =>
+        this.setData({ regCityName: cityName, regHospitals: hospitals, regTotal: total })
+      )
+      .catch(() => {})
+  },
+
+  onDepartmentEntry() {
+    my.navigateTo({ url: '/pages/booking/standard-departments/index' })
+  },
+
+  /** 智能导诊入口：复用功能气泡的导诊引导流程（feature-guide.js 混入）。 */
+  onGuideEntry() {
+    this.enterTriage()
+  },
+
+  onHospitalTap({ hospitalId, hospitalName }) {
+    my.navigateTo({
+      url: `/pages/booking/campuses/index?hospital_id=${hospitalId}&hospital_name=${encodeURIComponent(hospitalName)}`,
+    })
+  },
+
+  onMoreHospitals() {
+    my.navigateTo({ url: '/pages/booking/hospitals/index' })
+  },
+
+  onRelocate() {
+    relocate().then((picked) => {
+      if (picked) this.loadRegistrationCard()
+    })
   },
 
   onUnload() {

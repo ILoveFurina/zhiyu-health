@@ -1,11 +1,11 @@
 <view class="page">
   <view class="header">
     <view class="title">预约挂号</view>
-    <view class="subtitle">{{located ? '已按距离为你排序' : '选择你想就诊的医院'}}</view>
+    <view class="subtitle">{{cityName ? cityName + ' · ' : ''}}选择你想就诊的医院</view>
   </view>
 
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{hospitals.length === 0}}" class="state">暂时没有可预约的医院</view>
+  <view a:elif="{{hospitals.length === 0}}" class="state">当前城市暂无平台医院</view>
 
   <view
     a:for="{{hospitals}}"
@@ -13,14 +13,14 @@
     class="card"
     data-id="{{item.hospital_id}}"
     data-name="{{item.name}}"
-    onTap="openDepartments"
+    onTap="openCampuses"
   >
     <view class="card-main">
       <view class="name-row">
         <text class="name">{{item.name}}</text>
         <text a:if="{{item.level}}" class="level">{{item.level}}</text>
       </view>
-      <view class="address">{{item.address}}</view>
+      <view class="address">最近院区：{{item.campus_name}}</view>
       <view a:if="{{item.distance_text}}" class="distance">距您约 {{item.distance_text}} km</view>
     </view>
     <view class="arrow">›</view>

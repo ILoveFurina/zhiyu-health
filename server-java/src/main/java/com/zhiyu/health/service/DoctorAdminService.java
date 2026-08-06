@@ -1,11 +1,14 @@
 package com.zhiyu.health.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Doctor;
+import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.DepartmentMapper;
 import com.zhiyu.health.mapper.DoctorMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class DoctorAdminService extends ServiceImpl<DoctorMapper, Doctor> {
 
     private final DepartmentMapper departmentMapper;
+    private final ScheduleMapper scheduleMapper;
 
     public List<Doctor> listAll() {
         return list(new QueryWrapper<Doctor>().orderByAsc("id"));
@@ -38,8 +42,15 @@ public class DoctorAdminService extends ServiceImpl<DoctorMapper, Doctor> {
     }
 
     public void delete(long doctorId) {
-        if (!removeById(doctorId)) {
+        if (getById(doctorId) == null) {
             throw new ApiException(404, "医生不存在");
         }
+        // 全链限制删除（票 49）：医生存在排班即拒绝删除，避免孤儿排班/挂号与 PG FK 裸错。
+        Long schedules =
+                scheduleMapper.selectCount(Wrappers.<Schedule>lambdaQuery().eq(Schedule::getDoctorId, doctorId));
+        if (schedules != null && schedules > 0) {
+            throw new ApiException(409, "医生存在排班，无法删除");
+        }
+        removeById(doctorId);
     }
 }

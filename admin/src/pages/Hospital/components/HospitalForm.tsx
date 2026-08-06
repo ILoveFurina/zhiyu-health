@@ -1,4 +1,4 @@
-import { ModalForm, ProFormDigit, ProFormText } from '@ant-design/pro-components';
+import { ModalForm, ProFormText } from '@ant-design/pro-components';
 import { createHospital, updateHospital, type Hospital } from '@/services/organization';
 
 interface Props {
@@ -28,9 +28,6 @@ export default function HospitalForm({ open, record, onOpenChange, onSuccess }: 
     >
       <ProFormText name="name" label="医院名称" rules={[{ required: true, message: '请输入医院名称' }]} />
       <ProFormText name="level" label="等级" rules={[{ required: true, message: '请输入等级' }]} />
-      <ProFormText name="address" label="地址" rules={[{ required: true, message: '请输入地址' }]} />
-      <ProFormDigit name="longitude" label="经度" rules={[{ required: true, message: '请输入经度' }]} />
-      <ProFormDigit name="latitude" label="纬度" rules={[{ required: true, message: '请输入纬度' }]} />
     </ModalForm>
   );
 }

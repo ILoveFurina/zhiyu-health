@@ -1,12 +1,13 @@
 const { ensureLogin } = require('../../utils/auth')
+const { createChatChannel } = require('../../utils/chat-stream')
 const { choosePillBoxPhoto } = require('../../utils/pillbox-picker')
 const { uploadPillBoxPhoto } = require('../../utils/pillbox-upload')
 
 /**
- * 拍药盒 composer（票 14，ADR-0025）：仿 15/16/17 composer 的选择/上传/回落流程。
- * 差异化：vision 只提候选药名，server-java 查 medications + 规则引擎产出双出口。
- * 图片作为 image kind 消息回落（原图存 MinIO），分析结果以 medication_info +
- * medication_safety 两条独立 AI 消息回落（比 15/16/17 多一条）。
+ * 拍药盒 composer（票 51，ADR-0028）：选择/上传 -> vision OCR 提名 ->
+ * 按 drug_names[0] 自动发送 medication_name 信封，说明书经实时通道流式渲染
+ * （复用主对话 text 气泡）。票 14 的双出口卡片（medication_info/medication_safety）
+ * 已删除：说明书来自 LLM 通用语料，C 端不做个性化禁忌判定。
  */
 module.exports = {
   openPillboxPicker() {
@@ -36,8 +37,9 @@ module.exports = {
     if (!this.data.pendingPillbox || this.data.sending) return
     const items = this.data.pendingPillbox.items
     const requestId = `pillbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    this.setData({ sending: true, pillboxProgress: '正在识别药盒…' })
-    // 单张照片一次请求即上传+分析（my.uploadFile 单 file 限制）。
+    // 进度文案分级（票 51）：识别药名 -> 生成说明书
+    this.setData({ sending: true, pillboxProgress: '正在识别药名…' })
+    // 单张照片一次请求即上传+识别（my.uploadFile 单 file 限制）。
     const item = items[0]
     ensureLogin()
       .then(() => uploadPillBoxPhoto({
@@ -59,29 +61,80 @@ module.exports = {
       content: `药盒照片（${items.length}张）`,
     }
     const newMessages = [imageMessage]
-    // ADR-0025 差异化点 3：双出口两条独立 AI 消息。
-    // not_found（未识别/未匹配）时后端已落 text 消息，前端不再重复补本地消息，仅刷新会话。
-    if (!data.not_found) {
-      // 说明书卡片（medication_info）
-      newMessages.push({
-        id: ++this._msgSeq, role: 'assistant', kind: 'medication_info',
-        card: data.medication_info,
-        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
+    if (!data.recognized) {
+      // 未识别药名：后端已落 text 引导消息，响应携带 hint，前端追加文本气泡展示，
+      // 否则用户只见照片气泡没有任何解释。
+      if (data.hint) {
+        newMessages.push({
+          id: ++this._msgSeq, role: 'assistant', kind: 'text',
+          content: data.hint,
+        })
+      }
+      this.setData({
+        messages: [...this.data.messages, ...newMessages],
+        conversationId: data.conversation_id,
+        pendingPillbox: null,
+        pillboxProgress: '',
+        sending: false,
+        anchorId: 'thread-bottom',
       })
-      // 安全结果卡片（medication_safety）
+      return
+    }
+    const drugNames = data.drug_names || []
+    if (drugNames.length > 1) {
+      // 多候选：主候选自动查说明书，其余提示可手动输入药名查看
       newMessages.push({
-        id: ++this._msgSeq, role: 'assistant', kind: 'medication_safety',
-        card: data.medication_safety,
-        disclaimer: data.disclaimer || '仅供参考，不替代医生诊断',
+        id: ++this._msgSeq, role: 'assistant', kind: 'text',
+        content: `还识别到：${drugNames.slice(1).join('、')}，可直接输入药名查看`,
       })
     }
     this.setData({
       messages: [...this.data.messages, ...newMessages],
       conversationId: data.conversation_id,
       pendingPillbox: null,
-      pillboxProgress: '',
-      sending: false,
+      pillboxProgress: '正在生成药品说明…',
+    })
+    // 按主候选自动发送 medication_name 信封（文字版能力同一信封保留）
+    this.startMedicationRound(drugNames[0])
+  },
+
+  /** 通用药品说明书流（票 51）：medication_name 信封，流式渲染复用主对话 text 气泡。 */
+  startMedicationRound(drugName) {
+    const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content: drugName }
+    const aiMsg = {
+      id: ++this._msgSeq,
+      role: 'assistant',
+      kind: 'text',
+      content: '',
+      disclaimer: '',
+      emotion: 'calm',
+      soothingText: '',
+      streaming: true,
+    }
+    this.setData({
+      messages: [...this.data.messages, userMsg, aiMsg],
       anchorId: 'thread-bottom',
+    })
+
+    if (!this._chatChannel) this._chatChannel = createChatChannel()
+    this._chatChannel.send({
+      requestId: `med-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`,
+      medicationName: drugName,
+      conversationId: this.data.conversationId,
+      handlers: {
+        onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
+        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
+        onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
+        onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
+        onDone: () => {
+          this.setData({ pillboxProgress: '' })
+          this.completeRound()
+        },
+        onError: (err) => {
+          this.setData({ pillboxProgress: '' })
+          this.failRound(aiMsg.id, err)
+        },
+      },
     })
   },
 }

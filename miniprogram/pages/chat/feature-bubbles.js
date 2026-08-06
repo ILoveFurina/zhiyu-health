@@ -15,13 +15,8 @@ const FEATURE_BUBBLES = [
     enabled: true,
     action: 'triage',
   },
-  {
-    key: 'hospital',
-    label: '找医院',
-    icon: '⚑',
-    enabled: true,
-    action: 'hospital',
-  },
+  // 「找医院」气泡已于票 49 移除：自助挂号收敛到 AI挂号助手主卡与首页宫格，
+  // 不再作为对话内自助入口；Agent 侧医院推荐卡（hospital-card）由票 50 接管
   {
     key: 'report',
     label: '看报告',
@@ -34,8 +29,8 @@ const FEATURE_BUBBLES = [
   { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
   { key: 'diet', label: '拍饮食', icon: '✦', enabled: true, action: 'diet' },
   { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: true, action: 'tongue' },
-  // 票 14 文字版入口（ADR-0025 差异化点 4）：与拍药盒共用同一查询与规则出口
-  { key: 'medlookup', label: '查药品', icon: 'ⓘ', enabled: true, action: 'medlookup' },
+  // 票 51：「查药品」入口已隐藏（与拍药盒能力重复且挤占气泡栏）；
+  // 文字版能力经 chat 信封 medication_name 保留（拍药盒识别后自动携带）
 ]
 
 /** 仅暴露已点亮气泡，供 axml a:for 渲染。 */

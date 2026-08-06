@@ -106,6 +106,12 @@
   font-size: 32rpx;
 }
 
+/* 空态 AI挂号助手主卡（票 49）：.empty 为居中 flex，主卡需撑满宽度 */
+.reg-entry-wrap {
+  width: 100%;
+  margin-top: var(--zy-space-lg);
+}
+
 /* ===== 气泡 ===== */
 .bubble {
   max-width: 78%;
@@ -328,12 +334,4 @@
 .tts-btn-playing {
   background: var(--zy-color-primary);
   color: #fff;
-}
-
-.medlookup-input {
-  background: #f2f3f5;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
-  font-size: 28rpx;
-  margin: 16rpx 0;
 }

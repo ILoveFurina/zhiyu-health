@@ -34,9 +34,7 @@
     "skin_analysis",
     "image",
     "diet_analysis",
-    "tongue_analysis",
-    "medication_info",
-    "medication_safety"
+    "tongue_analysis"
   ],
   "ai_card_kinds": [
     "doctor_recommendations",
@@ -47,9 +45,7 @@
     "report_interpretation",
     "skin_analysis",
     "diet_analysis",
-    "tongue_analysis",
-    "medication_info",
-    "medication_safety"
+    "tongue_analysis"
   ],
   "event_to_kind": {
     "doctor_recommendations": "doctor_recommendations",

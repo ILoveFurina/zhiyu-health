@@ -43,6 +43,17 @@ class SseEventsContract(BaseModel):
     event_to_kind: dict[str, str]
 
 
+class MedicationKnowledgeContract(BaseModel):
+    """C 端通用药品说明书流（票 51，ADR-0028）：SSE 事件名与统一话术。
+
+    server-py 经 SSE 流式输出 LLM 通用药品知识（token×N → done）；consult_professional
+    为流尾统一话术，unknown_drug 为未识别药名话术；免责声明复用 disclaimer.json。
+    """
+
+    stream_events: list[str]
+    messages: dict[str, str]
+
+
 class VisionErrorsContract(BaseModel):
     """报告解读错误码集合与用户可见文案（文案以 server-java 出口为准）。"""
 
@@ -146,6 +157,7 @@ class VoiceContract(BaseModel):
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
+    medication_knowledge: MedicationKnowledgeContract
     vision_errors: VisionErrorsContract
     upload_limits: UploadLimitsContract
     chat_defaults: ChatDefaultsContract
@@ -181,6 +193,9 @@ def _load(dir_path: Path) -> Contracts:
         return Contracts(
             disclaimer=DisclaimerContract.model_validate(_read_json(dir_path, "disclaimer.json")),
             sse_events=SseEventsContract.model_validate(_read_json(dir_path, "sse-events.json")),
+            medication_knowledge=MedicationKnowledgeContract.model_validate(
+                _read_json(dir_path, "medication-knowledge.json")
+            ),
             vision_errors=VisionErrorsContract.model_validate(
                 _read_json(dir_path, "vision-errors.json")
             ),

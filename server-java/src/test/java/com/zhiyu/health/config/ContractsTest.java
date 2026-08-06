@@ -34,17 +34,18 @@ class ContractsTest {
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments");
         assertThat(events.messageKinds())
-                .hasSize(15)
+                .hasSize(13)
                 .contains(
                         "text",
                         "report_interpretation",
                         "skin_analysis",
                         "image",
                         "diet_analysis",
-                        "tongue_analysis",
-                        "medication_info",
-                        "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(11);
+                        "tongue_analysis")
+                // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
+                // 说明书走流式文本，禁忌仅留 B 端开方链路
+                .doesNotContain("medication_info", "medication_safety");
+        assertThat(events.aiCardKinds()).hasSize(9);
         assertThat(events.eventToKind())
                 .hasSize(6)
                 .containsEntry("hospital_recommendations", "hospital_recommendations");
@@ -53,9 +54,9 @@ class ContractsTest {
     @Test
     void visionErrorCodesAndMessagesAreLoaded() {
         Contracts.VisionErrors errors = contracts.visionErrors();
-        assertThat(errors.codes()).hasSize(15);
+        assertThat(errors.codes()).hasSize(16);
         assertThat(errors.messages())
-                .hasSize(15)
+                .hasSize(16)
                 .containsEntry("VISION_MODEL_TIMEOUT", "报告解读服务响应超时")
                 .containsEntry("VISION_OUTPUT_INVALID", "本次未能生成可靠的结构化解读，请重试")
                 .containsEntry("VISION_REPORT_SCOPE_UNSUPPORTED", "请上传报告文字页，暂不支持原始医学影像诊断")
@@ -63,6 +64,7 @@ class ContractsTest {
                 .containsEntry("VISION_DIET_SCOPE_UNSUPPORTED", "请上传清晰的饮食照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_TONGUE_SCOPE_UNSUPPORTED", "请上传清晰的舌苔照片，暂不支持医学影像或报告诊断")
                 .containsEntry("VISION_PILL_BOX_SCOPE_UNSUPPORTED", "请上传清晰的药盒照片，暂不支持医学影像或报告诊断")
+                .containsEntry("VISION_PROFILE_INVALID", "请求信息无法解析，请重试")
                 .containsEntry("VISION_FILE_TOO_LARGE", "报告文件超出处理限制，请拆分或压缩后上传");
         // 错误码集合与文案表必须一一对应。
         assertThat(errors.messages().keySet()).containsExactlyInAnyOrderElementsOf(errors.codes());
@@ -108,6 +110,19 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
+        // 票 51：chat 信封可选字段（拍药盒识别后请求通用药品说明书流）
+        assertThat(realtime.chatOptionalFields()).containsExactly("medication_name");
+    }
+
+    @Test
+    void medicationKnowledgeContractIsLoaded() {
+        // 票 51（ADR-0028）：C 端通用药品说明书流事件序列与话术钉死
+        Contracts.MedicationKnowledge knowledge = contracts.medicationKnowledge();
+        assertThat(knowledge.streamEvents()).containsExactly("token", "done");
+        assertThat(knowledge.tokenEvent()).isEqualTo("token");
+        assertThat(knowledge.doneEvent()).isEqualTo("done");
+        assertThat(knowledge.consultProfessional()).isEqualTo("具体是否适用请咨询医生或药师");
+        assertThat(knowledge.unknownDrug()).contains("未找到该药品");
     }
 
     @Test
@@ -134,6 +149,7 @@ class ContractsTest {
                 .containsEntry("review_required", "REVIEW_REQUIRED");
         assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
         assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
+        assertThat(contraindication.messages().get("safe_without_history")).contains("无法完整确认");
     }
 
     @Test

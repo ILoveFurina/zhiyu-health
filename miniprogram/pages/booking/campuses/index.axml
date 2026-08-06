@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="header">
+    <view class="subtitle">{{hospitalName}} · 选择就诊院区</view>
+  </view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{campuses.length === 0}}" class="state">该医院暂时没有可预约院区</view>
+
+  <view
+    a:for="{{campuses}}"
+    a:key="campus_id"
+    class="card"
+    data-id="{{item.campus_id}}"
+    data-name="{{item.name}}"
+    onTap="openDepartments"
+  >
+    <view class="card-main">
+      <view class="name">{{item.name}}</view>
+      <view a:if="{{item.address}}" class="address">{{item.address}}</view>
+      <view a:if="{{item.distance_text}}" class="distance">距您约 {{item.distance_text}} km</view>
+    </view>
+    <view class="arrow">›</view>
+  </view>
+</view>

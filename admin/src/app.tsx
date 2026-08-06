@@ -16,11 +16,14 @@ import {
 } from '@/utils/session';
 
 const LOGIN_PATH = '/login';
-const ADMIN_PATHS = ['/hospitals', '/departments', '/doctors', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
+const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
 
 // 顶栏面包屑：pathname -> [分组名, 页面名]
 const ROUTE_GROUPS: Record<string, [string, string]> = {
   '/hospitals': ['组织管理', '医院管理'],
+  '/campuses': ['组织管理', '院区管理'],
+  '/department-categories': ['组织管理', '科室分类'],
+  '/standard-departments': ['组织管理', '标准科室目录'],
   '/departments': ['组织管理', '科室管理'],
   '/doctors': ['组织管理', '医生管理'],
   '/prescriptions': ['业务管理', '电子处方审核'],
@@ -132,7 +135,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       return [mk('业务管理', ['/workbench'])];
     }
     return [
-      mk('组织管理', ['/hospitals', '/departments', '/doctors']),
+      mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors']),
       mk('业务管理', ['/prescriptions', '/medications', '/drug-orders', '/payments']),
       mk('智能与日志', ['/knowledge-graph', '/agent-trace', '/demo']),
     ];

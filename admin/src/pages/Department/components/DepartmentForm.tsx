@@ -1,5 +1,13 @@
 import { ModalForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { createDepartment, listHospitals, updateDepartment, type Department } from '@/services/organization';
+import {
+  createDepartment,
+  listCampuses,
+  listDepartmentCategories,
+  listHospitals,
+  listStandardDepartments,
+  updateDepartment,
+  type Department,
+} from '@/services/organization';
 
 interface Props {
   open: boolean;
@@ -27,10 +35,30 @@ export default function DepartmentForm({ open, record, onOpenChange, onSuccess }
       }}
     >
       <ProFormSelect
-        name="hospital_id"
-        label="所属医院"
-        rules={[{ required: true, message: '请选择所属医院' }]}
-        request={async () => (await listHospitals()).map((h) => ({ label: h.name, value: h.id }))}
+        name="campus_id"
+        label="所属院区"
+        rules={[{ required: true, message: '请选择所属院区' }]}
+        request={async () => {
+          const [campusList, hospitalList] = await Promise.all([listCampuses(), listHospitals()]);
+          return campusList.map((c) => {
+            const hospitalName = hospitalList.find((h) => h.id === c.hospital_id)?.name;
+            return { label: hospitalName ? `${hospitalName}-${c.name}` : c.name, value: c.id };
+          });
+        }}
+      />
+      <ProFormSelect
+        name="category_id"
+        label="科室分类"
+        rules={[{ required: true, message: '请选择科室分类' }]}
+        request={async () => (await listDepartmentCategories()).map((c) => ({ label: c.name, value: c.id }))}
+      />
+      <ProFormSelect
+        name="standard_department_id"
+        label="标准科室"
+        rules={[{ required: true, message: '请选择标准科室' }]}
+        request={async () =>
+          (await listStandardDepartments()).map((s) => ({ label: `${s.category}-${s.name}`, value: s.id }))
+        }
       />
       <ProFormText name="name" label="科室名称" rules={[{ required: true, message: '请输入科室名称' }]} />
       <ProFormText name="floor" label="楼层" rules={[{ required: true, message: '请输入楼层' }]} />

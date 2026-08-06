@@ -9,7 +9,6 @@
     "skin-card": "/components/skin-card/index",
     "diet-card": "/components/diet-card/index",
     "tongue-card": "/components/tongue-card/index",
-    "medication-info-card": "/components/medication-info-card/index",
-    "medication-safety-card": "/components/medication-safety-card/index"
+    "registration-card": "/components/registration-card/index"
   }
 }

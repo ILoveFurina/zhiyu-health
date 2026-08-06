@@ -82,6 +82,86 @@ class ChatWebSocketHandlerTest {
         assertThat(error.path("data").path("code").asText()).isEqualTo("ROUND_IN_PROGRESS");
     }
 
+    @Test
+    void medicationNameEnvelopeRoutesToMedicationRound() throws Exception {
+        // 票 51：chat 信封携带 medication_name 时走说明书流轮次，token 经 event 信封透传
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        Sinks.Many<ChatRoundService.Event> events = Sinks.many().replay().all();
+        when(rounds.acceptMedication(any()))
+                .thenReturn(new ChatRoundService.Handle("req-med", 7L, "ACCEPTED", events.asFlux()));
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage(
+                        """
+                        {"type":"chat","request_id":"req-med","data":{"medication_name":"阿莫西林胶囊"}}
+                        """));
+        events.tryEmitNext(new ChatRoundService.Event("token", mapper.readTree("{\"text\":\"【用途】\"}")));
+
+        org.mockito.Mockito.verify(rounds)
+                .acceptMedication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).accept(any());
+        JsonNode accepted = mapper.readTree(sent.get(0));
+        JsonNode token = mapper.readTree(sent.get(1));
+        assertThat(accepted.path("type").asText()).isEqualTo("accepted");
+        assertThat(token.path("event").asText()).isEqualTo("token");
+        assertThat(token.path("request_id").asText()).isEqualTo("req-med");
+    }
+
+    @Test
+    void contentAndMedicationNameTogetherAreRejected() throws Exception {
+        // 契约：medication_name 与 text 互斥
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage(
+                        """
+                        {"type":"chat","request_id":"req-x","data":{"content":"你好","medication_name":"布洛芬"}}
+                        """));
+
+        JsonNode error = mapper.readTree(sent.get(0));
+        assertThat(error.path("type").asText()).isEqualTo("error");
+        assertThat(error.path("data").path("code").asText()).isEqualTo("CHAT_REJECTED");
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).accept(any());
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).acceptMedication(any());
+    }
+
+    @Test
+    void neitherContentNorMedicationNameIsRejected() throws Exception {
+        // 契约：medication_name 与 text 必居其一（与 HTTP 通道同一 XOR 规则），
+        // 两者皆空的信封不得落入携带 null content 的普通对话轮次
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage(
+                        """
+                        {"type":"chat","request_id":"req-x","data":{}}
+                        """));
+
+        JsonNode error = mapper.readTree(sent.get(0));
+        assertThat(error.path("type").asText()).isEqualTo("error");
+        assertThat(error.path("data").path("code").asText()).isEqualTo("CHAT_REJECTED");
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).accept(any());
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).acceptMedication(any());
+    }
+
     private WebSocketSession session(List<String> sent) throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
         Map<String, Object> attributes = new HashMap<>();

@@ -34,6 +34,20 @@
           <view class="arrow">›</view>
         </view>
       </view>
+
+      <!-- AI挂号助手主卡（票 49）：与首页同一组件；智能导诊入口复用 enterTriage 导诊引导 -->
+      <view class="reg-entry-wrap">
+        <registration-card
+          cityName="{{regCityName}}"
+          hospitals="{{regHospitals}}"
+          total="{{regTotal}}"
+          onDepartmentEntry="onDepartmentEntry"
+          onGuideEntry="onGuideEntry"
+          onHospitalTap="onHospitalTap"
+          onMoreHospitals="onMoreHospitals"
+          onRelocate="onRelocate"
+        />
+      </view>
     </view>
 
     <view a:for="{{messages}}" a:key="id">
@@ -68,26 +82,6 @@
         kind="{{item.kind}}"
         card="{{item.card}}"
       />
-
-      <view a:elif="{{item.kind === 'feature_guide' && item.card}}" class="guide-card">
-        <view a:if="{{item.card.feature === 'hospital'}}" class="guide-hospital">
-          <view class="guide-title">找医院</view>
-          <view a:if="{{item.card.mode === 'locate'}}" class="guide-desc">授权定位后，为您推荐就近医院</view>
-          <view a:if="{{item.card.mode === 'manual'}}" class="guide-desc">未获取到定位，点击按区域查找</view>
-          <view
-            a:if="{{item.card.mode === 'locate'}}"
-            class="guide-btn"
-            data-action="locate"
-            onTap="onGuideLocate"
-          >授权定位</view>
-          <view
-            a:if="{{item.card.mode === 'manual'}}"
-            class="guide-btn"
-            data-action="manual"
-            onTap="onGuideManual"
-          >按区域查找</view>
-        </view>
-      </view>
 
       <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
         <view class="report-card-title">报告解读</view>
@@ -133,18 +127,6 @@
         card="{{item.card}}"
         disclaimer="{{item.disclaimer}}"
         tcmDisclaimer="{{item.tcmDisclaimer}}"
-      />
-
-      <medication-info-card
-        a:elif="{{item.kind === 'medication_info'}}"
-        card="{{item.card}}"
-        disclaimer="{{item.disclaimer}}"
-      />
-
-      <medication-safety-card
-        a:elif="{{item.kind === 'medication_safety'}}"
-        card="{{item.card}}"
-        disclaimer="{{item.disclaimer}}"
       />
 
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
@@ -242,7 +224,7 @@
     <view class="pending-head">
       <view>
         <view class="pending-title">待发送的药盒照片</view>
-        <view class="pending-tip">将识别药盒上的药名并查询说明书与用药安全；禁忌判断仅供参考，不替代医生诊断</view>
+        <view class="pending-tip">将识别药盒上的药名并流式生成通用药品说明；仅供参考，不替代医生诊断</view>
       </view>
       <view class="pending-count">{{pendingPillbox.items.length}} 张</view>
     </view>
@@ -253,24 +235,6 @@
     </view>
     <view a:if="{{pillboxProgress}}" class="report-progress">{{pillboxProgress}}</view>
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingPillbox">发送并识别</view>
-  </view>
-
-  <view a:if="{{pendingMedLookup}}" class="pending-report">
-    <view class="pending-head">
-      <view>
-        <view class="pending-title">查药品</view>
-        <view class="pending-tip">输入药品名称（商品名或通用名），查询说明书与用药安全</view>
-      </view>
-      <view class="remove-btn" onTap="cancelMedLookup">×</view>
-    </view>
-    <input
-      class="medlookup-input"
-      placeholder="如：阿莫西林、布洛芬"
-      value="{{pendingMedLookup.name}}"
-      onInput="onMedLookupInput"
-    />
-    <view a:if="{{medLookupProgress}}" class="report-progress">{{medLookupProgress}}</view>
-    <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingMedLookup">查询</view>
   </view>
 
   <!-- 免责声明常驻细条（双保险之二） -->

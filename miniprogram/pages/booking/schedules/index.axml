@@ -4,14 +4,31 @@
     <view class="subtitle">选择可预约的日期与时段</view>
   </view>
 
-  <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{groups.length === 0}}" class="state">该医生暂时没有排班</view>
+  <!-- 14 天日期选择器：圆点表示当日有排班 -->
+  <scroll-view scroll-x class="day-scroll" show-scrollbar="{{false}}">
+    <view class="day-row">
+      <view
+        a:for="{{days}}"
+        a:key="date"
+        class="day {{item.date === selectedDate ? 'day-active' : ''}}"
+        data-date="{{item.date}}"
+        onTap="onSelectDay"
+      >
+        <view class="day-week">{{item.week_label}}</view>
+        <view class="day-label">{{item.day_label}}</view>
+        <view class="day-dot {{item.has_schedule ? 'day-dot-on' : ''}}"></view>
+      </view>
+    </view>
+  </scroll-view>
 
-  <view a:for="{{groups}}" a:key="date" class="group">
-    <view class="group-date">{{item.date}}</view>
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <view a:elif="{{slots.length === 0}}" class="state">当日暂无排班</view>
+
+  <view a:else class="group">
+    <view class="group-date">{{selectedDate}}</view>
     <view class="group-card">
       <view
-        a:for="{{item.items}}"
+        a:for="{{slots}}"
         a:for-item="slot"
         a:key="schedule_id"
         class="slot {{slot.remaining_slots <= 0 ? 'slot-disabled' : ''}}"

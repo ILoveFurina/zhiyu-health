@@ -72,16 +72,25 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         try {
             Long patientId = (Long) rawSession.getAttributes().get(ChatWebSocketHandshakeInterceptor.ATTR_PATIENT_ID);
             ChatPayload data = objectMapper.treeToValue(envelope.data(), ChatPayload.class);
-            ChatRoundService.Handle handle = rounds.accept(new ChatRoundService.Command(
-                    patientId,
-                    envelope.requestId(),
-                    data.conversationId(),
-                    data.content(),
-                    data.effort(),
-                    data.scenario(),
-                    data.knowledgeSource(),
-                    data.longitude(),
-                    data.latitude()));
+            boolean hasMedication = data.medicationName() != null && !data.medicationName().isBlank();
+            boolean hasContent = data.content() != null && !data.content().isBlank();
+            if (hasMedication == hasContent) {
+                // 契约：medication_name 与 text 互斥且必居其一（票 51，与 HTTP 通道同一 XOR 规则）
+                throw new IllegalArgumentException("content 与 medication_name 必须且只能携带其一");
+            }
+            ChatRoundService.Handle handle = hasMedication
+                    ? rounds.acceptMedication(new ChatRoundService.MedicationCommand(
+                            patientId, envelope.requestId(), data.conversationId(), data.medicationName()))
+                    : rounds.accept(new ChatRoundService.Command(
+                            patientId,
+                            envelope.requestId(),
+                            data.conversationId(),
+                            data.content(),
+                            data.effort(),
+                            data.scenario(),
+                            data.knowledgeSource(),
+                            data.longitude(),
+                            data.latitude()));
             sendAccepted(state.session, handle);
             state.observer = handle.events()
                     .subscribe(
@@ -155,6 +164,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private record ChatPayload(
             String content,
+            @JsonProperty("medication_name") String medicationName,
             @JsonProperty("conversation_id") Long conversationId,
             String effort,
             String scenario,

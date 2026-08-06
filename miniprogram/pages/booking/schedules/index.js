@@ -1,17 +1,23 @@
 const { listSchedules } = require('../../../services/directory')
 
-/** 按出诊日期分组，保持接口返回顺序；确认页号源耗尽时会回调本页 loadSchedules 刷新余量。 */
-function groupByDate(schedules) {
-  const groups = []
-  schedules.forEach((item) => {
-    let group = groups.find((entry) => entry.date === item.schedule_date)
-    if (!group) {
-      group = { date: item.schedule_date, items: [] }
-      groups.push(group)
-    }
-    group.items.push(item)
-  })
-  return groups
+const WEEK_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+/** 本地当天起连续 14 个自然日；has_schedule 由排班接口结果回填，首日为「今天」。 */
+function buildDays() {
+  const days = []
+  const now = new Date()
+  for (let offset = 0; offset < 14; offset++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)
+    const month = `${day.getMonth() + 1}`.padStart(2, '0')
+    const date = `${day.getDate()}`.padStart(2, '0')
+    days.push({
+      date: `${day.getFullYear()}-${month}-${date}`,
+      day_label: `${day.getMonth() + 1}/${day.getDate()}`,
+      week_label: offset === 0 ? '今天' : WEEK_LABELS[day.getDay()],
+      has_schedule: false,
+    })
+  }
+  return days
 }
 
 Page({
@@ -22,8 +28,12 @@ Page({
     departmentName: '',
     hospitalName: '',
     fee: '',
-    groups: [],
+    days: buildDays(),
+    selectedDate: buildDays()[0].date,
+    slots: [],
   },
+
+  _schedules: [],
 
   onLoad(query) {
     this.setData({
@@ -37,12 +47,29 @@ Page({
     this.loadSchedules()
   },
 
+  /** 确认页号源耗尽时会回调本页 loadSchedules 刷新余量。 */
   loadSchedules() {
     this.setData({ loading: true })
     return listSchedules(this.data.doctorId)
-      .then((schedules) => this.setData({ groups: groupByDate(schedules) }))
+      .then((schedules) => {
+        this._schedules = schedules || []
+        const scheduledDates = new Set(this._schedules.map((item) => item.schedule_date))
+        const days = buildDays().map((day) => ({ ...day, has_schedule: scheduledDates.has(day.date) }))
+        this.setData({ days, slots: this.filterSlots(this.data.selectedDate) })
+      })
       .catch(() => my.showToast({ content: '排班加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
+  },
+
+  /** 选中日的上午/下午时段，保持接口返回顺序。 */
+  filterSlots(date) {
+    return this._schedules.filter((item) => item.schedule_date === date)
+  },
+
+  onSelectDay(e) {
+    const date = e.currentTarget.dataset.date
+    if (date === this.data.selectedDate) return
+    this.setData({ selectedDate: date, slots: this.filterSlots(date) })
   },
 
   openConfirm(e) {

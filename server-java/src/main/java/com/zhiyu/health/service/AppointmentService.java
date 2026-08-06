@@ -90,9 +90,9 @@ public class AppointmentService {
     }
 
     /**
-     * 挂号后就诊指引卡（票 43）：事务内联查排班->医院拼装结构化 content，写一条
-     * type=appointment_care 的站内消息。地址/楼层/材料/注意事项取自 hospitals 表静态 seed
-     * 值，非 LLM 生成。与挂号同事务，失败即回滚（含 Redis 号源回补）。
+     * 挂号后就诊指引卡（票 43）：事务内联查排班->院区拼装结构化 content，写一条
+     * type=appointment_care 的站内消息。地址/楼层/材料/注意事项取自 hospital_campuses 表静态 seed
+     * 值（票 49 从医院下沉到院区），非 LLM 生成。与挂号同事务，失败即回滚（含 Redis 号源回补）。
      * 幂等：重复挂号请求在 reserve() 早返回分支不触达此处；DB UNIQUE(related_appointment_id,type) 兜底竞态。
      */
     private void writeAppointmentCareMessage(long patientId, long scheduleId, long appointmentId) {

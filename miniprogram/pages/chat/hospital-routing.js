@@ -1,7 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 
 const INTERPRETATION_KEYWORDS = ['解读', '报告', '处方']
-const LOCATION_KEYWORDS = ['附近', '就近', '最近', '周边', '哪里有医院', '找医院']
 
 /** 自动档按意图分配：导诊 low，报告/处方解读 high。 */
 function scenarioFor(content) {
@@ -10,35 +9,14 @@ function scenarioFor(content) {
     : 'triage'
 }
 
-function wantsNearbyHospital(content) {
-  return LOCATION_KEYWORDS.some((keyword) => content.includes(keyword))
-}
-
+// 票 49：关键词自动定位路由（LOCATION_KEYWORDS）已移除——自助找医院收敛到
+// AI挂号助手主卡与首页宫格；Agent 侧 hospital_recommendations 渲染（hospital-card）保留。
 const hospitalRoutingMethods = {
   sendText(content) {
     if (!content) return
     ensureLogin()
-      .then(() => {
-        if (wantsNearbyHospital(content)) {
-          this._locateAndSend(content)
-          return
-        }
-        this.startRound(content)
-      })
+      .then(() => this.startRound(content))
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
-  },
-
-  /** 定位拒绝时仍发送请求，由 Agent 返回手动选区引导。 */
-  _locateAndSend(content) {
-    my.getLocation({
-      type: 1,
-      success: (res) =>
-        this.startRound(content, { longitude: res.longitude, latitude: res.latitude }),
-      fail: () => {
-        my.showToast({ content: '未获取到定位，将按区域推荐', type: 'none' })
-        this.startRound(content, { longitude: undefined, latitude: undefined })
-      },
-    })
   },
 
   onHospitalSelected(selection) {

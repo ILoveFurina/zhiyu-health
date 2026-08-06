@@ -3,10 +3,7 @@ package com.zhiyu.health.controller.b;
 import com.zhiyu.health.controller.b.mapping.HospitalInputMapper;
 import com.zhiyu.health.entity.Hospital;
 import com.zhiyu.health.service.HospitalAdminService;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,12 +28,7 @@ public class HospitalController {
     private final HospitalAdminService hospitalAdminService;
     private final HospitalInputMapper hospitalInputMapper;
 
-    public record HospitalInput(
-            @NotBlank @Size(max = 100) String name,
-            @NotBlank @Size(max = 30) String level,
-            @NotBlank @Size(max = 255) String address,
-            @NotNull @DecimalMin("-180") @DecimalMax("180") Double longitude,
-            @NotNull @DecimalMin("-90") @DecimalMax("90") Double latitude) {}
+    public record HospitalInput(@NotBlank @Size(max = 100) String name, @NotBlank @Size(max = 30) String level) {}
 
     @GetMapping
     public List<Hospital> list() {

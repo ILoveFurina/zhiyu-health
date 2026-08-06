@@ -2,6 +2,11 @@ const { ensureLogin } = require('../../utils/auth')
 const { listProfiles, activateProfile } = require('../../services/health-profiles')
 const { listAppointments } = require('../../services/appointments')
 const { listDrugOrders } = require('../../services/drug-orders')
+const { loadRegistrationSummary } = require('../../services/registration')
+const { hasLocation, isSkipped, markSkipped, chooseLocation, relocate } = require('../../utils/location')
+
+// 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
+let locationPrompted = false
 
 /**
  * 首页功能目录宫格（CONTEXT.md「功能目录」词条）：
@@ -13,7 +18,7 @@ const GRIDS = [
     columns: 2,
     items: [
       { key: 'triage', icon: '✚', label: '智能导诊', desc: '描述症状，推荐科室', action: 'switchTab', url: '/pages/chat/index' },
-      { key: 'booking', icon: '⚑', label: '预约挂号', desc: '选医院、科室与医生', action: 'navigateTo', url: '/pages/booking/hospitals/index' },
+      { key: 'booking', icon: '⚑', label: '预约挂号', desc: '选科室、医生与时间', action: 'navigateTo', url: '/pages/booking/standard-departments/index' },
       { key: 'report', icon: '▦', label: '报告解读', desc: '上传报告，AI 解读', action: 'navigateTo', url: '/pages/report/index' },
     ],
   },
@@ -80,10 +85,74 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
+    // AI挂号助手主卡（票 49）：当前城市 + 最近 3 家医院 + 真实总数
+    regCityName: '',
+    regHospitals: [],
+    regTotal: 0,
   },
 
   onShow() {
     this.load()
+    this.loadRegistrationCard()
+    this.promptLocationOnce()
+  },
+
+  /**
+   * 启动就医位置确认（可跳过，票 49）：每会话首次 onShow 询问一次；
+   * 取消仅标记 skipped（此后不展示距离），不阻塞任何其他功能。
+   */
+  promptLocationOnce() {
+    if (locationPrompted) return
+    locationPrompted = true
+    if (hasLocation() || isSkipped()) return
+    my.confirm({
+      title: '确认就医位置',
+      content: '是否确认就医位置，用于按距离展示同城医院',
+      confirmButtonText: '确认位置',
+      cancelButtonText: '跳过',
+      success: (res) => {
+        if (res.confirm) {
+          chooseLocation().then((picked) => {
+            if (picked) this.loadRegistrationCard()
+          })
+        } else {
+          markSkipped()
+        }
+      },
+    })
+  },
+
+  /** 主卡数据失败不阻塞问候头与宫格，降级为空主卡。 */
+  loadRegistrationCard() {
+    return loadRegistrationSummary()
+      .then(({ cityName, hospitals, total }) =>
+        this.setData({ regCityName: cityName, regHospitals: hospitals, regTotal: total })
+      )
+      .catch(() => {})
+  },
+
+  onDepartmentEntry() {
+    my.navigateTo({ url: '/pages/booking/standard-departments/index' })
+  },
+
+  onGuideEntry() {
+    my.switchTab({ url: '/pages/chat/index' })
+  },
+
+  onHospitalTap({ hospitalId, hospitalName }) {
+    my.navigateTo({
+      url: `/pages/booking/campuses/index?hospital_id=${hospitalId}&hospital_name=${encodeURIComponent(hospitalName)}`,
+    })
+  },
+
+  onMoreHospitals() {
+    my.navigateTo({ url: '/pages/booking/hospitals/index' })
+  },
+
+  onRelocate() {
+    relocate().then((picked) => {
+      if (picked) this.loadRegistrationCard()
+    })
   },
 
   load() {

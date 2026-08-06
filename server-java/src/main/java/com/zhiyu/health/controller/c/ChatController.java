@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.service.ChatRoundService;
 import com.zhiyu.health.service.ChatService;
@@ -26,7 +27,10 @@ public class ChatController {
 
     public record ChatRequest(
             @JsonProperty("request_id") @NotBlank String requestId,
-            @NotBlank String content,
+            // content 与 medication_name 互斥（票 51）：对话轮次携带 content，
+            // 药品说明书流携带 medication_name；手工校验以给出明确 400 文案
+            String content,
+            @JsonProperty("medication_name") String medicationName,
             @JsonProperty("conversation_id") Long conversationId,
             String effort,
             String scenario,
@@ -40,6 +44,15 @@ public class ChatController {
     public SseEmitter chat(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @Validated @RequestBody ChatRequest request) {
+        boolean hasMedication = request.medicationName() != null && !request.medicationName().isBlank();
+        boolean hasContent = request.content() != null && !request.content().isBlank();
+        if (hasMedication == hasContent) {
+            throw new ApiException(400, "content 与 medication_name 必须且只能携带其一");
+        }
+        if (hasMedication) {
+            return chatService.medication(new ChatRoundService.MedicationCommand(
+                    patientId, request.requestId(), request.conversationId(), request.medicationName()));
+        }
         return chatService.chat(new ChatRoundService.Command(
                 patientId,
                 request.requestId(),

@@ -40,4 +40,6 @@ export default defineConfig({
   npmClient: 'npm',
   // 禁用 MFSU：路由结构变更后 mf-va_remoteEntry.js 易损坏导致白屏
   mfsu: false,
+  // 多 async chunk 下 esbuild minify helper 可能被分别注入同名定义，产物校验（esbuildHelperChecker）要求统一 IIFE 包裹
+  esbuildMinifyIIFE: true,
 });

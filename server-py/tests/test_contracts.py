@@ -25,26 +25,37 @@ def test_sse_event_protocol_is_complete() -> None:
         "create_appointment": "appointment",
         "get_appointment": "appointments",
     }
-    assert len(events.message_kinds) == 15
+    assert len(events.message_kinds) == 13
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
     assert "skin_analysis" in events.message_kinds
     assert "image" in events.message_kinds
     assert "diet_analysis" in events.message_kinds
     assert "tongue_analysis" in events.message_kinds
-    assert "medication_info" in events.message_kinds
-    assert "medication_safety" in events.message_kinds
-    assert len(events.ai_card_kinds) == 11
+    # 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
+    # 说明书走流式文本（kind=text），禁忌仅留 B 端开方链路
+    assert "medication_info" not in events.message_kinds
+    assert "medication_safety" not in events.message_kinds
+    assert len(events.ai_card_kinds) == 9
     assert len(events.event_to_kind) == 6
+
+
+def test_medication_knowledge_contract_is_loaded() -> None:
+    # 票 51（ADR-0028）：C 端通用药品说明书流事件与话术钉死
+    contract = get_contracts().medication_knowledge
+    assert contract.stream_events == ["token", "done"]
+    assert contract.messages["consult_professional"] == "具体是否适用请咨询医生或药师"
+    assert "未找到该药品" in contract.messages["unknown_drug"]
 
 
 def test_vision_error_codes_and_messages_are_loaded() -> None:
     errors = get_contracts().vision_errors
-    assert len(errors.codes) == 15
+    assert len(errors.codes) == 16
     # 错误码集合与文案表必须一一对应
     assert set(errors.messages) == set(errors.codes)
     assert errors.messages["VISION_MODEL_TIMEOUT"] == "报告解读服务响应超时"
     assert errors.messages["VISION_OUTPUT_INVALID"] == "本次未能生成可靠的结构化解读，请重试"
+    assert errors.messages["VISION_PROFILE_INVALID"] == "请求信息无法解析，请重试"
     assert (
         errors.messages["VISION_REPORT_SCOPE_UNSUPPORTED"]
         == "请上传报告文字页，暂不支持原始医学影像诊断"
@@ -118,6 +129,7 @@ def test_contraindication_values_are_loaded() -> None:
     }
     assert contract.message_types["warning"] == "contraindication_warning"
     assert "请咨询医生或药师" in contract.messages["blocked"]
+    assert "无法完整确认" in contract.messages["safe_without_history"]
 
 
 def test_knowledge_contract_values_are_loaded() -> None:

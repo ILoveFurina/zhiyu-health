@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App } from 'antd';
+import { App, Button } from 'antd';
 import {
   completeAppointment,
   fetchAppointmentDetail,
@@ -13,6 +13,7 @@ import { createPrescription, fetchMedications, type Medication, type Prescriptio
 import ReceptionQueue from './components/ReceptionQueue';
 import ScheduleOverview from './components/ScheduleOverview';
 import PageHead from '@/components/PageHead';
+import TemplateManageDrawer from './components/TemplateManageDrawer';
 
 export default function WorkbenchPage() {
   const { message } = App.useApp();
@@ -24,6 +25,7 @@ export default function WorkbenchPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
   const [prescriptionCreated, setPrescriptionCreated] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setDashboard(await fetchReceptionDashboard());
@@ -78,6 +80,9 @@ export default function WorkbenchPage() {
         description={`${dashboard?.date ?? '今日'} · 仅展示当前医生的排班与挂号患者`}
         tags={['排班概览', '挂号队列']}
       />
+      <div style={{ marginBottom: 16, textAlign: 'right' }}>
+        <Button onClick={() => setTemplateOpen(true)}>处方模板</Button>
+      </div>
       <ScheduleOverview schedules={dashboard?.schedules ?? []} />
       <div style={{ height: 16 }} />
       <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
@@ -85,6 +90,7 @@ export default function WorkbenchPage() {
         detail={detail} medications={medications} prescriptionSubmitting={prescriptionSubmitting}
         prescriptionCreated={prescriptionCreated} onPrescribe={prescribe}
         onClose={() => setOpen(false)} onSubmit={complete} />
+      <TemplateManageDrawer open={templateOpen} onClose={() => setTemplateOpen(false)} />
     </PageContainer>
   );
 }

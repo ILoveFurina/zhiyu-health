@@ -122,10 +122,12 @@ class DoctorControllerTest {
         });
         when(doctorAdminService.listAll()).thenAnswer(invocation -> List.of(stored.get()));
 
-        mockMvc.perform(put("/api/b/doctors/1")
-                        .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
-                        .contentType("application/json")
-                        .content("""
+        mockMvc.perform(
+                        put("/api/b/doctors/1")
+                                .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                                .contentType("application/json")
+                                .content(
+                                        """
                                 {"department_id": 1, "name": "林知远", "title": "主任医师",
                                  "registration_fee": 50.00, "specialty": "高血压、冠心病",
                                  "photo_url": "https://example.com/demo/lin.jpg"}
@@ -151,5 +153,14 @@ class DoctorControllerTest {
         mockMvc.perform(delete("/api/b/doctors/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("医生不存在"));
+    }
+
+    @Test
+    void deleteReturns409WhenSchedulesExist() throws Exception {
+        doThrow(new ApiException(409, "医生存在排班，无法删除")).when(doctorAdminService).delete(1L);
+
+        mockMvc.perform(delete("/api/b/doctors/1").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("医生存在排班，无法删除"));
     }
 }

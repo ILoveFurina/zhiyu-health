@@ -30,10 +30,12 @@ public class DepartmentController {
     private final DepartmentInputMapper departmentInputMapper;
 
     public record DepartmentInput(
-            @NotNull Long hospitalId,
+            @NotNull Long campusId,
+            @NotNull Long categoryId,
+            @NotNull Long standardDepartmentId,
             @NotBlank @Size(max = 100) String name,
-            @NotBlank @Size(max = 30) String floor,
-            @NotBlank @Size(max = 255) String location) {}
+            @Size(max = 30) String floor,
+            @Size(max = 255) String location) {}
 
     @GetMapping
     public List<Department> list() {

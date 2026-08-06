@@ -163,11 +163,11 @@ class AppointmentServiceTest {
         assertThat(message.getDisclaimer()).isEqualTo("仅供参考，不替代医生诊断");
         // content 是结构化 JSON：含医院/科室/医生/地址/楼层/材料/注意事项
         com.fasterxml.jackson.databind.JsonNode content = objectMapper.readTree(message.getContent());
-        assertThat(content.get("hospital_name").asText()).isEqualTo("智愈市人民医院");
+        assertThat(content.get("hospital_name").asText()).isEqualTo("郑州智愈综合医院");
         assertThat(content.get("department_name").asText()).isEqualTo("心血管内科");
         assertThat(content.get("doctor_name").asText()).isEqualTo("周安宁");
         assertThat(content.get("schedule_time").asText()).isEqualTo("2026-07-29 上午");
-        assertThat(content.get("address").asText()).isEqualTo("智愈市安康路 88 号");
+        assertThat(content.get("address").asText()).isEqualTo("郑州市金水区健康路 88 号");
         assertThat(content.get("materials").isArray()).isTrue();
         assertThat(content.get("materials").size()).isEqualTo(2);
         assertThat(content.get("precautions").isArray()).isTrue();
@@ -351,14 +351,15 @@ class AppointmentServiceTest {
                 objectMapper);
     }
 
+    /** 票 49：CareContext 的地址/楼层/材料/注意事项由 SQL 联查院区（hospital_campuses）提供，此处桩值即院区静态值。 */
     private ScheduleMapper.CareContext careContext() {
         return new ScheduleMapper.CareContext(
                 LocalDate.parse("2026-07-29"),
                 "上午",
                 "周安宁",
                 "心血管内科",
-                "智愈市人民医院",
-                "智愈市安康路 88 号",
+                "郑州智愈综合医院",
+                "郑州市金水区健康路 88 号",
                 "门诊楼 1 层导诊台",
                 "身份证或医保卡\n既往病历与检查报告",
                 "建议提前 30 分钟到达并完成取号\n请携带既往病历便于医生参考");

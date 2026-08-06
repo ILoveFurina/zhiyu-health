@@ -1,0 +1,56 @@
+<view class="page">
+  <view class="search-bar">
+    <input
+      class="search-input"
+      placeholder="搜索科室，如：心血管内科"
+      value="{{keyword}}"
+      onInput="onSearchInput"
+    />
+  </view>
+
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+
+  <!-- 搜索态：跨科类扁平结果 -->
+  <block a:elif="{{keyword}}">
+    <view a:if="{{results.length === 0}}" class="state">没有匹配「{{keyword}}」的科室</view>
+    <view
+      a:for="{{results}}"
+      a:key="id"
+      class="result-item"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+      onTap="openSlots"
+    >
+      <text class="result-name">{{item.name}}</text>
+      <text class="result-category">{{item.category}}</text>
+    </view>
+  </block>
+
+  <view a:elif="{{categories.length === 0}}" class="state">当前城市暂无科室目录</view>
+
+  <!-- 左科类、右标准科室 -->
+  <view a:else class="columns">
+    <scroll-view scroll-y class="col-left">
+      <view
+        a:for="{{categories}}"
+        a:key="category"
+        class="cat {{index === activeIndex ? 'cat-active' : ''}}"
+        data-index="{{index}}"
+        onTap="onCategoryTap"
+      >{{item.category}}</view>
+    </scroll-view>
+    <scroll-view scroll-y class="col-right">
+      <view
+        a:for="{{categories[activeIndex].departments}}"
+        a:key="id"
+        class="dept"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        onTap="openSlots"
+      >
+        <text class="dept-name">{{item.name}}</text>
+        <text class="dept-arrow">›</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

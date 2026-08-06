@@ -1,0 +1,17 @@
+<view class="page">
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+
+  <block a:elif="{{standardDepartment}}">
+    <department-slots-card
+      standardDepartment="{{standardDepartment}}"
+      days="{{days}}"
+      selectedDate="{{selectedDate}}"
+      doctors="{{doctors}}"
+      onSelectDate="onSelectDate"
+      onBook="onBook"
+    />
+    <view a:if="{{refreshing}}" class="refresh-tip">正在更新号源…</view>
+  </block>
+
+  <view a:else class="state">暂无号源信息</view>
+</view>

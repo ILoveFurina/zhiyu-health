@@ -32,6 +32,7 @@ public class Contracts {
     private final Contraindication contraindication;
     private final Knowledge knowledge;
     private final ChatRealtime chatRealtime;
+    private final MedicationKnowledge medicationKnowledge;
     private final MedCheckinFlow medCheckinFlow;
     private final DemoArsenal demoArsenal;
     private final AppointmentCare appointmentCare;
@@ -59,6 +60,7 @@ public class Contracts {
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
+        this.medicationKnowledge = read(mapper, dir, "medication-knowledge.json", MedicationKnowledge.class);
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
         this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
         this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
@@ -132,6 +134,11 @@ public class Contracts {
 
     public ChatRealtime chatRealtime() {
         return chatRealtime;
+    }
+
+    /** C 端通用药品说明书流（票 51，ADR-0028）：SSE 事件名与统一话术。 */
+    public MedicationKnowledge medicationKnowledge() {
+        return medicationKnowledge;
     }
 
     public MedCheckinFlow medCheckinFlow() {
@@ -279,10 +286,15 @@ public class Contracts {
     }
 
     /** C 端实时对话的结构化信封与持久化状态。 */
-    public record ChatRealtime(String websocketPath, List<String> envelopeTypes, List<String> roundStatuses) {
+    public record ChatRealtime(
+            String websocketPath,
+            List<String> envelopeTypes,
+            List<String> roundStatuses,
+            List<String> chatOptionalFields) {
         public ChatRealtime {
             envelopeTypes = List.copyOf(envelopeTypes);
             roundStatuses = List.copyOf(roundStatuses);
+            chatOptionalFields = List.copyOf(chatOptionalFields);
         }
 
         // 信封类型按契约顺序固定为 [chat, accepted, event, error]，
@@ -318,6 +330,37 @@ public class Contracts {
 
         public String failedStatus() {
             return roundStatuses.get(3);
+        }
+    }
+
+    /**
+     * C 端通用药品说明书流（票 51，ADR-0028）：server-py SSE 流式输出 LLM 通用药品知识，
+     * 事件序列固定为 token×N → done；consult_professional 为流尾统一话术，unknown_drug
+     * 为未识别药名话术。禁忌判定仅留 B 端开方链路（ADR-0016），本契约不含任何个性化安全出口。
+     */
+    public record MedicationKnowledge(List<String> streamEvents, Map<String, String> messages) {
+        public MedicationKnowledge {
+            streamEvents = List.copyOf(streamEvents);
+            messages = Map.copyOf(messages);
+        }
+
+        // 流事件名按契约顺序固定为 [token, done]，顺序由 ContractsTest 钉死。
+        public String tokenEvent() {
+            return streamEvents.get(0);
+        }
+
+        public String doneEvent() {
+            return streamEvents.get(1);
+        }
+
+        /** 流尾统一话术：通用说明书不做个性化适用判断，引导咨询医生或药师。 */
+        public String consultProfessional() {
+            return messages.get("consult_professional");
+        }
+
+        /** 未找到药品通用信息时的话术。 */
+        public String unknownDrug() {
+            return messages.get("unknown_drug");
         }
     }
 
@@ -429,7 +472,7 @@ public class Contracts {
     /**
      * 挂号后就诊指引卡（票 43）：挂号成功由 server-java 事务内写一条 in_app_messages，
      * type=message_type、title=title、content 存 content_schema 定义的结构化 JSON。
-     * 地址/楼层/材料/注意事项来自 hospitals 表静态 seed 值，非 LLM 生成。
+     * 地址/楼层/材料/注意事项来自 hospital_campuses 表静态 seed 值（票 49），非 LLM 生成。
      */
     public record AppointmentCare(String messageType, String title, List<String> contentSchema) {
         public AppointmentCare {
