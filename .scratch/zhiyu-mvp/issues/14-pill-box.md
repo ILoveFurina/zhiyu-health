@@ -62,3 +62,4 @@
 - 2026-07-29：明确 vision 只负责识别候选药名；药品业务查询和禁忌决定全部由 server-java 完成。
 - 2026-08-04（grilling）：确认 14 的四个差异化决策（ADR-0025）：药名双列查、直接组装规则引擎原子件不走 ContraindicationService.check、双出口两条独立消息、文字版 composer 入口共用出口。14 与 15/16/17 根本不同：视觉只提药名，业务全在 server-java。
 - 2026-08-04（done）：全栈落地。contracts 层新增 medication_info/medication_safety kind 与 VISION_PILL_BOX_SCOPE_UNSUPPORTED 错误码；server-py 注册 PILL_BOX 视觉场景（PillBoxRecognition 候选药名 result_model，prompt 严格约束只提名不做药品分析）；server-java MedicationLookupService 直接组装三原子件（selectAllergens + factRepository.load + ruleEngine.judge）不注入 PrescriptionItemMapper，双出口 medication_info/medication_safety 卡片；PillBoxPhotoService 照搬拍照管道模板委托 MedicationLookupService；C 端双卡片组件 + 拍药盒/查药品双入口 composer + 回放分支。server-java 333 测试 + server-py 51 测试全绿，spotless/ruff/mypy 通过。注：MapStruct 未实际使用因本票 view record 字段直接由 ObjectMapper 构造 ObjectNode，无 entity->DTO 映射需求。
+- 2026-08-06：本票 C 端个性化安全部分（决策 1/2/3 与差异化点 4：双列查、C 端规则引擎组装、双出口卡片、「查药品」入口）被票 51 取代并删除，依据 ADR-0028；vision 纯 OCR 提名与 MinIO 旁路持久化保留。
