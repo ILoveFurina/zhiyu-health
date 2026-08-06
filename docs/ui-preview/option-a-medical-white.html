@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>方案 A · 经典医疗白 — 医院管理</title>
+<style>
+  :root {
+    --green: #0e7a6c;
+    --green-soft: #e6f2ee;
+    --green-100: #f0f8f5;
+    --deep: #123f38;
+    --bg: #f3f8f6;
+    --card: #ffffff;
+    --text: #1f2d2a;
+    --muted: #5b7470;
+    --border: #e6f2ee;
+    --border-strong: #dceee8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ===== 侧栏 ===== */
+  .sider { width: 224px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .sider-brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .sider-logo { width: 32px; height: 32px; border-radius: 9px; background: var(--green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+  .sider-title { font-weight: 600; color: var(--deep); font-size: 15px; }
+  .sider-group { padding: 14px 12px 6px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+  .menu { list-style: none; margin: 0; padding: 4px 12px; }
+  .menu li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; color: #3a4a45; cursor: pointer; font-size: 14px; margin-bottom: 2px; position: relative; }
+  .menu li .ic { width: 16px; height: 16px; border-radius: 4px; background: #eef5f3; }
+  .menu li.active { background: var(--green-soft); color: var(--green); font-weight: 600; }
+  .menu li.active::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--green); }
+  .menu li.active .ic { background: var(--green); opacity: .9; }
+  .sider-foot { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+
+  /* ===== 主区 ===== */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 60px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }
+  .crumb { color: var(--muted); font-size: 13px; }
+  .crumb b { color: var(--text); }
+  .top-right { display: flex; align-items: center; gap: 14px; }
+  .avatar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999; border: 1px solid var(--border); }
+  .avatar .dot { width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+  .content { padding: 24px 28px; }
+
+  /* ===== 页面头 ===== */
+  .page-head { margin-bottom: 18px; }
+  .page-head h1 { margin: 0; font-size: 22px; color: var(--deep); }
+  .page-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .chips { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { font-size: 12px; border: 1px solid var(--border-strong); color: #2f6b61; background: #fff; padding: 5px 11px; border-radius: 999; }
+
+  /* ===== 统计行 ===== */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; box-shadow: 0 6px 18px rgba(15,118,110,.05); }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 24px; font-weight: 700; color: var(--deep); margin-top: 6px; }
+  .stat .v small { font-size: 13px; color: var(--green); font-weight: 600; margin-left: 4px; }
+
+  /* ===== 卡片 ===== */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 18px rgba(15,118,110,.05); }
+  .panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-head h2 { margin: 0; font-size: 15px; color: var(--deep); }
+  .panel-body { padding: 4px 0 8px; }
+  .btn-primary { background: var(--green); color: #fff; border: none; border-radius: 10px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-ghost { background: #fff; color: var(--green); border: 1px solid var(--green); border-radius: 10px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .search { display: flex; gap: 10px; align-items: center; padding: 12px 20px 4px; }
+  .search input { height: 36px; border: 1px solid var(--border-strong); border-radius: 10px; padding: 0 12px; width: 200px; font-size: 13px; outline: none; }
+  .search input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(14,122,108,.12); }
+
+  /* ===== 表格 ===== */
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 11px 20px; border-bottom: 1px solid var(--border); background: var(--green-100); }
+  tbody td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  tbody tr:hover { background: var(--green-100); }
+  tbody tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999; }
+  .tag-green { background: var(--green-soft); color: var(--green); }
+  .tag-blue { background: #e8f1fb; color: #1d6fb8; }
+  .tag-gold { background: #fdf3e0; color: #b8821f; }
+  .tag-gray { background: #eef2f0; color: #6b7a75; }
+  .link { color: var(--green); cursor: pointer; }
+  .link-danger { color: #d4605a; cursor: pointer; }
+  .ops a { margin-right: 14px; font-size: 13px; }
+  .id { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider">
+    <div class="sider-brand">
+      <span class="sider-logo">智</span>
+      <span class="sider-title">智愈管理后台</span>
+    </div>
+    <div class="sider-group">组织管理</div>
+    <ul class="menu">
+      <li class="active"><span class="ic"></span>医院管理</li>
+      <li><span class="ic"></span>科室管理</li>
+      <li><span class="ic"></span>医生管理</li>
+    </ul>
+    <div class="sider-group">业务管理</div>
+    <ul class="menu">
+      <li><span class="ic"></span>电子处方审核</li>
+      <li><span class="ic"></span>药品管理</li>
+      <li><span class="ic"></span>药品订单管理</li>
+      <li><span class="ic"></span>收费管理</li>
+    </ul>
+    <div class="sider-group">智能与日志</div>
+    <ul class="menu">
+      <li><span class="ic"></span>医学知识图谱</li>
+      <li><span class="ic"></span>Agent 调用日志</li>
+    </ul>
+    <div class="sider-foot">智愈 · B 端组织与业务管理</div>
+  </aside>
+
+  <section class="main">
+    <header class="topbar">
+      <div class="crumb">组织管理 / <b>医院管理</b></div>
+      <div class="top-right">
+        <span style="font-size:12px;color:var(--muted)">仅展示演示数据</span>
+        <div class="avatar"><span class="dot">A</span><span>admin</span></div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="page-head">
+        <h1>医院管理</h1>
+        <p>维护机构下的医院档案与等级，为科室与医生挂靠提供基础数据。</p>
+        <div class="chips">
+          <span class="chip">三甲 / 三乙</span>
+          <span class="chip">地理坐标</span>
+          <span class="chip">可挂载科室</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">医院总数</div><div class="v">12 <small>家</small></div></div>
+        <div class="stat"><div class="k">三甲</div><div class="v">4 <small>家</small></div></div>
+        <div class="stat"><div class="k">科室总数</div><div class="v">86</div></div>
+        <div class="stat"><div class="k">在职医生</div><div class="v">132</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>医院列表</h2>
+          <button class="btn-primary">+ 新建医院</button>
+        </div>
+        <div class="search">
+          <input placeholder="搜索医院名称" />
+          <button class="btn-ghost">查询</button>
+        </div>
+        <div class="panel-body">
+          <table>
+            <thead>
+              <tr><th style="width:70px">ID</th><th>医院名称</th><th>等级</th><th>地址</th><th>状态</th><th style="width:150px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="id">#1</td><td>智愈示范医院</td><td><span class="tag tag-blue">三甲</span></td><td>杭州市西湖区文三路 88 号</td><td><span class="tag tag-green">启用</span></td><td class="ops"><a class="link">编辑</a><a class="link-danger">删除</a></td></tr>
+              <tr><td class="id">#2</td><td>清松康复医院</td><td><span class="tag tag-blue">三乙</span></td><td>杭州市余杭区文一西路 200 号</td><td><span class="tag tag-green">启用</span></td><td class="ops"><a class="link">编辑</a><a class="link-danger">删除</a></td></tr>
+              <tr><td class="id">#3</td><td>仁济口腔医院</td><td><span class="tag tag-gold">二甲</span></td><td>上海市浦东新区张江路 10 号</td><td><span class="tag tag-gray">停用</span></td><td class="ops"><a class="link">编辑</a><a class="link-danger">删除</a></td></tr>
+              <tr><td class="id">#4</td><td>安和社区医院</td><td><span class="tag tag-gold">二乙</span></td><td>宁波市鄞州区安和街 5 号</td><td><span class="tag tag-green">启用</span></td><td class="ops"><a class="link">编辑</a><a class="link-danger">删除</a></td></tr>
+              <tr><td class="id">#5</td><td>明州中医医院</td><td><span class="tag tag-blue">三甲</span></td><td>杭州市上城区解放路 99 号</td><td><span class="tag tag-green">启用</span></td><td class="ops"><a class="link">编辑</a><a class="link-danger">删除</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p style="margin-top:24px;font-size:12px;color:var(--muted)">提示：本页内容为虚构演示数据，仅供视觉方向预览。</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
