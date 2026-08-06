@@ -55,3 +55,5 @@ miniprogram_npm/
 .scratch/wss-probe.py
 # 彩排录屏（票 26）：带旁白音轨的视频，体积大且非源码，只登记元信息到 rehearsal.md
 .scratch/recordings/
+# GUI 测试截图（调试产物，不入库）
+admin/gui-test-screenshots/

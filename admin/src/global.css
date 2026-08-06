@@ -1,0 +1,357 @@
+/**
+ * 医疗白主题全局样式（方案 A，严格对齐 docs/ui-preview/option-a-medical-white.html）
+ * 色板：主绿 #0e7a6c / 深绿 #123f38 / 底 #f3f8f6 / 浅绿 #e6f2ee / 表头绿 #f0f8f5
+ * 主色 token 由 config/config.ts 的 antd.theme.token 接管；这里补 ProLayout/组件的精准视觉。
+ */
+
+:root {
+  --zy-green: #0e7a6c;
+  --zy-green-soft: #e6f2ee;
+  --zy-green-100: #f0f8f5;
+  --zy-deep: #123f38;
+  --zy-bg: #f3f8f6;
+  --zy-card: #ffffff;
+  --zy-text: #1f2d2a;
+  --zy-muted: #5b7470;
+  --zy-border: #e6f2ee;
+  --zy-border-strong: #dceee8;
+}
+
+* { box-sizing: border-box; }
+
+body,
+.ant-pro-layout,
+.ant-layout {
+  background: var(--zy-bg);
+  color: var(--zy-text);
+  font-size: 14px;
+}
+
+/* ===== 侧栏 ===== */
+.ant-pro-sider,
+.ant-pro-sider-menu {
+  background: var(--zy-card) !important;
+  border-right: 1px solid var(--zy-border);
+}
+
+/* 侧栏 logo 区 */
+.ant-pro-sider-menu-logo {
+  border-bottom: 1px solid var(--zy-border);
+  padding: 14px 20px !important;
+}
+
+/* 菜单分组标题（Menu.ItemGroup） */
+.ant-pro-sider .ant-menu-item-group-title,
+.ant-menu-light .ant-menu-item-group-title {
+  padding: 14px 12px 6px !important;
+  color: var(--zy-muted) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* 菜单项基础样式 */
+.ant-menu-light .ant-menu-item {
+  border-radius: 10px !important;
+  margin: 0 4px 2px !important;
+  width: calc(100% - 8px) !important;
+}
+
+/* 菜单项前的正方形小图标（对齐 option-a .ic：浅灰方块，选中变绿） */
+/* title-content 设为 inline-flex，确保方块与文字在同一行（方块在左、文字在右） */
+.ant-menu-light .ant-menu-item .ant-menu-title-content {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+.ant-menu-light .ant-menu-item .ant-menu-title-content::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #eef5f3;
+  flex: none;
+  margin-right: 10px;
+}
+
+.ant-menu-light .ant-menu-item-selected .ant-menu-title-content::before {
+  background: var(--zy-green);
+  opacity: 0.9;
+}
+
+/* 菜单项 hover */
+.ant-menu-inline .ant-menu-item:not(.ant-menu-item-selected):hover {
+  background-color: var(--zy-green-100) !important;
+  border-radius: 10px;
+}
+
+/* 选中项：浅绿底 + 文字绿加粗 + 左侧 3px 绿指示条（box-shadow inset，不受 overflow:hidden 影响） */
+.ant-menu-light .ant-menu-item-selected {
+  background-color: var(--zy-green-soft) !important;
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 var(--zy-green);
+}
+
+.ant-menu-light .ant-menu-item-selected .ant-menu-title-content,
+.ant-menu-light .ant-menu-item-selected .anticon {
+  color: var(--zy-green) !important;
+  font-weight: 600;
+}
+
+/* 侧栏底部页脚容器（menuFooterRender 渲染处） */
+.ant-pro-sider-menu-footer {
+  border-top: 1px solid var(--zy-border);
+}
+
+/* ===== 顶栏 ===== */
+/* mix 布局顶栏为 position:fixed 全宽，会压住侧栏 logo 区。
+   这里：侧栏通顶覆盖左侧条带，顶栏内容（面包屑/账号）缩进到侧栏宽度之后。 */
+.ant-pro-layout-header-light,
+.ant-layout-header {
+  background: var(--zy-card) !important;
+  border-bottom: 1px solid var(--zy-border);
+  box-shadow: none !important;
+  height: 60px !important;
+  line-height: 60px !important;
+}
+
+/* 侧栏通顶：从 y=0 开始并压住顶栏左侧条带，让 logo 落在左上角（对齐 option-a） */
+.ant-pro-sider.ant-layout-sider {
+  top: 0 !important;
+  margin-top: 0 !important;
+  z-index: 101 !important;
+  height: 100vh !important;
+}
+
+/* 顶栏内容缩进到侧栏宽度之后，避免面包屑落在侧栏 logo 区上方 */
+.ant-pro-layout-header .ant-pro-top-nav-header-main,
+.ant-pro-top-nav-header-logo,
+.ant-layout-header > div {
+  padding-left: 0;
+}
+
+/* 面包屑从侧栏宽度 + option-a 的 28px 起始（224+28=252）。
+   面包屑父链有 32px 偏移（global-header margin16 + 内容16），故 margin 取 220 使落点为 252 */
+.ant-layout-header .ant-breadcrumb {
+  margin-left: 220px;
+}
+
+/* 顶栏右上角账号胶囊（对齐 option-a .avatar：绿圆点首字母 + 用户名） */
+.zy-avatar {
+  background: var(--zy-card);
+  cursor: pointer;
+  /* 顶栏 line-height:60 会让胶囊撑高溢出，复位行高并自适应内容高度 */
+  line-height: 1;
+}
+
+.zy-avatar-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--zy-green);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 顶栏面包屑 */
+.ant-pro-layout-header .ant-breadcrumb,
+.ant-layout-header .ant-breadcrumb {
+  font-size: 13px;
+}
+
+/* ===== 内容区 ===== */
+/* 对齐 option-a .content { padding: 24px 28px }：仅 layout-content 留 24/28 内边距，
+   PageContainer 自带的 40px 内边距清零，避免内容被推离分隔线 */
+.ant-pro-layout-content {
+  background: var(--zy-bg);
+  padding: 24px 28px !important;
+}
+
+.ant-pro-page-container,
+.ant-pro-page-container-children-container,
+.ant-pro-grid-content {
+  padding: 0 !important;
+}
+
+/* header={{title:null}} 仍会渲染空的 ant-page-header 占位（高 32px），整体隐藏避免顶部分量 */
+.ant-pro-page-container .ant-page-header-no-children,
+.ant-pro-page-container .ant-page-header {
+  display: none !important;
+}
+
+/* PageContainer 去掉默认白底卡片，让内容区底色透出 */
+.ant-pro-page-container-children-content {
+  padding: 0 !important;
+}
+
+/* ===== 页面头（对齐 option-a .page-head：标题/简介/标签垂直堆叠） ===== */
+.zy-page-head {
+  margin-bottom: 18px;
+}
+
+.zy-page-head h1 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--zy-deep);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.zy-page-head p {
+  margin: 6px 0 0;
+  color: var(--zy-muted);
+  font-size: 13px;
+}
+
+.zy-chips {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zy-chip {
+  font-size: 12px;
+  border: 1px solid var(--zy-border-strong);
+  color: #2f6b61;
+  background: #fff;
+  padding: 5px 11px;
+  border-radius: 999;
+}
+
+/* ===== 卡片（Card / ProTable 容器） ===== */
+.ant-card {
+  border-radius: 14px !important;
+  border-color: var(--zy-border) !important;
+  box-shadow: 0 6px 18px rgba(15, 118, 110, 0.05) !important;
+}
+
+.ant-card-head {
+  border-bottom-color: var(--zy-border) !important;
+  min-height: 48px !important;
+}
+
+.ant-card-head-title {
+  font-size: 15px;
+  color: var(--zy-deep);
+}
+
+/* ProTable 卡片容器对齐 panel 样式 */
+.ant-pro-table {
+  background: transparent;
+}
+
+.ant-pro-table .ant-card {
+  border-radius: 14px !important;
+}
+
+/* ===== 表格 ===== */
+/* 仅表头浅绿底（对齐 option-a thead）；表体行保持白底，hover 才变浅绿 */
+.ant-table-thead > tr > th {
+  background: var(--zy-green-100) !important;
+  border-bottom-color: var(--zy-border) !important;
+  font-size: 12px;
+  color: var(--zy-muted);
+  font-weight: 600;
+}
+
+.ant-table-tbody > tr > td {
+  background: var(--zy-card) !important;
+  border-bottom-color: var(--zy-border) !important;
+  font-size: 13.5px;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--zy-green-100) !important;
+}
+
+/* ===== 按钮 ===== */
+.ant-btn-primary {
+  border-radius: 10px !important;
+  font-weight: 600;
+}
+
+.ant-btn-default {
+  border-radius: 10px !important;
+}
+
+/* ===== 链接态走绿 ===== */
+.ant-typography a,
+a.ant-typography,
+.ant-btn-link {
+  color: var(--zy-green);
+}
+
+/* ===== 输入框聚焦绿环 ===== */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: var(--zy-green) !important;
+  box-shadow: 0 0 0 3px rgba(14, 122, 108, 0.12) !important;
+}
+
+/* ===== Drawer 头部细分割线 ===== */
+.ant-drawer-header {
+  border-bottom-color: var(--zy-border) !important;
+}
+
+/* ===== 统计卡（StatCards 组件） ===== */
+.zy-stat-card {
+  background: var(--zy-card);
+  border: 1px solid var(--zy-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 18px rgba(15, 118, 110, 0.05);
+}
+
+.zy-stat-card .zy-stat-label {
+  color: var(--zy-muted);
+  font-size: 12px;
+}
+
+.zy-stat-card .zy-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--zy-deep);
+  margin-top: 6px;
+  line-height: 1.2;
+}
+
+.zy-stat-card .zy-stat-value small {
+  font-size: 13px;
+  color: var(--zy-green);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* ===== 表格 ID 列：灰色 #n（对齐 option-a .id） ===== */
+.zy-id {
+  color: var(--zy-muted);
+}
+
+/* ===== 面板搜索条（对齐 option-a .search：输入框 + 查询按钮） ===== */
+.zy-searchbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.zy-searchbar .ant-input {
+  height: 36px;
+  width: 200px;
+  border-radius: 10px;
+  border-color: var(--zy-border-strong);
+}
+
+.zy-searchbar .ant-input:focus {
+  border-color: var(--zy-green);
+  box-shadow: 0 0 0 3px rgba(14, 122, 108, 0.12);
+}
