@@ -35,38 +35,3 @@
   font-size: 25rpx;
   white-space: nowrap;
 }
-
-/* 引导卡片（feature_guide，D2/D7）：客户端渲染，不带免责声明 */
-.guide-card {
-  margin: var(--zy-space-sm) 0;
-}
-
-.guide-hospital {
-  padding: var(--zy-space-md);
-  border-radius: var(--zy-radius-card);
-  background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
-}
-
-.guide-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--zy-text-title);
-}
-
-.guide-desc {
-  margin-top: 10rpx;
-  font-size: 25rpx;
-  color: var(--zy-text-secondary);
-  line-height: 1.55;
-}
-
-.guide-btn {
-  margin-top: 18rpx;
-  padding: 14rpx;
-  border-radius: 28rpx;
-  background: var(--zy-color-primary);
-  color: #fff;
-  text-align: center;
-  font-size: 25rpx;
-}

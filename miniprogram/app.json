@@ -10,10 +10,13 @@
     "pages/drug-orders/index",
     "pages/messages/index",
     "pages/booking/hospitals/index",
+    "pages/booking/campuses/index",
     "pages/booking/departments/index",
     "pages/booking/doctors/index",
     "pages/booking/schedules/index",
-    "pages/booking/confirm/index"
+    "pages/booking/confirm/index",
+    "pages/booking/standard-departments/index",
+    "pages/booking/department-slots/index"
   ],
   "window": {
     "defaultTitle": "智愈",

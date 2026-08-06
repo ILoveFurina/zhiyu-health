@@ -106,6 +106,12 @@
   font-size: 32rpx;
 }
 
+/* 空态 AI挂号助手主卡（票 49）：.empty 为居中 flex，主卡需撑满宽度 */
+.reg-entry-wrap {
+  width: 100%;
+  margin-top: var(--zy-space-lg);
+}
+
 /* ===== 气泡 ===== */
 .bubble {
   max-width: 78%;

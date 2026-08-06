@@ -1,0 +1,70 @@
+<view class="slots-card">
+  <view class="head">
+    <text class="dept-name">{{standardDepartment.name}}</text>
+    <text a:if="{{standardDepartment.category}}" class="dept-category">{{standardDepartment.category}}</text>
+  </view>
+
+  <!-- 14 天日期条：圆点表示当日有可约号源 -->
+  <scroll-view scroll-x class="day-scroll" show-scrollbar="{{false}}">
+    <view class="day-row">
+      <view
+        a:for="{{daysView}}"
+        a:key="date"
+        class="day {{item.active ? 'day-active' : ''}}"
+        data-date="{{item.date}}"
+        onTap="selectDate"
+      >
+        <view class="day-week">{{item.week_label}}</view>
+        <view class="day-label">{{item.day_label}}</view>
+        <view class="day-dot {{item.has_slot ? 'day-dot-on' : ''}}"></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view a:if="{{doctorsView.length === 0}}" class="empty">该科室在当前城市暂无匹配医生</view>
+
+  <view
+    a:for="{{doctorsView}}"
+    a:key="doctor_id"
+    a:for-item="doc"
+    a:for-index="docIndex"
+    class="doctor {{doc.bookable ? '' : 'doctor-disabled'}}"
+  >
+    <view class="doctor-head">
+      <view class="doctor-name-row">
+        <text class="doctor-name">{{doc.doctor_name}}</text>
+        <text a:if="{{doc.title}}" class="doctor-title">{{doc.title}}</text>
+      </view>
+      <text class="doctor-fee">¥{{doc.registration_fee}}</text>
+    </view>
+    <view class="doctor-hospital">
+      {{doc.hospital_name}} · {{doc.campus_name}}<text a:if="{{doc.distance_text}}"> · 距您约 {{doc.distance_text}} km</text>
+    </view>
+
+    <!-- 有号医生：上午/下午时段逐条预约；无号医生保留展示并禁用预约（同一种卡片结构） -->
+    <view a:if="{{doc.bookable}}" class="slots">
+      <view
+        a:for="{{doc.slots}}"
+        a:key="schedule_id"
+        a:for-item="slot"
+        a:for-index="slotIndex"
+        class="slot"
+      >
+        <view class="slot-info">
+          <text class="slot-time">{{slot.time_slot}}</text>
+          <text class="slot-remaining {{slot.remaining_slots <= 0 ? 'slot-remaining-none' : ''}}">
+            {{slot.remaining_slots <= 0 ? '已约满' : '剩余 ' + slot.remaining_slots + ' 个号源'}}
+          </text>
+        </view>
+        <view
+          class="slot-book {{slot.remaining_slots <= 0 ? 'slot-book-disabled' : ''}}"
+          data-doctor-index="{{docIndex}}"
+          data-slot-index="{{slotIndex}}"
+          onTap="book"
+        >预约</view>
+      </view>
+      <view a:if="{{doc.slots.length === 0}}" class="slot-empty">当日暂无排班</view>
+    </view>
+    <view a:else class="no-book">暂无可约号源</view>
+  </view>
+</view>

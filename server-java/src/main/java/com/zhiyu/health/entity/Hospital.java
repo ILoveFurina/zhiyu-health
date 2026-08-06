@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 医院实体，镜像 schema.sql hospitals 表 */
+/** 医院实体，镜像 schema.sql hospitals 表（票 49：地址/坐标/就诊指引静态值已下沉到院区） */
 @Getter
 @Setter
 @TableName("hospitals")
@@ -17,11 +17,4 @@ public class Hospital {
 
     private String name;
     private String level;
-    private String address;
-    private Double longitude;
-    private Double latitude;
-    // 就诊指引卡静态来源（票 43）：演示用虚构医院静态 seed 值，非 LLM 生成
-    private String floor;
-    private String materials;
-    private String precautions;
 }

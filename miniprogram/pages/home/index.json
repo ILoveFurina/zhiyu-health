@@ -1,4 +1,7 @@
 {
   "defaultTitle": "智愈",
-  "titleBarColor": "#e9f6f2"
+  "titleBarColor": "#e9f6f2",
+  "usingComponents": {
+    "registration-card": "/components/registration-card/index"
+  }
 }

@@ -34,6 +34,20 @@
           <view class="arrow">›</view>
         </view>
       </view>
+
+      <!-- AI挂号助手主卡（票 49）：与首页同一组件；智能导诊入口复用 enterTriage 导诊引导 -->
+      <view class="reg-entry-wrap">
+        <registration-card
+          cityName="{{regCityName}}"
+          hospitals="{{regHospitals}}"
+          total="{{regTotal}}"
+          onDepartmentEntry="onDepartmentEntry"
+          onGuideEntry="onGuideEntry"
+          onHospitalTap="onHospitalTap"
+          onMoreHospitals="onMoreHospitals"
+          onRelocate="onRelocate"
+        />
+      </view>
     </view>
 
     <view a:for="{{messages}}" a:key="id">
@@ -68,26 +82,6 @@
         kind="{{item.kind}}"
         card="{{item.card}}"
       />
-
-      <view a:elif="{{item.kind === 'feature_guide' && item.card}}" class="guide-card">
-        <view a:if="{{item.card.feature === 'hospital'}}" class="guide-hospital">
-          <view class="guide-title">找医院</view>
-          <view a:if="{{item.card.mode === 'locate'}}" class="guide-desc">授权定位后，为您推荐就近医院</view>
-          <view a:if="{{item.card.mode === 'manual'}}" class="guide-desc">未获取到定位，点击按区域查找</view>
-          <view
-            a:if="{{item.card.mode === 'locate'}}"
-            class="guide-btn"
-            data-action="locate"
-            onTap="onGuideLocate"
-          >授权定位</view>
-          <view
-            a:if="{{item.card.mode === 'manual'}}"
-            class="guide-btn"
-            data-action="manual"
-            onTap="onGuideManual"
-          >按区域查找</view>
-        </view>
-      </view>
 
       <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
         <view class="report-card-title">报告解读</view>

@@ -16,6 +16,14 @@
   align-items: center;
 }
 .card-main { flex: 1; }
+.name-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
 .name { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.category {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+}
 .meta { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 24rpx; }
 .arrow { margin-left: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 40rpx; }

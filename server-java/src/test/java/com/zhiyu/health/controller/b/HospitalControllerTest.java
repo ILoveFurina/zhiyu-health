@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 医院 CRUD seam：admin 角色门、404 分支、snake_case 字段 */
+/** 医院 CRUD seam：admin 角色门、404/409 分支、精简后的名称+等级输入（票 49） */
 @WebMvcTest(HospitalController.class)
 @Import(HospitalInputMapperImpl.class)
 class HospitalControllerTest {
@@ -35,20 +35,15 @@ class HospitalControllerTest {
     @MockitoBean
     private HospitalAdminService hospitalAdminService;
 
-    private static final String VALID_BODY =
-            """
-            {"name": "智愈市人民医院", "level": "三级甲等", "address": "智愈市安康路 88 号",
-             "longitude": 121.4737, "latitude": 31.2304}
+    private static final String VALID_BODY = """
+            {"name": "郑州智愈综合医院", "level": "三级甲等"}
             """;
 
     private Hospital demoHospital() {
         Hospital hospital = new Hospital();
         hospital.setId(1L);
-        hospital.setName("智愈市人民医院");
+        hospital.setName("郑州智愈综合医院");
         hospital.setLevel("三级甲等");
-        hospital.setAddress("智愈市安康路 88 号");
-        hospital.setLongitude(121.4737);
-        hospital.setLatitude(31.2304);
         return hospital;
     }
 
@@ -59,7 +54,7 @@ class HospitalControllerTest {
         mockMvc.perform(get("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].longitude").value(121.4737));
+                .andExpect(jsonPath("$[0].name").value("郑州智愈综合医院"));
     }
 
     @Test
@@ -78,7 +73,7 @@ class HospitalControllerTest {
                         .contentType("application/json")
                         .content(VALID_BODY))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("智愈市人民医院"));
+                .andExpect(jsonPath("$.name").value("郑州智愈综合医院"));
     }
 
     @Test
@@ -92,12 +87,11 @@ class HospitalControllerTest {
     }
 
     @Test
-    void createRejectsOutOfRangeLongitude() throws Exception {
+    void createRejectsBlankName() throws Exception {
         mockMvc.perform(post("/api/b/hospitals")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
-                        .content("{\"name\": \"x\", \"level\": \"y\", \"address\": \"z\", "
-                                + "\"longitude\": 200.0, \"latitude\": 31.0}"))
+                        .content("{\"name\": \"\", \"level\": \"三级甲等\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -126,5 +120,16 @@ class HospitalControllerTest {
         mockMvc.perform(delete("/api/b/hospitals/99").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("医院不存在"));
+    }
+
+    @Test
+    void deleteReturns409WhenCampusesExist() throws Exception {
+        doThrow(new ApiException(409, "医院下存在院区，无法删除"))
+                .when(hospitalAdminService)
+                .delete(1L);
+
+        mockMvc.perform(delete("/api/b/hospitals/1").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("医院下存在院区，无法删除"));
     }
 }

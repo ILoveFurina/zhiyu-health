@@ -11,14 +11,16 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.mapper.DepartmentMapper;
 import com.zhiyu.health.mapper.DoctorMapper;
+import com.zhiyu.health.mapper.ScheduleMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/** B 端医生管理：科室外键校验，缺失不落库并抛 404（ApiExceptionHandler 统一出口） */
+/** B 端医生管理：科室外键校验 404；存在排班删除 409（票 49 全链限制删除） */
 class DoctorAdminServiceTest {
 
     private final DoctorMapper doctorMapper = mock(DoctorMapper.class);
     private final DepartmentMapper departmentMapper = mock(DepartmentMapper.class);
+    private final ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
     private final DoctorAdminService service = service();
 
     @Test
@@ -46,8 +48,33 @@ class DoctorAdminServiceTest {
         verify(doctorMapper, never()).updateById(any(Doctor.class));
     }
 
+    @Test
+    void deleteDoctorRejects409WhenSchedulesExist() {
+        Doctor doctor = new Doctor();
+        doctor.setId(1L);
+        when(doctorMapper.selectById(1L)).thenReturn(doctor);
+        when(scheduleMapper.selectCount(any())).thenReturn(5L);
+
+        assertThatThrownBy(() -> service.delete(1L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("医生存在排班，无法删除");
+        verify(doctorMapper, never()).deleteById(any(Long.class));
+    }
+
+    @Test
+    void deleteDoctorProceedsWhenNoSchedules() {
+        Doctor doctor = new Doctor();
+        doctor.setId(1L);
+        when(doctorMapper.selectById(1L)).thenReturn(doctor);
+        when(scheduleMapper.selectCount(any())).thenReturn(0L);
+        when(doctorMapper.deleteById(1L)).thenReturn(1);
+
+        service.delete(1L);
+        verify(doctorMapper).deleteById(1L);
+    }
+
     private DoctorAdminService service() {
-        DoctorAdminService service = new DoctorAdminService(departmentMapper);
+        DoctorAdminService service = new DoctorAdminService(departmentMapper, scheduleMapper);
         // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
         ReflectionTestUtils.setField(service, "baseMapper", doctorMapper);
         return service;

@@ -15,9 +15,6 @@ export default function HospitalPage() {
     { title: 'ID', dataIndex: 'id', width: 64, search: false },
     { title: '医院名称', dataIndex: 'name' },
     { title: '等级', dataIndex: 'level' },
-    { title: '地址', dataIndex: 'address', search: false },
-    { title: '经度', dataIndex: 'longitude', search: false },
-    { title: '纬度', dataIndex: 'latitude', search: false },
     {
       title: '操作',
       valueType: 'option',
