@@ -20,11 +20,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.agent.runner import AgentRunner, LazySettingsAgentRunner
 from app.agent.clinical import ClinicalGenerator, LazyClinicalGenerator
 from app.agent.emotion import EmotionJudge
+from app.agent.medication import LazyMedicationKnowledgeStreamer, MedicationKnowledgeStreamer
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.api.agent import router as agent_router
 from app.api.clinical import router as clinical_router
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
+from app.api.medication import router as medication_router
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
 from app.config import get_settings, get_web_settings
@@ -49,6 +51,7 @@ def create_app(
     graph_projector: object | None = None,
     emotion_judge: EmotionJudge | None = None,
     voice_service: VoiceService | None = None,
+    medication_streamer: MedicationKnowledgeStreamer | None = None,
 ) -> FastAPI:
     # uvicorn 只配置自身 logger；app.* 的流生命周期日志需显式接管（票 33）
     configure_logging()
@@ -69,6 +72,7 @@ def create_app(
             app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
             app.state.graph_projector = graph_projector
             app.state.voice_service = voice_service or LazyVoiceService()
+            app.state.medication_streamer = medication_streamer or LazyMedicationKnowledgeStreamer()
             yield
             return
         settings = get_settings()
@@ -96,6 +100,7 @@ def create_app(
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()
         app.state.clinical_generator = clinical_generator or LazyClinicalGenerator()
         app.state.voice_service = voice_service or LazyVoiceService()
+        app.state.medication_streamer = medication_streamer or LazyMedicationKnowledgeStreamer()
         try:
             yield
         finally:
@@ -115,6 +120,7 @@ def create_app(
     application.include_router(vision_router, prefix="/api")
     application.include_router(clinical_router, prefix="/api")
     application.include_router(knowledge_router, prefix="/api")
+    application.include_router(medication_router, prefix="/api")
     application.include_router(voice_router, prefix="/api")
     return application
 
