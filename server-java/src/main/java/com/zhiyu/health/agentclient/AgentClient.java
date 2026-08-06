@@ -16,10 +16,12 @@ import java.util.concurrent.TimeoutException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -157,23 +159,6 @@ public class AgentClient {
      */
     public VisionResponse interpretVision(
             List<MultipartFile> files, HealthProfileService.AgentProfileContext healthProfile, String scenario) {
-        MultipartBodyBuilder body = new MultipartBodyBuilder();
-        body.part("scenario", scenario);
-        try {
-            body.part("health_profile", objectMapper.writeValueAsString(healthProfile));
-            for (MultipartFile file : files) {
-                String filename = file.getOriginalFilename() == null ? "report" : file.getOriginalFilename();
-                ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
-                    @Override
-                    public String getFilename() {
-                        return filename;
-                    }
-                };
-                body.part("files", resource).contentType(MediaType.parseMediaType(file.getContentType()));
-            }
-        } catch (IOException e) {
-            throw new ApiException(422, "报告文件无法读取");
-        }
         VisionResponse response;
         try {
             response = webClient
@@ -181,7 +166,7 @@ public class AgentClient {
                     .uri("/api/agent/vision/interpret")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .accept(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromMultipartData(body.build()))
+                    .body(BodyInserters.fromMultipartData(buildVisionMultipart(files, healthProfile, scenario)))
                     .retrieve()
                     .bodyToMono(VisionResponse.class)
                     // server-py 最多进行两次 150 秒结构校验调用，预留少量传输时间。
@@ -198,6 +183,34 @@ public class AgentClient {
             throw new VisionAgentException(CODE_AGENT_UNAVAILABLE, 502, MSG_AGENT_UNAVAILABLE);
         }
         return response;
+    }
+
+    /**
+     * 组装视觉接口 multipart（票 46）：无激活健康档案是合法业务状态，此时必须省略
+     * health_profile part——序列化 null 会得到字面 "null"，server-py 无法按档案对象校验。
+     */
+    MultiValueMap<String, HttpEntity<?>> buildVisionMultipart(
+            List<MultipartFile> files, HealthProfileService.AgentProfileContext healthProfile, String scenario) {
+        MultipartBodyBuilder body = new MultipartBodyBuilder();
+        body.part("scenario", scenario);
+        try {
+            if (healthProfile != null) {
+                body.part("health_profile", objectMapper.writeValueAsString(healthProfile));
+            }
+            for (MultipartFile file : files) {
+                String filename = file.getOriginalFilename() == null ? "report" : file.getOriginalFilename();
+                ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
+                    @Override
+                    public String getFilename() {
+                        return filename;
+                    }
+                };
+                body.part("files", resource).contentType(MediaType.parseMediaType(file.getContentType()));
+            }
+        } catch (IOException e) {
+            throw new ApiException(422, "报告文件无法读取");
+        }
+        return body.build();
     }
 
     /**
