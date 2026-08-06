@@ -74,9 +74,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             ChatPayload data = objectMapper.treeToValue(envelope.data(), ChatPayload.class);
             boolean hasMedication = data.medicationName() != null && !data.medicationName().isBlank();
             boolean hasContent = data.content() != null && !data.content().isBlank();
-            if (hasMedication && hasContent) {
-                // 契约：medication_name 与 text 互斥（票 51）
-                throw new IllegalArgumentException("content 与 medication_name 不能同时携带");
+            if (hasMedication == hasContent) {
+                // 契约：medication_name 与 text 互斥且必居其一（票 51，与 HTTP 通道同一 XOR 规则）
+                throw new IllegalArgumentException("content 与 medication_name 必须且只能携带其一");
             }
             ChatRoundService.Handle handle = hasMedication
                     ? rounds.acceptMedication(new ChatRoundService.MedicationCommand(

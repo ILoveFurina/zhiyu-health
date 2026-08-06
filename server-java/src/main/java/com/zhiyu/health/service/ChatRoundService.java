@@ -178,7 +178,7 @@ public class ChatRoundService {
                 });
     }
 
-    /** token 透传 + 流尾组装 message；medicaton 流契约只有 token/done，其余事件忽略。 */
+    /** token 透传 + 流尾组装 message；medication 流契约只有 token/done，其余事件忽略。 */
     private void forwardMedication(RunningRound runtime, ServerSentEvent<String> incoming) {
         if (runtime.terminal.get()) {
             return;

@@ -137,6 +137,31 @@ class ChatWebSocketHandlerTest {
         org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).acceptMedication(any());
     }
 
+    @Test
+    void neitherContentNorMedicationNameIsRejected() throws Exception {
+        // 契约：medication_name 与 text 必居其一（与 HTTP 通道同一 XOR 规则），
+        // 两者皆空的信封不得落入携带 null content 的普通对话轮次
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage(
+                        """
+                        {"type":"chat","request_id":"req-x","data":{}}
+                        """));
+
+        JsonNode error = mapper.readTree(sent.get(0));
+        assertThat(error.path("type").asText()).isEqualTo("error");
+        assertThat(error.path("data").path("code").asText()).isEqualTo("CHAT_REJECTED");
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).accept(any());
+        org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).acceptMedication(any());
+    }
+
     private WebSocketSession session(List<String> sent) throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
         Map<String, Object> attributes = new HashMap<>();
