@@ -20,7 +20,15 @@ public class ChatService {
     private final ObjectMapper objectMapper;
 
     public SseEmitter chat(ChatRoundService.Command command) {
-        ChatRoundService.Handle handle = rounds.accept(command);
+        return stream(rounds.accept(command));
+    }
+
+    /** 药品说明书流（票 51）：SSE 降级通道与 WS 同语义，走 medication 轮次。 */
+    public SseEmitter medication(ChatRoundService.MedicationCommand command) {
+        return stream(rounds.acceptMedication(command));
+    }
+
+    private SseEmitter stream(ChatRoundService.Handle handle) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
         AtomicBoolean closed = new AtomicBoolean();
         // 已转发事件数：响应按 text/event-stream 提交后再 completeWithError 只会触发

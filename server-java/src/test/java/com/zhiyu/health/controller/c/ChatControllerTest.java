@@ -54,9 +54,51 @@ class ChatControllerTest {
         emitter.complete();
     }
 
+    @Test
+    void medicationNameRoutesToMedicationRound() throws Exception {
+        // 票 51：SSE 降级通道与 WS 同语义，medication_name 走说明书流轮次
+        ChatService service = mock(ChatService.class);
+        SseEmitter emitter = new SseEmitter();
+        when(service.medication(any())).thenReturn(emitter);
+        MockMvc mvc = mvc(service);
+
+        mvc.perform(
+                        post("/api/c/chat")
+                                .requestAttr("authSubject", 12L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"request_id":"req-med","medication_name":"阿莫西林胶囊"}
+                                """))
+                .andExpect(request().asyncStarted());
+
+        verify(service)
+                .medication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+        verify(service, org.mockito.Mockito.never()).chat(any());
+        emitter.complete();
+    }
+
+    @Test
+    void contentAndMedicationNameTogetherAreRejected() throws Exception {
+        ChatService service = mock(ChatService.class);
+        MockMvc mvc = mvc(service);
+
+        mvc.perform(post("/api/c/chat")
+                        .requestAttr("authSubject", 12L)
+                        .contentType("application/json")
+                        .content(
+                                """
+                        {"request_id":"req-x","content":"你好","medication_name":"布洛芬"}
+                        """))
+                .andExpect(status().isBadRequest());
+        verify(service, org.mockito.Mockito.never()).chat(any());
+        verify(service, org.mockito.Mockito.never()).medication(any());
+    }
+
     private MockMvc mvc(ChatService service) {
         ObjectMapper mapper = new ObjectMapper();
         return MockMvcBuilders.standaloneSetup(new ChatController(service))
+                .setControllerAdvice(new com.zhiyu.health.config.ApiExceptionHandler())
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
                         new MappingJackson2HttpMessageConverter(mapper))

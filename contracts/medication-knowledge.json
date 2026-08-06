@@ -1,0 +1,8 @@
+{
+  "_doc": "C 端通用药品说明书流（票 51，ADR-0028）：server-py 经 SSE 流式输出 LLM 通用药品知识（token×N → done），内容来自通用语料，不绑业务表、不做个性化禁忌判定（禁忌仅留 B 端开方链路，ADR-0016）。consult_professional 为流尾统一话术；unknown_drug 为未识别药名话术；免责声明复用 disclaimer.json。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "stream_events": ["token", "done"],
+  "messages": {
+    "consult_professional": "具体是否适用请咨询医生或药师",
+    "unknown_drug": "未找到该药品的通用信息，请核对药名后重试，或咨询医生或药师"
+  }
+}

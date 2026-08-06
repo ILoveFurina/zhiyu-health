@@ -46,7 +46,9 @@ class FakeRawVisionModel:
         self.calls: list[list[dict[str, object]]] = []
         self.system_prompts: list[str] = []
 
-    async def ainvoke(self, content: list[dict[str, object]], system_prompt: str) -> str:
+    async def ainvoke(
+        self, content: list[dict[str, object]], system_prompt: str, reasoning_effort: str
+    ) -> str:
         self.calls.append(content)
         self.system_prompts.append(system_prompt)
         return next(self.responses)

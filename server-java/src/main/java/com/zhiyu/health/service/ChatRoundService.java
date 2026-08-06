@@ -139,6 +139,126 @@ public class ChatRoundService {
         runtime.complete();
     }
 
+    /**
+     * 通用药品说明书流轮次（票 51，ADR-0028）：chat 信封 medication_name 入口。
+     *
+     * <p>与对话轮次的差异：不经过红线规则与健康档案注入（C 端不做个性化禁忌判定，
+     * 硬约束 2），server-py 只产 token/done 两事件，message 由本端在流尾组装落 KIND_TEXT。
+     * 幂等与观察语义复用对话轮次（票 33/40 relay 机制）。
+     */
+    public synchronized Handle acceptMedication(MedicationCommand command) {
+        validateMedication(command);
+        ChatRound existing = persistence.find(command.patientId(), command.requestId());
+        if (existing != null) {
+            return observeExisting(existing);
+        }
+        ChatRound round = persistence.create(
+                command.patientId(), command.requestId(), command.conversationId(), command.drugName());
+        RunningRound runtime = new RunningRound(round);
+        running.put(round.getId(), runtime);
+        runMedication(runtime, command);
+        return runtime.handle();
+    }
+
+    private void runMedication(RunningRound runtime, MedicationCommand command) {
+        ChatRound round = runtime.round;
+        persistence.markRunning(round.getId());
+        // 入口审计（硬约束 5）：只记脱敏药名（首字 + 长度），不记药名原文
+        log.info(
+                "medication round accepted roundId={} requestId={} drug={}",
+                round.getId(),
+                round.getRequestId(),
+                maskForAudit(command.drugName()));
+        runtime.emit(contracts.sseEvents().metaEvent(), baseData(round));
+        agentClient.medicationKnowledge(command.drugName()).subscribe(
+                event -> forwardMedication(runtime, event), error -> fail(runtime, error), () -> {
+                    if (!runtime.sawDone.get()) {
+                        fail(runtime, new IllegalStateException("Agent 流未发送 done 即结束"));
+                    }
+                });
+    }
+
+    /** token 透传 + 流尾组装 message；medication 流契约只有 token/done，其余事件忽略。 */
+    private void forwardMedication(RunningRound runtime, ServerSentEvent<String> incoming) {
+        if (runtime.terminal.get()) {
+            return;
+        }
+        try {
+            runtime.recordUpstream(incoming.event());
+            JsonNode raw = parseData(incoming.data());
+            Contracts.MedicationKnowledge contract = contracts.medicationKnowledge();
+            if (contract.tokenEvent().equals(incoming.event())) {
+                String text = raw.path("text").asText("");
+                runtime.medicationText.append(text);
+                emitMedicationToken(runtime, text);
+            } else if (contract.doneEvent().equals(incoming.event())) {
+                finishMedication(runtime);
+            }
+        } catch (RuntimeException | JsonProcessingException error) {
+            fail(runtime, error);
+        }
+    }
+
+    /**
+     * 流尾出口兜底（硬约束 1）：免责声明缺失时补齐，consult_professional 一律追加；
+     * 双话术先以 token 下发（直播气泡可见），随后整段落 KIND_TEXT 并 emit message/done。
+     */
+    private void finishMedication(RunningRound runtime) {
+        ChatRound round = runtime.round;
+        Contracts.MedicationKnowledge contract = contracts.medicationKnowledge();
+        StringBuilder content = new StringBuilder(runtime.medicationText.toString());
+        String disclaimer = contracts.disclaimer().text();
+        if (!content.toString().contains(disclaimer)) {
+            String tail = "\n\n" + disclaimer;
+            content.append(tail);
+            emitMedicationToken(runtime, tail);
+        }
+        String consult = "\n" + contract.consultProfessional();
+        content.append(consult);
+        emitMedicationToken(runtime, consult);
+
+        ObjectNode messageData = objectMapper
+                .createObjectNode()
+                .put("role", "assistant")
+                .put("content", content.toString());
+        JsonNode persisted = persistence.persistEvent(round, contracts.sseEvents().messageEvent(), messageData);
+        runtime.emit(contracts.sseEvents().messageEvent(), persisted);
+        runtime.sawDone.set(true);
+        persistence.markCompleted(round.getId());
+        JsonNode doneData = persistence.persistEvent(
+                round, contracts.sseEvents().doneEvent(), objectMapper.createObjectNode());
+        runtime.emit(contracts.sseEvents().doneEvent(), doneData);
+        runtime.finish();
+    }
+
+    private void emitMedicationToken(RunningRound runtime, String text) {
+        runtime.emit(
+                contracts.medicationKnowledge().tokenEvent(),
+                objectMapper
+                        .createObjectNode()
+                        .put("request_id", runtime.round.getRequestId())
+                        .put("text", text));
+    }
+
+    /** 审计脱敏：只保留首字与长度（硬约束 5，药名属患者健康相关原文）。 */
+    private String maskForAudit(String drugName) {
+        String trimmed = drugName.trim();
+        return trimmed.charAt(0) + "***（len=" + trimmed.length() + "）";
+    }
+
+    private void validateMedication(MedicationCommand command) {
+        if (command.requestId() == null
+                || command.requestId().isBlank()
+                || command.requestId().length() > 64) {
+            throw new ApiException(400, "request_id 必须为 1 到 64 个字符");
+        }
+        if (command.drugName() == null
+                || command.drugName().isBlank()
+                || command.drugName().length() > 100) {
+            throw new ApiException(400, "medication_name 必须为 1 到 100 个字符");
+        }
+    }
+
     private void runAgent(RunningRound runtime, Command command) {
         ChatRound round = runtime.round;
         persistence.markRunning(round.getId());
@@ -304,6 +424,9 @@ public class ChatRoundService {
             Double longitude,
             Double latitude) {}
 
+    /** 药品说明书流轮次命令（票 51）：无 effort/scenario/档案/定位，只有药名。 */
+    public record MedicationCommand(Long patientId, String requestId, Long conversationId, String drugName) {}
+
     public record Event(String event, JsonNode data) {}
 
     public record Handle(String requestId, Long conversationId, String status, Flux<Event> events) {}
@@ -327,6 +450,8 @@ public class ChatRoundService {
         private final AtomicInteger events = new AtomicInteger();
         private final AtomicBoolean terminal = new AtomicBoolean();
         private final AtomicBoolean sawDone = new AtomicBoolean();
+        // 药品说明书流（票 51）：server-py 只产 token/done，本端逐 token 累积，流尾组装 message
+        private final StringBuilder medicationText = new StringBuilder();
 
         private RunningRound(ChatRound round) {
             this.round = round;

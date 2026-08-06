@@ -21,11 +21,11 @@ function parseResponse(res) {
 }
 
 /**
- * 上传药盒照片并触发视觉识别 + 药品查询（票 14，ADR-0025）。
+ * 上传药盒照片并触发视觉 OCR 提名（票 51，ADR-0028；取代票 14 双出口）。
  *
- * 与 15/16/17 上传链路同构：my.uploadFile 单次只传一个 file，单张照片一次请求即上传+分析。
- * 视觉只提候选药名，药品匹配与禁忌判定全在 server-java 完成，返回双出口
- * medication_info + medication_safety 卡片（或 not_found=true 引导文案）。
+ * 与 15/16/17 上传链路同构：my.uploadFile 单次只传一个 file，单张照片一次请求即上传+识别。
+ * 视觉只提候选药名，返回 {request_id, conversation_id, recognized, drug_names[], hint?}；
+ * 说明书流由客户端拿到药名后另起 medication_name 轮次（见 pillbox-composer.js）。
  */
 function uploadPillBoxPhoto({ requestId, conversationId, item }) {
   const mediaType = item.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'

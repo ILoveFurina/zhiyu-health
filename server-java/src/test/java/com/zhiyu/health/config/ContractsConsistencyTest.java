@@ -54,9 +54,7 @@ class ContractsConsistencyTest {
                         "skin_analysis",
                         "image",
                         "diet_analysis",
-                        "tongue_analysis",
-                        "medication_info",
-                        "medication_safety");
+                        "tongue_analysis");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -73,9 +71,6 @@ class ContractsConsistencyTest {
         assertThat(Message.KIND_IMAGE).isEqualTo(events.messageKinds().get(10));
         assertThat(Message.KIND_DIET_ANALYSIS).isEqualTo(events.messageKinds().get(11));
         assertThat(Message.KIND_TONGUE_ANALYSIS).isEqualTo(events.messageKinds().get(12));
-        assertThat(Message.KIND_MEDICATION_INFO).isEqualTo(events.messageKinds().get(13));
-        assertThat(Message.KIND_MEDICATION_SAFETY)
-                .isEqualTo(events.messageKinds().get(14));
     }
 
     @Test
@@ -94,9 +89,9 @@ class ContractsConsistencyTest {
         assertThat(Message.isAiCardKind(Message.KIND_DIET_ANALYSIS)).isTrue();
         // tongue_analysis 是 AI 产出的中医辨证卡片，属于 ai_card_kinds（票 17）
         assertThat(Message.isAiCardKind(Message.KIND_TONGUE_ANALYSIS)).isTrue();
-        // medication_info/medication_safety 是票 14 拍药盒双出口的 AI 卡片，属于 ai_card_kinds
-        assertThat(Message.isAiCardKind(Message.KIND_MEDICATION_INFO)).isTrue();
-        assertThat(Message.isAiCardKind(Message.KIND_MEDICATION_SAFETY)).isTrue();
+        // 票 51（ADR-0028）：medication_info/medication_safety 双卡片出口已删除，不再是任何 kind
+        assertThat(Message.isAiCardKind("medication_info")).isFalse();
+        assertThat(Message.isAiCardKind("medication_safety")).isFalse();
         // red_flag 是规则引擎产物，不属于 AI 卡片
         assertThat(Message.isAiCardKind("red_flag")).isFalse();
     }
@@ -163,8 +158,6 @@ class ContractsConsistencyTest {
                         "skin_analysis",
                         "diet_analysis",
                         "tongue_analysis",
-                        "medication_info",
-                        "medication_safety",
                         "report_upload",
                         "image");
     }

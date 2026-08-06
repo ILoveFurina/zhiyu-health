@@ -7,7 +7,6 @@ const skinComposer = require('./skin-composer')
 const dietComposer = require('./diet-composer')
 const tongueComposer = require('./tongue-composer')
 const pillboxComposer = require('./pillbox-composer')
-const medicationLookupComposer = require('./medication-lookup-composer')
 const { hospitalRoutingMethods, scenarioFor } = require('./hospital-routing')
 const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
@@ -70,8 +69,6 @@ Page({
     tongueProgress: '',
     pendingPillbox: null,
     pillboxProgress: '',
-    pendingMedLookup: null,
-    medLookupProgress: '',
     profileLoaded: false,
     currentProfile: null,
     // AI挂号助手主卡（票 49，空态展示）：与首页同一组件、同一份装配 service
@@ -97,7 +94,6 @@ Page({
   ...dietComposer,
   ...tongueComposer,
   ...pillboxComposer,
-  ...medicationLookupComposer,
   ...hospitalRoutingMethods,
   ...featureGuideMethods,
 

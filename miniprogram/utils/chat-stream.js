@@ -141,6 +141,8 @@ function socketErrorMessage(detail) {
 function requestData(params) {
   return {
     content: params.content,
+    // 票 51：药品说明书流信封字段，与 content 互斥（拍药盒识别后自动携带）
+    medication_name: params.medicationName || undefined,
     conversation_id: params.conversationId || undefined,
     effort: params.effort,
     scenario: params.scenario,

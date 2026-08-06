@@ -1,6 +1,0 @@
-Component({
-  props: {
-    card: {},
-    disclaimer: '',
-  },
-})

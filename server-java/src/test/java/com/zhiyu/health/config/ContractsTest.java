@@ -34,17 +34,18 @@ class ContractsTest {
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments");
         assertThat(events.messageKinds())
-                .hasSize(15)
+                .hasSize(13)
                 .contains(
                         "text",
                         "report_interpretation",
                         "skin_analysis",
                         "image",
                         "diet_analysis",
-                        "tongue_analysis",
-                        "medication_info",
-                        "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(11);
+                        "tongue_analysis")
+                // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
+                // 说明书走流式文本，禁忌仅留 B 端开方链路
+                .doesNotContain("medication_info", "medication_safety");
+        assertThat(events.aiCardKinds()).hasSize(9);
         assertThat(events.eventToKind())
                 .hasSize(6)
                 .containsEntry("hospital_recommendations", "hospital_recommendations");
@@ -109,6 +110,19 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
+        // 票 51：chat 信封可选字段（拍药盒识别后请求通用药品说明书流）
+        assertThat(realtime.chatOptionalFields()).containsExactly("medication_name");
+    }
+
+    @Test
+    void medicationKnowledgeContractIsLoaded() {
+        // 票 51（ADR-0028）：C 端通用药品说明书流事件序列与话术钉死
+        Contracts.MedicationKnowledge knowledge = contracts.medicationKnowledge();
+        assertThat(knowledge.streamEvents()).containsExactly("token", "done");
+        assertThat(knowledge.tokenEvent()).isEqualTo("token");
+        assertThat(knowledge.doneEvent()).isEqualTo("done");
+        assertThat(knowledge.consultProfessional()).isEqualTo("具体是否适用请咨询医生或药师");
+        assertThat(knowledge.unknownDrug()).contains("未找到该药品");
     }
 
     @Test

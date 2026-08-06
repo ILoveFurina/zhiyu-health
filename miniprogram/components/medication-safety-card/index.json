@@ -1,6 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "ai-disclaimer": "/components/ai-disclaimer/index"
-  }
-}

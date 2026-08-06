@@ -335,11 +335,3 @@
   background: var(--zy-color-primary);
   color: #fff;
 }
-
-.medlookup-input {
-  background: #f2f3f5;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
-  font-size: 28rpx;
-  margin: 16rpx 0;
-}

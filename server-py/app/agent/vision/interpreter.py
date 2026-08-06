@@ -9,9 +9,10 @@ interpreter 不再写死 ReportInterpretation：按 document.scenario 取 policy
 
 import base64
 import json
-from typing import Protocol
+from typing import Literal, Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from pydantic import BaseModel, ValidationError
 
 from app.agent.vision.document import PreparedDocument
@@ -30,7 +31,12 @@ class VisionScopeError(RuntimeError):
 
 
 class RawVisionModel(Protocol):
-    async def ainvoke(self, content: list[dict[str, object]], system_prompt: str) -> str:
+    async def ainvoke(
+        self,
+        content: list[dict[str, object]],
+        system_prompt: str,
+        reasoning_effort: Literal["disabled", "low", "high"],
+    ) -> str:
         """返回模型原始文本；调用方负责结构校验。"""
         ...
 
@@ -60,7 +66,7 @@ class StructuredVisionInterpreter:
                         + "。请重新输出完整且严格符合 Schema 的 JSON。",
                     }
                 )
-            raw = await self._model.ainvoke(request, policy.system_prompt)
+            raw = await self._model.ainvoke(request, policy.system_prompt, policy.reasoning_effort)
             try:
                 result = policy.result_model.model_validate_json(raw)
                 # scope 拒绝由场景策略驱动：result_model 含 scope_supported 时统一断言，
@@ -81,11 +87,25 @@ class StructuredVisionInterpreter:
 
 class ChatOpenAIVisionModel:
     def __init__(self, settings: Settings) -> None:
-        model = build_chat_model(settings, reasoning_effort="high", timeout=150, max_retries=0)
-        self._model = model.bind(response_format={"type": "json_object"})
+        self._settings = settings
+        # 推理档位按场景策略在调用期确定（票 51），模型按档位懒构建并缓存
+        self._models: dict[str, Runnable] = {}
 
-    async def ainvoke(self, content: list[dict[str, object]], system_prompt: str) -> str:
-        response = await self._model.ainvoke(
+    def _model_for(self, reasoning_effort: Literal["disabled", "low", "high"]) -> Runnable:
+        if reasoning_effort not in self._models:
+            model = build_chat_model(
+                self._settings, reasoning_effort=reasoning_effort, timeout=150, max_retries=0
+            )
+            self._models[reasoning_effort] = model.bind(response_format={"type": "json_object"})
+        return self._models[reasoning_effort]
+
+    async def ainvoke(
+        self,
+        content: list[dict[str, object]],
+        system_prompt: str,
+        reasoning_effort: Literal["disabled", "low", "high"],
+    ) -> str:
+        response = await self._model_for(reasoning_effort).ainvoke(
             [SystemMessage(content=system_prompt), HumanMessage(content=content)]  # type: ignore[arg-type]
         )
         return response.content if isinstance(response.content, str) else ""
