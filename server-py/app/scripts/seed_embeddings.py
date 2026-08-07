@@ -15,6 +15,7 @@ from pathlib import Path
 from app.config import get_settings
 from app.core.contracts import get_contracts
 from app.core.embeddings import build_embedding_model
+from app.core.eventloop import force_selector_event_loop_on_windows
 from app.db.clients import acquire_pg_connection
 
 # 产物路径：server-java 的 classpath 资源目录（parents[3] = 仓库根 zhiyu-health）
@@ -99,6 +100,5 @@ async def main() -> int:
 
 if __name__ == "__main__":
     # Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    force_selector_event_loop_on_windows()
     raise SystemExit(asyncio.run(main()))

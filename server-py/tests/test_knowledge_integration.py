@@ -7,16 +7,15 @@ query 向量缓存：同一查询的 embed 只调一次 endpoint。
 """
 
 import asyncio
-import sys
 
 import pytest
 
 from app.config import get_settings
+from app.core.eventloop import force_selector_event_loop_on_windows
 from app.services.knowledge import PgvectorKnowledgeRetriever, build_knowledge_retriever
 
 # Windows psycopg 异步需 SelectorEventLoop
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+force_selector_event_loop_on_windows()
 
 # 10 条典型症状查询及期望命中的知识块 title（Top-3 内含期望块即算命中）
 _QUERIES: list[tuple[str, str]] = [

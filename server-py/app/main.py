@@ -4,15 +4,8 @@
 业务 API、鉴权、会话持久化均不在本端。
 """
 
-import asyncio
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
-# Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容，切到 SelectorEventLoop。
-# 生产部署在 Linux 不受影响（Linux 默认即兼容的 epoll 循环）。
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +23,7 @@ from app.api.medication import router as medication_router
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
 from app.config import get_settings, get_web_settings
+from app.core.eventloop import force_selector_event_loop_on_windows
 from app.core.logging import configure_logging
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
@@ -38,6 +32,10 @@ from app.services.health import HealthChecker, HealthService
 from app.services.knowledge import build_knowledge_retriever
 from app.services.voice import LazyVoiceService, VoiceService
 from app.tools.business import BusinessCallbackClient, build_business_tools
+
+# Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容，切到 SelectorEventLoop。
+# 生产部署在 Linux 不受影响（Linux 默认即兼容的 epoll 循环）。
+force_selector_event_loop_on_windows()
 
 
 def create_app(
