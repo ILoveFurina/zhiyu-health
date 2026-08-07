@@ -32,10 +32,8 @@ class DemoPharmacySyncServiceTest {
     void syncReturnsStatsAndStampsSnapshot() {
         SyncResult result = service.sync();
         assertThat(result.pharmacyCount()).isEqualTo(3);
-        assertThat(result.recordCount())
-                .isEqualTo(service.snapshot().pharmacies().stream()
-                        .mapToInt(pharmacy -> pharmacy.items().size())
-                        .sum());
+        // fixture 固定 3 家药店 × 各 4 条明细 = 12，硬编码期望避免复制实现的聚合逻辑
+        assertThat(result.recordCount()).isEqualTo(12);
         assertThat(service.snapshot().lastSyncedAt()).isEqualTo(result.syncedAt());
     }
 }
