@@ -1,6 +1,9 @@
 import { ModalForm, ProFormDatePicker, ProFormDigit, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { Form } from 'antd';
-import { createDoctor, listDepartments, updateDoctor, type Doctor } from '@/services/organization';
+import { Form, Upload, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { createDoctor, listDepartments, updateDoctor, uploadDoctorPhoto, type Doctor } from '@/services/organization';
+import { doctorPhotoAllowedTypes, doctorPhotoMaxBytes } from '@/contracts/doctorPhoto';
+import DoctorPhoto from './DoctorPhoto';
 
 interface Props {
   open: boolean;
@@ -12,6 +15,48 @@ interface Props {
 export default function DoctorForm({ open, record, onOpenChange, onSuccess }: Props) {
   // 主动控制回显/重置：避免 initialValues 在 open 切换时不重读导致新建残留旧数据
   const [form] = Form.useForm<Omit<Doctor, 'id'>>();
+  const photoUrl = Form.useWatch('photo_url', form);
+
+  // 上传前校验：类型与大小不合法直接拦截，不发请求（上限与类型从契约推导，与 server-java 一致）
+  const beforeUpload = (file: File): boolean => {
+    if (!doctorPhotoAllowedTypes.includes(file.type)) {
+      message.error('照片仅支持 JPEG/PNG 格式');
+      return false;
+    }
+    if (file.size > doctorPhotoMaxBytes) {
+      message.error('照片不能超过 2MB');
+      return false;
+    }
+    return true;
+  };
+
+  // Upload 自定义请求：拿到 object_key 写入 photo_url 表单字段（不发 antd 默认请求）
+  const customUpload = (options: any) => {
+    const { file, onSuccess: onDone, onError } = options;
+    uploadDoctorPhoto(file as File)
+      .then((res) => {
+        if (res.object_key) {
+          form.setFieldValue('photo_url', res.object_key);
+          onDone(res, file);
+        } else {
+          // MinIO 旁路降级：返回空 key，提示不阻塞保存
+          message.warning('照片存储暂不可用，已跳过照片，档案仍可保存');
+          form.setFieldValue('photo_url', undefined);
+          onDone({}, file);
+        }
+      })
+      .catch((e) => {
+        message.error(e instanceof Error ? e.message : '照片上传失败');
+        onError(e);
+      });
+    return false; // 阻止 antd 自动上传
+  };
+
+  // 移除已上传照片：清空 photo_url
+  const onRemove = () => {
+    form.setFieldValue('photo_url', undefined);
+    return true;
+  };
 
   return (
     <ModalForm<Omit<Doctor, 'id'>>
@@ -65,7 +110,35 @@ export default function DoctorForm({ open, record, onOpenChange, onSuccess }: Pr
         rules={[{ required: true, message: '请输入挂号费' }]}
       />
       <ProFormText name="specialty" label="擅长" rules={[{ required: true, message: '请输入擅长' }]} />
-      <ProFormText name="photo_url" label="照片" placeholder="暂填图片 URL，后续将改为上传" />
+      {/* 照片可选：上传后写入 object key；photo_url 隐藏承载实际值 */}
+      <Form.Item label="照片">
+        <Form.Item name="photo_url" hidden>
+          <input />
+        </Form.Item>
+        <Upload
+          listType="picture-card"
+          accept="image/jpeg,image/png"
+          maxCount={1}
+          showUploadList={{ showPreviewIcon: false }}
+          customRequest={customUpload}
+          beforeUpload={beforeUpload}
+          onRemove={onRemove}
+          // 已有 object key 但 Upload 内部 fileList 不感知，用自定义预览覆盖显示
+          fileList={[]}
+        >
+          {photoUrl ? (
+            <div style={{ position: 'relative' }}>
+              <DoctorPhoto objectKey={photoUrl} size={86} />
+            </div>
+          ) : (
+            <div>
+              <PlusOutlined />
+              <div style={{ marginTop: 8 }}>上传照片</div>
+            </div>
+          )}
+        </Upload>
+        <div style={{ color: 'var(--zy-muted)', fontSize: 12 }}>支持 JPEG/PNG，不超过 2MB；照片可选</div>
+      </Form.Item>
     </ModalForm>
   );
 }

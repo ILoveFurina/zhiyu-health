@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Image, Input, Popconfirm, Select } from 'antd';
+import { Button, Input, Popconfirm, Select } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import {
   listCampuses,
@@ -13,6 +13,7 @@ import {
   type Hospital,
 } from '@/services/organization';
 import DoctorForm from './components/DoctorForm';
+import DoctorPhoto from './components/DoctorPhoto';
 import StatCards from '@/components/StatCards';
 import PageHead from '@/components/PageHead';
 
@@ -143,12 +144,7 @@ export default function DoctorPage() {
       search: false,
       width: 72,
       align: 'center',
-      render: (_, row) =>
-        row.photo_url ? (
-          <Image src={row.photo_url} width={40} height={40} style={{ borderRadius: 6, objectFit: 'cover' }} />
-        ) : (
-          <span style={{ color: 'var(--zy-muted)' }}>-</span>
-        ),
+      render: (_, row) => <DoctorPhoto objectKey={row.photo_url} size={40} />,
     },
     {
       title: '操作',
