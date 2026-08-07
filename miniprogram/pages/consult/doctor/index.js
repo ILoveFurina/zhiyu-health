@@ -45,6 +45,8 @@ Page({
     consultMethodLabel: '',
     isVideo: false,
     videoElapsed: '',
+    methodInitiated: false,
+    methodRequiredText: TEXTS.method_required,
     consultCompletedText: TEXTS.consult_completed,
     messages: [],
     inputValue: '',
@@ -136,6 +138,8 @@ Page({
         : consultation.progress_step || (completed ? 'COMPLETED' : 'IN_PROGRESS'),
       doctor,
       doctorInitial: doctor && doctor.name ? doctor.name.slice(0, 1) : '医',
+      // 图文/视频都须由医生明确发起后才开放输入（server-java 同样 409 兜底）
+      methodInitiated: consultation.consult_method != null,
       consultMethodLabel:
         consultation.consult_method_label ||
         CONSULT_METHOD_LABELS[consultation.consult_method] ||
@@ -178,7 +182,7 @@ Page({
 
   send() {
     const content = this.data.inputValue.trim()
-    if (!content || this.data.sending || !this.data.inProgress) return
+    if (!content || this.data.sending || !this.data.inProgress || !this.data.methodInitiated) return
     this.setData({ sending: true })
     sendMessage(this.data.id, content)
       .then((res) => {

@@ -57,8 +57,8 @@
       <view id="thread-bottom" class="thread-tail"></view>
     </scroll-view>
 
-    <!-- 输入栏：仅 IN_PROGRESS 可用；COMPLETED 只读 -->
-    <view a:if="{{inProgress}}" class="composer">
+    <!-- 输入栏：IN_PROGRESS 且医生已发起接诊方式后可用；COMPLETED 只读 -->
+    <view a:if="{{inProgress && methodInitiated}}" class="composer">
       <input
         class="c-input"
         value="{{inputValue}}"
@@ -70,6 +70,7 @@
       />
       <view class="send-btn {{canSend && !sending ? '' : 'send-disabled'}}" onTap="send">发送</view>
     </view>
+    <view a:elif="{{inProgress}}" class="readonly-bar">{{methodRequiredText}}，请稍候</view>
     <view a:elif="{{completed}}" class="readonly-bar">问诊已完成，以上记录仅供查看</view>
   </block>
 </view>

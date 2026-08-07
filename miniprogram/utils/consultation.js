@@ -91,6 +91,7 @@ const TEXTS = {
   not_in_progress: '问诊不在进行中',
   text_started: '医生发起图文问诊',
   method_already_set: '接诊方式已发起，不可更换',
+  method_required: '医生尚未发起接诊方式',
 }
 
 /** waiting_matching 文案的 {department} 插值；科室名缺失时退化为"合适"。 */

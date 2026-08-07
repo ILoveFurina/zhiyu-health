@@ -218,8 +218,6 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
               }
             />
 
-            {detail.terminal_hint && <Alert type="warning" showIcon message={detail.terminal_hint} />}
-
             {detail.status === consultationStatuses.waiting_doctor && (
               <Button type="primary" block loading={accepting} onClick={handleAccept}>接受问诊</Button>
             )}
@@ -306,19 +304,23 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                   })}
                 </div>
                 {inProgress ? (
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onPressEnter={handleSend}
-                      placeholder="输入回复内容，回车发送"
-                      maxLength={2000}
-                    />
-                    <Button type="primary" icon={<SendOutlined />} loading={sending}
-                      disabled={!draft.trim()} onClick={handleSend}>
-                      发送
-                    </Button>
-                  </Space.Compact>
+                  detail.consult_method === null ? (
+                    <Typography.Text type="secondary">{consultationTexts.method_required}。</Typography.Text>
+                  ) : (
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onPressEnter={handleSend}
+                        placeholder="输入回复内容，回车发送"
+                        maxLength={2000}
+                      />
+                      <Button type="primary" icon={<SendOutlined />} loading={sending}
+                        disabled={!draft.trim()} onClick={handleSend}>
+                        发送
+                      </Button>
+                    </Space.Compact>
+                  )
                 ) : (
                   <Typography.Text type="secondary">
                     {consultationTexts.consult_completed}，沟通记录仅供查看。

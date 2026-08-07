@@ -13,10 +13,6 @@ export interface ConsultationSummary {
   chief_complaint: string;
   present_illness: string;
   allergy_history: string;
-  disclaimer: string;
-  suggested_standard_department_id: number | null;
-  suggested_standard_department_name: string | null;
-  updated_at: string;
 }
 
 export interface HealthProfile {
@@ -47,7 +43,6 @@ export interface PoolItem {
 }
 
 export interface ConsultationDetail extends PoolItem {
-  progress_step: string;
   consult_method: ConsultMethod | null;
   consult_method_label: string | null;
   method_started_at: string | null;
@@ -56,7 +51,6 @@ export interface ConsultationDetail extends PoolItem {
   accepted_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
-  terminal_hint: string | null;
 }
 
 export interface ConsultationMessage {
