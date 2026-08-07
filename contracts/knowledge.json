@@ -4,7 +4,8 @@
   "none_source": "none",
   "default_by_scenario": {
     "triage": "rag",
-    "interpretation": "none"
+    "interpretation": "none",
+    "preconsultation": "rag"
   },
   "knowledge_meta_event": "knowledge",
   "knowledge_status": ["ok", "degraded", "unavailable"],

@@ -3,7 +3,7 @@
   "effort_default": "auto",
   "scenario_default": "triage",
   "effort_choices": ["auto", "quick", "deep"],
-  "scenarios": ["triage", "interpretation"],
+  "scenarios": ["triage", "interpretation", "preconsultation"],
   "longitude_min": -180,
   "longitude_max": 180,
   "latitude_min": -90,
