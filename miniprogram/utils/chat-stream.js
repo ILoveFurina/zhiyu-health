@@ -143,6 +143,8 @@ function requestData(params) {
     content: params.content,
     // 票 51：药品说明书流信封字段，与 content 互斥（拍药盒识别后自动携带）
     medication_name: params.medicationName || undefined,
+    // 票 50：号源卡「重新查询」重试时携带，后端跳过科室解析直查
+    retry_standard_department_id: params.retryStandardDepartmentId || undefined,
     conversation_id: params.conversationId || undefined,
     effort: params.effort,
     scenario: params.scenario,
@@ -205,6 +207,7 @@ function dispatchEvent(event, data, handlers) {
   else if (event === 'doctor_recommendations') handlers.onDoctorRecommendations(data)
   else if (event === 'doctor_slots') handlers.onDoctorSlots(data)
   else if (event === 'hospital_recommendations') handlers.onHospitalRecommendations(data)
+  else if (event === 'department_slots') handlers.onDepartmentSlots(data)
   else if (event === 'appointment') handlers.onAppointment(data)
   else if (event === 'appointments') handlers.onAppointments(data)
   else if (event === 'red_flag') handlers.onRedFlag(data)

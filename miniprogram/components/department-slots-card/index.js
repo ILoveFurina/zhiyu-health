@@ -19,6 +19,9 @@ Component({
     days: [], // 今天起连续 14 天 yyyy-MM-dd
     selectedDate: '',
     doctors: [],
+    // 票 50：同页多张卡（chat 消息流）时由宿主传入标识，回调原样带回供宿主定位；
+    // 自助号源页单卡不传，回调参数为 undefined 不影响既有用法
+    cardId: null,
     onSelectDate: () => {},
     onBook: () => {},
   },
@@ -62,7 +65,7 @@ Component({
 
   methods: {
     selectDate(e) {
-      this.props.onSelectDate(e.currentTarget.dataset.date)
+      this.props.onSelectDate(e.currentTarget.dataset.date, this.props.cardId)
     },
 
     book(e) {
@@ -71,7 +74,7 @@ Component({
       const slot = doctor && doctor.slots[slotIndex]
       // 已约满仅置灰展示，仍在 js 侧按剩余号源挡一次，防御点按时数据已滞后
       if (!slot || Number(slot.remaining_slots) <= 0) return
-      this.props.onBook({ scheduleId: slot.schedule_id, doctor, slot })
+      this.props.onBook({ scheduleId: slot.schedule_id, doctor, slot, cardId: this.props.cardId })
     },
   },
 })
