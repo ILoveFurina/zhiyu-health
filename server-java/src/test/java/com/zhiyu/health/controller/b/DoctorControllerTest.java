@@ -41,7 +41,7 @@ class DoctorControllerTest {
             """
             {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
              "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
-             "photo_url": "https://example.com/demo/lin.jpg"}
+             "photo_url": "photos/2026-08-07/lin-zhiyuan.jpg"}
             """;
 
     private Doctor demoDoctor() {
@@ -54,7 +54,7 @@ class DoctorControllerTest {
         doctor.setTitle("主任医师");
         doctor.setRegistrationFee(new BigDecimal("30.00"));
         doctor.setSpecialty("高血压、冠心病");
-        doctor.setPhotoUrl("https://example.com/demo/lin.jpg");
+        doctor.setPhotoUrl("photos/2026-08-07/lin-zhiyuan.jpg");
         return doctor;
     }
 
@@ -65,7 +65,7 @@ class DoctorControllerTest {
         mockMvc.perform(get("/api/b/doctors").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].department_id").value(1))
-                .andExpect(jsonPath("$[0].photo_url").value("https://example.com/demo/lin.jpg"));
+                .andExpect(jsonPath("$[0].photo_url").value("photos/2026-08-07/lin-zhiyuan.jpg"));
     }
 
     @Test
@@ -102,6 +102,41 @@ class DoctorControllerTest {
                 .andExpect(jsonPath("$.detail").value("科室不存在"));
     }
 
+    // 票 54：photo_url 非空时必须是 MinIO object key，禁止任意 URL 入库
+    @Test
+    void createRejectsNonObjectKeyPhotoUrl() throws Exception {
+        mockMvc.perform(
+                        post("/api/b/doctors")
+                                .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
+                                 "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
+                                 "photo_url": "https://example.com/demo/lin.jpg"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("照片必须为有效图片，请重新上传"));
+    }
+
+    // 票 54：照片可选，photo_url 留空可正常建档
+    @Test
+    void createAllowsBlankPhotoUrl() throws Exception {
+        when(doctorAdminService.create(any(Doctor.class))).thenReturn(demoDoctor());
+
+        mockMvc.perform(
+                        post("/api/b/doctors")
+                                .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
+                                 "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
+                                 "photo_url": ""}
+                                """))
+                .andExpect(status().isCreated());
+    }
+
     @Test
     void updateReturns404WhenMissing() throws Exception {
         when(doctorAdminService.update(any(Doctor.class))).thenThrow(new ApiException(404, "医生或科室不存在"));
@@ -132,7 +167,7 @@ class DoctorControllerTest {
                                         """
                                 {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
                                  "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
-                                 "photo_url": "https://example.com/demo/lin.jpg"}
+                                 "photo_url": "photos/2026-08-07/lin-zhiyuan.jpg"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.registration_fee").value(50.00));
