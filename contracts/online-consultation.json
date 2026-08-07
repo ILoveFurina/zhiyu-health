@@ -59,6 +59,8 @@
     "system": "SYSTEM"
   },
   "_sender_types_doc": "医患消息发送者类型；SYSTEM 用于医生接受、视频发起、问诊完成等系统通知消息。消息不进入 Agent 会话、审计原文或 Agent trace。",
+  "message_kinds": ["text", "image"],
+  "_message_kinds_doc": "在线问诊医患消息类型（票 58）：text=文字消息（含语音输入经 ASR 转出的文字）；image=患者发送的图片消息，content 存 {\"object_key\",\"media_type\"} JSON（与 messages 表 image kind 同构，ADR-0029）。语音不构成消息类型，问诊记录不留语音。",
   "accept_timeout_seconds": 600,
   "_accept_timeout_seconds_doc": "在线问诊单创建后默认接诊截止时间；超时在列表、详情与接受入口惰性收敛为 EXPIRED，不引入调度中间件，端内不得散落硬编码。",
   "timeline_types": {

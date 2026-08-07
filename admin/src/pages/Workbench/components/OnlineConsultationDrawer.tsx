@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert, App, Avatar, Button, Descriptions, Divider, Drawer, Form, Input,
+  Alert, App, Avatar, Button, Descriptions, Divider, Drawer, Form, Image, Input,
   Popconfirm, Space, Spin, Tag, Typography,
 } from 'antd';
 import { SendOutlined, VideoCameraOutlined } from '@ant-design/icons';
@@ -8,6 +8,7 @@ import {
   consultationStatuses,
   consultationTexts,
   consultMethods,
+  messageKinds,
   senderTypes,
   summaryFieldLabels,
 } from '@/contracts/consultation';
@@ -38,6 +39,16 @@ interface Props {
   onClose: () => void;
   onChanged: () => void;
 }
+
+/** 票 58：image 消息 content 为 {"object_key","media_type"} JSON，解析失败返回空串（模板走兜底）。 */
+const parseImageObjectKey = (content: string) => {
+  try {
+    const parsed = JSON.parse(content);
+    return typeof parsed.object_key === 'string' ? parsed.object_key : '';
+  } catch {
+    return '';
+  }
+};
 
 const statusTagColor = (status?: string) => {
   switch (status) {
@@ -336,7 +347,21 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                           color: fromDoctor ? '#fff' : 'inherit',
                           border: fromDoctor ? 'none' : '1px solid #e6f2ee',
                         }}>
-                          <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{item.content}</div>
+                          {/* 票 58：患者图片消息（kind=image），content 为 {"object_key","media_type"} JSON，
+                              经 /api/b/photos 代理回看（与 B 端医生照片同通道）；kind 与契约 message_kinds 索引一一对应 */}
+                          {item.kind === messageKinds[1] ? (
+                            parseImageObjectKey(item.content) ? (
+                              <Image
+                                width={220}
+                                src={`/api/b/photos?key=${encodeURIComponent(parseImageObjectKey(item.content))}`}
+                                style={{ borderRadius: 8 }}
+                              />
+                            ) : (
+                              <Typography.Text type="secondary">图片暂不可查看</Typography.Text>
+                            )
+                          ) : (
+                            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{item.content}</div>
+                          )}
                           <div style={{ fontSize: 11, opacity: 0.65, marginTop: 4, textAlign: 'right' }}>
                             {formatChatTime(item.created_at)}
                           </div>

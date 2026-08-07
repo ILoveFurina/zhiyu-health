@@ -63,6 +63,13 @@ const SENDER_TYPES = {
   system: 'SYSTEM',
 }
 
+// 医患消息类型（票 58）：text=文字（含语音输入 ASR 转出的文字）；image=患者图片消息，
+// content 存 {"object_key","media_type"} JSON。语音不构成消息类型，问诊记录不留语音。
+const MESSAGE_KINDS = {
+  text: 'text',
+  image: 'image',
+}
+
 // 在线问诊单创建后默认接诊截止时间；超时惰性收敛为 EXPIRED，端内不得散落硬编码
 const ACCEPT_TIMEOUT_SECONDS = 600
 
@@ -119,6 +126,7 @@ module.exports = {
   CONSULT_METHODS,
   CONSULT_METHOD_LABELS,
   SENDER_TYPES,
+  MESSAGE_KINDS,
   ACCEPT_TIMEOUT_SECONDS,
   SUMMARY_FIELDS,
   SUMMARY_FIELD_LABELS,

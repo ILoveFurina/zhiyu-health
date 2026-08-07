@@ -51,14 +51,36 @@
       <view a:if="{{messages.length === 0}}" class="empty-msg">暂无消息</view>
       <view a:for="{{messages}}" a:key="id">
         <view a:if="{{item.isSystem}}" class="msg-system">{{item.content}}</view>
+        <view a:elif="{{item.isImage}}" class="bubble {{item.isPatient ? 'user' : 'ai'}}">
+          <!-- image 消息（票 58）：患者发图，按 object_key 经 /c/photos 回拉；无图兜底文字 -->
+          <image
+            a:if="{{item.imageUrl}}"
+            class="msg-image"
+            src="{{item.imageUrl}}"
+            mode="aspectFill"
+            data-url="{{item.imageUrl}}"
+            onTap="onPreviewImage"
+          />
+          <view a:else class="msg-image-fallback">图片暂不可查看</view>
+        </view>
         <view a:elif="{{item.isPatient}}" class="bubble user">{{item.content}}</view>
         <view a:else class="bubble ai">{{item.content}}</view>
       </view>
       <view id="thread-bottom" class="thread-tail"></view>
     </scroll-view>
 
+    <!-- 语音提示条（票 58）：录音/识别中的瞬态反馈，不进消息流 -->
+    <view a:if="{{voiceHint}}" class="voice-hint {{voiceHintError ? 'voice-hint-error' : ''}}">
+      <view a:if="{{!voiceHintError && recording}}" class="voice-hint-spinner" />
+      <text>{{voiceHint}}</text>
+    </view>
+
     <!-- 输入栏：IN_PROGRESS 且医生已发起接诊方式后可用；COMPLETED 只读 -->
     <view a:if="{{inProgress && methodInitiated}}" class="composer">
+      <view
+        class="photo-btn {{sendingImage ? 'photo-btn-disabled' : ''}}"
+        onTap="onChooseImage"
+      >图片</view>
       <input
         class="c-input"
         value="{{inputValue}}"
@@ -68,6 +90,13 @@
         placeholder="向医生补充描述情况…"
         disabled="{{sending}}"
       />
+      <view
+        a:if="{{asrEnabled}}"
+        class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"
+        onTouchStart="onVoiceTouchStart"
+        onTouchEnd="onVoiceTouchEnd"
+        onTouchCancel="onVoiceTouchCancel"
+      >🎙</view>
       <view class="send-btn {{canSend && !sending ? '' : 'send-disabled'}}" onTap="send">发送</view>
     </view>
     <view a:elif="{{inProgress}}" class="readonly-bar">{{methodRequiredText}}，请稍候</view>

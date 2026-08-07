@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.ConsultationRecord;
 import com.zhiyu.health.entity.OnlineConsultation;
@@ -29,11 +30,13 @@ import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -493,6 +496,92 @@ class OnlineConsultationServiceTest {
         assertThat(sent.senderType()).isEqualTo("PATIENT");
     }
 
+    // ------------------------------------------------------------------
+    // 票 58：患者发送问诊图片（图片是消息本体，MinIO 失败即发送失败）
+    // ------------------------------------------------------------------
+
+    @Test
+    void patientImageRequiresOwnershipAndInProgressAndMethod() {
+        Fixture f = new Fixture();
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+        // 归属失败：他人问诊单 404
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(null);
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 21L, file))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
+        // 非进行中：409
+        when(f.consultationMapper.selectDetailedByIdAndPatient(22L, 12L)).thenReturn(f.consultation("WAITING_DOCTOR"));
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 22L, file))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(409));
+        // 进行中但医生尚未发起接诊方式：409 method_required
+        when(f.consultationMapper.selectDetailedByIdAndPatient(24L, 12L)).thenReturn(f.consultation("IN_PROGRESS"));
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 24L, file))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(409);
+                    assertThat(e.getMessage()).isEqualTo("医生尚未发起接诊方式");
+                });
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+        verify(f.minioStorage, never()).storePhoto(any());
+    }
+
+    @Test
+    void patientImagePersistsImageMessageWithObjectKeyContent() {
+        Fixture f = new Fixture();
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
+        when(f.minioStorage.storePhoto(any())).thenReturn(Optional.of("photos/2026-08-08/abc123.jpg"));
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        OnlineConsultationService.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
+
+        ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
+        verify(f.messageMapper).insert(message.capture());
+        assertThat(message.getValue().getSenderType()).isEqualTo("PATIENT");
+        assertThat(message.getValue().getKind()).isEqualTo("image");
+        // content 为 {"object_key","media_type"} JSON，与 messages 表 image kind 约定同构
+        assertThat(message.getValue().getContent()).contains("photos/2026-08-08/abc123.jpg", "image/jpeg");
+        assertThat(sent.kind()).isEqualTo("image");
+    }
+
+    @Test
+    void patientImageFailsWithoutMinioNoDegrade() {
+        Fixture f = new Fixture();
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
+        // MinIO 不可用：图片是消息本体，发送失败（不降级），与拍照分析的旁路语义不同
+        when(f.minioStorage.storePhoto(any())).thenReturn(Optional.empty());
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 23L, file))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(503));
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+    }
+
+    @Test
+    void patientImageRejectsOversizeAndWrongType() {
+        Fixture f = new Fixture();
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
+        long maxBytes = TestContracts.instance().consultationPhotoLimits().maxBytes();
+        MockMultipartFile oversize =
+                new MockMultipartFile("file", "big.png", "image/png", new byte[(int) maxBytes + 1]);
+        MockMultipartFile wrongType = new MockMultipartFile("file", "x.gif", "image/gif", new byte[] {1});
+
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 23L, oversize))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(400));
+        assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 23L, wrongType))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(400));
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+        verify(f.minioStorage, never()).storePhoto(any());
+    }
+
     @Test
     void doctorMessageRequiresBinding() {
         Fixture f = new Fixture();
@@ -601,8 +690,12 @@ class OnlineConsultationServiceTest {
                     consultationRecordMapper,
                     directTransaction(),
                     TestContracts.instance(),
-                    Mappers.getMapper(OnlineConsultationDtoMapper.class));
+                    Mappers.getMapper(OnlineConsultationDtoMapper.class),
+                    minioStorage,
+                    new ObjectMapper());
         }
+
+        private final MinioStorageService minioStorage = mock(MinioStorageService.class);
 
         private void givenDoctor(long staffId, long doctorId) {
             StaffUser staff = new StaffUser();

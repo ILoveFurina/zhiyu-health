@@ -91,16 +91,17 @@ def test_asr_empty_audio_rejected_before_client_call() -> None:
     assert fake.calls == []
 
 
-def test_asr_unconfigured_returns_stable_code() -> None:
-    # 未注入 Fake 且契约 enabled=false -> Disabled 占位 -> VOICE_UNCONFIGURED
+def test_asr_enabled_without_keys_falls_back_to_fake() -> None:
+    # 票 58（ADR-0029）：契约 asr_enabled=true 但火山语音密钥未配置 -> Fake 回落，
+    # 返回固定识别文本（演示链路完整，不抛 VOICE_UNCONFIGURED）
     with _app_with() as client:
         response = client.post(
             "/api/agent/asr",
             files=[("files", ("voice.wav", _WAV, "audio/wav"))],
             headers=_HEADERS,
         )
-    assert response.status_code == 503
-    assert response.json()["detail"]["code"] == "VOICE_UNCONFIGURED"
+    assert response.status_code == 200
+    assert response.json()["text"] == "我头疼两天了，该挂什么科"
 
 
 def test_asr_timeout_returns_stable_code() -> None:

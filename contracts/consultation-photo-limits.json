@@ -1,0 +1,6 @@
+{
+  "_doc": "在线问诊交流图片上传限制（票 58，ADR-0029）：患者发送问诊图片的文件类型与大小上限。与 doctor-photo-limits.json 同值（JPEG/PNG、≤2MB、单张），但语义独立：问诊图片是消息本体，上传失败即发送失败（不降级），与医生头像的可选旁路语义不同。本文件是 server-java 校验与小程序选图约束的单一事实源。",
+  "max_bytes": 2097152,
+  "allowed_types": ["image/jpeg", "image/png"],
+  "max_files": 1
+}

@@ -149,6 +149,20 @@
   box-sizing: border-box;
 }
 
+/* image 消息（票 58）：患者发图按 object_key 回拉，点按全屏预览 */
+.msg-image {
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: var(--zy-radius-card);
+  display: block;
+}
+
+.msg-image-fallback {
+  color: var(--zy-text-weak);
+  font-size: 24rpx;
+  padding: 8rpx 0;
+}
+
 .thread-tail {
   height: 2rpx;
 }
@@ -199,6 +213,38 @@
   width: fit-content;
 }
 
+/* ===== 语音提示条（票 58）：录音/识别中的瞬态反馈 ===== */
+.voice-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 8rpx 0;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+}
+
+.voice-hint-error {
+  background: #fdf3e3;
+  color: #d48806;
+}
+
+.voice-hint-spinner {
+  width: 24rpx;
+  height: 24rpx;
+  border: 3rpx solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--zy-color-primary);
+  border-radius: 50%;
+  animation: zy-rotate 0.8s linear infinite;
+}
+
+@keyframes zy-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ===== 输入栏与只读条 ===== */
 .composer {
   display: flex;
@@ -215,6 +261,43 @@
   border-radius: 36rpx;
   padding: 18rpx 28rpx;
   font-size: 28rpx;
+}
+
+/* 图片入口按钮：复用 AI 对话模块选图/压缩/知情同意模式（票 58） */
+.photo-btn {
+  flex: 0 0 auto;
+  padding: 14rpx 22rpx;
+  border-radius: 32rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+}
+
+.photo-btn-disabled {
+  opacity: 0.45;
+}
+
+/* 按住说话（语音输入，票 58）：录音中转圆形高亮 */
+.voice-btn {
+  flex: 0 0 auto;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #f2f3f5;
+  color: var(--zy-text-title);
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-btn-active {
+  background: var(--zy-color-primary);
+  color: #fff;
+}
+
+.voice-btn-disabled {
+  opacity: 0.45;
 }
 
 .send-btn {

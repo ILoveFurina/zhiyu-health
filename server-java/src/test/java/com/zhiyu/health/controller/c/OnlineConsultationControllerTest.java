@@ -1,19 +1,24 @@
 package com.zhiyu.health.controller.c;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.OnlineConsultationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -218,10 +223,42 @@ class OnlineConsultationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void sendPhotoUploadsAndReturnsImageMessage() throws Exception {
+        OnlineConsultationService service = mock(OnlineConsultationService.class);
+        when(service.sendImageForPatient(eq(12L), eq(21L), any()))
+                .thenReturn(imageMessage(
+                        43L, "{\"object_key\":\"photos/2026-08-08/abc.jpg\",\"media_type\":\"image/jpeg\"}"));
+        MockMvc mvc = standalone(service);
+
+        mvc.perform(multipart("/api/c/online-consultations/21/photos")
+                        .file(new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1}))
+                        .requestAttr("authSubject", 12L))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message.sender_type").value("PATIENT"))
+                .andExpect(jsonPath("$.message.kind").value("image"));
+        verify(service).sendImageForPatient(eq(12L), eq(21L), any());
+    }
+
+    @Test
+    void sendPhotoRejectsOversizeFile() throws Exception {
+        MockMvc mvc = standalone(mock(OnlineConsultationService.class));
+        long maxBytes = new Contracts().consultationPhotoLimits().maxBytes();
+
+        mvc.perform(multipart("/api/c/online-consultations/21/photos")
+                        .file(new MockMultipartFile("file", "big.png", "image/png", new byte[(int) maxBytes + 1]))
+                        .requestAttr("authSubject", 12L))
+                .andExpect(status().isBadRequest());
+    }
+
     private MockMvc standalone(OnlineConsultationService service) {
-        return MockMvcBuilders.standaloneSetup(new OnlineConsultationController(service))
+        return MockMvcBuilders.standaloneSetup(new OnlineConsultationController(service, new Contracts()))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
+    }
+
+    private OnlineConsultationService.MessageView message(Long id, String senderType, String content) {
+        return new OnlineConsultationService.MessageView(id, senderType, "text", content, "2026-08-07T10:06:00+08:00");
     }
 
     private OnlineConsultationService.ConsultationDetail detail(String status) {
@@ -251,7 +288,7 @@ class OnlineConsultationControllerTest {
                 cancelled ? "问诊已取消。可复用原病情摘要重新提交，无需重复预问诊。" : null);
     }
 
-    private OnlineConsultationService.MessageView message(Long id, String senderType, String content) {
-        return new OnlineConsultationService.MessageView(id, senderType, content, "2026-08-07T10:06:00+08:00");
+    private OnlineConsultationService.MessageView imageMessage(Long id, String content) {
+        return new OnlineConsultationService.MessageView(id, "PATIENT", "image", content, "2026-08-07T10:06:00+08:00");
     }
 }
