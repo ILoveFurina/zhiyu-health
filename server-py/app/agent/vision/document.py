@@ -106,7 +106,7 @@ async def prepare_document(files: list[UploadFile], scenario: str) -> PreparedDo
             raise _input_error("VISION_FILE_TOO_LARGE")
         if total_bytes > MAX_IMAGE_TOTAL_BYTES:
             raise _input_error("VISION_FILE_TOO_LARGE")
-        if upload.content_type not in _IMAGE_TYPES:
+        if upload.content_type not in _IMAGE_TYPES and _detect_image_kind(data) is None:
             raise _input_error("VISION_FILE_TYPE_INVALID")
         normalized = _normalize_image(data)
         pages.append(
@@ -193,6 +193,24 @@ def _redact_pii(text: str) -> str:
         else:
             redacted = pattern.sub("[已遮盖]", redacted)
     return redacted
+
+
+def _detect_image_kind(data: bytes) -> str | None:
+    """按字节 magic bytes 探测图片格式（不信任客户端声明的 content-type）。
+
+    支付宝 my.uploadFile 不会可靠地为文件 part 设置 Content-Type（常为
+    application/octet-stream 或空），且默认会把图片压缩转码为 image/webp，故当客户端
+    content-type 不在白名单时回退到字节探测：命中 JPEG/PNG/WEBP 视为合法图片，其余返回
+    None（由调用方抛 VISION_FILE_TYPE_INVALID）。
+    """
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    # WEBP: "RIFF"...."WEBP"（偏移 0-3 为 RIFF，偏移 8-11 为 WEBP）
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def _normalize_image(data: bytes) -> bytes:

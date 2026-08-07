@@ -96,7 +96,7 @@ public class DietPhotoService {
             total += file.getSize();
             if (file.isEmpty()
                     || file.getSize() > limits.maxFileBytes()
-                    || !limits.imageTypes().contains(file.getContentType())) {
+                    || !PhotoFileTypes.isAllowedImage(file, limits.imageTypes())) {
                 throw new ApiException(422, "仅支持规定大小的 JPEG 或 PNG 饮食照片");
             }
         }

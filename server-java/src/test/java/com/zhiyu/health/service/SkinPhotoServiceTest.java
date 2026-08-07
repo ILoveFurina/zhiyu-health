@@ -21,6 +21,7 @@ import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 /** 拍皮肤分析编排：图片旁路持久化、卡片回落与失败兜底话术。 */
@@ -120,10 +121,7 @@ class SkinPhotoServiceTest {
                 mock(HealthProfileService.class),
                 TestDisclaimers.instance(),
                 mock(MinioStorageService.class));
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("application/pdf");
-        when(file.getSize()).thenReturn(100L);
-        when(file.isEmpty()).thenReturn(false);
+        MultipartFile file = new MockMultipartFile("files", "doc.pdf", "application/pdf", "not an image".getBytes());
         assertThatThrownBy(() -> service.analyze(12L, null, "skin-001", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {
                     assertThat(error.getStatus()).isEqualTo(422);

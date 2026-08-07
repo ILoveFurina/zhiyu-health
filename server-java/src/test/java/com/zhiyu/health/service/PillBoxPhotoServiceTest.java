@@ -21,6 +21,7 @@ import com.zhiyu.health.service.PillBoxPhotoService.PillBoxPhotoView;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 /** 拍药盒照片编排（票 51，ADR-0028）：图片旁路持久化、vision OCR 提名与失败兜底。 */
@@ -88,11 +89,7 @@ class PillBoxPhotoServiceTest {
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         when(healthProfiles.agentContext(12L)).thenReturn(null);
         PillBoxPhotoService service = new PillBoxPhotoService(
-                conversations,
-                agentClient,
-                TestContracts.instance(),
-                healthProfiles,
-                mock(MinioStorageService.class));
+                conversations, agentClient, TestContracts.instance(), healthProfiles, mock(MinioStorageService.class));
 
         MultipartFile file = mock(MultipartFile.class);
         when(file.getContentType()).thenReturn("image/jpeg");
@@ -155,11 +152,7 @@ class PillBoxPhotoServiceTest {
                 .thenReturn(new HealthProfileService.AgentProfileContext(
                         31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of()));
         PillBoxPhotoService service = new PillBoxPhotoService(
-                conversations,
-                agentClient,
-                TestContracts.instance(),
-                healthProfiles,
-                mock(MinioStorageService.class));
+                conversations, agentClient, TestContracts.instance(), healthProfiles, mock(MinioStorageService.class));
 
         MultipartFile file = mock(MultipartFile.class);
         when(file.getContentType()).thenReturn("image/jpeg");
@@ -182,13 +175,72 @@ class PillBoxPhotoServiceTest {
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
                 mock(MinioStorageService.class));
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("application/pdf");
-        when(file.getSize()).thenReturn(100L);
-        when(file.isEmpty()).thenReturn(false);
+        // 非图片 content-type 且字节非 JPEG/PNG magic：双判定均不命中，拒收 422。
+        MultipartFile file = new MockMultipartFile("files", "doc.pdf", "application/pdf", "not an image".getBytes());
         assertThatThrownBy(() -> service.analyze(12L, null, "pill-001", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {
                     assertThat(error.getStatus()).isEqualTo(422);
                 });
+    }
+
+    @Test
+    void octetStreamWithRealPngBytesPassesValidation() throws Exception {
+        // 回归：支付宝 my.uploadFile 不会可靠设置图片 Content-Type（常为 application/octet-stream），
+        // 字节 magic 命中 PNG 即放行，不再误拒为 422。验证路径：通过 validate 后触达 vision 调用。
+        ConversationService conversations = mock(ConversationService.class);
+        Conversation conversation = new Conversation();
+        conversation.setId(7L);
+        when(conversations.getOrCreateForPatient(eq(12L), any(), eq("拍药盒"))).thenReturn(conversation);
+        AgentClient agentClient = mock(AgentClient.class);
+        JsonNode visionResult = objectMapper.readTree(
+                """
+                {"candidates":[{"name":"阿莫西林"}],\
+                "unreadable_hint":""}""");
+        when(agentClient.interpretVision(anyList(), any(), eq("PILL_BOX")))
+                .thenReturn(new AgentClient.VisionResponse(visionResult, "仅供参考，不替代医生诊断", "", 1));
+        PillBoxPhotoService service = new PillBoxPhotoService(
+                conversations,
+                agentClient,
+                TestContracts.instance(),
+                mock(HealthProfileService.class),
+                mock(MinioStorageService.class));
+
+        // 真实 PNG 签名字节 + application/octet-stream content-type（模拟 my.uploadFile）
+        byte[] pngBytes = java.util.Base64.getDecoder()
+                .decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC");
+        MultipartFile file = new MockMultipartFile("files", "box.png", "application/octet-stream", pngBytes);
+        PillBoxPhotoView view = service.analyze(12L, null, "pill-octet", List.of(file));
+
+        assertThat(view.recognized()).isTrue();
+        verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
+    }
+
+    @Test
+    void webpContentTypePassesValidation() throws Exception {
+        // 回归：支付宝小程序 my.uploadFile 默认压缩转码为 image/webp，必须放行。
+        // webp 在 upload-limits.json 白名单内，isAllowedImage 第一条即命中，无需 magic 回退。
+        ConversationService conversations = mock(ConversationService.class);
+        Conversation conversation = new Conversation();
+        conversation.setId(7L);
+        when(conversations.getOrCreateForPatient(eq(12L), any(), eq("拍药盒"))).thenReturn(conversation);
+        AgentClient agentClient = mock(AgentClient.class);
+        JsonNode visionResult = objectMapper.readTree(
+                """
+                {"candidates":[{"name":"阿莫西林"}],\
+                "unreadable_hint":""}""");
+        when(agentClient.interpretVision(anyList(), any(), eq("PILL_BOX")))
+                .thenReturn(new AgentClient.VisionResponse(visionResult, "仅供参考，不替代医生诊断", "", 1));
+        PillBoxPhotoService service = new PillBoxPhotoService(
+                conversations,
+                agentClient,
+                TestContracts.instance(),
+                mock(HealthProfileService.class),
+                mock(MinioStorageService.class));
+
+        MultipartFile file = new MockMultipartFile("files", "box.webp", "image/webp", new byte[] {1, 2, 3});
+        PillBoxPhotoView view = service.analyze(12L, null, "pill-webp", List.of(file));
+
+        assertThat(view.recognized()).isTrue();
+        verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
     }
 }

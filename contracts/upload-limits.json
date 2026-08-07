@@ -1,9 +1,9 @@
 {
-  "_doc": "报告上传限制：单文件大小、总量、张数与允许类型，server-java 与 server-py 各自入口校验必须一致。总量限制只作用于图片批次（PDF 单次只能传一个文件）。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "_doc": "报告上传限制：单文件大小、总量、张数与允许类型，server-java 与 server-py 各自入口校验必须一致。总量限制只作用于图片批次（PDF 单次只能传一个文件）。image/webp 是支付宝小程序 my.uploadFile 默认压缩转码格式，必须放行。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
   "max_file_bytes": 10485760,
   "max_total_bytes": 20971520,
   "min_files": 1,
   "max_files": 5,
-  "allowed_types": ["image/jpeg", "image/png", "application/pdf"],
+  "allowed_types": ["image/jpeg", "image/png", "image/webp", "application/pdf"],
   "pdf_single_file": true
 }

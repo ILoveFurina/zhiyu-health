@@ -47,8 +47,7 @@ public class PillBoxPhotoService {
      * @param requestId 客户端幂等键；药盒场景无独立状态表，当前仅用于审计追溯。
      * @return OCR 提名视图；vision 未识别药名时 recognized=false 且携带 hint 引导文案
      */
-    public PillBoxPhotoView analyze(
-            Long patientId, Long conversationId, String requestId, List<MultipartFile> files) {
+    public PillBoxPhotoView analyze(Long patientId, Long conversationId, String requestId, List<MultipartFile> files) {
         validate(files);
         // 档案注入仍透传给 prompt（药盒场景无差异化需求，但保持一致注入点）。
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
@@ -110,7 +109,7 @@ public class PillBoxPhotoService {
             total += file.getSize();
             if (file.isEmpty()
                     || file.getSize() > limits.maxFileBytes()
-                    || !limits.imageTypes().contains(file.getContentType())) {
+                    || !PhotoFileTypes.isAllowedImage(file, limits.imageTypes())) {
                 throw new ApiException(422, "仅支持规定大小的 JPEG 或 PNG 药盒照片");
             }
         }

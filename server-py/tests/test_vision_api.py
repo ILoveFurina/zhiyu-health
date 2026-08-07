@@ -60,6 +60,13 @@ def _png() -> bytes:
     return output.getvalue()
 
 
+def _webp() -> bytes:
+    # 支付宝小程序 my.uploadFile 默认把图片压缩转码为 webp，回归必须覆盖该格式。
+    output = BytesIO()
+    Image.new("RGB", (40, 30), "white").save(output, format="WEBP")
+    return output.getvalue()
+
+
 def _large_png() -> bytes:
     output = BytesIO()
     Image.new("RGB", (3000, 120), "white").save(output, format="PNG")
@@ -1060,3 +1067,62 @@ def test_incomplete_profile_json_returns_structured_422() -> None:
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "VISION_PROFILE_INVALID"
     assert fake.calls == []
+
+
+def test_octet_stream_with_real_image_bytes_passes() -> None:
+    # 回归：支付宝 my.uploadFile 不会可靠设置图片 Content-Type（常为 application/octet-stream）。
+    # 客户端 content-type 不在白名单时，按字节 magic 探测命中 PNG/JPEG 即放行，不再误拒 422。
+    model = FakeRawVisionModel([_pill_box_result()])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX"},
+            files=[("files", ("box.png", _png(), "application/octet-stream"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert len(model.calls) == 1
+
+
+def test_non_image_bytes_with_octet_stream_rejected_as_type_invalid() -> None:
+    # 非图片字节 + 非 image content-type：双判定均不命中，按 VISION_FILE_TYPE_INVALID 拒收。
+    fake = FakeVisionInterpreter()
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=fake,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX"},
+            files=[("files", ("box.dat", b"plain text not an image", "application/octet-stream"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "VISION_FILE_TYPE_INVALID"
+    assert fake.calls == []
+
+
+def test_webp_image_passes_type_check() -> None:
+    # 支付宝小程序 my.uploadFile 默认压缩转码为 image/webp：白名单与字节探测都必须放行 webp。
+    model = FakeRawVisionModel([_pill_box_result()])
+    app = create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/agent/vision/interpret",
+            data={"scenario": "PILL_BOX"},
+            files=[("files", ("box.webp", _webp(), "image/webp"))],
+            headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+        )
+    assert response.status_code == 200
+    assert len(model.calls) == 1
