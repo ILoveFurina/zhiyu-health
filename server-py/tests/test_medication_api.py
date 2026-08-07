@@ -118,8 +118,9 @@ def test_system_prompt_enforces_generic_knowledge_boundaries() -> None:
     assert "替代药" in prompt
     contract = get_contracts().medication_knowledge
     assert contract.messages["unknown_drug"] in prompt
-    # 免责声明由代码注入，prompt 不要求模型自行添加
+    # 免责声明与 consult 引导语均由出口代码注入/追加，prompt 不要求模型自行添加
     assert get_contracts().disclaimer.text not in prompt
+    assert contract.messages["consult_professional"] not in prompt
 
 
 def test_blank_drug_name_is_422() -> None:
