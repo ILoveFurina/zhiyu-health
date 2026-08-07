@@ -84,21 +84,21 @@ INSERT INTO departments (id, campus_id, category_id, standard_department_id, nam
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO doctors (id, department_id, name, gender, birth_date, title, registration_fee, specialty, photo_url) VALUES
-    (1, 1, '林知远', '男', '1975-03-15', '主任医师', 50.00, '高血压、冠心病、心律失常', 'https://example.com/demo/lin-zhiyuan.jpg'),
-    (2, 1, '周安宁', '女', '1982-07-22', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'https://example.com/demo/zhou-anning.jpg'),
-    (3, 6, '陈清禾', '女', '1988-11-09', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
-    (4, 2, '苏明哲', '男', '1973-05-18', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
-    (5, 2, '李婉清', '女', '1985-09-30', '副主任医师', 30.00, '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
-    (6, 3, '赵启明', '男', '1970-12-05', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
-    (7, 3, '吴佩珊', '女', '1990-04-14', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
-    (8, 4, '孙立航', '男', '1976-08-21', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
-    (9, 4, '郑雅文', '女', '1983-02-27', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
-    (10, 5, '马俊杰', '男', '1978-06-11', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
-    (11, 5, '何静怡', '女', '1986-10-03', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
-    (12, 8, '黄志远', '男', '1972-01-19', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
-    (13, 8, '梁书瑶', '女', '1989-12-25', '主治医师', 20.00, '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
-    (14, 9, '冯雪松', '男', '1974-04-08', '主任医师', 50.00, '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
-    (15, 7, '韩思敏', '女', '1987-08-16', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
+    (1, 1, '林知远', '男', '1975-03-15', '主任医师', 50.00, '高血压、冠心病、心律失常', 'photos/2026-08-07/lin-zhiyuan.jpg'),
+    (2, 1, '周安宁', '女', '1982-07-22', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'photos/2026-08-07/zhou-anning.jpg'),
+    (3, 6, '陈清禾', '女', '1988-11-09', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'photos/2026-08-07/chen-qinghe.jpg'),
+    (4, 2, '苏明哲', '男', '1973-05-18', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'photos/2026-08-07/su-mingzhe.jpg'),
+    (5, 2, '李婉清', '女', '1985-09-30', '副主任医师', 30.00, '肺部感染、支气管扩张', 'photos/2026-08-07/li-wanqing.jpg'),
+    (6, 3, '赵启明', '男', '1970-12-05', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'photos/2026-08-07/zhao-qiming.jpg'),
+    (7, 3, '吴佩珊', '女', '1990-04-14', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'photos/2026-08-07/wu-peishan.jpg'),
+    (8, 4, '孙立航', '男', '1976-08-21', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'photos/2026-08-07/sun-lihang.jpg'),
+    (9, 4, '郑雅文', '女', '1983-02-27', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'photos/2026-08-07/zheng-yawen.jpg'),
+    (10, 5, '马俊杰', '男', '1978-06-11', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'photos/2026-08-07/ma-junjie.jpg'),
+    (11, 5, '何静怡', '女', '1986-10-03', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'photos/2026-08-07/he-jingyi.jpg'),
+    (12, 8, '黄志远', '男', '1972-01-19', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'photos/2026-08-07/huang-zhiyuan.jpg'),
+    (13, 8, '梁书瑶', '女', '1989-12-25', '主治医师', 20.00, '运动损伤、骨质疏松', 'photos/2026-08-07/liang-shuyao.jpg'),
+    (14, 9, '冯雪松', '男', '1974-04-08', '主任医师', 50.00, '青光眼、白内障、眼底病', 'photos/2026-08-07/feng-xuesong.jpg'),
+    (15, 7, '韩思敏', '女', '1987-08-16', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'photos/2026-08-07/han-simin.jpg')
 ON CONFLICT (id) DO UPDATE SET
     department_id = EXCLUDED.department_id,
     name = EXCLUDED.name,

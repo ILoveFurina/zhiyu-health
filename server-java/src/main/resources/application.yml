@@ -11,6 +11,11 @@ spring:
   jackson:
     # 接口字段与票 02 Python 原件一致（snake_case，如 doctor_id / photo_url）
     property-naming-strategy: SNAKE_CASE
+  servlet:
+    multipart:
+      # 默认 1MB 不够医生头像（票 54 上限 2MB），放宽到 5MB 留余量
+      max-file-size: 5MB
+      max-request-size: 10MB
   datasource:
     url: ${DATABASE_JDBC_URL:jdbc:postgresql://localhost:5432/zhiyu}
     username: ${DATABASE_USER:zhiyu}
