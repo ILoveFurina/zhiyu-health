@@ -1,0 +1,13 @@
+import contract from '../../../contracts/online-consultation.json';
+
+export const consultationStatuses = contract.statuses;
+export const consultationStatusLabels = contract.status_labels;
+export const draftStatuses = contract.draft_statuses;
+export const draftStatusLabels = contract.draft_status_labels;
+export const progressSteps = contract.progress_steps;
+export const consultMethods = contract.consult_methods;
+export const consultMethodLabels = contract.consult_method_labels;
+export const senderTypes = contract.sender_types;
+export const acceptTimeoutSeconds = contract.accept_timeout_seconds;
+export const summaryFieldLabels = contract.summary_field_labels;
+export const consultationTexts = contract.texts;
