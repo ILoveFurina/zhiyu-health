@@ -72,3 +72,12 @@ uvicorn.run('app.main:app', app_dir='server-py', host='0.0.0.0', port=8000)
 - 真机预览/真机调试/发布：**必须 WSS**。平台要求 socket 合法域名与受信任证书，明文 ws 与自签证书都过不去（票 34 引用的官方说明亦指出新发布小程序可能仅支持 WSS）。
 - 本地模拟器：勾选"忽略域名/证书检查"后 `ws://127.0.0.1:8080` 理论上可用；票 34 当时记录 ws://"必失败"因而走 SSE，但按第 1 节的发现回看，那次失败很可能是同一个引号 header bug（握手 401），而非 ws 协议本身被拒——当时没有字节级证据。
 - 建议：统一 WSS。本地 8443 覆盖配置（`.scratch/application-local-wss.yml` + 自签证书入系统信任库）一次配置长期有效；真机与云演示反正要 WSS，双协议只会让本地与真机行为分叉，排错成本远高于一张本地证书。
+
+## 6. 真机预览走 cpolar 隧道：WS 升级请求会被剥掉自定义头（2026-08-07）
+
+真机预览若不用 devtools 调试代理，可用 cpolar 隧道把本地 8080 暴露为受信任 HTTPS 域名（客户端与本地配置在 `.scratch/cpolar/`，已 gitignore）。实测（`.scratch` 回显服务器验证）：
+
+- 普通 HTTP/HTTPS 请求头原样透传，登录、鉴权接口、SSE 对话流全部正常；
+- 但 **WebSocket 升级请求由 cpolar 的 Go 客户端代为发起**（User-Agent 被改写为 `Go-http-client/1.1`、`Sec-WebSocket-Key` 重新生成），`Authorization` 等自定义头全部丢失，握手必然 401"未认证或令牌无效"。本地直连同一 token 握手 101，可据此区分是隧道行为而非服务端问题。
+- 结论：cpolar 隧道下小程序对话实时通道不可用，依赖 `chat-stream.js` 的 SSE 降级（功能完整，非流式逐 token 体验）。需要隧道下完整 WS 时换 TCP 级透传的工具（如 ngrok），不要试图在 cpolar 配置里找开关。
+- cpolar 免费版域名每次重启随机变化，换域名后需同步改 `miniprogram/utils/config.js` 的 `apiBaseUrl`（该改动仅限本地，勿提交）。
