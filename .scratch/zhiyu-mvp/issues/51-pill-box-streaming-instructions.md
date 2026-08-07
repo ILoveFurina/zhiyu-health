@@ -64,3 +64,4 @@
 - 2026-08-06（偏离说明）：§4 checklist 要求「未识别到药名与非药盒拒绝的 hint 文案维持现状」，但原文案含「使用『查药品』入口」的死引用（该入口本票已删），hint 已改为引导「直接输入药名」；其余语义不变。
 - 2026-08-06（§5 压缩说明）：`pillbox-picker.js` 票 14 已接入 `my.compressImage`（compressLevel 2），满足「上传前压缩」；长边归一化由 server-py 视觉管道 2048px 兜底，本票未改压缩代码。
 - 2026-08-06（§7 自动化验证）：mvn 全量测试 339 个全绿（BUILD SUCCESS）、spotless:check 绿、uv run pytest 146 绿、ruff 绿、lint-imports 3 kept 0 broken、mypy 仅 2 个 Windows 平台预存错误（main.py/seed_embeddings.py 的 WindowsSelectorEventLoopPolicy，基线已有）。/code-review 两轴审查后修复：WS 信封互斥校验对齐 HTTP 的 XOR 规则并补「两空拒绝」测试、javadoc 错别字。README 依赖图已建 T51 节点与 T14/T46 边；因前端验收需支付宝开发者工具人工三态走查（§7 item 2），票暂置 claimed，走查通过后加 `[x]` 并置 done。
+- 2026-08-07（票 53 调整）：说明书的固定四节排版（用途/常规用法用量/常见不良反应/常见注意事项）由票 53 修订为「摘要 + 2～4 个自由章节 + 安全提示」的半结构化 Markdown；药品查询的安全与架构边界（通用知识、无档案读取、禁忌仅留 B 端、免责声明双端注入）未改变。
