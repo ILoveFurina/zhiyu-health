@@ -56,7 +56,7 @@ class AgentContext:
     # 知识增强源（ADR-0010）：rag 注入 search_knowledge 工具；graph 注入 traverse_graph
     # 工具（票 13）；none 不注入（裸 LLM）。rag 与 graph 互斥，同一请求只注入一个知识工具。
     knowledge_source: str = "none"
-    # 对话场景（票 54）：编排代码据此选择 system prompt 与工具集；不直接进入
+    # 对话场景（票 55）：编排代码据此选择 system prompt 与工具集；不直接进入
     # 模型可见消息（system prompt 已是按场景选定的文本）。取值即契约场景值。
     scenario: str = "triage"
 
@@ -83,7 +83,7 @@ KNOWLEDGE_TOOL = "search_knowledge"
 # 元事件（source="graph"），不在 tool_to_event（不投影成卡片）。
 GRAPH_TOOL = "traverse_graph"
 
-# 预问诊场景值（票 54）：唯一事实源是 contracts/online-consultation.json。
+# 预问诊场景值（票 55）：唯一事实源是 contracts/online-consultation.json。
 # 该场景按编排代码隔离业务工具（不暴露医生推荐/号源/挂号工具）并选用专用提示词。
 _PRECONSULT_SCENARIO = get_contracts().online_consultation.scenario
 
@@ -107,7 +107,7 @@ class LangGraphAgentRunner:
 
     业务工具（挂号、排班查询等）在构造期注入；search_knowledge 知识检索工具按
     context.knowledge_source 动态拼装（rag 注入、none 不注入=裸 LLM）。
-    预问诊场景（票 54）由编排代码隔离全部业务工具并选用专用提示词，知识工具
+    预问诊场景（票 55）由编排代码隔离全部业务工具并选用专用提示词，知识工具
     仍按 knowledge_source 注入。图按 (effort, knowledge_source, scenario) 缓存，
     避免不同工具集/提示词共用编译图。
     """
@@ -133,7 +133,7 @@ class LangGraphAgentRunner:
         self._graphs: dict[tuple[str, str, str], CompiledStateGraph[Any, Any, Any, Any]] = {}
 
     def _tools_for(self, knowledge_source: str, scenario: str) -> list[BaseTool]:
-        # 票 54 工具隔离：预问诊场景不暴露任何业务工具（医生推荐/号源/挂号），
+        # 票 55 工具隔离：预问诊场景不暴露任何业务工具（医生推荐/号源/挂号），
         # 隔离由编排代码保证而非提示词；知识工具仍按 knowledge_source 注入。
         # rag 态注入 search_knowledge；graph 态注入 traverse_graph（互斥）；
         # none/其他不注入（LLM 看不到即不检索）

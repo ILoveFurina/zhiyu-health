@@ -144,7 +144,7 @@ def test_chat_request_defaults_and_geo_bounds_follow_contract() -> None:
 
 
 def test_online_consultation_consumption_matches_contract() -> None:
-    """票 54：preconsultation 场景值、摘要字段与快照事件字段名全部从契约推导。"""
+    """票 55：preconsultation 场景值、摘要字段与快照事件字段名全部从契约推导。"""
     online = get_contracts().online_consultation
     defaults = get_contracts().chat_defaults
     # 场景值与共享场景枚举：chat-defaults scenarios 与 Scenario Literal 双登记

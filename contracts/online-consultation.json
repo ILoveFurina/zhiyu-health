@@ -1,5 +1,5 @@
 {
-  "_doc": "票54 在线问诊主闭环：预问诊场景值、预问诊草稿状态、在线问诊状态机、五步进度、接诊方式、消息发送者类型、默认接诊超时、摘要字段与用户文案。本文件是三栈（Java/Python/TypeScript）共享常量的单一事实源，改此文件需三栈同步发版。",
+  "_doc": "票55 在线问诊主闭环：预问诊场景值、预问诊草稿状态、在线问诊状态机、五步进度、接诊方式、消息发送者类型、默认接诊超时、摘要字段与用户文案。本文件是三栈（Java/Python/TypeScript）共享常量的单一事实源，改此文件需三栈同步发版。",
   "scenario": "preconsultation",
   "_scenario_doc": "预问诊专用对话场景值：server-java 校验预问诊草稿归属与状态后强制使用，客户端不得自由指定获得预问诊权限；该值同时登记在 chat-defaults.json scenarios 与 knowledge.json default_by_scenario。",
   "draft_statuses": {
@@ -64,7 +64,7 @@
   "timeline_types": {
     "online_consultation": "ONLINE_CONSULTATION"
   },
-  "_timeline_types_doc": "健康档案时间线条目类型（票 55）：COMPLETED 在线问诊进入时间线投影，与 med-checkin-flow.json 的 timeline_types 同一约定；只读 UNION 投影，不双写聚合表。",
+  "_timeline_types_doc": "健康档案时间线条目类型（票 56）：COMPLETED 在线问诊进入时间线投影，与 med-checkin-flow.json 的 timeline_types 同一约定；只读 UNION 投影，不双写聚合表。",
   "summary_fields": ["chief_complaint", "present_illness", "allergy_history"],
   "summary_field_labels": {
     "chief_complaint": "主诉",

@@ -48,7 +48,7 @@ class PatientCareServiceTest {
 
     @Test
     void onlineConsultationPrescriptionCarriesContractSourceType() {
-        // 在线问诊处方：source_type 按非空外键派生且只取契约值（票 55），PENDING/REJECTED
+        // 在线问诊处方：source_type 按非空外键派生且只取契约值（票 56），PENDING/REJECTED
         // 不出队由 selectApprovedForProfile 的 SQL 边界保证（本测试钉住调用边界与派生值）。
         PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
         PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);

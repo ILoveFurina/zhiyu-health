@@ -17,7 +17,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 /**
- * 预问诊模块（票 54，Spec 0003）：草稿的开始/恢复、归属校验、摘要快照与会话关联。
+ * 预问诊模块（票 55，Spec 0003）：草稿的开始/恢复、归属校验、摘要快照与会话关联。
  * 草稿锁定进入时的激活健康档案；普通 Agent 会话不会触达本模块，预问诊只经明确入口与草稿标识进入。
  */
 @Service

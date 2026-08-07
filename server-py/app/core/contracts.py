@@ -171,7 +171,7 @@ class GuidedRegistrationContract(BaseModel):
 
 
 class OnlineConsultationContract(BaseModel):
-    """在线问诊主闭环（票 54）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
+    """在线问诊主闭环（票 55）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
 
     server-py 只消费这三项（场景判定、摘要结构钉值、message 事件挂载字段名）；
     状态机、进度步骤、接诊方式与文案由 server-java 与端侧消费，按既有契约模型

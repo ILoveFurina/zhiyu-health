@@ -238,7 +238,7 @@ Status: ready-for-agent
 
 # 在线问诊、处方审核与购药闭环（Spec 0003）
 
-Status: 票 54 主闭环已施工（2026-08-07，分支 t54-online-consultation-loop，待人工端到端验收后置 done）；票 55 ready-for-agent
+Status: 票 55 主闭环已施工（2026-08-07，分支 t54-online-consultation-loop，待人工端到端验收后置 done）；票 56 ready-for-agent
 日期：2026-08-07 · 依据：CONTEXT.md 术语“预问诊 / 预问诊模式 / 在线问诊 / 在线问诊单 / 在线问诊进度 / 科室待接诊池 / 在线问诊交流 / 电子处方”及《在线问诊医生分配模式调研》
 
 ## Problem Statement
@@ -379,23 +379,23 @@ Status: 票 54 主闭环已施工（2026-08-07，分支 t54-online-consultation-
 - **Schema 管理**：所有新表、列、约束、索引和 seed 按项目约定更新 schema.sql 与幂等 seed，开发期 drop + recreate + seed，不引入迁移工具。测试配置同步维护且不得加载 .env。
 - **后续实施边界**：本规格后续仅拆为两张票。第一票完成在线问诊主闭环（预问诊、摘要确认、待接诊池、接受、交流、模拟视频、诊断医嘱、完成）；第二票在第一票完成后泛化接诊记录与处方来源，并接通审核、购药、支付、履约、提醒和时间线。
 
-### 实施回写（票 54，2026-08-07）
+### 实施回写（票 55，2026-08-07）
 
-- **诊断与医嘱的落点**：主闭环把诊断结论与医嘱直接持久化在在线问诊单（`online_consultations.diagnosis/advice`）上，完成动作幂等；“接诊记录关联泛化（双外键二选一）”仍归票 55，届时再迁移为独立接诊记录。
+- **诊断与医嘱的落点**：主闭环把诊断结论与医嘱直接持久化在在线问诊单（`online_consultations.diagnosis/advice`）上，完成动作幂等；“接诊记录关联泛化（双外键二选一）”仍归票 56，届时再迁移为独立接诊记录。
 - **并发接受 seam 的落地形态**：默认测试套件以内存并发测试（仿 `AppointmentConcurrencyTest`）覆盖两医生竞争语义；真实 PostgreSQL 集成测试 `OnlineConsultationPgIntegrationTest` 以 `-Dpg.it=true` 显式开启，指向一次性库（云端 `zhiyu_it`），覆盖条件更新 affected-rows、部分唯一索引与惰性失效，不以真实等待验证 10 分钟超时，fixtures 用 9900xx 号段且跑后清场。
 - **契约落地**：`contracts/online-consultation.json` 集中定义问诊状态机、草稿状态、五步进度、接诊方式、发送者类型、600 秒超时、摘要字段与文案；`chat-defaults.json`/`knowledge.json` 登记 preconsultation 场景；`chat-realtime.json` 的 `chat_optional_fields` 增加 `preconsultation_draft_id`；摘要快照经 SSE `message` 事件 payload 的 `preconsultation_summary` 字段回传（不新增事件类型）。
 - **预问诊会话归属**：草稿绑定 conversation_id 且 `ON DELETE SET NULL`，会话继续保持患者账号级不绑档案；档案锁定关系只存在于草稿。
 - **B 端落点**：在线问诊区域以 Tabs 并入医生接诊台（线下接诊/在线问诊分区，不做伪统一列表），消息与池轮询为本仓库首批 setInterval 场景，卸载即清理。
 
-### 实施回写（票 55，2026-08-07）
+### 实施回写（票 56，2026-08-07）
 
 - **接诊记录迁移落地**：`online_consultations.diagnosis/advice` 两列已删除，医生完成在线问诊时在同一事务内先条件 UPDATE 推进 COMPLETED（并发完成只一人 affected=1），再 insert `consultation_records(online_consultation_id, doctor_id, diagnosis, advice)`；详情读取改 LEFT JOIN 接诊记录，对外 DTO 形状不变，C/B 前端零感知。
 - **双外键二选一形态**：`prescriptions` 与 `consultation_records` 均为 appointment_id / online_consultation_id 双可空真实外键 + 各列 UNIQUE（PG 多 NULL 不冲突，天然保持各来源一对一）+ XOR CHECK；幂等 ALTER 对齐新旧库，无 source_type 多态列，处方来源只是外键派生展示值。
 - **临床上下文模块**：`ClinicalContextService` 暴露 `requirePrescribableFromAppointment` / `requirePrescribableFromOnlineConsultation` / `ofPrescription` / `sourceTypeOf`；开方、禁忌检查、服药提醒生成、C/B 视图的来源派生全部经它，SQL 投影层（DETAIL_COLUMNS、时间线 UNION）因属数据访问细节保留 COALESCE 双分支。发生时间：线下取挂号创建时间，在线取接诊时刻（开方必在 IN_PROGRESS，不取 completed_at），在线问诊处方不伪造线下排班日期。
 - **契约落地**：`prescription-flow.json` 新增 `source_types`/`source_type_labels`（APPOINTMENT 线下接诊 / ONLINE_CONSULTATION 在线问诊）；`online-consultation.json` 新增 `timeline_types`（ONLINE_CONSULTATION）；Java/TS 从契约推导，miniprogram 手工镜像（`utils/prescription.js`）沿袭端侧限制惯例。
 - **审查修复**：并发重复开方撞唯一约束统一收敛为 409 明确冲突（不冒 500）；`OnlineConsultationService.complete` 移除不可达的撞库兜底分支（条件 UPDATE 已串行化并发完成）。
-- **PostgreSQL 集成测试**：`PrescriptionSourcePgIntegrationTest` 沿用票 54 门控（`-Dpg.it=true`、一次性库 `zhiyu_it`、9900xx 号段跑后清场），覆盖双表 XOR CHECK、各来源一对一 UNIQUE、审核并发恰好一个决定生效、库存并发条件 UPDATE 防超卖，已对云端一次性库跑绿 4 用例。
-- **演示库前置**：云演示库 zhiyu 仍缺票 54/55 的 schema 演进；按开发期约定需人工 drop + recreate + seed 后方可端到端演示。
+- **PostgreSQL 集成测试**：`PrescriptionSourcePgIntegrationTest` 沿用票 55 门控（`-Dpg.it=true`、一次性库 `zhiyu_it`、9900xx 号段跑后清场），覆盖双表 XOR CHECK、各来源一对一 UNIQUE、审核并发恰好一个决定生效、库存并发条件 UPDATE 防超卖，已对云端一次性库跑绿 4 用例。
+- **演示库前置**：云演示库 zhiyu 仍缺票 55/56 的 schema 演进；按开发期约定需人工 drop + recreate + seed 后方可端到端演示。
 
 ## Testing Decisions
 

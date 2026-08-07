@@ -19,7 +19,7 @@ function countdownText(expiresAt) {
 }
 
 /**
- * 等待医生接诊页（票 54）：每 3s 轮询问诊单详情。
+ * 等待医生接诊页（票 55）：每 3s 轮询问诊单详情。
  * IN_PROGRESS/COMPLETED -> 转医生问诊页；CANCELLED/EXPIRED -> 终态视图（可复用摘要重新提交）。
  * 轮询为页面级 setInterval，onHide/onUnload 必清理。
  */

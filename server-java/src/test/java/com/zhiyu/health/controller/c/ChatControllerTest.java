@@ -58,7 +58,7 @@ class ChatControllerTest {
 
     @Test
     void preconsultationDraftIdIsForwardedToRoundCommand() throws Exception {
-        // 票 54：预问诊草稿标识透传给对话轮次，场景强制与校验在 ChatRoundService 完成
+        // 票 55：预问诊草稿标识透传给对话轮次，场景强制与校验在 ChatRoundService 完成
         ChatService service = mock(ChatService.class);
         SseEmitter emitter = new SseEmitter();
         when(service.chat(any())).thenReturn(emitter);

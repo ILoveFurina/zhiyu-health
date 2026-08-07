@@ -26,7 +26,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 /**
- * 在线问诊条件更新与部分唯一索引的真实 PostgreSQL 集成测试（票 54，Spec 0003）。
+ * 在线问诊条件更新与部分唯一索引的真实 PostgreSQL 集成测试（票 55，Spec 0003）。
  * 默认构建跳过；显式开启：
  * <pre>mvn -f server-java/pom.xml test -Dpg.it=true -Dtest=OnlineConsultationPgIntegrationTest</pre>
  * 需要环境变量 DATABASE_JDBC_URL / DATABASE_USER / POSTGRES_PASSWORD 指向一次性库

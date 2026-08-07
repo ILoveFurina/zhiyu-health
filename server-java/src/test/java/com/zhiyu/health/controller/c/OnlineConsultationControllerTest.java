@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-/** 票 54 在线问诊 C 端 HTTP seam：建单/查询/取消/重新提交/医患消息的归属与状态负向路径。 */
+/** 票 55 在线问诊 C 端 HTTP seam：建单/查询/取消/重新提交/医患消息的归属与状态负向路径。 */
 class OnlineConsultationControllerTest {
 
     @Test

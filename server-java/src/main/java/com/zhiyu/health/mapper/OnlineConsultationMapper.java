@@ -12,7 +12,7 @@ import org.apache.ibatis.annotations.Update;
 public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation> {
 
     /** 详情联查列：标准科室名恒带（C/B 端展示），患者与档案信息仅科室池/医生视图使用；
-     * 诊断/医嘱自票 55 起 LEFT JOIN consultation_records 投影（问诊单不再持有该两列）。 */
+     * 诊断/医嘱自票 56 起 LEFT JOIN consultation_records 投影（问诊单不再持有该两列）。 */
     String DETAIL_COLUMNS =
             """
             SELECT oc.*, sd.name AS standard_department_name,
@@ -115,7 +115,7 @@ public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation>
             @Param("inProgress") String inProgress,
             @Param("method") String method);
 
-    /** 完成问诊：只推进状态机；诊断/医嘱由调用方同事务写 consultation_records（票 55）。 */
+    /** 完成问诊：只推进状态机；诊断/医嘱由调用方同事务写 consultation_records（票 56）。 */
     @Update(
             """
             UPDATE online_consultations

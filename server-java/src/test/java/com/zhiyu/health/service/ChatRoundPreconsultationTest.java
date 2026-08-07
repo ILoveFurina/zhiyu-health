@@ -29,7 +29,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Sinks;
 
-/** 票 54 可信预问诊模式：草稿归属/状态校验、场景强制、锁定档案注入、会话回填与摘要快照旁路。 */
+/** 票 55 可信预问诊模式：草稿归属/状态校验、场景强制、锁定档案注入、会话回填与摘要快照旁路。 */
 class ChatRoundPreconsultationTest {
 
     @Test

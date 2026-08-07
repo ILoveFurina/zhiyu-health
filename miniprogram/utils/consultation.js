@@ -1,4 +1,4 @@
-// 票 54：在线问诊主闭环常量。与 contracts/online-consultation.json 的
+// 票 55：在线问诊主闭环常量。与 contracts/online-consultation.json 的
 // statuses/draft_statuses/progress_steps/consult_methods/sender_types/texts 等对齐。
 // 端侧无法读契约 JSON，此文件是 miniprogram 侧的本地镜像；契约变更须同步更新。
 

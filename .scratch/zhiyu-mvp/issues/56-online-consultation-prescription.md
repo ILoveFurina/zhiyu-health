@@ -1,8 +1,8 @@
-# 55 — 在线问诊处方审核与购药闭环
+# 56 — 在线问诊处方审核与购药闭环
 
 **What to build:** 医生在进行中的在线问诊里执行确定性禁忌检查并开具电子处方，管理员沿用统一审核状态机完成通过或驳回；问诊完成不等待审核，只有审核通过的处方才对 C 端可见并进入处方解读、药品订单、模拟支付、B 端履约、服药提醒和健康档案时间线。原有线下挂号开方闭环保持不变。
 
-**Blocked by:** 54 — 在线问诊主闭环
+**Blocked by:** 55 — 在线问诊主闭环
 
 **Status:** claimed
 
@@ -30,13 +30,13 @@
 - [x] PostgreSQL 集成测试覆盖两类处方来源的外键二选一约束、唯一约束、审核并发和药品库存防超卖
 - [x] 全量回归既有线下挂号开方、处方审核、处方解读、C 端处方、药品订单、服药提醒和健康时间线测试，既有 HTTP 契约不退化
 - [ ] 浏览器与支付宝开发者工具人工走通“在线问诊开方 → 问诊完成 → 管理员审核通过 → C 端处方解读 → 下单 → 模拟支付 → B 端确认完成”，两端无红色控制台错误
-- [ ] 完成前更新 Spec 0003 对应决策、CONTEXT.md 术语（如有变化）、票单 checklist，并在 README 依赖图将 55 节点标记为 `[x]55`
+- [ ] 完成前更新 Spec 0003 对应决策、CONTEXT.md 术语（如有变化）、票单 checklist，并在 README 依赖图将 56 节点标记为 `[x]56`
 
 实施边界：本票只扩展处方及其下游能力的临床来源，不改变线下挂号、号源、挂号收费或药品订单状态机。问诊完成与处方审核必须保持解耦。
 
 
 ## Comments
 
-- 2026-08-07 施工记录（分支 t55-online-consultation-prescription，基于 t54 分支）：六栈分阶段提交（contracts → server-java 临床上下文与开方 → server-java 接诊记录迁移 → server-java 下游链路 → admin → miniprogram），code-review 两轴审查后一处修复合入（开方撞唯一约束统一 409、来源派生收敛 ClinicalContextService.sourceTypeOf、移除 complete 不可达撞库兜底、admin 两处小瑕疵）。server-java 551 测试 + spotless 绿；`PrescriptionSourcePgIntegrationTest` 以 `-Dpg.it=true` 对云端一次性库 `zhiyu_it` 跑绿 4 用例（XOR CHECK、各来源一对一 UNIQUE、审核并发、库存防超卖），fixtures 9900xx 号段跑后清场；server-py 175 绿（2 条 test_knowledge_integration 为票 54 已记录的既有环境问题）；admin typecheck/build 绿；小程序 node --check 绿。
-- 2026-08-07 演示库已重建：应用户要求，云演示库 zhiyu 的 drop + recreate + seed 改为 AI 自动执行（AGENTS.md 运行拓扑新增约定，脚本 `scripts/reset_zhiyu.py` / `verify_zhiyu.py` 已入库）；本票 schema 演进已随重建生效，verify 全项通过（票 49 形状、票 54 三表、票 55 双外键 XOR CHECK、diagnosis/advice 列迁移、seed 基线与序列对齐）。
-- 待人工：浏览器与支付宝开发者工具端到端走通“在线问诊开方 → 问诊完成 → 管理员审核通过 → C 端处方解读 → 下单 → 模拟支付 → B 端确认完成”，勾掉最后两项 checklist、置 done 并在 README 依赖图标记 `[x]55`（合 main 顺序保持 54 先 55 后）。
+- 2026-08-07 施工记录（分支 t55-online-consultation-prescription，基于 t54 分支）：六栈分阶段提交（contracts → server-java 临床上下文与开方 → server-java 接诊记录迁移 → server-java 下游链路 → admin → miniprogram），code-review 两轴审查后一处修复合入（开方撞唯一约束统一 409、来源派生收敛 ClinicalContextService.sourceTypeOf、移除 complete 不可达撞库兜底、admin 两处小瑕疵）。server-java 551 测试 + spotless 绿；`PrescriptionSourcePgIntegrationTest` 以 `-Dpg.it=true` 对云端一次性库 `zhiyu_it` 跑绿 4 用例（XOR CHECK、各来源一对一 UNIQUE、审核并发、库存防超卖），fixtures 9900xx 号段跑后清场；server-py 175 绿（2 条 test_knowledge_integration 为票 55 已记录的既有环境问题）；admin typecheck/build 绿；小程序 node --check 绿。
+- 2026-08-07 演示库已重建：应用户要求，云演示库 zhiyu 的 drop + recreate + seed 改为 AI 自动执行（AGENTS.md 运行拓扑新增约定，脚本 `scripts/reset_zhiyu.py` / `verify_zhiyu.py` 已入库）；本票 schema 演进已随重建生效，verify 全项通过（票 49 形状、票 55 三表、票 56 双外键 XOR CHECK、diagnosis/advice 列迁移、seed 基线与序列对齐）。
+- 待人工：浏览器与支付宝开发者工具端到端走通“在线问诊开方 → 问诊完成 → 管理员审核通过 → C 端处方解读 → 下单 → 模拟支付 → B 端确认完成”，勾掉最后两项 checklist、置 done 并在 README 依赖图标记 `[x]56`（合 main 顺序保持 55 先 56 后）。

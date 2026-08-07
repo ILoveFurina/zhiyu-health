@@ -1,4 +1,4 @@
-// 票 54：在线问诊五步进度条（契约 progress_steps 的端侧呈现，不依赖 antd-mini）。
+// 票 55：在线问诊五步进度条（契约 progress_steps 的端侧呈现，不依赖 antd-mini）。
 const { PROGRESS_STEPS } = require('../../utils/consultation')
 
 Component({

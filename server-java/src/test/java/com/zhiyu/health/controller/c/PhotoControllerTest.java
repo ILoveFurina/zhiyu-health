@@ -3,9 +3,11 @@ package com.zhiyu.health.controller.c;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
@@ -16,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * 图片代理端点 HTTP seam（ADR-0023 回拉链路）：按 object_key 透传 MinIO 原图给前端。
@@ -36,7 +39,11 @@ class PhotoControllerTest {
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
 
-        mvc.perform(get("/api/c/photos").param("key", "photos/2026-08-07/abc.jpg"))
+        // StreamingResponseBody 走异步分发：必须显式 asyncDispatch，否则断言时机取决于异步线程调度而偶发空响应。
+        MvcResult async = mvc.perform(get("/api/c/photos").param("key", "photos/2026-08-07/abc.jpg"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mvc.perform(asyncDispatch(async))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(content().bytes(bytes));

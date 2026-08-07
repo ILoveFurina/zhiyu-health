@@ -1,4 +1,4 @@
-"""票 54 预问诊场景（preconsultation）测试：HTTP seam + fake 替换 LLM/摘要判定器。
+"""票 55 预问诊场景（preconsultation）测试：HTTP seam + fake 替换 LLM/摘要判定器。
 
 覆盖：
 - 场景被 AgentChatRequest 接受（契约 scenarios），非法场景仍 422（回归）

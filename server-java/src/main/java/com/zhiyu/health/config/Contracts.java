@@ -178,7 +178,7 @@ public class Contracts {
         return guidedRegistration;
     }
 
-    /** 在线问诊主闭环（票 54）：预问诊场景、草稿与问诊状态机、五步进度、接诊方式、发送者类型、超时与文案。 */
+    /** 在线问诊主闭环（票 55）：预问诊场景、草稿与问诊状态机、五步进度、接诊方式、发送者类型、超时与文案。 */
     public OnlineConsultation onlineConsultation() {
         return onlineConsultation;
     }
@@ -588,7 +588,7 @@ public class Contracts {
     }
 
     /**
-     * 在线问诊主闭环（票 54，Spec 0003）：预问诊场景值、草稿状态机（COLLECTING/PENDING_CONFIRM/SUBMITTED）、
+     * 在线问诊主闭环（票 55，Spec 0003）：预问诊场景值、草稿状态机（COLLECTING/PENDING_CONFIRM/SUBMITTED）、
      * 问诊状态机（WAITING_DOCTOR→IN_PROGRESS→COMPLETED，旁路 CANCELLED/EXPIRED）、C 端固定五步进度、
      * 接诊方式（TEXT/VIDEO，VIDEO 仅模拟）、医患消息发送者类型、默认接诊超时与全部用户文案。
      * Java 侧零私写枚举：状态/方式/发送者/标签/文案一律经本 record 取值。

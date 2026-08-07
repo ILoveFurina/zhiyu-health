@@ -45,7 +45,7 @@ public class PatientCareService {
         String date = prescription.getScheduleDate() == null
                 ? null
                 : prescription.getScheduleDate().toString();
-        // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值只经契约（票 55）。
+        // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值只经契约（票 56）。
         String sourceType = clinicalContexts.sourceTypeOf(prescription);
         return dtoMapper.toPatientPrescriptionView(prescription, sourceType, date, items);
     }

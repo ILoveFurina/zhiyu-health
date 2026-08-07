@@ -55,7 +55,7 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
         if (prescription == null) {
             return;
         }
-        // 票 55：处方行不带 patient/health_profile，统一经临床上下文按来源（挂号单/在线问诊）
+        // 票 56：处方行不带 patient/health_profile，统一经临床上下文按来源（挂号单/在线问诊）
         // 双外键 COALESCE 投影派生，调用方不再各自反查挂号单（在线处方无挂号单可查）。
         ClinicalContextService.ClinicalContext context = clinicalContexts.ofPrescription(prescription);
         long patientId = context.patientId();

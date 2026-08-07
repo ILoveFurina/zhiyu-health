@@ -35,7 +35,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 /**
- * 处方/接诊记录双来源约束与审核、库存并发语义的真实 PostgreSQL 集成测试（票 55，Spec 0003）。
+ * 处方/接诊记录双来源约束与审核、库存并发语义的真实 PostgreSQL 集成测试（票 56，Spec 0003）。
  * 默认构建跳过；显式开启：
  * <pre>mvn -f server-java/pom.xml test -Dpg.it=true -Dtest=PrescriptionSourcePgIntegrationTest</pre>
  * 需要环境变量 DATABASE_JDBC_URL / DATABASE_USER / POSTGRES_PASSWORD 指向一次性库

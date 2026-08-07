@@ -4,7 +4,7 @@ const { listConsultations, startOrResumeDraft } = require('../../../services/con
 const { DRAFT_STATUSES, STATUSES, ACTIVE_STATUSES, TEXTS } = require('../../../utils/consultation')
 
 /**
- * 在线问诊入口路由页（票 54）：不承载表单，只做分发——
+ * 在线问诊入口路由页（票 55）：不承载表单，只做分发——
  * 无当前档案 -> 建档引导卡；有等待中/进行中问诊 -> 对应页面；否则开始/恢复预问诊草稿。
  */
 Page({

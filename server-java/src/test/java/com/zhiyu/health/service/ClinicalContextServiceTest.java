@@ -17,7 +17,7 @@ import com.zhiyu.health.support.TestContracts;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.Test;
 
-/** 统一临床上下文（票 55）：两种来源的身份派生、归属与状态守卫。 */
+/** 统一临床上下文（票 56）：两种来源的身份派生、归属与状态守卫。 */
 class ClinicalContextServiceTest {
 
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
@@ -109,7 +109,7 @@ class ClinicalContextServiceTest {
     @Test
     void onlineConsultationContextRejectsUnboundOrForeignConsultation() {
         givenDoctor(8L, 5L);
-        // 单不存在、未绑定医生、绑定其他医生：与票 54 既有守卫一致一律 404
+        // 单不存在、未绑定医生、绑定其他医生：与票 55 既有守卫一致一律 404
         when(onlineConsultationMapper.selectDetailedById(31L)).thenReturn(null);
         assertThatThrownBy(() -> service.requirePrescribableFromOnlineConsultation(8L, 31L))
                 .isInstanceOfSatisfying(ApiException.class, e -> {

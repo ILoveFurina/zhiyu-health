@@ -90,7 +90,7 @@ class DrugOrderControllerTest {
 
     @Test
     void onlineConsultationPrescriptionCreatesOrderLikeAppointmentOne() throws Exception {
-        // 在线问诊处方（appointment_id 为空）与线下处方走同一下单主路径（票 55）。
+        // 在线问诊处方（appointment_id 为空）与线下处方走同一下单主路径（票 56）。
         Prescription prescription = prescription("APPROVED");
         prescription.setOnlineConsultationId(41L);
         Medication medication = medication(1L, "阿莫西林胶囊", "18.50");

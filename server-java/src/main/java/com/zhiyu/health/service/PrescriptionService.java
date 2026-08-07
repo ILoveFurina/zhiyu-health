@@ -70,7 +70,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                 context, command.items(), dtoMapper.toPrescription(command, context.doctorId(), status("pending")));
     }
 
-    /** 在线问诊开方（票 55）：同一问诊最多一张处方；患者/档案/医生身份由统一临床上下文派生。 */
+    /** 在线问诊开方（票 56）：同一问诊最多一张处方；患者/档案/医生身份由统一临床上下文派生。 */
     public PrescriptionView createFromOnlineConsultation(CreateOnlineCommand command) {
         ClinicalContextService.ClinicalContext context = clinicalContexts.requirePrescribableFromOnlineConsultation(
                 command.staffId(), command.onlineConsultationId());

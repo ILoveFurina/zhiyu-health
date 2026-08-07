@@ -99,7 +99,7 @@ class ContractsTest {
         assertThat(defaults.effortDefault()).isEqualTo("auto");
         assertThat(defaults.scenarioDefault()).isEqualTo("triage");
         assertThat(defaults.effortChoices()).containsExactly("auto", "quick", "deep");
-        // 票 54：preconsultation 场景登记入共享场景清单（预问诊只经草稿标识获得，见 online-consultation 契约）
+        // 票 55：preconsultation 场景登记入共享场景清单（预问诊只经草稿标识获得，见 online-consultation 契约）
         assertThat(defaults.scenarios()).containsExactly("triage", "interpretation", "preconsultation");
         assertThat(defaults.longitudeMin()).isEqualTo(-180.0);
         assertThat(defaults.longitudeMax()).isEqualTo(180.0);
@@ -123,7 +123,7 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
-        // 票 51/票 50/票 54：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识）
+        // 票 51/票 50/票 55：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识）
         assertThat(realtime.chatOptionalFields())
                 .containsExactly("medication_name", "retry_standard_department_id", "preconsultation_draft_id");
     }
@@ -160,7 +160,7 @@ class ContractsTest {
 
     @Test
     void onlineConsultationContractIsLoaded() {
-        // 票 54（Spec 0003）：在线问诊状态机/进度/方式/发送者/超时/文案全部来自契约单一事实源
+        // 票 55（Spec 0003）：在线问诊状态机/进度/方式/发送者/超时/文案全部来自契约单一事实源
         Contracts.OnlineConsultation consultation = contracts.onlineConsultation();
         assertThat(consultation.scenario()).isEqualTo("preconsultation");
         assertThat(consultation.draftStatuses())
@@ -279,7 +279,7 @@ class ContractsTest {
         assertThat(knowledge.defaultByScenario())
                 .containsEntry("triage", "rag")
                 .containsEntry("interpretation", "none")
-                // 票 54：预问诊场景知识源默认 rag（与 chat-defaults scenarios 同步登记）
+                // 票 55：预问诊场景知识源默认 rag（与 chat-defaults scenarios 同步登记）
                 .containsEntry("preconsultation", "rag");
         assertThat(knowledge.knowledgeMetaEvent()).isEqualTo("knowledge");
         assertThat(knowledge.knowledgeStatus()).containsExactly("ok", "degraded", "unavailable");

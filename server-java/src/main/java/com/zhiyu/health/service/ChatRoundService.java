@@ -46,7 +46,7 @@ public class ChatRoundService {
     private final AgentCallLogService agentCallLogs;
     // 知识源现场切换补位（ADR-0021）：请求未带 knowledge_source 时读 Redis 全局键
     private final StringRedisTemplate redis;
-    // 票 54：预问诊草稿绑定（归属/状态校验、会话回填、摘要快照），普通对话轮次不触达
+    // 票 55：预问诊草稿绑定（归属/状态校验、会话回填、摘要快照），普通对话轮次不触达
     private final PreconsultationService preconsultationService;
     private final Map<Long, RunningRound> running = new ConcurrentHashMap<>();
 
@@ -57,7 +57,7 @@ public class ChatRoundService {
         if (existing != null) {
             return observeExisting(existing);
         }
-        // 可信预问诊模式（票 54）：仅新建轮次校验草稿归属/状态并强制 preconsultation 场景，
+        // 可信预问诊模式（票 55）：仅新建轮次校验草稿归属/状态并强制 preconsultation 场景，
         // 幂等回放（上方 find 命中）不重复校验；客户端裸指定场景不得获得预问诊权限。
         PreconsultationDraft preconsultDraft = resolvePreconsultationDraft(command);
 
@@ -305,7 +305,7 @@ public class ChatRoundService {
         body.put(
                 "effort",
                 blankToDefault(command.effort(), contracts.chatDefaults().effortDefault()));
-        // 票 54：预问诊轮次场景由服务端按草稿强制，不信任请求体 scenario 获得预问诊权限。
+        // 票 55：预问诊轮次场景由服务端按草稿强制，不信任请求体 scenario 获得预问诊权限。
         body.put(
                 "scenario",
                 preconsultDraft != null
@@ -319,7 +319,7 @@ public class ChatRoundService {
         if (knowledgeSource != null) {
             body.put("knowledge_source", knowledgeSource);
         }
-        // 票 54：预问诊轮次注入草稿锁定的档案（进入时锁定，后续切换激活档案不改变归属）。
+        // 票 55：预问诊轮次注入草稿锁定的档案（进入时锁定，后续切换激活档案不改变归属）。
         HealthProfileService.AgentProfileContext profile = preconsultDraft != null
                 ? healthProfiles.agentContext(round.getPatientId(), preconsultDraft.getHealthProfileId())
                 : healthProfiles.agentContext(round.getPatientId());
@@ -358,7 +358,7 @@ public class ChatRoundService {
                 runtime.emit(incoming.event(), data);
                 runtime.finish();
             } else {
-                // 票 54：预问诊成功轮次的摘要快照随 message 事件落草稿（旁路，不连坐对话流）。
+                // 票 55：预问诊成功轮次的摘要快照随 message 事件落草稿（旁路，不连坐对话流）。
                 if (runtime.preconsultDraftId != null
                         && contracts.sseEvents().messageEvent().equals(incoming.event())) {
                     applySummarySafely(runtime.preconsultDraftId, data);
@@ -370,7 +370,7 @@ public class ChatRoundService {
         }
     }
 
-    /** 票 54：摘要快照更新失败只记日志（不记内容，防泄漏病情原文），保留上一版且不打断对话流。 */
+    /** 票 55：摘要快照更新失败只记日志（不记内容，防泄漏病情原文），保留上一版且不打断对话流。 */
     private void applySummarySafely(long draftId, JsonNode messageData) {
         JsonNode summary = messageData.get(contracts.onlineConsultation().summaryEventField());
         if (summary == null || !summary.isObject()) {
@@ -482,7 +482,7 @@ public class ChatRoundService {
             Double longitude,
             Double latitude,
             Long retryStandardDepartmentId,
-            // 票 54：预问诊草稿标识；非空时服务端校验归属/状态并强制 preconsultation 场景
+            // 票 55：预问诊草稿标识；非空时服务端校验归属/状态并强制 preconsultation 场景
             Long preconsultationDraftId) {}
 
     /** 药品说明书流轮次命令（票 51）：无 effort/scenario/档案/定位，只有药名。 */
@@ -513,7 +513,7 @@ public class ChatRoundService {
         private final AtomicBoolean sawDone = new AtomicBoolean();
         // 药品说明书流（票 51）：server-py 只产 token/done，本端逐 token 累积，流尾组装 message
         private final StringBuilder medicationText = new StringBuilder();
-        // 票 54：预问诊轮次绑定的草稿 id（仅 Agent 轮次非空），message 事件触发摘要快照旁路更新
+        // 票 55：预问诊轮次绑定的草稿 id（仅 Agent 轮次非空），message 事件触发摘要快照旁路更新
         private Long preconsultDraftId;
 
         private RunningRound(ChatRound round) {

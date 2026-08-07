@@ -1,4 +1,4 @@
-# 54 — 在线问诊主闭环
+# 55 — 在线问诊主闭环
 
 **What to build:** 患者从独立“在线问诊”入口锁定健康档案，经 Agent 预问诊反复调整并确认病情摘要；问诊单进入平台级标准科室待接诊池，合格医生在 B 端明确接受后与患者进行轮询图文交流或模拟视频问诊，填写诊断与医嘱并完成问诊。C 端全程展示跨 C/B 端五步进度，在线问诊不创建挂号单、不占线下号源、不收问诊费。
 
@@ -34,13 +34,13 @@
 - [x] PostgreSQL 集成测试覆盖医生原子接受、每档案单一进行中问诊和失效后不可接受，不以真实等待验证 10 分钟超时
 - [x] server-py 使用 TestClient 与 fake 覆盖一次一问、摘要快照、知识与工具隔离、受控标准科室解析和失败降级
 - [ ] 支付宝开发者工具与浏览器人工走通“入口 → 锁定档案 → 预问诊 → 摘要确认 → 医生接受 → 图文/模拟视频 → 诊断医嘱 → 完成”，两端无红色控制台错误
-- [ ] 完成前更新 Spec 0003 对应决策、CONTEXT.md 术语（如有变化）、票单 checklist，并在 README 依赖图将 54 节点标记为 `[x]54`
+- [ ] 完成前更新 Spec 0003 对应决策、CONTEXT.md 术语（如有变化）、票单 checklist，并在 README 依赖图将 55 节点标记为 `[x]55`
 
-实施边界：本票不做在线问诊开方、处方审核或购药；这些由票 55 在本票稳定的在线问诊身份、状态和接诊记录之上完成。不得为了复用现有接诊台而创建虚假挂号单、可空排班或扣减线下号源。
+实施边界：本票不做在线问诊开方、处方审核或购药；这些由票 56 在本票稳定的在线问诊身份、状态和接诊记录之上完成。不得为了复用现有接诊台而创建虚假挂号单、可空排班或扣减线下号源。
 
 ## Comments
 
 - 2026-08-07 施工记录（分支 t54-online-consultation-loop）：四栈分阶段提交（contracts → admin → miniprogram → server-py → server-java），code-review 两轴审查后两项修复合入（发送消息前置接诊方式发起；B 端 mine/detail 惰性失效与类型对齐）。server-java 523 测试 + spotless 绿；server-py 175 绿（2 条 test_knowledge_integration 为本机连云 pgvector/方舟 embedding 的既有环境问题，stash 对照复现一致，与本票无关）；admin typecheck/build 绿；小程序 node --check 绿。
 - PostgreSQL 集成测试落地形态：`OnlineConsultationPgIntegrationTest` 以 `-Dpg.it=true` 显式开启，已对云端一次性库 `zhiyu_it`（与演示库同实例隔离）跑绿 3 用例（原子接受 affected-rows、每档案部分唯一索引、失效后不可接受），fixtures 9900xx 号段跑后自动清场；默认套件不依赖数据库，并发语义由内存并发测试覆盖。
-- 注意：云演示库 zhiyu 的旧形状问题已随票 55 收尾解决（2026-08-07）——演示库 drop + recreate + seed 改为 AI 自动执行（AGENTS.md 运行拓扑新增约定，`scripts/reset_zhiyu.py` / `verify_zhiyu.py`），重建后 verify 全项通过，本票三张新表已就位。
-- 待人工：支付宝开发者工具与浏览器端到端走通后，勾掉最后两项 checklist、置 done 并在 README 依赖图标记 `[x]54`。
+- 注意：云演示库 zhiyu 的旧形状问题已随票 56 收尾解决（2026-08-07）——演示库 drop + recreate + seed 改为 AI 自动执行（AGENTS.md 运行拓扑新增约定，`scripts/reset_zhiyu.py` / `verify_zhiyu.py`），重建后 verify 全项通过，本票三张新表已就位。
+- 待人工：支付宝开发者工具与浏览器端到端走通后，勾掉最后两项 checklist、置 done 并在 README 依赖图标记 `[x]55`。

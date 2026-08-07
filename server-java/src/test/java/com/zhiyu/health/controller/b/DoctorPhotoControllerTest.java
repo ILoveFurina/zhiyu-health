@@ -3,11 +3,13 @@ package com.zhiyu.health.controller.b;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.Contracts;
@@ -25,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * 医生照片上传/回拉 HTTP seam（票 54）。
@@ -133,9 +136,13 @@ class DoctorPhotoControllerTest {
         when(minioStorage.getObject("photos/2026-08-07/abc.png"))
                 .thenReturn(Optional.of(new PhotoContent(new ByteArrayInputStream(PNG_BYTES), "image/png")));
 
-        mockMvc.perform(get("/api/b/photos")
+        // StreamingResponseBody 走异步分发：必须显式 asyncDispatch，否则断言时机取决于异步线程调度。
+        MvcResult async = mockMvc.perform(get("/api/b/photos")
                         .param("key", "photos/2026-08-07/abc.png")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mockMvc.perform(asyncDispatch(async))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(content().bytes(PNG_BYTES));

@@ -60,7 +60,7 @@ def test_guided_registration_contract_is_loaded() -> None:
 
 
 def test_online_consultation_contract_is_loaded() -> None:
-    # 票 54：预问诊场景值、病情摘要字段清单与摘要快照事件字段名钉死
+    # 票 55：预问诊场景值、病情摘要字段清单与摘要快照事件字段名钉死
     online = get_contracts().online_consultation
     assert online.scenario == "preconsultation"
     assert online.summary_fields == ["chief_complaint", "present_illness", "allergy_history"]
@@ -121,7 +121,7 @@ def test_chat_defaults_and_geo_ranges_are_loaded() -> None:
     assert defaults.effort_default == "auto"
     assert defaults.scenario_default == "triage"
     assert defaults.effort_choices == ["auto", "quick", "deep"]
-    # 票 54：preconsultation 场景已登记（online-consultation.json 为场景值事实源）
+    # 票 55：preconsultation 场景已登记（online-consultation.json 为场景值事实源）
     assert defaults.scenarios == ["triage", "interpretation", "preconsultation"]
     assert defaults.longitude_min == -180
     assert defaults.longitude_max == 180
@@ -167,7 +167,7 @@ def test_knowledge_contract_values_are_loaded() -> None:
     assert knowledge.default_by_scenario == {
         "triage": "rag",
         "interpretation": "none",
-        "preconsultation": "rag",  # 票 54：预问诊默认走向量检索
+        "preconsultation": "rag",  # 票 55：预问诊默认走向量检索
     }
     assert knowledge.knowledge_meta_event == "knowledge"
     assert knowledge.knowledge_status == ["ok", "degraded", "unavailable"]

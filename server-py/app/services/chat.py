@@ -19,7 +19,7 @@ server-java 只读号源——请求携带 retry_standard_department_id 时直�
 未命中或目录不可用时退回正常 Agent 流。摘要措辞由代码按契约模板拼装，
 LLM 不参与医院、医生、排班、余号等事实的生成。
 
-票 54 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
+票 55 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
 跳过强制号源查询；runner 按场景隔离业务工具并选专用提示词；每个成功轮次后
 串行调用摘要判定器，把结构化病情摘要快照挂在 message 事件的契约字段
 （summary_event_field）上下发，判定失败本轮省略快照字段，不掐断流。
@@ -51,7 +51,7 @@ EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
 _GUIDED = get_contracts().guided_registration
 _QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:2])
 
-# 票 54：预问诊场景值与摘要快照事件字段名，唯一事实源是 contracts/online-consultation.json
+# 票 55：预问诊场景值与摘要快照事件字段名，唯一事实源是 contracts/online-consultation.json
 _ONLINE = get_contracts().online_consultation
 
 
@@ -107,7 +107,7 @@ class AgentChatService:
         # 票 50：科室解析判定器（默认懒装配）与标准科室目录/号源能力。
         # directory 为 None 视为能力未装配：跳过解析与强制查询，退回正常 Agent 流。
         self._triage_judge = triage_judge or LazyTriageJudge()
-        # 票 54：预问诊摘要判定器（默认懒装配，失败降级 None 本轮省略快照）。
+        # 票 55：预问诊摘要判定器（默认懒装配，失败降级 None 本轮省略快照）。
         self._preconsult_judge = preconsult_judge or LazyPreconsultJudge()
         self._directory = directory
         # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
@@ -156,7 +156,7 @@ class AgentChatService:
 
         重试字段非空 = 复用已确定科室直查（跳过目录拉取、解析与 Agent 流）；
         目录不可用/无候选/解析未收敛/ID 越界均返回 None，退回正常 Agent 流。
-        预问诊场景（票 54）直接短路：预问诊不进挂号闭环，不直查号源、不出科室号源卡。
+        预问诊场景（票 55）直接短路：预问诊不进挂号闭环，不直查号源、不出科室号源卡。
         """
         if self._directory is None or scenario == _ONLINE.scenario:
             return None
@@ -182,7 +182,7 @@ class AgentChatService:
         longitude: float | None,
         latitude: float | None,
     ) -> dict[str, object] | None:
-        """票 54：预问诊成功轮次后以非流式结构化调用整理病情摘要快照。
+        """票 55：预问诊成功轮次后以非流式结构化调用整理病情摘要快照。
 
         快照输入为本轮完整对话（历史 + 本轮助手回复）。目录不可用按空候选处理
         （建议科室必然归一化为 None）；目录/判定任一环节失败返回 None——本轮
@@ -280,7 +280,7 @@ class AgentChatService:
         # 与回复共用同一条免责声明，不单独标注、不作为独立消息、不进 messages 数组。
         if soothing is not None:
             message_data["soothing_text"] = soothing
-        # 票 54：预问诊成功轮次挂摘要快照（字段名取契约 summary_event_field）；
+        # 票 55：预问诊成功轮次挂摘要快照（字段名取契约 summary_event_field）；
         # 判定失败返回 None 时省略该字段，流与上一版快照均不受影响。
         if scenario == _ONLINE.scenario:
             summary_payload = await self._preconsult_summary(

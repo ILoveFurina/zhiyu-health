@@ -74,7 +74,7 @@ class FakeTriageJudge:
 
 
 class FakePreconsultJudge:
-    """预问诊摘要 seam 的 fake（票 54）：可编排返回序列（None=本轮无快照），记录调用。
+    """预问诊摘要 seam 的 fake（票 55）：可编排返回序列（None=本轮无快照），记录调用。
 
     raises=True 模拟判定器异常：编排层必须降级为省略快照字段，不得掐断 SSE 流。
     """

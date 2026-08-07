@@ -176,7 +176,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             Double latitude,
             // 票 50：科室号源查询失败后的重试字段（契约 chat_optional_fields）
             @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId,
-            // 票 54：预问诊草稿标识（与 HTTP 通道同一字段名）
+            // 票 55：预问诊草稿标识（与 HTTP 通道同一字段名）
             @JsonProperty("preconsultation_draft_id") Long preconsultationDraftId) {}
 
     private static final class SessionState {

@@ -1,4 +1,4 @@
-// 票 55：处方来源类型常量。与 contracts/prescription-flow.json 的
+// 票 56：处方来源类型常量。与 contracts/prescription-flow.json 的
 // source_types/source_type_labels 对齐。
 // 端侧无法读契约 JSON，此文件是 miniprogram 侧的本地镜像；契约变更须同步更新。
 

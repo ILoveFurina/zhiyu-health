@@ -71,7 +71,7 @@ class HealthProfileControllerTest {
 
     @Test
     void patientReadsOnlySelectedProfilesTimeline() throws Exception {
-        // 时间线五分支投影形状（票 55 新增 ONLINE_CONSULTATION 与在线处方条目）；
+        // 时间线五分支投影形状（票 56 新增 ONLINE_CONSULTATION 与在线处方条目）；
         // 在线问诊条目 type 钉住契约值，SQL 字面量与契约的一致性由 ContractsConsistencyTest 兜底。
         String onlineType =
                 TestContracts.instance().onlineConsultation().timelineTypes().get("online_consultation");

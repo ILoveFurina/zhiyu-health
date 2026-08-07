@@ -188,7 +188,7 @@ class ContractsConsistencyTest {
 
     @Test
     void onlineConsultationEnumsAreCoveredBySchemaCheckConstraints() throws Exception {
-        // 票 54：新表 CHECK 必须覆盖契约全部枚举值，漏列会在 DB 层拒写并掐断问诊闭环
+        // 票 55：新表 CHECK 必须覆盖契约全部枚举值，漏列会在 DB 层拒写并掐断问诊闭环
         // （与 ck_messages_kind 同一纪律，取值清单一致性由本测试钉死）
         String schema = new String(
                 Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
@@ -250,7 +250,7 @@ class ContractsConsistencyTest {
                 .containsEntry("rejected", "REJECTED");
         assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
         assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
-        // 票 55：处方来源二态（线下挂号/在线问诊），仅是外键派生展示值，数据库不落 source_type 列
+        // 票 56：处方来源二态（线下挂号/在线问诊），仅是外键派生展示值，数据库不落 source_type 列
         assertThat(flow.sourceTypes())
                 .containsExactlyInAnyOrderEntriesOf(
                         Map.of("appointment", "APPOINTMENT", "online_consultation", "ONLINE_CONSULTATION"));
@@ -260,14 +260,14 @@ class ContractsConsistencyTest {
 
     @Test
     void onlineConsultationTimelineTypeIsLoaded() {
-        // 票 55：COMPLETED 在线问诊进入健康档案时间线，条目类型与 med-checkin 同一契约约定
+        // 票 56：COMPLETED 在线问诊进入健康档案时间线，条目类型与 med-checkin 同一契约约定
         assertThat(contracts.onlineConsultation().timelineTypes())
                 .containsEntry("online_consultation", "ONLINE_CONSULTATION");
     }
 
     @Test
     void healthTimelineSqlLiteralsMatchContracts() throws Exception {
-        // 票 55：HealthProfileMapper.selectTimeline 是静态 SQL，类型字面量必须与契约值一致，
+        // 票 56：HealthProfileMapper.selectTimeline 是静态 SQL，类型字面量必须与契约值一致，
         // 漂移会让 C 端时间线出现契约外类型（ mapper 无法注入 Contracts，只能在此钉死）。
         String sql = String.join(
                 "\n",

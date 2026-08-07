@@ -1,4 +1,4 @@
-/* 票 54：在线问诊五步进度条；done/current/pending 三态，终态分支全中性（currentIndex=-1） */
+/* 票 55：在线问诊五步进度条；done/current/pending 三态，终态分支全中性（currentIndex=-1） */
 .consult-progress {
   display: flex;
   padding: var(--zy-space-md) var(--zy-space-md) var(--zy-space-sm);

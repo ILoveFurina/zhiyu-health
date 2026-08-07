@@ -27,7 +27,7 @@ class PatientCareControllerTest {
 
     @Test
     void patientReadsOnlyServiceFilteredApprovedPrescriptionsAndMessages() throws Exception {
-        // service 查询层已显式限定 APPROVED：这里钉住出口形状，在线来源处方带 source_type（票 55）。
+        // service 查询层已显式限定 APPROVED：这里钉住出口形状，在线来源处方带 source_type（票 56）。
         String onlineSource =
                 TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation");
         when(service.approvedPrescriptions(7L))

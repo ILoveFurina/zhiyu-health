@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** C 端预问诊草稿接口（票 54）：只做身份装配，草稿生命周期归 PreconsultationService。 */
+/** C 端预问诊草稿接口（票 55）：只做身份装配，草稿生命周期归 PreconsultationService。 */
 @RestController
 @RequestMapping("/api/c/preconsultation-drafts")
 @RequiredArgsConstructor

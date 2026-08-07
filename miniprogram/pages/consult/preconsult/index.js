@@ -12,7 +12,7 @@ const DEFAULT_EFFORT = 'auto'
 const NOOP = () => {}
 
 /**
- * AI 预问诊对话页（票 54）：复用 pages/chat 的 WS/SSE 通道与气泡渲染，
+ * AI 预问诊对话页（票 55）：复用 pages/chat 的 WS/SSE 通道与气泡渲染，
  * 每轮对话携带 preconsultation_draft_id；message 事件后回拉草稿，
  * 摘要快照就绪后亮底部「查看病情摘要并确认」CTA。
  */

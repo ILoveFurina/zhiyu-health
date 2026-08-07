@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * 统一临床上下文（票 55，Spec 0003）：从已鉴权的线下挂号单或在线问诊单解析患者、
+ * 统一临床上下文（票 56，Spec 0003）：从已鉴权的线下挂号单或在线问诊单解析患者、
  * 锁定健康档案、接诊医生、来源与发生时间。开方、禁忌检查、服药提醒、订单归属等
  * 调用方一律经本模块派生上下文，不各写一套来源分支；患者/档案/医生身份只信
  * 服务端已鉴权记录，绝不接受请求体传入。
@@ -54,7 +54,7 @@ public class ClinicalContextService {
 
     /**
      * 在线问诊开方上下文：仅该问诊绑定的医生且 IN_PROGRESS 阶段可开方
-     * （归属失败与票 54 既有守卫一致返回 404，不区分原因以免泄露存在性）。
+     * （归属失败与票 55 既有守卫一致返回 404，不区分原因以免泄露存在性）。
      */
     public ClinicalContext requirePrescribableFromOnlineConsultation(long staffId, long onlineConsultationId) {
         long doctorId = requireDoctor(staffId);

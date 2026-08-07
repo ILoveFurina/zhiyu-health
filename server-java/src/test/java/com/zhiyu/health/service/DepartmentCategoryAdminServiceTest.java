@@ -70,7 +70,8 @@ class DepartmentCategoryAdminServiceTest {
     }
 
     private DepartmentCategoryAdminService service() {
-        DepartmentCategoryAdminService service = new DepartmentCategoryAdminService(hospitalCampusMapper, departmentMapper);
+        DepartmentCategoryAdminService service =
+                new DepartmentCategoryAdminService(hospitalCampusMapper, departmentMapper);
         // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
         ReflectionTestUtils.setField(service, "baseMapper", categoryMapper);
         return service;

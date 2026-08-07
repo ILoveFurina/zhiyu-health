@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface PrescriptionMapper extends BaseMapper<Prescription> {
-    // 票 55 双来源：处方经 appointment_id 或 online_consultation_id 二选一关联（schema XOR 保证），
+    // 票 56 双来源：处方经 appointment_id 或 online_consultation_id 二选一关联（schema XOR 保证），
     // 患者/档案/发生时间一律 COALESCE 两来源取值，绝不能 INNER JOIN appointments 漏掉在线处方；
     // 在线问诊无排班，schedule_date 投影取问诊发生日期而非伪造排班日期。
     String DETAIL_COLUMNS =

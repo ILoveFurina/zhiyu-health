@@ -59,7 +59,7 @@ class MedCheckinServiceTest {
 
     @Test
     void eagerGeneratesForOnlineConsultationPrescriptionFromClinicalContext() {
-        // 在线问诊处方无挂号单：患者/档案必须由统一临床上下文派生（票 55）。
+        // 在线问诊处方无挂号单：患者/档案必须由统一临床上下文派生（票 56）。
         when(prescriptionMapper.selectDetailedById(32L)).thenReturn(onlinePrescription(32L, 41L));
         when(clinicalContexts.ofPrescription(any(Prescription.class)))
                 .thenReturn(context(13L, 98L, "ONLINE_CONSULTATION"));

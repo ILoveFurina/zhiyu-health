@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""只读验证重建后的 zhiyu：schema 形状、票54 新表、seed 行数与序列对齐。绝不打印凭据。"""
+"""只读验证重建后的 zhiyu：schema 形状、票55 新表、seed 行数与序列对齐。绝不打印凭据。"""
 import os
 import re
 import sys
@@ -32,19 +32,19 @@ conn = psycopg.connect(host=host, port=port, dbname=db,
 def q(sql, params=None):
     return conn.execute(sql, params or ()).fetchall()
 
-print("== 1. department_categories 列（应含 hospital_id，票49 新形状）")
+print("== 1. department_categories 列（院区化：campus_id，合并后规范形状）")
 cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHERE table_name='department_categories' ORDER BY ordinal_position")]
 print("   ", cols)
-assert "hospital_id" in cols and "campus_id" not in cols, "department_categories 形状不符合票49"
+assert "campus_id" in cols and "hospital_id" not in cols, "department_categories 形状不符合院区化约定"
 
-print("== 2. 票54 三张新表存在")
+print("== 2. 票55 三张新表存在")
 t54 = ["preconsultation_drafts", "online_consultations", "online_consultation_messages"]
 tables = [r[0] for r in q("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")]
 for t in t54:
     print(f"   {t}: {'OK' if t in tables else 'MISSING'}")
-    assert t in tables, f"缺票54表 {t}"
+    assert t in tables, f"缺票55表 {t}"
 
-print("== 2b. 票55 双外键二选一形状（prescriptions/consultation_records）")
+print("== 2b. 票56 双外键二选一形状（prescriptions/consultation_records）")
 for t in ["prescriptions", "consultation_records"]:
     cols = [r[0] for r in q(f"SELECT column_name FROM information_schema.columns WHERE table_name='{t}'")]
     ok = "online_consultation_id" in cols
@@ -52,9 +52,9 @@ for t in ["prescriptions", "consultation_records"]:
     assert ok, f"{t} 缺 online_consultation_id"
 checks = [r[0] for r in q("SELECT conname FROM pg_constraint WHERE conname IN ('ck_prescriptions_source','ck_consultation_records_source')")]
 print(f"   XOR CHECK: {checks}")
-assert len(checks) == 2, "缺票55 XOR CHECK 约束"
+assert len(checks) == 2, "缺票56 XOR CHECK 约束"
 oc_cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHERE table_name='online_consultations'")]
-assert "diagnosis" not in oc_cols and "advice" not in oc_cols, "online_consultations 仍存 diagnosis/advice 列（票55 应已迁入接诊记录）"
+assert "diagnosis" not in oc_cols and "advice" not in oc_cols, "online_consultations 仍存 diagnosis/advice 列（票56 应已迁入接诊记录）"
 print("   online_consultations 无 diagnosis/advice 列: OK")
 
 print("== 3. extensions")

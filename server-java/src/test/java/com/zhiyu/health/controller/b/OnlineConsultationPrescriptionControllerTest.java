@@ -20,7 +20,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 在线问诊开方端点（票 55）：HTTP 外部行为；身份派生与状态守卫由 service 层测试覆盖。 */
+/** 在线问诊开方端点（票 56）：HTTP 外部行为；身份派生与状态守卫由 service 层测试覆盖。 */
 @WebMvcTest(OnlineConsultationPrescriptionController.class)
 class OnlineConsultationPrescriptionControllerTest {
 
@@ -112,7 +112,7 @@ class OnlineConsultationPrescriptionControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("该问诊已开具电子处方"));
 
-        // 非绑定医生：404（与票 54 既有守卫一致，不区分不存在与越权）
+        // 非绑定医生：404（与票 55 既有守卫一致，不区分不存在与越权）
         org.mockito.Mockito.doThrow(new ApiException(404, "问诊单不存在"))
                 .when(service)
                 .createFromOnlineConsultation(any());

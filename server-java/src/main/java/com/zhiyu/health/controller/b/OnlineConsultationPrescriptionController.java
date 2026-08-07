@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 在线问诊开方（票 55）：请求/响应形状与线下开方端点一致，
+ * 在线问诊开方（票 56）：请求/响应形状与线下开方端点一致，
  * 患者/健康档案/医生身份由服务端统一临床上下文派生，绝不接受请求体传入。
  */
 @RestController

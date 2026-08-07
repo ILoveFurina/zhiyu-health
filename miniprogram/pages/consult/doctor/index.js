@@ -26,7 +26,7 @@ function elapsedText(startedAt) {
 }
 
 /**
- * 医生问诊页（票 54）：每 3s 轮询问诊单详情 + 增量拉取医患消息（after_id）。
+ * 医生问诊页（票 55）：每 3s 轮询问诊单详情 + 增量拉取医患消息（after_id）。
  * VIDEO 接诊方式展示模拟视频面板（纯 UI，不接真实音视频）；
  * COMPLETED 隐藏输入栏、展示诊断结论/医嘱只读卡。轮询 onHide/onUnload 必清理。
  */

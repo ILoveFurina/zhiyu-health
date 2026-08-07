@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-/** 票 54 预问诊草稿 HTTP seam：开始/恢复、无档案 409、归属 404。 */
+/** 票 55 预问诊草稿 HTTP seam：开始/恢复、无档案 409、归属 404。 */
 class PreconsultationControllerTest {
 
     @Test

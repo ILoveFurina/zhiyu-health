@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 预问诊草稿实体，镜像 schema.sql preconsultation_drafts 表（票 54：锁定档案的 Agent 预问诊容器） */
+/** 预问诊草稿实体，镜像 schema.sql preconsultation_drafts 表（票 55：锁定档案的 Agent 预问诊容器） */
 @Getter
 @Setter
 @TableName("preconsultation_drafts")

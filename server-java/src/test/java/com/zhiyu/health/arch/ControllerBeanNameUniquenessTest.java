@@ -11,7 +11,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 票 55 启动事故回归：B/C 端同名 controller 类的默认 bean 名冲突会让真实启动直接失败，
+ * 票 56 启动事故回归：B/C 端同名 controller 类的默认 bean 名冲突会让真实启动直接失败，
  * 而套件全是 sliced 测试（@WebMvcTest 只装单 controller），永远不启动全上下文，
  * 必须显式钉住 controller bean 名跨包唯一（含显式命名值）。
  */

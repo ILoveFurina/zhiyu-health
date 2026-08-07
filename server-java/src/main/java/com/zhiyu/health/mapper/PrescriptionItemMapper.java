@@ -17,7 +17,7 @@ public interface PrescriptionItemMapper extends BaseMapper<PrescriptionItem> {
             """)
     List<PrescriptionItem> selectDetailed(@Param("prescriptionId") long prescriptionId);
 
-    // 票 55 双来源（fail-closed 安全回归重点）：禁忌"在用药"检查若 INNER JOIN appointments
+    // 票 56 双来源（fail-closed 安全回归重点）：禁忌"在用药"检查若 INNER JOIN appointments
     // 会漏掉在线问诊处方的在用药，方向是 fail-open，必须 LEFT JOIN 双来源 COALESCE 取档案。
     @Select(
             """

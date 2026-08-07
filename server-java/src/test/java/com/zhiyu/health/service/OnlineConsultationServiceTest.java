@@ -38,7 +38,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** 票 54 在线问诊模块：状态机、归属、幂等与并发出口（mapper 全 mock，行为经模块 interface 断言）。 */
+/** 票 55 在线问诊模块：状态机、归属、幂等与并发出口（mapper 全 mock，行为经模块 interface 断言）。 */
 class OnlineConsultationServiceTest {
 
     // ------------------------------------------------------------------
@@ -538,7 +538,7 @@ class OnlineConsultationServiceTest {
 
         assertThat(detail.status()).isEqualTo("COMPLETED");
         assertThat(detail.diagnosis()).isEqualTo("急性上呼吸道感染");
-        // 诊断/医嘱写入接诊记录而非问诊单（票 55），与状态推进同事务
+        // 诊断/医嘱写入接诊记录而非问诊单（票 56），与状态推进同事务
         ArgumentCaptor<ConsultationRecord> record = ArgumentCaptor.forClass(ConsultationRecord.class);
         verify(f.consultationRecordMapper).insert(record.capture());
         assertThat(record.getValue().getOnlineConsultationId()).isEqualTo(21L);

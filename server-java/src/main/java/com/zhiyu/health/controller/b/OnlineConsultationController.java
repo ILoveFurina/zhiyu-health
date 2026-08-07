@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * B 端医生在线问诊接口（票 54）：挂在接诊台命名空间下（AdminInterceptor 放行），
+ * B 端医生在线问诊接口（票 55）：挂在接诊台命名空间下（AdminInterceptor 放行），
  * doctor 角色与科室资格由 OnlineConsultationService 在业务层派生与校验。
  * 显式 bean 名：与 controller/c 同名类区分，避免默认 bean 名冲突导致启动失败。
  */

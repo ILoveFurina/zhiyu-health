@@ -19,7 +19,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 票 54 在线问诊 B 端 HTTP seam：科室池、原子接受、发起方式、医患消息与完成的装配与错误出口。 */
+/** 票 55 在线问诊 B 端 HTTP seam：科室池、原子接受、发起方式、医患消息与完成的装配与错误出口。 */
 @WebMvcTest(OnlineConsultationController.class)
 class OnlineConsultationControllerTest {
 

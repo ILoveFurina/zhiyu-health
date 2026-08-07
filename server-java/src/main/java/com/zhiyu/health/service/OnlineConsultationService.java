@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 在线问诊模块（票 54，Spec 0003）：摘要确认建单、取消/失效/重新提交、科室待接诊池、
+ * 在线问诊模块（票 55，Spec 0003）：摘要确认建单、取消/失效/重新提交、科室待接诊池、
  * 医生原子接受、图文/模拟视频接诊与完成。状态校验、身份派生、超时惰性收敛与并发控制
  * 全部收口在本模块内，controller 不自行拼装状态流转；医患消息只持久化于本模块，
  * 不进 Agent 会话、审计原文与 Agent trace（硬约束 5）。
