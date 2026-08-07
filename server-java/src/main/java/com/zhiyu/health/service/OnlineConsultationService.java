@@ -566,10 +566,12 @@ public class OnlineConsultationService {
             @JsonProperty("present_illness") String presentIllness,
             @JsonProperty("allergy_history") String allergyHistory) {}
 
-    /** C 端可信医生身份：接受后轮询获得，不信任请求体携带的任何医生信息。 */
+    /** C 端可信医生身份：接受后轮询获得，不信任请求体携带的任何医生信息。
+     *  photo_url 为 /api/c/photos 代理相对 URL（票 59，映射在 DTO mapper）。 */
     public record DoctorView(
             String name,
             String title,
+            @JsonProperty("photo_url") String photoUrl,
             @JsonProperty("hospital_name") String hospitalName,
             @JsonProperty("department_name") String departmentName) {}
 

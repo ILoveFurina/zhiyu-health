@@ -4,9 +4,18 @@
   <view a:if="{{loading}}" class="state">加载中…</view>
 
   <block a:else>
-    <!-- 医生身份卡 -->
+    <!-- 医生身份卡（头像：票 59，photo_url 为 /api/c/photos 代理 URL，加载失败降级文字圆） -->
     <view a:if="{{doctor}}" class="doctor-card">
-      <view class="doctor-avatar">{{doctorInitial}}</view>
+      <view class="doctor-avatar">
+        <image
+          a:if="{{doctor.photo_url && !avatarFailed}}"
+          class="doctor-avatar-img"
+          src="{{doctor.photo_url}}"
+          mode="aspectFill"
+          onError="onAvatarError"
+        />
+        <view a:else class="doctor-avatar-text">{{doctorInitial}}</view>
+      </view>
       <view class="doctor-info">
         <view class="doctor-name">
           {{doctor.name}}

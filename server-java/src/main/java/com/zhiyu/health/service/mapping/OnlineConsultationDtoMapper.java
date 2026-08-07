@@ -69,6 +69,8 @@ public interface OnlineConsultationDtoMapper {
     @Mapping(target = "allergies", source = "allergies")
     OnlineConsultationService.ProfileRef toProfileRef(OnlineConsultation consultation, List<String> allergies);
 
+    // 表达式须全限定类名：生成的 Impl 在 service.mapping 包，无 PhotoUrls import
+    @Mapping(target = "photoUrl", expression = "java(com.zhiyu.health.service.PhotoUrls.cUrl(row.photoUrl()))")
     OnlineConsultationService.DoctorView toDoctorView(OnlineConsultationMapper.DoctorIdentityRow row);
 
     OnlineConsultationService.MessageView toMessageView(OnlineConsultationMessage message);
