@@ -76,7 +76,7 @@ npm --prefix miniprogram ci
 - server-py/services 仅承载知识检索/RAG；涉及业务写入的多步骤流程由 server-java service 原子化或显式编排，并向 Agent 暴露单一业务能力接口。
 - Umi 运行时插件错误可能只在浏览器中出现，因此前端构建成功不代表验收通过。
 - 支付宝开发者工具会把 `my.connectSocket` 的自定义 header 值包一层字面双引号（`my.request` 不受影响），server-java `AuthFilter` 已兼容剥离；本地 WSS 套件（8443 覆盖配置 + 自签证书）与排障方法见 `docs/engineering-notes/wss-and-windows-service-pitfalls.md`。
-- Windows 上单进程 uvicorn 默认 ProactorEventLoop，psycopg 异步拒绝运行；`--reload` 的重生在后台环境可能静默卡死。server-py 启动姿势见同上笔记。
+- Windows 上单进程 uvicorn 默认 ProactorEventLoop，psycopg 异步拒绝运行；`--reload` 的重生在后台环境可能静默卡死。server-py 必须用 `uv run python scripts/run-server-py.py` 启动（强制 SelectorEventLoop；admin dev 端口固定 5173，避免抢占 server-py 的 8000）。
 
 ## 7. Agent skills
 

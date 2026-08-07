@@ -19,10 +19,14 @@ if (-not (Test-Path "$root/.venv")) {
 }
 
 # ---- 每个服务开一个独立 PowerShell 窗口，日志直接可见 ----
+# server-py 必须走 scripts/run-server-py.py（Windows 上 psycopg 异步要求 SelectorEventLoop，
+# 直接 uvicorn 命令会因 ProactorEventLoop 崩溃）。
+# admin 用 PORT=5173 固定 dev 端口（umi 默认 8000，若 server-py 未起会抢占 8000，
+# 导致 server-java 的 Agent 调用打到 admin 上 404，见小程序对话失败问题）。
 $services = @(
-    @{ Name = "server-py :8000";   Cmd = "uv run uvicorn app.main:app --app-dir server-py --reload" },
+    @{ Name = "server-py :8000";   Cmd = "uv run python scripts/run-server-py.py" },
     @{ Name = "server-java :8080"; Cmd = "mvn -f server-java/pom.xml spring-boot:run" },
-    @{ Name = "admin :5173";       Cmd = "npm --prefix admin run dev" }
+    @{ Name = "admin :5173";       Cmd = "`$env:PORT='5173'; npm --prefix admin run dev" }
 )
 
 foreach ($svc in $services) {

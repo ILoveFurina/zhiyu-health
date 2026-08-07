@@ -228,8 +228,7 @@ Test-NetConnection 43.139.160.223 -Port 7687
 ```bash
 mvn -f server-java/pom.xml spring-boot:run
 uv sync --frozen --dev
-uv run python -c "import asyncio, uvicorn; import uvicorn.loops.asyncio as uv_asyncio; uv_asyncio.asyncio_loop_factory = lambda use_subprocess=False: asyncio.SelectorEventLoop; uvicorn.run('app.main:app', app_dir='server-py', host='0.0.0.0', port=8000)"
-
+uv run python scripts/run-server-py.py   # Windows 上强制 SelectorEventLoop（psycopg 异步需要），端口默认 8000
 ```
 
 验证统一入口与 Agent 层 health：
