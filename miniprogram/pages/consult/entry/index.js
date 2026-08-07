@@ -15,10 +15,12 @@ Page({
   },
 
   onShow() {
-    this.route()
+    this.dispatch()
   },
 
-  route() {
+  // 注意：方法名不能叫 route —— 页面实例的 route 是框架内建属性（当前页面路径字符串），
+  // 会被覆盖成字符串导致 this.route() 报 TypeError，页面卡死（曾因此卡"正在进入在线问诊…"）。
+  dispatch() {
     this.setData({ loading: true, needProfile: false })
     ensureLogin()
       .then(() => currentProfile())
