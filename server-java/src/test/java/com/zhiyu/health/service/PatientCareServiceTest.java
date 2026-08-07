@@ -41,4 +41,36 @@ class PatientCareServiceTest {
         assertEquals(1, service.approvedPrescriptions(7L).size());
         verify(prescriptionMapper).selectApprovedForProfile(7L, 41L, "APPROVED");
     }
+
+    @Test
+    void onlineConsultationPrescriptionCarriesContractSourceType() {
+        // 在线问诊处方：source_type 按非空外键派生且只取契约值（票 55），PENDING/REJECTED
+        // 不出队由 selectApprovedForProfile 的 SQL 边界保证（本测试钉住调用边界与派生值）。
+        PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
+        PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfile profile = new HealthProfile();
+        profile.setId(41L);
+        when(healthProfiles.requireActive(7L)).thenReturn(profile);
+        PatientCareService service = new PatientCareService(
+                prescriptionMapper,
+                itemMapper,
+                mock(InAppMessageMapper.class),
+                TestContracts.instance(),
+                Mappers.getMapper(PrescriptionDtoMapper.class),
+                healthProfiles);
+        Prescription online = new Prescription();
+        online.setId(32L);
+        online.setOnlineConsultationId(55L);
+        online.setStatus("APPROVED");
+        when(prescriptionMapper.selectApprovedForProfile(7L, 41L, "APPROVED")).thenReturn(List.of(online));
+        when(itemMapper.selectDetailed(32L)).thenReturn(List.of());
+
+        List<PatientCareService.PatientPrescriptionView> views = service.approvedPrescriptions(7L);
+
+        assertEquals(1, views.size());
+        assertEquals(
+                TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation"),
+                views.get(0).sourceType());
+    }
 }

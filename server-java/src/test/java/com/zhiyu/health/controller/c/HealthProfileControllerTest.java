@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.zhiyu.health.controller.c.mapping.HealthProfileInputMapper;
 import com.zhiyu.health.service.HealthProfileService;
+import com.zhiyu.health.support.TestContracts;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,10 @@ class HealthProfileControllerTest {
 
     @Test
     void patientReadsOnlySelectedProfilesTimeline() throws Exception {
+        // 时间线五分支投影形状（票 55 新增 ONLINE_CONSULTATION 与在线处方条目）；
+        // 在线问诊条目 type 钉住契约值，SQL 字面量与契约的一致性由 ContractsConsistencyTest 兜底。
+        String onlineType =
+                TestContracts.instance().onlineConsultation().timelineTypes().get("online_consultation");
         HealthProfileService service = mock(HealthProfileService.class);
         when(service.timeline(7L, 31L))
                 .thenReturn(List.of(
@@ -81,6 +86,15 @@ class HealthProfileControllerTest {
                                 "2026-07-29T10:00:00+08:00",
                                 "仅供参考，不替代医生诊断"),
                         new HealthProfileService.TimelineView(
+                                "PRESCRIPTION",
+                                43L,
+                                "在线问诊处方",
+                                "周安宁 · 已审核通过",
+                                "2026-07-29T09:30:00+08:00",
+                                "仅供参考，不替代医生诊断"),
+                        new HealthProfileService.TimelineView(
+                                onlineType, 44L, "在线问诊", "周安宁 · 呼吸内科", "2026-07-29T09:00:00+08:00", null),
+                        new HealthProfileService.TimelineView(
                                 "APPOINTMENT", 42L, "心血管内科挂号", "林知远 · 已约", "2026-07-28T09:00:00+08:00", null)));
         MockMvc mvc = standaloneSetup(
                         new HealthProfileController(service, Mappers.getMapper(HealthProfileInputMapper.class)))
@@ -90,7 +104,11 @@ class HealthProfileControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("REPORT_INTERPRETATION"))
                 .andExpect(jsonPath("$[0].disclaimer").value("仅供参考，不替代医生诊断"))
-                .andExpect(jsonPath("$[1].type").value("APPOINTMENT"));
+                .andExpect(jsonPath("$[1].type").value("PRESCRIPTION"))
+                .andExpect(jsonPath("$[1].title").value("在线问诊处方"))
+                .andExpect(jsonPath("$[2].type").value(onlineType))
+                .andExpect(jsonPath("$[2].summary").value("周安宁 · 呼吸内科"))
+                .andExpect(jsonPath("$[3].type").value("APPOINTMENT"));
         verify(service).timeline(7L, 31L);
     }
 

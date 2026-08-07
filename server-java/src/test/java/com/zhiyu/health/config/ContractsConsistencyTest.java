@@ -266,6 +266,22 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void healthTimelineSqlLiteralsMatchContracts() throws Exception {
+        // 票 55：HealthProfileMapper.selectTimeline 是静态 SQL，类型字面量必须与契约值一致，
+        // 漂移会让 C 端时间线出现契约外类型（ mapper 无法注入 Contracts，只能在此钉死）。
+        String sql = String.join(
+                "\n",
+                com.zhiyu.health.mapper.HealthProfileMapper.class
+                        .getMethod("selectTimeline", long.class, long.class)
+                        .getAnnotation(org.apache.ibatis.annotations.Select.class)
+                        .value());
+        String onlineType = contracts.onlineConsultation().timelineTypes().get("online_consultation");
+        assertThat(sql).as("时间线 SQL 必须含在线问诊条目类型字面量 %s", onlineType).contains("'" + onlineType + "'");
+        String medCheckinType = contracts.medCheckinFlow().timelineTypes().get("med_checkin");
+        assertThat(sql).as("时间线 SQL 必须含服药打卡条目类型字面量 %s", medCheckinType).contains("'" + medCheckinType + "'");
+    }
+
+    @Test
     void emotionValuesFitDatabaseColumn() throws Exception {
         // 票 44：契约 emotion 枚举必须装得下 messages.emotion VARCHAR(16) 列宽
         String schema = new String(

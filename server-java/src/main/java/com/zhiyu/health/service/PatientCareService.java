@@ -44,7 +44,12 @@ public class PatientCareService {
         String date = prescription.getScheduleDate() == null
                 ? null
                 : prescription.getScheduleDate().toString();
-        return dtoMapper.toPatientPrescriptionView(prescription, date, items);
+        // 来源按非空外键派生（数据库不落 source_type 列），取值只经契约（票 55）。
+        String sourceType = contracts
+                .prescriptionFlow()
+                .sourceTypes()
+                .get(prescription.getOnlineConsultationId() != null ? "online_consultation" : "appointment");
+        return dtoMapper.toPatientPrescriptionView(prescription, sourceType, date, items);
     }
 
     public record PatientItemView(
@@ -58,6 +63,7 @@ public class PatientCareService {
 
     public record PatientPrescriptionView(
             Long id,
+            String sourceType,
             String doctorName,
             String departmentName,
             String date,

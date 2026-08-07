@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.zhiyu.health.service.PatientCareService;
 import com.zhiyu.health.support.StaffTokens;
+import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +27,15 @@ class PatientCareControllerTest {
 
     @Test
     void patientReadsOnlyServiceFilteredApprovedPrescriptionsAndMessages() throws Exception {
+        // service 查询层已显式限定 APPROVED：这里钉住出口形状，在线来源处方带 source_type（票 55）。
+        String onlineSource =
+                TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation");
         when(service.approvedPrescriptions(7L))
-                .thenReturn(List.of(new PatientCareService.PatientPrescriptionView(
-                        31L, "林知远", "心血管内科", "2026-07-29", "按医嘱服用。", "仅供参考，不替代医生诊断", List.of())));
+                .thenReturn(List.of(
+                        new PatientCareService.PatientPrescriptionView(
+                                31L, "APPOINTMENT", "林知远", "心血管内科", "2026-07-29", "按医嘱服用。", "仅供参考，不替代医生诊断", List.of()),
+                        new PatientCareService.PatientPrescriptionView(
+                                32L, onlineSource, "周安宁", "呼吸内科", "2026-07-30", "足疗程服用。", "仅供参考，不替代医生诊断", List.of())));
         when(service.messages(7L))
                 .thenReturn(List.of(new PatientCareService.MessageView(
                         41L,
@@ -40,7 +47,9 @@ class PatientCareControllerTest {
 
         mockMvc.perform(get("/api/c/prescriptions").with(StaffTokens.withPatientSubject("7")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].interpretation").value("按医嘱服用。"));
+                .andExpect(jsonPath("$[0].interpretation").value("按医嘱服用。"))
+                .andExpect(jsonPath("$[0].source_type").value("APPOINTMENT"))
+                .andExpect(jsonPath("$[1].source_type").value(onlineSource));
         mockMvc.perform(get("/api/c/messages").with(StaffTokens.withPatientSubject("7")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("就诊小结"));
