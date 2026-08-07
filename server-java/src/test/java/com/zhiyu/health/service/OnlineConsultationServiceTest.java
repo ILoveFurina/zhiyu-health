@@ -14,10 +14,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.entity.ConsultationRecord;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.PreconsultationDraft;
 import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
@@ -295,8 +297,7 @@ class OnlineConsultationServiceTest {
         // 查看不推进状态：读取路径不触发接受/完成等状态写入；入口惰性收敛是规格要求的统一行为
         verify(f.consultationMapper, atLeastOnce()).expireOverdue("WAITING_DOCTOR", "EXPIRED");
         verify(f.consultationMapper, never()).accept(anyLong(), anyLong(), anyString(), anyString());
-        verify(f.consultationMapper, never())
-                .complete(anyLong(), anyLong(), anyString(), anyString(), anyString(), anyString());
+        verify(f.consultationMapper, never()).complete(anyLong(), anyLong(), anyString(), anyString());
     }
 
     @Test
@@ -522,19 +523,29 @@ class OnlineConsultationServiceTest {
     }
 
     @Test
-    void completeWritesDiagnosisAdviceAndSystemMessage() {
+    void completeWritesConsultationRecordAndSystemMessage() {
         Fixture f = new Fixture();
         f.givenDoctor(8L, 3L);
         OnlineConsultation inProgress = f.consultation("IN_PROGRESS");
         OnlineConsultation completed = f.consultation("COMPLETED");
+        completed.setDiagnosis("急性上呼吸道感染");
+        completed.setAdvice("清淡饮食");
         when(f.consultationMapper.selectDetailedById(21L)).thenReturn(inProgress, completed);
-        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED", "急性上呼吸道感染", "清淡饮食"))
-                .thenReturn(1);
+        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
 
         OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
 
         assertThat(detail.status()).isEqualTo("COMPLETED");
+        assertThat(detail.diagnosis()).isEqualTo("急性上呼吸道感染");
+        // 诊断/医嘱写入接诊记录而非问诊单（票 55），与状态推进同事务
+        ArgumentCaptor<ConsultationRecord> record = ArgumentCaptor.forClass(ConsultationRecord.class);
+        verify(f.consultationRecordMapper).insert(record.capture());
+        assertThat(record.getValue().getOnlineConsultationId()).isEqualTo(21L);
+        assertThat(record.getValue().getAppointmentId()).isNull();
+        assertThat(record.getValue().getDoctorId()).isEqualTo(3L);
+        assertThat(record.getValue().getDiagnosis()).isEqualTo("急性上呼吸道感染");
+        assertThat(record.getValue().getAdvice()).isEqualTo("清淡饮食");
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
         verify(f.messageMapper).insert(message.capture());
         assertThat(message.getValue().getContent()).isEqualTo("问诊已完成");
@@ -550,8 +561,27 @@ class OnlineConsultationServiceTest {
         OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
 
         assertThat(detail.status()).isEqualTo("COMPLETED");
-        verify(f.consultationMapper, never())
-                .complete(anyLong(), anyLong(), anyString(), anyString(), anyString(), anyString());
+        verify(f.consultationMapper, never()).complete(anyLong(), anyLong(), anyString(), anyString());
+        verify(f.consultationRecordMapper, never()).insert(any(ConsultationRecord.class));
+    }
+
+    @Test
+    void completeConcurrentDuplicateReplaysCompletedConsultation() {
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        OnlineConsultation inProgress = f.consultation("IN_PROGRESS");
+        OnlineConsultation completed = f.consultation("COMPLETED");
+        completed.setDiagnosis("急性上呼吸道感染");
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(inProgress, completed);
+        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
+        // 并发另一方已写入接诊记录：撞 online_consultation_id 唯一约束，整体回滚按已完成回放
+        when(f.consultationRecordMapper.insert(any(ConsultationRecord.class)))
+                .thenThrow(new DataIntegrityViolationException("uq_consultation_records_online_consultation"));
+        when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
+
+        OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
+
+        assertThat(detail.status()).isEqualTo("COMPLETED");
     }
 
     // ------------------------------------------------------------------
@@ -564,6 +594,7 @@ class OnlineConsultationServiceTest {
         private final PreconsultationDraftMapper draftMapper = mock(PreconsultationDraftMapper.class);
         private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
         private final HealthProfileAllergyMapper allergyMapper = mock(HealthProfileAllergyMapper.class);
+        private final ConsultationRecordMapper consultationRecordMapper = mock(ConsultationRecordMapper.class);
         private final OnlineConsultationService service;
 
         private Fixture() {
@@ -586,6 +617,7 @@ class OnlineConsultationServiceTest {
                     draftMapper,
                     staffUserMapper,
                     allergyMapper,
+                    consultationRecordMapper,
                     directTransaction(),
                     TestContracts.instance(),
                     Mappers.getMapper(OnlineConsultationDtoMapper.class));

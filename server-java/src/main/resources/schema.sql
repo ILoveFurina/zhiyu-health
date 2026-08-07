@@ -496,8 +496,6 @@ CREATE TABLE IF NOT EXISTS online_consultations (
     status VARCHAR(20) NOT NULL DEFAULT 'WAITING_DOCTOR',
     consult_method VARCHAR(10),
     method_started_at TIMESTAMPTZ,
-    diagnosis TEXT,
-    advice TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
     accepted_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
@@ -568,6 +566,11 @@ ALTER TABLE consultation_records DROP CONSTRAINT IF EXISTS ck_consultation_recor
 ALTER TABLE consultation_records
     ADD CONSTRAINT ck_consultation_records_source
     CHECK ((appointment_id IS NOT NULL) <> (online_consultation_id IS NOT NULL));
+
+-- 票 55：诊断/医嘱从问诊单迁入接诊记录（consultation_records.online_consultation_id），
+-- 问诊单只保留状态机与归属；旧库幂等删列，新建库 CREATE TABLE 已无此两列。
+ALTER TABLE online_consultations DROP COLUMN IF EXISTS diagnosis;
+ALTER TABLE online_consultations DROP COLUMN IF EXISTS advice;
 
 -- =============================================================================
 -- 表与字段注释（COMMENT 语句幂等，可重复执行；集中置末尾便于维护）
@@ -910,8 +913,6 @@ COMMENT ON COLUMN online_consultations.summary_disclaimer IS '摘要免责声明
 COMMENT ON COLUMN online_consultations.status IS '问诊状态：WAITING_DOCTOR/IN_PROGRESS/COMPLETED/CANCELLED/EXPIRED';
 COMMENT ON COLUMN online_consultations.consult_method IS '接诊方式：TEXT/VIDEO（VIDEO 仅模拟，不接真实音视频），医生接受后发起';
 COMMENT ON COLUMN online_consultations.method_started_at IS '接诊方式首次发起时间（模拟视频计时起点）';
-COMMENT ON COLUMN online_consultations.diagnosis IS '医生诊断结论（COMPLETED 时填写）';
-COMMENT ON COLUMN online_consultations.advice IS '医生医嘱（COMPLETED 时填写）';
 COMMENT ON COLUMN online_consultations.expires_at IS '接诊截止时间（创建时 + 契约 accept_timeout_seconds，超时惰性收敛 EXPIRED）';
 COMMENT ON COLUMN online_consultations.accepted_at IS '医生接受时间';
 COMMENT ON COLUMN online_consultations.completed_at IS '问诊完成时间';

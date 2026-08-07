@@ -3,10 +3,12 @@ package com.zhiyu.health.service;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.entity.ConsultationRecord;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.PreconsultationDraft;
 import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
@@ -39,6 +41,7 @@ public class OnlineConsultationService {
     private final PreconsultationDraftMapper draftMapper;
     private final StaffUserMapper staffUserMapper;
     private final HealthProfileAllergyMapper allergyMapper;
+    private final ConsultationRecordMapper consultationRecordMapper;
     private final TransactionTemplate transactionTemplate;
     private final Contracts contracts;
     private final OnlineConsultationDtoMapper dtoMapper;
@@ -291,7 +294,11 @@ public class OnlineConsultationService {
         return appendMessage(id, senderType("doctor"), content);
     }
 
-    /** 完成问诊（幂等）：诊断/医嘱与状态推进同一条条件更新；已完成重复调用返回当前单。 */
+    /**
+     * 完成问诊（幂等）：状态推进与接诊记录写入同一事务——先条件 UPDATE（并发完成只有一个
+     * affected rows = 1），再 insert consultation_records；其 online_consultation_id UNIQUE
+     * 兜底重复写入，撞唯一约束按已完成回放。已完成重复调用直接返回当前单。
+     */
     public DoctorConsultationDetail complete(long staffId, long id, String diagnosis, String advice) {
         long doctorId = requireDoctor(staffId);
         OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
@@ -299,15 +306,29 @@ public class OnlineConsultationService {
             return toDoctorDetail(consultation);
         }
         requireInProgress(consultation);
-        return transactionTemplate.execute(status -> {
-            if (consultationMapper.complete(id, doctorId, inProgress(), completed(), diagnosis.trim(), advice.trim())
-                    != 1) {
-                throw new ApiException(409, text("not_in_progress"));
+        try {
+            return transactionTemplate.execute(status -> {
+                if (consultationMapper.complete(id, doctorId, inProgress(), completed()) != 1) {
+                    throw new ApiException(409, text("not_in_progress"));
+                }
+                ConsultationRecord record = new ConsultationRecord();
+                record.setOnlineConsultationId(id);
+                record.setDoctorId(doctorId);
+                record.setDiagnosis(diagnosis.trim());
+                record.setAdvice(advice.trim());
+                consultationRecordMapper.insert(record);
+                appendMessage(id, senderType("system"), text("consult_completed"));
+                logDecision("complete", id, doctorId);
+                return toDoctorDetail(consultationMapper.selectDetailedById(id));
+            });
+        } catch (DataIntegrityViolationException e) {
+            // 并发重复完成撞接诊记录唯一约束：整体回滚后按已完成回放（幂等）。
+            OnlineConsultation raced = consultationMapper.selectDetailedById(id);
+            if (raced != null && completed().equals(raced.getStatus())) {
+                return toDoctorDetail(raced);
             }
-            appendMessage(id, senderType("system"), text("consult_completed"));
-            logDecision("complete", id, doctorId);
-            return toDoctorDetail(consultationMapper.selectDetailedById(id));
-        });
+            throw e;
+        }
     }
 
     // ------------------------------------------------------------------

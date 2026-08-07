@@ -12,6 +12,7 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
@@ -70,6 +71,7 @@ class OnlineConsultationConcurrencyTest {
                 mock(PreconsultationDraftMapper.class),
                 staffUserMapper,
                 mock(HealthProfileAllergyMapper.class),
+                mock(ConsultationRecordMapper.class),
                 serializedTransaction(),
                 TestContracts.instance(),
                 Mappers.getMapper(OnlineConsultationDtoMapper.class));

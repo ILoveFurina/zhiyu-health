@@ -11,17 +11,20 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation> {
 
-    /** 详情联查列：标准科室名恒带（C/B 端展示），患者与档案信息仅科室池/医生视图使用。 */
+    /** 详情联查列：标准科室名恒带（C/B 端展示），患者与档案信息仅科室池/医生视图使用；
+     * 诊断/医嘱自票 55 起 LEFT JOIN consultation_records 投影（问诊单不再持有该两列）。 */
     String DETAIL_COLUMNS =
             """
             SELECT oc.*, sd.name AS standard_department_name,
                    p.nickname AS patient_nickname,
                    hp.display_name AS profile_display_name, hp.gender AS profile_gender,
-                   hp.birth_date AS profile_birth_date, hp.relationship AS profile_relationship
+                   hp.birth_date AS profile_birth_date, hp.relationship AS profile_relationship,
+                   cr.diagnosis, cr.advice
             FROM online_consultations oc
             JOIN standard_departments sd ON sd.id = oc.standard_department_id
             JOIN patients p ON p.id = oc.patient_id
             JOIN health_profiles hp ON hp.id = oc.health_profile_id
+            LEFT JOIN consultation_records cr ON cr.online_consultation_id = oc.id
             """;
 
     @Select(DETAIL_COLUMNS + " WHERE oc.id = #{id}")
@@ -112,21 +115,18 @@ public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation>
             @Param("inProgress") String inProgress,
             @Param("method") String method);
 
-    /** 完成问诊：诊断/医嘱与状态推进同一条条件更新，重复完成由调用方先短路（幂等）。 */
+    /** 完成问诊：只推进状态机；诊断/医嘱由调用方同事务写 consultation_records（票 55）。 */
     @Update(
             """
             UPDATE online_consultations
-            SET status = #{completed}, diagnosis = #{diagnosis}, advice = #{advice},
-                completed_at = now(), updated_at = now()
+            SET status = #{completed}, completed_at = now(), updated_at = now()
             WHERE id = #{id} AND doctor_id = #{doctorId} AND status = #{inProgress}
             """)
     int complete(
             @Param("id") long id,
             @Param("doctorId") long doctorId,
             @Param("inProgress") String inProgress,
-            @Param("completed") String completed,
-            @Param("diagnosis") String diagnosis,
-            @Param("advice") String advice);
+            @Param("completed") String completed);
 
     /** 医生实际科室映射的标准科室：科室池可见性与接诊资格的唯一判据，未映射返回 NULL。 */
     @Select(
