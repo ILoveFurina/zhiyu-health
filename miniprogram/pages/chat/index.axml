@@ -54,7 +54,8 @@
       <view a:if="{{item.role === 'user' && item.kind !== 'image'}}" class="bubble user">{{item.content}}</view>
 
       <view a:elif="{{item.kind === 'image'}}" class="bubble user image-bubble">
-        <view class="image-msg-label">📷 {{item.content}}</view>
+        <image a:if="{{item.url}}" class="image-msg" src="{{item.url}}" mode="aspectFill" onTap="onPreviewImage" data-url="{{item.url}}" />
+        <view a:else class="image-msg-label">📷 {{item.content}}</view>
       </view>
 
       <view a:elif="{{item.kind === 'red_flag'}}" class="redflag-card">

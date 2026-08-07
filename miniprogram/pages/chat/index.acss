@@ -131,10 +131,17 @@
   width: fit-content;
 }
 
-/* 票 15：image kind 消息，用户上传的拍照原图占位（MinIO 路径不直出 URL，MVP 以标签展示） */
+/* image kind 消息：用户上传的拍照原图缩略图（ADR-0023 回拉 MinIO 原图） */
 .image-bubble {
   display: flex;
   align-items: center;
+}
+
+.image-msg {
+  width: 240rpx;
+  height: 240rpx;
+  border-radius: 16rpx;
+  display: block;
 }
 
 .image-msg-label {

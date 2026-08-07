@@ -5,6 +5,7 @@ const { isCardKind } = require('../../utils/message-kinds')
 const { defaultSelectedDate } = require('../../utils/department-slots')
 const { soothingTextFor } = require('../../utils/emotion')
 const { parseMarkdown } = require('../../utils/markdown')
+const { apiBaseUrl } = require('../../utils/config')
 
 /**
  * 对话记录抽屉逻辑（票 27 决策 6/9/13）。
@@ -102,20 +103,23 @@ const drawerMethods = {
       }
     }
     // image kind（票 15 ADR-0023）：content 是 {object_key, media_type} JSON，
-    // 回放为图片消息。MVP 暂以文字标签占位（MinIO 原图回拉待后续接入图片代理）。
+    // 按 object_key 回拉 MinIO 原图（经 server-java 图片代理端点，key 即凭证）。
     if (m.kind === 'image') {
-      let label = '皮肤照片'
+      let url = ''
       try {
         const image = JSON.parse(m.content)
-        if (image.media_type) label = '皮肤照片'
+        if (image.object_key) {
+          url = `${apiBaseUrl}/c/photos?key=${encodeURIComponent(image.object_key)}`
+        }
       } catch (e) {
-        // 解析失败时沿用默认标签
+        // 解析失败时 url 留空，模板走无图兜底文字
       }
       return {
         id: ++this._msgSeq,
         role: m.role,
         kind: 'image',
-        content: label,
+        content: '照片',
+        url,
         disclaimer: '',
         streaming: false,
       }

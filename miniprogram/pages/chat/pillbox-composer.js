@@ -55,10 +55,12 @@ module.exports = {
   },
 
   finishPillbox(items, data) {
-    // 图片消息（image kind）：server-java 已落 MinIO 并写 image 消息，前端同步展示缩略提示。
+    // 图片消息（image kind）：server-java 已落 MinIO 并写 image 消息，前端同步展示缩略图。
+    // 本地用 item.path 临时路径展示；历史回放时用代理 URL（见 drawer.js）。
     const imageMessage = {
       id: ++this._msgSeq, role: 'user', kind: 'image',
       content: `药盒照片（${items.length}张）`,
+      url: items[0] ? items[0].path : '',
     }
     const newMessages = [imageMessage]
     if (!data.recognized) {

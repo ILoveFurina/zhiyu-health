@@ -155,6 +155,13 @@ Page({
     })
   },
 
+  // 点击对话中的图片消息全屏预览（ADR-0023 回拉链路）
+  onPreviewImage(e) {
+    const url = e.currentTarget.dataset.url
+    if (!url) return
+    my.previewImage({ urls: [url] })
+  },
+
   onUnload() {
     if (this._chatChannel) this._chatChannel.close()
     this.stopTts()

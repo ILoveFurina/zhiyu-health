@@ -35,6 +35,11 @@ public class AuthFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/c/auth/") || path.startsWith("/api/b/auth/login")) {
             return true;
         }
+        // 图片代理端点放行：支付宝 <image src> 组件不带 Authorization header，
+        // 以 object_key 的 UUID 不可猜测性作为取图凭证（ADR-0023 demo 场景）。
+        if (path.startsWith("/api/c/photos")) {
+            return true;
+        }
         return !path.startsWith("/api/c/") && !path.startsWith("/api/b/");
     }
 

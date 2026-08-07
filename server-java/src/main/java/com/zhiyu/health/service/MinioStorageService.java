@@ -4,11 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.entity.Message;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -83,6 +86,38 @@ public class MinioStorageService {
             return Optional.empty();
         }
     }
+
+    /**
+     * 按对象 key 回拉原图流，供图片代理端点透传给前端（ADR-0023 回拉链路）。
+     *
+     * <p>调用方负责关闭返回的 InputStream。MinIO 未启用或对象不存在时返回空，调用方据此返回 404。
+     * 与 storePhoto 同为旁路语义：任何读取异常都吞掉返回空，不抛出打断请求。
+     */
+    public Optional<PhotoContent> getObject(String objectKey) {
+        if (!enabled || minioClient == null) {
+            return Optional.empty();
+        }
+        try {
+            GetObjectResponse response = minioClient.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
+            // MinIO 默认对未设 content-type 的对象返回 application/octet-stream；
+            // 优先用上传时记录的 media_type（image/webp 等），保证前端 <image> 正确识别。
+            String mediaType = response.headers().get("Content-Type");
+            if (mediaType == null || mediaType.isBlank() || "application/octet-stream".equals(mediaType)) {
+                mediaType = "image/jpeg";
+            }
+            return Optional.of(new PhotoContent(response, mediaType));
+        } catch (ErrorResponseException e) {
+            log.warn("MinIO 读取失败（对象不存在或 ErrorResponse）：{}", e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("MinIO 读取不可用：{}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** 回拉原图的字节流与 media_type；调用方负责关闭 stream。 */
+    public record PhotoContent(InputStream stream, String mediaType) {}
 
     /**
      * 批量持久化照片并落 image 消息；部分失败时已成功的仍落库，失败项静默跳过。
