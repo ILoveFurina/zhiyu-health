@@ -49,7 +49,7 @@ public interface DepartmentMapper extends BaseMapper<Department> {
             """
             SELECT d.id AS doctor_id, d.name AS doctor_name, d.title, d.registration_fee,
                    h.id AS hospital_id, h.name AS hospital_name,
-                   c.id AS campus_id, c.name AS campus_name,
+                   c.id AS campus_id, c.name AS campus_name, c.address AS campus_address,
                    CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
                         ELSE 6371 * acos(LEAST(1.0,
                             sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
@@ -94,6 +94,7 @@ public interface DepartmentMapper extends BaseMapper<Department> {
             String hospitalName,
             long campusId,
             String campusName,
+            String campusAddress,
             Double distanceKm,
             Long scheduleId,
             LocalDate scheduleDate,

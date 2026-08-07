@@ -283,6 +283,35 @@ class ChatRoundServiceTest {
         assertThat(body.getValue()).doesNotContainKey("knowledge_source");
     }
 
+    /** 票 50：retry_standard_department_id 透传给 server-py；缺省时省略字段。 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void retryStandardDepartmentIdIsForwardedToAgentBody() {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-retry")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-retry", null, "重新查询号源")).thenReturn(round);
+        ChatRoundService.Command retry =
+                new ChatRoundService.Command(12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L);
+
+        fixture.service.accept(retry);
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> body = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(fixture.agentClient).chat(body.capture());
+        assertThat(body.getValue()).containsEntry("retry_standard_department_id", 3L);
+
+        // 缺省不透传：普通对话轮次 body 不含 retry 字段
+        Fixture plain = new Fixture();
+        ChatRound plainRound = plain.round("ACCEPTED");
+        when(plain.persistence.find(12L, "req-plain")).thenReturn(null);
+        when(plain.persistence.create(12L, "req-plain", null, "你好")).thenReturn(plainRound);
+        plain.service.accept(plain.command("req-plain"));
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> plainBody = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(plain.agentClient).chat(plainBody.capture());
+        assertThat(plainBody.getValue()).doesNotContainKey("retry_standard_department_id");
+    }
+
     private static final class Fixture {
         private final AgentClient agentClient = mock(AgentClient.class);
         private final ChatRoundPersistence persistence = mock(ChatRoundPersistence.class);
@@ -322,7 +351,7 @@ class ChatRoundServiceTest {
         }
 
         private ChatRoundService.Command command(String requestId) {
-            return new ChatRoundService.Command(12L, requestId, null, "你好", "quick", "triage", null, null, null);
+            return new ChatRoundService.Command(12L, requestId, null, "你好", "quick", "triage", null, null, null, null);
         }
     }
 }

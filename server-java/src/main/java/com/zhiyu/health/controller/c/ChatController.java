@@ -38,13 +38,16 @@ public class ChatController {
             @JsonProperty("knowledge_source") String knowledgeSource,
             // 用户授权定位后回传的经纬度；拒绝授权时不传，由 Agent 降级提示手动选区
             @JsonProperty("longitude") @DecimalMin("-180") @DecimalMax("180") Double longitude,
-            @JsonProperty("latitude") @DecimalMin("-90") @DecimalMax("90") Double latitude) {}
+            @JsonProperty("latitude") @DecimalMin("-90") @DecimalMax("90") Double latitude,
+            // 票 50：科室号源查询失败后重试，复用已确定的标准科室 ID 直查
+            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId) {}
 
     @PostMapping("/chat")
     public SseEmitter chat(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
             @Validated @RequestBody ChatRequest request) {
-        boolean hasMedication = request.medicationName() != null && !request.medicationName().isBlank();
+        boolean hasMedication =
+                request.medicationName() != null && !request.medicationName().isBlank();
         boolean hasContent = request.content() != null && !request.content().isBlank();
         if (hasMedication == hasContent) {
             throw new ApiException(400, "content 与 medication_name 必须且只能携带其一");
@@ -62,6 +65,7 @@ public class ChatController {
                 request.scenario(),
                 request.knowledgeSource(),
                 request.longitude(),
-                request.latitude()));
+                request.latitude(),
+                request.retryStandardDepartmentId()));
     }
 }

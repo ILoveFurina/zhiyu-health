@@ -244,6 +244,59 @@ class PatientMedicalDirectoryServiceTest {
         verify(departmentMapper).selectDoctorSlotRows(eq(1L), eq("410100"), any(), any(), eq(113.6458), eq(34.7572));
     }
 
+    @Test
+    void cardCarriesCampusAddressAndEarliestBookableSlot() {
+        // 票 50：号源卡补充院区地址；最早可约由内部排序键改为可序列化结构 {date, time_slot}
+        LocalDate today = LocalDate.now();
+        when(departmentMapper.selectDoctorSlotRows(anyLong(), anyString(), any(), any(), any(), any()))
+                .thenReturn(List.of(slotRow(1L, today.plusDays(1), "上午", 5, 1.0), slotRow(1L, today, "下午", 3, 1.0)));
+
+        PatientMedicalDirectoryService.StandardDepartmentSlotsView view =
+                service.standardDepartmentSlots(1L, "410100", null, null);
+
+        PatientMedicalDirectoryService.DoctorSlotCard card = view.doctors().get(0);
+        assertThat(card.campusAddress()).isEqualTo("郑州市金水区健康路 88 号");
+        // 最早可约取两天中较早者：今天下午
+        assertThat(card.earliestBookable().date()).isEqualTo(today.toString());
+        assertThat(card.earliestBookable().timeSlot()).isEqualTo("下午");
+    }
+
+    @Test
+    void resolveServiceCityCodePicksNearestCampusCityWithCoordinates() {
+        // 票 50：Agent 回调不传 city_code，有坐标时 serviceCities 已按最近院区排序，取首项
+        when(hospitalCampusMapper.selectServiceCities(113.6458, 34.7572))
+                .thenReturn(List.of(
+                        new HospitalCampusMapper.ServiceCityRow("410100", "郑州市", 1.2),
+                        new HospitalCampusMapper.ServiceCityRow("410300", "洛阳市", 120.0)));
+
+        String cityCode =
+                service.resolveServiceCityCode(new PatientMedicalDirectoryService.Coordinates(34.7572, 113.6458));
+
+        assertThat(cityCode).isEqualTo("410100");
+        verify(hospitalCampusMapper).selectServiceCities(113.6458, 34.7572);
+    }
+
+    @Test
+    void resolveServiceCityCodeFallsBackToFirstServiceCityWithoutCoordinates() {
+        // 无坐标时取服务城市聚合列表首项（city_code 稳定序），不写死任何城市
+        when(hospitalCampusMapper.selectServiceCities(null, null))
+                .thenReturn(List.of(
+                        new HospitalCampusMapper.ServiceCityRow("410100", "郑州市", null),
+                        new HospitalCampusMapper.ServiceCityRow("410300", "洛阳市", null)));
+
+        assertThat(service.resolveServiceCityCode(null)).isEqualTo("410100");
+        verify(hospitalCampusMapper).selectServiceCities(null, null);
+    }
+
+    @Test
+    void resolveServiceCityCodeFailsWhenNoServiceCityExists() {
+        when(hospitalCampusMapper.selectServiceCities(null, null)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.resolveServiceCityCode(null))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("暂无可用服务城市");
+    }
+
     private DepartmentMapper.DoctorSlotRow slotRow(
             long doctorId, LocalDate date, String timeSlot, int remaining, Double distanceKm) {
         return new DepartmentMapper.DoctorSlotRow(
@@ -255,6 +308,7 @@ class PatientMedicalDirectoryServiceTest {
                 "郑州智愈综合医院",
                 11L,
                 "主院区",
+                "郑州市金水区健康路 88 号",
                 distanceKm,
                 100L + doctorId,
                 date,
@@ -273,6 +327,7 @@ class PatientMedicalDirectoryServiceTest {
                 "郑州智愈综合医院",
                 11L,
                 "主院区",
+                "郑州市金水区健康路 88 号",
                 distanceKm,
                 null,
                 null,

@@ -26,6 +26,10 @@ class AgentCallbackAuthFilterTest {
         assertThat(run("/api/agent/doctors/recommend", "shared-secret")).isEqualTo(200);
         assertThat(run("/api/agent/hospitals/nearby", null)).isEqualTo(401);
         assertThat(run("/api/agent/hospitals/nearby", "shared-secret")).isEqualTo(200);
+        // 票 50：智能导诊标准科室回调同样纳入 /api/agent/** 保护
+        assertThat(run("/api/agent/standard-departments", null)).isEqualTo(401);
+        assertThat(run("/api/agent/standard-departments/1/slots", null)).isEqualTo(401);
+        assertThat(run("/api/agent/standard-departments", "shared-secret")).isEqualTo(200);
     }
 
     @Test
