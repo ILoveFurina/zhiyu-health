@@ -16,5 +16,8 @@ import sys
 def force_selector_event_loop_on_windows() -> None:
     """Windows 上把默认事件循环策略切到 Selector；其他平台为空操作。"""
     if sys.platform == "win32":
-        # CPython 3.14 私有化的策略实现类（见模块 docstring），mypy typeshed 已收录
-        asyncio.set_event_loop_policy(asyncio._WindowsSelectorEventLoopPolicy())  # noqa: SLF001
+        # 3.14 起公共别名私有化：优先取私有实现类，3.12/3.13 回退公共别名（见模块 docstring）
+        policy_cls = getattr(
+            asyncio, "_WindowsSelectorEventLoopPolicy", asyncio.WindowsSelectorEventLoopPolicy
+        )
+        asyncio.set_event_loop_policy(policy_cls())
