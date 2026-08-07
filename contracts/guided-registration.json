@@ -1,0 +1,21 @@
+{
+  "_doc": "票50 智能导诊标准科室与科室号源卡：标准科室解析结果、科室号源卡事件状态、确定性摘要模板与失败/重试文案。编排代码（非 LLM）保证查询触发与摘要拼装。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
+  "resolution_statuses": ["explicit_booking", "resolved", "ambiguous", "none"],
+  "_resolution_statuses_doc": "标准科室解析结果：explicit_booking=用户明确表达科室+挂号意图，直接查询；resolved=多轮导诊形成单一明确标准科室，自动查询；ambiguous=仍有多个可能科室，只追问一个关键问题或让用户选择，不查询；none=无科室线索，不查询。",
+  "card_event": "department_slots",
+  "card_statuses": ["ok", "failed"],
+  "_card_statuses_doc": "科室号源卡状态：ok=查询成功（含全部无号，仍出卡，无号医生禁用预约）；failed=查询失败，展示普通失败消息与重新查询操作，不展示空白卡。",
+  "retry_request_field": "retry_standard_department_id",
+  "_retry_request_field_doc": "重试时对话请求携带的可选字段名：复用已确定的标准科室 ID 与当前受控位置直查，跳过科室解析与 Agent 回复。",
+  "summary_templates": {
+    "ok": "已为您查询{department}号源：最早可约{earliest_date} {earliest_slot}，当前有号医生{doctor_count}位。",
+    "empty": "{department}未来14天暂无可约号源。",
+    "failed": "号源查询失败，请稍后重试。"
+  },
+  "_summary_templates_doc": "摘要由代码根据 server-java 返回值拼装，不让 LLM 自由生成医院、医生、地址、距离、排班或余号事实。{earliest_slot} 取上午/下午文案。",
+  "time_slot_labels": {
+    "AM": "上午",
+    "PM": "下午"
+  },
+  "retry_user_text": "重新查询号源"
+}

@@ -40,6 +40,7 @@
     <view class="doctor-hospital">
       {{doc.hospital_name}} · {{doc.campus_name}}<text a:if="{{doc.distance_text}}"> · 距您约 {{doc.distance_text}} km</text>
     </view>
+    <view a:if="{{doc.campus_address}}" class="doctor-address">{{doc.campus_address}}</view>
 
     <!-- 有号医生：上午/下午时段逐条预约；无号医生保留展示并禁用预约（同一种卡片结构） -->
     <view a:if="{{doc.bookable}}" class="slots">

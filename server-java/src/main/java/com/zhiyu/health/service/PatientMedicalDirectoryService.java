@@ -91,6 +91,18 @@ public class PatientMedicalDirectoryService {
     }
 
     /**
+     * 服务端城市解析（票 50）：Agent 回调不传 city_code，由服务端解析当前服务城市。
+     * 复用 serviceCities 聚合序——有坐标时按最近院区所在城市排序，无坐标时回退 city_code
+     * 稳定序，两种情况都取首项；城市只来自院区数据，不写死任何城市。
+     */
+    public String resolveServiceCityCode(Coordinates coordinates) {
+        return serviceCities(coordinates).stream()
+                .findFirst()
+                .map(CityView::cityCode)
+                .orElseThrow(() -> new ApiException(503, "暂无可用服务城市"));
+    }
+
+    /**
      * 标准科室号源卡：无论是否有号都返回同一种结构。days 固定为今天起 14 个自然日；
      * 号源窗口边界（含 today+13、排除过去）由 SQL 保证。医生以窗口内全部排班聚合，
      * date 参数只把每个医生的 slots 过滤到单日，不过滤掉医生（当日无号即 bookable=false 置灰）。
@@ -173,12 +185,13 @@ public class PatientMedicalDirectoryService {
         };
     }
 
-    /** 最早可约键：日期 + 时段序，供医生卡排序比较。 */
-    private record EarliestSlot(LocalDate date, int slotOrder) implements Comparable<EarliestSlot> {
+    /** 最早可约：日期 + 时段；排序上午先于下午，序列化为 {date, time_slot} 供端侧与 Agent 摘要展示（票 50）。 */
+    public record EarliestSlot(String date, @JsonProperty("time_slot") String timeSlot)
+            implements Comparable<EarliestSlot> {
         @Override
         public int compareTo(EarliestSlot other) {
             int byDate = date.compareTo(other.date);
-            return byDate != 0 ? byDate : Integer.compare(slotOrder, other.slotOrder);
+            return byDate != 0 ? byDate : Integer.compare(timeSlotOrder(timeSlot), timeSlotOrder(other.timeSlot));
         }
     }
 
@@ -210,8 +223,7 @@ public class PatientMedicalDirectoryService {
             for (SlotItem slot : filtered) {
                 if (slot.remainingSlots() > 0) {
                     bookable = true;
-                    EarliestSlot candidate =
-                            new EarliestSlot(LocalDate.parse(slot.scheduleDate()), timeSlotOrder(slot.timeSlot()));
+                    EarliestSlot candidate = new EarliestSlot(slot.scheduleDate(), slot.timeSlot());
                     if (earliestBookable == null || candidate.compareTo(earliestBookable) < 0) {
                         earliestBookable = candidate;
                     }
@@ -226,6 +238,7 @@ public class PatientMedicalDirectoryService {
                     first.hospitalName(),
                     first.campusId(),
                     first.campusName(),
+                    first.campusAddress(),
                     first.distanceKm(),
                     bookable,
                     earliestBookable,
@@ -276,9 +289,10 @@ public class PatientMedicalDirectoryService {
             @JsonProperty("hospital_name") String hospitalName,
             @JsonProperty("campus_id") long campusId,
             @JsonProperty("campus_name") String campusName,
+            @JsonProperty("campus_address") String campusAddress,
             @JsonProperty("distance_km") Double distanceKm,
             boolean bookable,
-            @com.fasterxml.jackson.annotation.JsonIgnore EarliestSlot earliestBookable,
+            @JsonProperty("earliest_bookable") EarliestSlot earliestBookable,
             List<SlotItem> slots) {}
 
     public record SlotItem(

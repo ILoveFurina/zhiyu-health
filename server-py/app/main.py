@@ -14,6 +14,7 @@ from app.agent.runner import AgentRunner, LazySettingsAgentRunner
 from app.agent.clinical import ClinicalGenerator, LazyClinicalGenerator
 from app.agent.emotion import EmotionJudge
 from app.agent.medication import LazyMedicationKnowledgeStreamer, MedicationKnowledgeStreamer
+from app.agent.triage import TriageJudge
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.api.agent import router as agent_router
 from app.api.clinical import router as clinical_router
@@ -27,6 +28,7 @@ from app.core.eventloop import force_selector_event_loop_on_windows
 from app.core.logging import configure_logging
 from app.db.clients import create_knowledge_clients
 from app.services.chat import AgentChatService
+from app.services.directory import CallbackDepartmentDirectory, DepartmentDirectory
 from app.services.graph import build_graph_projector, build_graph_traverser
 from app.services.health import HealthChecker, HealthService
 from app.services.knowledge import build_knowledge_retriever
@@ -48,6 +50,8 @@ def create_app(
     graph_available: bool = False,
     graph_projector: object | None = None,
     emotion_judge: EmotionJudge | None = None,
+    triage_judge: TriageJudge | None = None,
+    directory: DepartmentDirectory | None = None,
     voice_service: VoiceService | None = None,
     medication_streamer: MedicationKnowledgeStreamer | None = None,
 ) -> FastAPI:
@@ -63,6 +67,8 @@ def create_app(
                 rag_available=rag_available,
                 graph_available=graph_available,
                 emotion_judge=emotion_judge,
+                triage_judge=triage_judge,
+                directory=directory,
             )
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret
@@ -93,6 +99,8 @@ def create_app(
             runner,
             rag_available=knowledge_retriever is not None,
             graph_available=graph_traverser is not None,
+            triage_judge=triage_judge,
+            directory=directory or CallbackDepartmentDirectory(app.state.business_client),
         )
         app.state.graph_projector = built_projector
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()

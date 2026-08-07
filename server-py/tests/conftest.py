@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
 from app.schemas.emotion import EmotionResult
+from app.schemas.triage import TriageResolution
 from app.tools.graph import GraphNeighbor
 from app.tools.knowledge import KnowledgeChunk
 
@@ -55,6 +56,20 @@ class FakeEmotionJudge:
     async def judge(self, user_text: str) -> EmotionResult:
         self.calls.append(user_text)
         return self._result
+
+
+class FakeTriageJudge:
+    """科室解析 seam 的 fake（票 50）：可编排返回序列，记录收到的消息与候选科室。"""
+
+    def __init__(self, results: list[TriageResolution] | None = None) -> None:
+        self._results = list(results or [])
+        self.calls: list[dict[str, object]] = []
+
+    async def judge(self, messages, candidates) -> TriageResolution:
+        self.calls.append({"messages": messages, "candidates": candidates})
+        if self._results:
+            return self._results.pop(0)
+        return TriageResolution.none_default()
 
 
 class FakeKnowledgeRetriever:
@@ -101,11 +116,15 @@ class FakeGraphTraverser:
 def harness() -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
     fake_emotion = FakeEmotionJudge()
+    fake_triage = FakeTriageJudge()
     app = create_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,
         emotion_judge=fake_emotion,
+        triage_judge=fake_triage,
     )
     with TestClient(app) as client:
-        yield SimpleNamespace(client=client, agent=fake_agent, emotion=fake_emotion)
+        yield SimpleNamespace(
+            client=client, agent=fake_agent, emotion=fake_emotion, triage=fake_triage
+        )

@@ -54,7 +54,8 @@ class ContractsConsistencyTest {
                         "skin_analysis",
                         "image",
                         "diet_analysis",
-                        "tongue_analysis");
+                        "tongue_analysis",
+                        "department_slots");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -94,6 +95,8 @@ class ContractsConsistencyTest {
         assertThat(Message.isAiCardKind("medication_safety")).isFalse();
         // red_flag 是规则引擎产物，不属于 AI 卡片
         assertThat(Message.isAiCardKind("red_flag")).isFalse();
+        // 票 50：department_slots 是编排代码确定性产出的 AI 卡片
+        assertThat(Message.isAiCardKind("department_slots")).isTrue();
     }
 
     @Test
@@ -158,8 +161,28 @@ class ContractsConsistencyTest {
                         "skin_analysis",
                         "diet_analysis",
                         "tongue_analysis",
+                        "department_slots",
                         "report_upload",
                         "image");
+    }
+
+    @Test
+    void messageKindsAreCoveredBySchemaCheckConstraint() throws Exception {
+        // 票 50：messages.kind 的 ck_messages_kind CHECK 必须覆盖全部契约 kind + red_flag，
+        // 漏列会使卡片落库在 DB 层被拒并掐断 SSE 中继（票 33 同类故障）
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        int start = schema.indexOf("ck_messages_kind");
+        assertThat(start).as("schema.sql 必须存在 ck_messages_kind 约束").isGreaterThanOrEqualTo(0);
+        String constraintRegion = schema.substring(start);
+        for (String kind : contracts.sseEvents().messageKinds()) {
+            assertThat(constraintRegion)
+                    .as("ck_messages_kind 必须覆盖契约 kind %s", kind)
+                    .contains("'" + kind + "'");
+        }
+        assertThat(constraintRegion).contains("'" + contracts.sseEvents().redFlagEvent() + "'");
     }
 
     @Test

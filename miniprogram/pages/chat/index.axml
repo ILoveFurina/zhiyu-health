@@ -77,6 +77,27 @@
         onSelectHospital="onHospitalSelected"
       />
 
+      <!-- 票 50：智能导诊科室号源卡。失败态为文本 + 重新查询；成功态复用票 49 号源卡组件 -->
+      <view a:elif="{{item.kind === 'department_slots'}}">
+        <view a:if="{{item.card.status === 'failed'}}" class="bubble ai">
+          <text>{{item.card.message}}</text>
+          <view class="depslots-retry" data-id="{{item.id}}" onTap="onRetryDepartmentSlots">重新查询</view>
+          <ai-disclaimer text="{{item.disclaimer}}" />
+        </view>
+        <block a:else>
+          <department-slots-card
+            standardDepartment="{{item.card.standard_department}}"
+            days="{{item.card.days}}"
+            selectedDate="{{item.card.selectedDate}}"
+            doctors="{{item.card.doctors}}"
+            cardId="{{item.id}}"
+            onSelectDate="onDepartmentSlotsSelectDate"
+            onBook="onDepartmentSlotsBook"
+          />
+          <ai-disclaimer text="{{item.disclaimer}}" />
+        </block>
+      </view>
+
       <appointment-card
         a:elif="{{item.kind === 'appointment' || item.kind === 'appointments'}}"
         kind="{{item.kind}}"

@@ -72,7 +72,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         try {
             Long patientId = (Long) rawSession.getAttributes().get(ChatWebSocketHandshakeInterceptor.ATTR_PATIENT_ID);
             ChatPayload data = objectMapper.treeToValue(envelope.data(), ChatPayload.class);
-            boolean hasMedication = data.medicationName() != null && !data.medicationName().isBlank();
+            boolean hasMedication =
+                    data.medicationName() != null && !data.medicationName().isBlank();
             boolean hasContent = data.content() != null && !data.content().isBlank();
             if (hasMedication == hasContent) {
                 // 契约：medication_name 与 text 互斥且必居其一（票 51，与 HTTP 通道同一 XOR 规则）
@@ -90,7 +91,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                             data.scenario(),
                             data.knowledgeSource(),
                             data.longitude(),
-                            data.latitude()));
+                            data.latitude(),
+                            data.retryStandardDepartmentId()));
             sendAccepted(state.session, handle);
             state.observer = handle.events()
                     .subscribe(
@@ -170,7 +172,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             String scenario,
             @JsonProperty("knowledge_source") String knowledgeSource,
             Double longitude,
-            Double latitude) {}
+            Double latitude,
+            // 票 50：科室号源查询失败后的重试字段（契约 chat_optional_fields）
+            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId) {}
 
     private static final class SessionState {
         private final WebSocketSession session;

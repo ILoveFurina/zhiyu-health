@@ -13,8 +13,9 @@ const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
 const { loadRegistrationSummary } = require('../../services/registration')
-const { relocate } = require('../../utils/location')
+const { relocate, getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
+const { defaultSelectedDate } = require('../../utils/department-slots')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -178,7 +179,7 @@ Page({
     this.sendText(this.data.inputValue.trim())
   },
 
-  startRound(content, location) {
+  startRound(content, location, options) {
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content }
     const aiMsg = {
       id: ++this._msgSeq,
@@ -207,6 +208,7 @@ Page({
       scenario: scenarioFor(content),
       longitude: location && location.longitude,
       latitude: location && location.latitude,
+      retryStandardDepartmentId: options && options.retryStandardDepartmentId,
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
         onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
@@ -217,6 +219,7 @@ Page({
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
         onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
+        onDepartmentSlots: (data) => this.onDepartmentSlots(data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
@@ -321,6 +324,67 @@ Page({
       disclaimer: card.disclaimer,
     }
     this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
+  },
+
+  // ===== 票 50：智能导诊科室号源卡（department_slots）=====
+  /** 成功卡补默认选中日期后追加；失败卡原样渲染（无 days/doctors）。 */
+  onDepartmentSlots(data) {
+    const card =
+      data && data.status === 'ok' ? { ...data, selectedDate: defaultSelectedDate(data) } : data
+    this.appendCard('department_slots', card)
+  },
+
+  /** 失败卡「重新查询」：以用户文案发起新一轮对话，携带科室 id 供后端跳过解析直查。 */
+  onRetryDepartmentSlots(e) {
+    if (this.data.sending) return
+    const msg = this.data.messages.find((m) => String(m.id) === String(e.currentTarget.dataset.id))
+    const departmentId =
+      msg && msg.card && msg.card.standard_department && msg.card.standard_department.id
+    if (!departmentId) return
+    ensureLogin()
+      .then(() => {
+        const coords = getCoords()
+        this.startRound(
+          // 镜像 contracts/guided-registration.json retry_user_text（端侧无法读契约 JSON）
+          '重新查询号源',
+          { longitude: coords.lng, latitude: coords.lat },
+          { retryStandardDepartmentId: departmentId }
+        )
+      })
+      .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
+  },
+
+  /** 日期条切换：卡片为受控组件，按 cardId 定位消息更新 card.selectedDate。 */
+  onDepartmentSlotsSelectDate(date, cardId) {
+    if (!date) return
+    this.setData({
+      messages: this.data.messages.map((msg) =>
+        String(msg.id) === String(cardId)
+          ? { ...msg, card: { ...msg.card, selectedDate: date } }
+          : msg
+      ),
+    })
+  },
+
+  /** 预约跳转：与自助号源页（pages/booking/department-slots）同一确认页参数。 */
+  onDepartmentSlotsBook({ scheduleId, doctor, slot, cardId }) {
+    if (!slot || Number(slot.remaining_slots) <= 0) return
+    const msg = this.data.messages.find((m) => String(m.id) === String(cardId))
+    const departmentName =
+      (msg && msg.card && msg.card.standard_department && msg.card.standard_department.name) || ''
+    const hospitalName = doctor.campus_name
+      ? `${doctor.hospital_name} · ${doctor.campus_name}`
+      : doctor.hospital_name
+    my.navigateTo({
+      url:
+        `/pages/booking/confirm/index?scheduleId=${scheduleId}` +
+        `&scheduleDate=${encodeURIComponent(slot.schedule_date)}` +
+        `&timeSlot=${encodeURIComponent(slot.time_slot)}` +
+        `&doctorName=${encodeURIComponent(doctor.doctor_name)}` +
+        `&departmentName=${encodeURIComponent(departmentName)}` +
+        `&hospitalName=${encodeURIComponent(hospitalName)}` +
+        `&fee=${encodeURIComponent(doctor.registration_fee)}`,
+    })
   },
 
   onDoctorSelected(selection) {

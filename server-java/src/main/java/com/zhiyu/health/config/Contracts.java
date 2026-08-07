@@ -38,6 +38,7 @@ public class Contracts {
     private final AppointmentCare appointmentCare;
     private final Emotion emotion;
     private final Voice voice;
+    private final GuidedRegistration guidedRegistration;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -66,6 +67,7 @@ public class Contracts {
         this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
         this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
         this.voice = read(mapper, dir, "voice.json", Voice.class);
+        this.guidedRegistration = read(mapper, dir, "guided-registration.json", GuidedRegistration.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -161,6 +163,11 @@ public class Contracts {
     /** 语音双向（票 45，ADR-0020）：ASR/TTS 开关、格式占位、超时与降级提示。 */
     public Voice voice() {
         return voice;
+    }
+
+    /** 智能导诊标准科室与科室号源卡（票 50）：解析结果、卡事件状态、摘要模板与重试字段。 */
+    public GuidedRegistration guidedRegistration() {
+        return guidedRegistration;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。text 为通用文案；
@@ -532,6 +539,27 @@ public class Contracts {
         /** 错误码是否属于契约白名单（出口映射前校验，防脏值透传）。 */
         public boolean isKnownCode(String code) {
             return code != null && errorCodes.contains(code);
+        }
+    }
+
+    /**
+     * 智能导诊标准科室与科室号源卡（票 50）：标准科室解析结果、科室号源卡事件状态、
+     * 确定性摘要模板与失败/重试文案。编排代码（非 LLM）保证查询触发与摘要拼装；
+     * 业务侧暂不消费模板，当前主要供测试钉值与双端一致性。
+     */
+    public record GuidedRegistration(
+            List<String> resolutionStatuses,
+            String cardEvent,
+            List<String> cardStatuses,
+            String retryRequestField,
+            Map<String, String> summaryTemplates,
+            Map<String, String> timeSlotLabels,
+            String retryUserText) {
+        public GuidedRegistration {
+            resolutionStatuses = List.copyOf(resolutionStatuses);
+            cardStatuses = List.copyOf(cardStatuses);
+            summaryTemplates = Map.copyOf(summaryTemplates);
+            timeSlotLabels = Map.copyOf(timeSlotLabels);
         }
     }
 }

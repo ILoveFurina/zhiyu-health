@@ -25,30 +25,33 @@ class ContractsTest {
         assertThat(events.streamEvents()).containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
-        assertThat(events.cardEvents()).hasSize(5);
+        assertThat(events.cardEvents()).hasSize(6);
+        // 票 50：find_hospitals 工具移除，department_slots 卡由编排代码确定性产出、不经 LLM 工具调用
         assertThat(events.toolToEvent())
-                .hasSize(5)
+                .hasSize(4)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
-                .containsEntry("find_hospitals", "hospital_recommendations")
                 .containsEntry("create_appointment", "appointment")
-                .containsEntry("get_appointment", "appointments");
+                .containsEntry("get_appointment", "appointments")
+                .doesNotContainKey("find_hospitals");
         assertThat(events.messageKinds())
-                .hasSize(13)
+                .hasSize(14)
                 .contains(
                         "text",
                         "report_interpretation",
                         "skin_analysis",
                         "image",
                         "diet_analysis",
-                        "tongue_analysis")
+                        "tongue_analysis",
+                        "department_slots")
                 // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
                 // 说明书走流式文本，禁忌仅留 B 端开方链路
                 .doesNotContain("medication_info", "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(9);
+        assertThat(events.aiCardKinds()).hasSize(10);
         assertThat(events.eventToKind())
-                .hasSize(6)
-                .containsEntry("hospital_recommendations", "hospital_recommendations");
+                .hasSize(7)
+                .containsEntry("hospital_recommendations", "hospital_recommendations")
+                .containsEntry("department_slots", "department_slots");
     }
 
     @Test
@@ -110,8 +113,8 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
-        // 票 51：chat 信封可选字段（拍药盒识别后请求通用药品说明书流）
-        assertThat(realtime.chatOptionalFields()).containsExactly("medication_name");
+        // 票 51/票 50：chat 信封可选字段（药品说明书流 / 科室号源失败重试）
+        assertThat(realtime.chatOptionalFields()).containsExactly("medication_name", "retry_standard_department_id");
     }
 
     @Test
@@ -123,6 +126,25 @@ class ContractsTest {
         assertThat(knowledge.doneEvent()).isEqualTo("done");
         assertThat(knowledge.consultProfessional()).isEqualTo("具体是否适用请咨询医生或药师");
         assertThat(knowledge.unknownDrug()).contains("未找到该药品");
+    }
+
+    @Test
+    void guidedRegistrationContractIsLoaded() {
+        // 票 50：智能导诊标准科室解析与科室号源卡常量来自契约单一事实源
+        Contracts.GuidedRegistration guided = contracts.guidedRegistration();
+        assertThat(guided.resolutionStatuses()).containsExactly("explicit_booking", "resolved", "ambiguous", "none");
+        assertThat(guided.cardEvent()).isEqualTo("department_slots");
+        assertThat(guided.cardStatuses()).containsExactly("ok", "failed");
+        assertThat(guided.retryRequestField()).isEqualTo("retry_standard_department_id");
+        assertThat(guided.summaryTemplates().keySet()).containsExactlyInAnyOrder("ok", "empty", "failed");
+        assertThat(guided.summaryTemplates().get("ok")).contains("{department}");
+        assertThat(guided.timeSlotLabels()).containsEntry("AM", "上午").containsEntry("PM", "下午");
+        assertThat(guided.retryUserText()).isEqualTo("重新查询号源");
+        // 卡事件名必须与 sse-events 的 card_events/message_kinds 同源一致
+        assertThat(contracts.sseEvents().cardEvents()).contains(guided.cardEvent());
+        assertThat(contracts.sseEvents().messageKinds()).contains(guided.cardEvent());
+        // 重试字段必须与 chat-realtime 的 chat_optional_fields 一致
+        assertThat(contracts.chatRealtime().chatOptionalFields()).contains(guided.retryRequestField());
     }
 
     @Test
@@ -201,7 +223,6 @@ class ContractsTest {
                 .isEqualTo(Map.of(
                         "recommend_doctors", "doctor_recommendations",
                         "get_doctor_slots", "doctor_slots",
-                        "find_hospitals", "hospital_recommendations",
                         "create_appointment", "appointment",
                         "get_appointment", "appointments"));
         assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));

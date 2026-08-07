@@ -50,7 +50,32 @@ class ChatControllerTest {
                                 """))
                 .andExpect(request().asyncStarted());
 
-        verify(service).chat(new ChatRoundService.Command(12L, "req-34", null, "你好", "quick", null, null, null, null));
+        verify(service)
+                .chat(new ChatRoundService.Command(12L, "req-34", null, "你好", "quick", null, null, null, null, null));
+        emitter.complete();
+    }
+
+    @Test
+    void retryStandardDepartmentIdIsForwardedToRoundCommand() throws Exception {
+        // 票 50：科室号源查询失败后的重试字段透传给对话轮次
+        ChatService service = mock(ChatService.class);
+        SseEmitter emitter = new SseEmitter();
+        when(service.chat(any())).thenReturn(emitter);
+        MockMvc mvc = mvc(service);
+
+        mvc.perform(
+                        post("/api/c/chat")
+                                .requestAttr("authSubject", 12L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"request_id":"req-retry","content":"重新查询号源",
+                                 "retry_standard_department_id":3}
+                                """))
+                .andExpect(request().asyncStarted());
+
+        verify(service)
+                .chat(new ChatRoundService.Command(12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L));
         emitter.complete();
     }
 
@@ -72,8 +97,7 @@ class ChatControllerTest {
                                 """))
                 .andExpect(request().asyncStarted());
 
-        verify(service)
-                .medication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+        verify(service).medication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
         verify(service, org.mockito.Mockito.never()).chat(any());
         emitter.complete();
     }
@@ -83,11 +107,12 @@ class ChatControllerTest {
         ChatService service = mock(ChatService.class);
         MockMvc mvc = mvc(service);
 
-        mvc.perform(post("/api/c/chat")
-                        .requestAttr("authSubject", 12L)
-                        .contentType("application/json")
-                        .content(
-                                """
+        mvc.perform(
+                        post("/api/c/chat")
+                                .requestAttr("authSubject", 12L)
+                                .contentType("application/json")
+                                .content(
+                                        """
                         {"request_id":"req-x","content":"你好","medication_name":"布洛芬"}
                         """))
                 .andExpect(status().isBadRequest());

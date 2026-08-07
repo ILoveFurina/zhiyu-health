@@ -49,8 +49,8 @@ class AgentContext:
     patient_id: int
     conversation_id: int
     health_profile: HealthProfileContext | None = None
-    # 用户授权定位后的经纬度；拒绝授权时为 None，find_hospitals 据此降级。
-    # 不进 system prompt，避免模型誊抄坐标出错；工具直接从 context 取用。
+    # 用户授权定位后的经纬度；拒绝授权时为 None，按位置的服务端能力据此省略坐标。
+    # 不进 system prompt，避免模型誊抄坐标出错；工具/编排代码直接从 context 取用。
     longitude: float | None = None
     latitude: float | None = None
     # 知识增强源（ADR-0010）：rag 注入 search_knowledge 工具；graph 注入 traverse_graph
@@ -62,7 +62,7 @@ class AgentContext:
 # 与 contracts/sse-events.json 的一致性由 tests/test_contract_consumption.py 钉死。
 CardEvent = Literal[
     "doctor_recommendations", "doctor_slots", "hospital_recommendations",
-    "appointment", "appointments",
+    "appointment", "appointments", "department_slots",
 ]
 
 # 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。
@@ -215,8 +215,7 @@ def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
     """tool_end 负载：tool_call_id 配对键 + 工具名 + 结果枚举。
 
     结果判定（与 _tool_output 的投影逻辑对齐，但不重复投影卡片/知识）：
-    - skipped：工具被静默降级（find_hospitals 无定位返 need_location；知识工具空召回），
-      对用户不可见，与"降级"词条一致。
+    - skipped：工具被静默降级（知识工具空召回），对用户不可见，与"降级"词条一致。
     - error：工具内容无法解析为结构化结果（非 JSON / 非 dict）。
     - success：工具返回可投影的结构化结果（卡片或非空知识召回）。
     duration_ms 不在此计算--server-py 不背时钟，由 server-java 按 start->end 墙钟算。
@@ -232,9 +231,6 @@ def _classify_tool_result(message: ToolMessage) -> TraceResult:
     payload = _parse_tool_payload(message)
     if payload is None:
         return "error"
-    # find_hospitals 无定位降级：need_location=true 视为 skipped（静默，对用户不可见）
-    if message.name == "find_hospitals" and payload.get("need_location") is True:
-        return "skipped"
     # 知识工具空召回：degraded，无结果可呈现，归 skipped（降级对用户不可见）
     if message.name in (KNOWLEDGE_TOOL, GRAPH_TOOL):
         count = int(payload.get("count", 0))

@@ -150,6 +150,17 @@
   width: fit-content;
 }
 
+/* 票 50：号源查询失败卡「重新查询」按钮（发起新一轮对话，携带 retry_standard_department_id） */
+.depslots-retry {
+  margin-top: 16rpx;
+  padding: 10rpx 36rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 26rpx;
+  width: fit-content;
+}
+
 /* 票 44：情绪反馈气泡配色--calm 白泡（默认）、anxious 暖橙、fearful 暖红 */
 .bubble.ai-anxious {
   background: #fff4e6;

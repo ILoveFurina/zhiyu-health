@@ -157,9 +157,10 @@ class MedicalDirectoryControllerTest {
                 "郑州智愈综合医院",
                 11L,
                 "主院区",
+                "郑州市金水区健康路 88 号",
                 1.2,
                 true,
-                null,
+                new PatientMedicalDirectoryService.EarliestSlot("2026-08-06", "上午"),
                 List.of(new PatientMedicalDirectoryService.SlotItem(1L, "2026-08-06", "上午", 10)));
         when(directory.standardDepartmentSlots(1L, "410100", COORDS, date))
                 .thenReturn(new PatientMedicalDirectoryService.StandardDepartmentSlotsView(
@@ -180,6 +181,10 @@ class MedicalDirectoryControllerTest {
                 .andExpect(jsonPath("$.doctors[0].doctor_id").value(1))
                 .andExpect(jsonPath("$.doctors[0].registration_fee").value(50.00))
                 .andExpect(jsonPath("$.doctors[0].campus_name").value("主院区"))
+                // 票 50：号源卡补院区地址；最早可约序列化为 {date, time_slot}
+                .andExpect(jsonPath("$.doctors[0].campus_address").value("郑州市金水区健康路 88 号"))
+                .andExpect(jsonPath("$.doctors[0].earliest_bookable.date").value("2026-08-06"))
+                .andExpect(jsonPath("$.doctors[0].earliest_bookable.time_slot").value("上午"))
                 .andExpect(jsonPath("$.doctors[0].bookable").value(true))
                 .andExpect(jsonPath("$.doctors[0].slots[0].time_slot").value("上午"))
                 .andExpect(jsonPath("$.doctors[0].slots[0].remaining_slots").value(10));

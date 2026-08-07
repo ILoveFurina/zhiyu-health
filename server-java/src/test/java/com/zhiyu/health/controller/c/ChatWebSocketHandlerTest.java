@@ -162,6 +162,35 @@ class ChatWebSocketHandlerTest {
         org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).acceptMedication(any());
     }
 
+    @Test
+    void retryStandardDepartmentIdEnvelopeIsForwardedToRoundCommand() throws Exception {
+        // 票 50：WS chat 信封携带 retry_standard_department_id 时透传给对话轮次命令
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        Sinks.Many<ChatRoundService.Event> events = Sinks.many().replay().all();
+        when(rounds.accept(any()))
+                .thenReturn(new ChatRoundService.Handle("req-retry", 7L, "ACCEPTED", events.asFlux()));
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage(
+                        """
+                        {"type":"chat","request_id":"req-retry",
+                         "data":{"content":"重新查询号源","retry_standard_department_id":3}}
+                        """));
+
+        org.mockito.Mockito.verify(rounds)
+                .accept(new ChatRoundService.Command(
+                        12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L));
+        JsonNode accepted = mapper.readTree(sent.get(0));
+        assertThat(accepted.path("type").asText()).isEqualTo("accepted");
+        assertThat(accepted.path("request_id").asText()).isEqualTo("req-retry");
+    }
+
     private WebSocketSession session(List<String> sent) throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
         Map<String, Object> attributes = new HashMap<>();

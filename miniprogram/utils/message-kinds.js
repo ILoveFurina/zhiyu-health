@@ -10,6 +10,8 @@ const CARD_KINDS = [
   'skin_analysis',
   'diet_analysis',
   'tongue_analysis',
+  // 票 50：智能导诊科室明确后下发的跨医院 14 天号源卡（含 failed 状态）
+  'department_slots',
 ]
 
 function isCardKind(kind) {

@@ -170,8 +170,9 @@ public class ChatRoundService {
                 round.getRequestId(),
                 maskForAudit(command.drugName()));
         runtime.emit(contracts.sseEvents().metaEvent(), baseData(round));
-        agentClient.medicationKnowledge(command.drugName()).subscribe(
-                event -> forwardMedication(runtime, event), error -> fail(runtime, error), () -> {
+        agentClient
+                .medicationKnowledge(command.drugName())
+                .subscribe(event -> forwardMedication(runtime, event), error -> fail(runtime, error), () -> {
                     if (!runtime.sawDone.get()) {
                         fail(runtime, new IllegalStateException("Agent 流未发送 done 即结束"));
                     }
@@ -217,16 +218,15 @@ public class ChatRoundService {
         content.append(consult);
         emitMedicationToken(runtime, consult);
 
-        ObjectNode messageData = objectMapper
-                .createObjectNode()
-                .put("role", "assistant")
-                .put("content", content.toString());
-        JsonNode persisted = persistence.persistEvent(round, contracts.sseEvents().messageEvent(), messageData);
+        ObjectNode messageData =
+                objectMapper.createObjectNode().put("role", "assistant").put("content", content.toString());
+        JsonNode persisted =
+                persistence.persistEvent(round, contracts.sseEvents().messageEvent(), messageData);
         runtime.emit(contracts.sseEvents().messageEvent(), persisted);
         runtime.sawDone.set(true);
         persistence.markCompleted(round.getId());
-        JsonNode doneData = persistence.persistEvent(
-                round, contracts.sseEvents().doneEvent(), objectMapper.createObjectNode());
+        JsonNode doneData =
+                persistence.persistEvent(round, contracts.sseEvents().doneEvent(), objectMapper.createObjectNode());
         runtime.emit(contracts.sseEvents().doneEvent(), doneData);
         runtime.finish();
     }
@@ -296,6 +296,10 @@ public class ChatRoundService {
         if (command.longitude() != null && command.latitude() != null) {
             body.put("longitude", command.longitude());
             body.put("latitude", command.latitude());
+        }
+        // 票 50：科室号源重试透传（字段名取自契约 retry_request_field，不写死字面量）
+        if (command.retryStandardDepartmentId() != null) {
+            body.put(contracts.guidedRegistration().retryRequestField(), command.retryStandardDepartmentId());
         }
         return body;
     }
@@ -422,7 +426,8 @@ public class ChatRoundService {
             String scenario,
             String knowledgeSource,
             Double longitude,
-            Double latitude) {}
+            Double latitude,
+            Long retryStandardDepartmentId) {}
 
     /** 药品说明书流轮次命令（票 51）：无 effort/scenario/档案/定位，只有药名。 */
     public record MedicationCommand(Long patientId, String requestId, Long conversationId, String drugName) {}

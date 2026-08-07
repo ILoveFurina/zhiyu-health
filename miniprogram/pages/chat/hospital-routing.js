@@ -1,4 +1,5 @@
 const { ensureLogin } = require('../../utils/auth')
+const { getCoords } = require('../../utils/location')
 
 const INTERPRETATION_KEYWORDS = ['解读', '报告', '处方']
 
@@ -15,7 +16,12 @@ const hospitalRoutingMethods = {
   sendText(content) {
     if (!content) return
     ensureLogin()
-      .then(() => this.startRound(content))
+      // 票 50 修复定位断链：对话请求携带本次会话已确认的就医位置（未确认时为空对象，
+      // startRound 的 location.longitude/latitude 随之缺省，不上送无效坐标）
+      .then(() => {
+        const coords = getCoords()
+        this.startRound(content, { longitude: coords.lng, latitude: coords.lat })
+      })
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
   },
 

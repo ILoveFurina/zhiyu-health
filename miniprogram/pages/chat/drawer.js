@@ -2,6 +2,7 @@ const { listConversations, listMessages, deleteConversation } = require('../../s
 const { formatRelativeTime } = require('../../utils/time')
 const { ensureLogin } = require('../../utils/auth')
 const { isCardKind } = require('../../utils/message-kinds')
+const { defaultSelectedDate } = require('../../utils/department-slots')
 const { soothingTextFor } = require('../../utils/emotion')
 const { parseMarkdown } = require('../../utils/markdown')
 
@@ -164,6 +165,19 @@ const drawerMethods = {
           card: card.result,
           disclaimer: card.disclaimer || m.disclaimer,
           tcmDisclaimer: card.tcm_disclaimer || '',
+        }
+      }
+      // 票 50：科室号源卡回放与实时下发一致——成功卡补默认选中日期（受控组件必需）；
+      // disclaimer 优先取卡片 JSON 内字段，避免历史消息 disclaimer 列缺失时漏出免责
+      if (m.kind === 'department_slots') {
+        const replayCard =
+          card.status === 'ok' ? { ...card, selectedDate: defaultSelectedDate(card) } : card
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card: replayCard,
+          disclaimer: card.disclaimer || m.disclaimer,
         }
       }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }

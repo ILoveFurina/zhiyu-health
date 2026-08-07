@@ -51,6 +51,7 @@
 .doctor-title { color: var(--zy-text-secondary); font-size: 22rpx; }
 .doctor-fee { color: var(--zy-color-primary); font-size: 26rpx; font-weight: 600; }
 .doctor-hospital { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+.doctor-address { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 
 .slots { margin-top: var(--zy-space-sm); }
 .slot {

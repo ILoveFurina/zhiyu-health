@@ -166,8 +166,26 @@ CREATE TABLE IF NOT EXISTS messages (
     emotion VARCHAR(16),
     report_interpretation_id BIGINT REFERENCES report_interpretations(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT ck_messages_emotion CHECK (emotion IS NULL OR emotion IN ('calm', 'anxious', 'fearful'))
+    CONSTRAINT ck_messages_emotion CHECK (emotion IS NULL OR emotion IN ('calm', 'anxious', 'fearful')),
+    -- 票 50：kind 取值收敛为契约 message_kinds + red_flag（规则引擎本地产物，不在契约清单内），
+    -- 防脏 kind 写入；取值清单与契约的一致性由 ContractsConsistencyTest 钉死
+    CONSTRAINT ck_messages_kind CHECK (kind IN (
+        'text', 'doctor_recommendations', 'doctor_slots', 'hospital_recommendations',
+        'appointment', 'appointments', 'report_upload', 'report_interpretation',
+        'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
+        'department_slots', 'red_flag'))
 );
+
+-- messages.kind CHECK 幂等重建：CREATE TABLE IF NOT EXISTS 对旧库不会补建约束，
+-- 与 ck_messages_emotion 同一套路——新建库先 DROP 再 ADD 结果一致，旧库 DROP no-op + ADD 建上；
+-- 票 50 新增 department_slots 时旧库约束同步扩列。
+ALTER TABLE messages DROP CONSTRAINT IF EXISTS ck_messages_kind;
+ALTER TABLE messages
+    ADD CONSTRAINT ck_messages_kind CHECK (kind IN (
+        'text', 'doctor_recommendations', 'doctor_slots', 'hospital_recommendations',
+        'appointment', 'appointments', 'report_upload', 'report_interpretation',
+        'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
+        'department_slots', 'red_flag'));
 
 -- messages.emotion 列幂等补齐：CREATE TABLE IF NOT EXISTS 对已存在的表不会 ADD COLUMN，
 -- 云库若停留在票 44 之前的版本会缺该列，导致后续 COMMENT ON COLUMN 引用失败并阻断启动。
