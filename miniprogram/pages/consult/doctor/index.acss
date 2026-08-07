@@ -32,6 +32,21 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  overflow: hidden;
+}
+
+/* 头像图（票 59）：加载失败降级姓氏文字圆 */
+.doctor-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.doctor-avatar-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .doctor-info {

@@ -35,6 +35,16 @@
   background: #e9f6f2;
 }
 
+/* 头像加载失败降级文字圆（票 59） */
+.avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--zy-color-primary);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
 .doctor-main {
   min-width: 0;
   flex: 1;

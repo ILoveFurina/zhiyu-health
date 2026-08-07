@@ -3,7 +3,16 @@
 
   <view a:if="{{kind === 'doctor_recommendations'}}">
     <view a:for="{{card.doctors}}" a:key="doctor_id" class="doctor">
-      <image class="avatar" src="{{item.photo_url}}" mode="aspectFill" />
+      <!-- 头像（票 59）：photo_url 为 /api/c/photos 代理 URL；加载失败降级文字圆 -->
+      <image
+        a:if="{{item.photo_url && !failed[item.doctor_id]}}"
+        class="avatar"
+        src="{{item.photo_url}}"
+        mode="aspectFill"
+        data-id="{{item.doctor_id}}"
+        onError="onAvatarError"
+      />
+      <view a:else class="avatar avatar-fallback">{{item.initial || '医'}}</view>
       <view class="doctor-main">
         <view class="doctor-head">
           <text class="name">{{item.name}}</text>

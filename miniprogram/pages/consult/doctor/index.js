@@ -64,6 +64,8 @@ Page({
     recording: false,
     voiceHint: '',
     voiceHintError: false,
+    // 票 59：医生头像加载失败降级姓氏文字圆
+    avatarFailed: false,
     anchorId: '',
   },
 
@@ -279,6 +281,10 @@ Page({
   onPreviewImage(e) {
     const url = e.currentTarget.dataset.url
     if (url) my.previewImage({ urls: [url] })
+  },
+
+  onAvatarError() {
+    this.setData({ avatarFailed: true })
   },
 
   // ===== 票 58：语音输入（按住说话 → ASR → 文字回填输入框，可编辑后发送）=====

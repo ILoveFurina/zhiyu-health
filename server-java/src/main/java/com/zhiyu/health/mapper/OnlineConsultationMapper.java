@@ -137,10 +137,10 @@ public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation>
             """)
     Long selectStandardDepartmentIdByDoctor(@Param("doctorId") long doctorId);
 
-    /** C 端医生身份视图：接受后患者轮询获得可信医生姓名/职称/医院/科室。 */
+    /** C 端医生身份视图：接受后患者轮询获得可信医生姓名/职称/医院/科室/头像（票 59 加 photo_url）。 */
     @Select(
             """
-            SELECT doc.name, doc.title, h.name AS hospital_name, dep.name AS department_name
+            SELECT doc.name, doc.title, doc.photo_url, h.name AS hospital_name, dep.name AS department_name
             FROM doctors doc
             JOIN departments dep ON doc.department_id = dep.id
             JOIN hospital_campuses c ON dep.campus_id = c.id
@@ -150,5 +150,5 @@ public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation>
     DoctorIdentityRow selectDoctorIdentity(@Param("doctorId") long doctorId);
 
     /** 医生身份投影行：record 构造器顺序须与 SELECT 列顺序一致。 */
-    record DoctorIdentityRow(String name, String title, String hospitalName, String departmentName) {}
+    record DoctorIdentityRow(String name, String title, String photoUrl, String hospitalName, String departmentName) {}
 }

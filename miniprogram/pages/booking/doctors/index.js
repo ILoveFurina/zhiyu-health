@@ -7,6 +7,8 @@ Page({
     departmentName: '',
     hospitalName: '',
     doctors: [],
+    // 头像加载失败降级文字圆（票 59）：key 为 doctor_id
+    avatarFailed: {},
   },
 
   onLoad(query) {
@@ -28,6 +30,12 @@ Page({
       })
       .catch(() => my.showToast({ content: '医生列表加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
+  },
+
+  onAvatarError(e) {
+    const id = e.currentTarget.dataset.id
+    if (id == null) return
+    this.setData({ [`avatarFailed.${id}`]: true })
   },
 
   openSchedules(e) {

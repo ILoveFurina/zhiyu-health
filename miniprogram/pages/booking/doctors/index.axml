@@ -15,7 +15,14 @@
     data-fee="{{item.registration_fee}}"
     onTap="openSchedules"
   >
-    <image a:if="{{item.photo_url}}" class="avatar" src="{{item.photo_url}}" mode="aspectFill" />
+    <image
+      a:if="{{item.photo_url && !avatarFailed[item.doctor_id]}}"
+      class="avatar"
+      src="{{item.photo_url}}"
+      mode="aspectFill"
+      data-id="{{item.doctor_id}}"
+      onError="onAvatarError"
+    />
     <view a:else class="avatar avatar-fallback">{{item.initial}}</view>
     <view class="card-main">
       <view class="name-row">
