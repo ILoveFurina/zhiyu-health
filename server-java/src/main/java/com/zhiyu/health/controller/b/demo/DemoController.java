@@ -3,6 +3,9 @@ package com.zhiyu.health.controller.b.demo;
 import com.zhiyu.health.service.DemoDashboardService;
 import com.zhiyu.health.service.DemoDashboardService.DashboardView;
 import com.zhiyu.health.service.DemoKnowledgeSourceService;
+import com.zhiyu.health.service.DemoPharmacySyncService;
+import com.zhiyu.health.service.DemoPharmacySyncService.PharmacyStockView;
+import com.zhiyu.health.service.DemoPharmacySyncService.SyncResult;
 import com.zhiyu.health.service.DemoResetService;
 import com.zhiyu.health.service.DemoResetService.ResetResult;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * 演示重置三重保护在 {@link DemoResetService} 内执行；中途失败保持冻结、返回步骤清单，
  * 接口幂等可从失败步重跑，不自动回滚。成功 200 / 失败 503，体形状统一为 {@link ResetResult}。
+ *
+ * Mock 药店库存同步（票 48，ADR-0026 演示展示层例外）两枚端点收口于此：
+ * POST {@code /pharmacy-stock/sync} 触发同步，GET {@code /pharmacy-stock} 取库存快照。
  */
 @RestController
 @RequestMapping("/api/b/demo")
@@ -30,6 +36,7 @@ public class DemoController {
     private final DemoResetService resetService;
     private final DemoDashboardService dashboardService;
     private final DemoKnowledgeSourceService knowledgeSourceService;
+    private final DemoPharmacySyncService pharmacySyncService;
 
     public record ResetRequest(@NotBlank String confirm) {}
 
@@ -62,5 +69,17 @@ public class DemoController {
     public KnowledgeSourceView putKnowledgeSource(@RequestBody KnowledgeSourceRequest request) {
         knowledgeSourceService.update(request.knowledgeSource());
         return new KnowledgeSourceView(knowledgeSourceService.current());
+    }
+
+    /** Mock 药店库存同步（票 48）：仅刷新进程内同步时间并返回统计，不触碰业务库存。 */
+    @PostMapping("/pharmacy-stock/sync")
+    public SyncResult syncPharmacyStock() {
+        return pharmacySyncService.sync();
+    }
+
+    /** Mock 药店库存快照：虚构药店静态明细 + 上次同步时间（未同步为 null）。 */
+    @GetMapping("/pharmacy-stock")
+    public PharmacyStockView pharmacyStock() {
+        return pharmacySyncService.snapshot();
     }
 }

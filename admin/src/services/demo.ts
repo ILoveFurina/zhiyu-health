@@ -66,3 +66,40 @@ export function resetDemo(confirm: string) {
     skipErrorHandler: true,
   });
 }
+
+/** Mock 药店库存明细项（虚构演示数据）。 */
+export interface PharmacyStockItem {
+  medication_name: string;
+  specification: string;
+  stock: number;
+}
+
+/** 虚构药店库存（名称/区域均虚构）。 */
+export interface PharmacyStock {
+  name: string;
+  region: string;
+  items: PharmacyStockItem[];
+}
+
+/** Mock 药店库存同步结果。 */
+export interface PharmacySyncResult {
+  synced_at: string;
+  pharmacy_count: number;
+  record_count: number;
+}
+
+/** Mock 药店库存快照；last_synced_at 为 null 表示未同步。 */
+export interface PharmacyStockView {
+  last_synced_at: string | null;
+  pharmacies: PharmacyStock[];
+}
+
+/** 触发 Mock 药店库存同步。 */
+export function syncPharmacyStock() {
+  return request<PharmacySyncResult>('/api/b/demo/pharmacy-stock/sync', { method: 'POST' });
+}
+
+/** 取 Mock 药店库存快照。 */
+export function fetchPharmacyStock() {
+  return request<PharmacyStockView>('/api/b/demo/pharmacy-stock');
+}
