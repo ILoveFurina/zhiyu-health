@@ -17,13 +17,16 @@ public interface PrescriptionItemMapper extends BaseMapper<PrescriptionItem> {
             """)
     List<PrescriptionItem> selectDetailed(@Param("prescriptionId") long prescriptionId);
 
+    // 票 55 双来源（fail-closed 安全回归重点）：禁忌"在用药"检查若 INNER JOIN appointments
+    // 会漏掉在线问诊处方的在用药，方向是 fail-open，必须 LEFT JOIN 双来源 COALESCE 取档案。
     @Select(
             """
             SELECT DISTINCT pi.medication_id
             FROM prescription_items pi
             JOIN prescriptions p ON p.id = pi.prescription_id
-            JOIN appointments a ON a.id = p.appointment_id
-            WHERE a.health_profile_id = #{healthProfileId} AND p.status = #{status}
+            LEFT JOIN appointments a ON a.id = p.appointment_id
+            LEFT JOIN online_consultations oc ON oc.id = p.online_consultation_id
+            WHERE COALESCE(a.health_profile_id, oc.health_profile_id) = #{healthProfileId} AND p.status = #{status}
             ORDER BY pi.medication_id
             """)
     List<Long> selectMedicationIdsByHealthProfileAndStatus(

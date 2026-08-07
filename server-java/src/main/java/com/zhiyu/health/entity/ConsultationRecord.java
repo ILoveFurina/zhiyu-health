@@ -16,6 +16,7 @@ public class ConsultationRecord {
     private Long id;
 
     private Long appointmentId;
+    private Long onlineConsultationId;
     private Long doctorId;
     private String diagnosis;
     private String advice;
