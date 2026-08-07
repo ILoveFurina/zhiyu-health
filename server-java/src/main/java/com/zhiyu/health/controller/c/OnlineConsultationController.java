@@ -18,8 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** C 端在线问诊接口（票 54）：只做校验与装配，状态机与归属校验归 OnlineConsultationService。 */
-@RestController
+/** C 端在线问诊接口（票 54）：只做校验与装配，状态机与归属校验归 OnlineConsultationService。
+ *  显式 bean 名：与 controller/b 同名类区分，避免默认 bean 名冲突导致启动失败。 */
+@RestController("cOnlineConsultationController")
 @RequestMapping("/api/c/online-consultations")
 @RequiredArgsConstructor
 public class OnlineConsultationController {
