@@ -1,6 +1,11 @@
 import { request } from '@umijs/max';
 import { contraindicationDecisions, contraindicationMessageTypes } from '@/contracts/contraindication';
-import { prescriptionDecisions, prescriptionStatuses, prescriptionStatusLabels } from '@/contracts/prescription';
+import {
+  prescriptionDecisions,
+  prescriptionStatuses,
+  prescriptionStatusLabels,
+  type PrescriptionSourceType,
+} from '@/contracts/prescription';
 
 type PrescriptionStatus = (typeof prescriptionStatusLabels)[keyof typeof prescriptionStatusLabels];
 
@@ -24,7 +29,11 @@ export interface PrescriptionItem {
 
 export interface Prescription {
   id: number;
-  appointment_id: number;
+  // 线下挂号与在线问诊两个来源外键二选一，必有一个非空
+  appointment_id?: number | null;
+  online_consultation_id?: number | null;
+  source_type: PrescriptionSourceType;
+  source_type_label: string;
   status: PrescriptionStatus;
   notes?: string;
   interpretation?: string;
@@ -32,6 +41,8 @@ export interface Prescription {
   patient_nickname?: string;
   doctor_name?: string;
   date?: string;
+  diagnosis?: string | null;
+  advice?: string | null;
   items: PrescriptionItem[];
 }
 
@@ -67,6 +78,17 @@ export interface SafetyCheckResult {
 
 export const checkPrescriptionSafety = (appointmentId: number, medicationIds: number[]) =>
   request<SafetyCheckResult>(`/api/b/reception/appointments/${appointmentId}/contraindication-check`, {
+    method: 'POST', data: { medication_ids: medicationIds },
+  });
+
+// 在线问诊开方：请求/响应形状与线下端点一致，仅路径与来源外键不同
+export const createOnlinePrescription = (onlineConsultationId: number, data: PrescriptionInput) =>
+  request<Prescription>(`/api/b/reception/online-consultations/${onlineConsultationId}/prescriptions`, {
+    method: 'POST', data,
+  });
+
+export const checkOnlinePrescriptionSafety = (onlineConsultationId: number, medicationIds: number[]) =>
+  request<SafetyCheckResult>(`/api/b/reception/online-consultations/${onlineConsultationId}/contraindication-check`, {
     method: 'POST', data: { medication_ids: medicationIds },
   });
 

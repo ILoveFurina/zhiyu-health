@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Button, Card, Input, Modal, Space, Table, Tag, type TableColumnsType } from 'antd';
-import { prescriptionDecisions } from '@/contracts/prescription';
+import { App, Button, Card, Descriptions, Input, Modal, Space, Table, Tag, Typography, type TableColumnsType } from 'antd';
+import { prescriptionDecisions, sourceTypes } from '@/contracts/prescription';
 import { fetchPendingPrescriptions, reviewPrescription, type Prescription, type ReviewDecision } from '@/services/prescription';
 import StatCards from '@/components/StatCards';
 import PageHead from '@/components/PageHead';
@@ -22,10 +22,18 @@ export default function PrescriptionPage() {
 
   const columns: TableColumnsType<Prescription> = [
     { title: '电子处方', dataIndex: 'id', width: 100, render: (v) => `#${v}` },
-    { title: '挂号单', dataIndex: 'appointment_id', width: 100, render: (v) => `#${v}` },
+    { title: '来源', width: 130, render: (_, row) => (
+      <Space direction="vertical" size={2}>
+        <Tag color={row.source_type === sourceTypes.appointment ? 'geekblue' : 'purple'}>{row.source_type_label}</Tag>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {row.source_type === sourceTypes.appointment
+            ? `挂号单 #${row.appointment_id}`
+            : `问诊单 #${row.online_consultation_id}`}
+        </Typography.Text>
+      </Space>
+    ) },
     { title: '患者', dataIndex: 'patient_nickname', width: 100 },
     { title: '医生', dataIndex: 'doctor_name', width: 100 },
-    { title: '药品', render: (_, row) => row.items.map((item) => `${item.name} ${item.dosage} ${item.frequency} ${item.duration}`).join('；') },
     { title: '状态', dataIndex: 'status', width: 100, render: (v) => <Tag color="gold">{v}</Tag> },
     { title: '操作', width: 160, render: (_, row) => <Space>
       <Button type="link" onClick={() => review(row, prescriptionDecisions.approve)}>通过</Button>
@@ -48,7 +56,24 @@ export default function PrescriptionPage() {
       />
       <StatCards items={stats} />
       <Card title="待审核处方">
-        <Table rowKey="id" columns={columns} dataSource={rows} locale={{ emptyText: '暂无待审核电子处方' }} />
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={rows}
+          locale={{ emptyText: '暂无待审核电子处方' }}
+          expandable={{
+            expandedRowRender: (row) => (
+              <Descriptions column={1} size="small">
+                {/* 诊断/医嘱来自接诊记录，接诊未完成时可能为空 */}
+                <Descriptions.Item label="诊断">{row.diagnosis || '暂无（接诊记录尚未完成）'}</Descriptions.Item>
+                <Descriptions.Item label="医嘱">{row.advice || '暂无'}</Descriptions.Item>
+                <Descriptions.Item label="药品明细">
+                  {row.items.map((item) => `${item.name} ${item.dosage} ${item.frequency} ${item.duration}`).join('；')}
+                </Descriptions.Item>
+              </Descriptions>
+            ),
+          }}
+        />
       </Card>
       <Modal title="驳回电子处方" open={!!rejecting} okButtonProps={{ danger: true, disabled: !reason.trim() }}
         onCancel={() => setRejecting(undefined)} onOk={() => rejecting && review(rejecting, prescriptionDecisions.reject, reason)}>

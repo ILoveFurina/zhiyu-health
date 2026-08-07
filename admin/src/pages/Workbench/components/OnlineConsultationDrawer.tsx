@@ -22,6 +22,14 @@ import {
   type ConsultationMessage,
   type ConsultMethod,
 } from '@/services/consultation';
+import {
+  checkOnlinePrescriptionSafety,
+  createOnlinePrescription,
+  fetchMedications,
+  type Medication,
+  type PrescriptionInput,
+} from '@/services/prescription';
+import PrescriptionForm from './PrescriptionForm';
 
 interface Props {
   consultationId?: number;
@@ -54,17 +62,21 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
+  const [prescriptionCreated, setPrescriptionCreated] = useState(false);
   const lastIdRef = useRef(0);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const inProgress = detail?.status === consultationStatuses.in_progress;
 
-  // 打开时按 id 加载完整详情，并重置消息与完成表单
+  // 打开时按 id 加载完整详情，并重置消息、开方状态与完成表单
   useEffect(() => {
     if (!open || !consultationId) return;
     setDetail(undefined);
     setMessages([]);
     setDraft('');
+    setPrescriptionCreated(false);
     form.resetFields();
     lastIdRef.current = 0;
     setLoading(true);
@@ -72,6 +84,10 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
       .then((res) => setDetail(res.consultation))
       .catch(() => {})
       .finally(() => setLoading(false));
+    // 药品可选列表与问诊无关，已加载过则不重复拉取
+    if (medications.length === 0) {
+      fetchMedications().then(setMedications).catch(() => {});
+    }
   }, [open, consultationId]);
 
   // 增量合并消息，按 id 去重，维持轮询游标
@@ -174,6 +190,21 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
       // 幂等完成接口，错误由全局 errorHandler 弹出
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handlePrescribe = async (values: PrescriptionInput) => {
+    if (!consultationId) return;
+    setPrescriptionSubmitting(true);
+    try {
+      await createOnlinePrescription(consultationId, values);
+      setPrescriptionCreated(true);
+      message.success('电子处方已提交审核');
+    } catch (err: any) {
+      // 一问诊一处方：409 冲突话术由全局 errorHandler 弹出（服务端 detail），同步隐藏开方区
+      if (err?.response?.status === 409) setPrescriptionCreated(true);
+    } finally {
+      setPrescriptionSubmitting(false);
     }
   };
 
@@ -325,6 +356,22 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                   <Typography.Text type="secondary">
                     {consultationTexts.consult_completed}，沟通记录仅供查看。
                   </Typography.Text>
+                )}
+              </>
+            )}
+
+            {inProgress && (
+              <>
+                <Divider orientation="left" style={{ margin: 0 }}>开具处方</Divider>
+                {prescriptionCreated ? (
+                  <Alert type="success" showIcon message="电子处方已提交，等待管理员审核；问诊可独立完成，不等待审核结果" />
+                ) : (
+                  <PrescriptionForm
+                    checkSafety={(ids) => checkOnlinePrescriptionSafety(detail.id, ids)}
+                    medications={medications}
+                    submitting={prescriptionSubmitting}
+                    onSubmit={handlePrescribe}
+                  />
                 )}
               </>
             )}
