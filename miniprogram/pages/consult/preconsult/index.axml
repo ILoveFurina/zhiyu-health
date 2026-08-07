@@ -1,0 +1,83 @@
+<view class="page">
+  <!-- 五步进度头：预问诊阶段固定 PRECONSULTATION -->
+  <consult-progress current="{{progressStep}}" />
+  <view class="patient-bar">就诊人：{{profileName}}</view>
+
+  <scroll-view
+    class="thread"
+    scroll-y
+    scroll-into-view="{{anchorId}}"
+    scroll-with-animation
+  >
+    <view a:if="{{messages.length === 0}}" class="empty">
+      <view class="mascot">✚</view>
+      <view class="greet">开始 AI 预问诊</view>
+      <view class="greet-sub">描述你的症状、持续时间和用药情况，小愈会整理病情摘要供医生接诊</view>
+    </view>
+
+    <view a:for="{{messages}}" a:key="id">
+      <view a:if="{{item.role === 'user'}}" class="bubble user">{{item.content}}</view>
+
+      <view a:elif="{{item.kind === 'red_flag'}}" class="redflag-card">
+        <view class="rf-card-title">⚠ 紧急提醒</view>
+        <view class="rf-card-body">{{item.content}}</view>
+      </view>
+
+      <!-- AI 文本按 Markdown 块渲染（与 pages/chat 同一 block 循环）；blocks 缺失时回退纯文本 -->
+      <view a:else class="bubble ai" id="msg-{{item.id}}">
+        <block a:if="{{item.blocks && item.blocks.length}}">
+          <view a:for="{{item.blocks}}" a:for-item="block" a:key="index">
+            <view a:if="{{block.type === 'heading'}}" class="md-h{{block.level}}">
+              <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+            </view>
+            <view a:elif="{{block.type === 'list_item'}}" class="md-li">
+              <text class="md-li-marker">{{block.ordered ? block.index + '.' : '•'}}</text>
+              <view class="md-li-body">
+                <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+              </view>
+            </view>
+            <view a:else class="md-p">
+              <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+            </view>
+          </view>
+        </block>
+        <text a:else>{{item.content}}</text>
+        <text a:if="{{item.streaming}}" class="cursor">▍</text>
+        <ai-disclaimer a:if="{{!item.streaming && item.disclaimer}}" text="{{item.disclaimer}}" />
+      </view>
+    </view>
+    <view id="thread-bottom" class="thread-tail"></view>
+  </scroll-view>
+
+  <!-- 免责声明常驻细条（双保险，与 pages/chat 一致） -->
+  <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
+
+  <!-- 摘要快照就绪后的底部 CTA -->
+  <view a:if="{{summaryReady}}" class="cta-bar">
+    <view class="cta-text">病情摘要已生成</view>
+    <view class="cta-btn" onTap="openSummary">查看病情摘要并确认</view>
+  </view>
+
+  <view class="composer">
+    <input
+      class="c-input"
+      value="{{inputValue}}"
+      onInput="onInput"
+      onConfirm="send"
+      confirm-type="send"
+      placeholder="描述症状、持续时间、用药情况…"
+      disabled="{{sending}}"
+    />
+    <view class="send-btn {{canSend ? '' : 'send-disabled'}}" onTap="send">发送</view>
+  </view>
+
+  <!-- 红线症状：全屏红色警告（与 pages/chat 同一行为） -->
+  <view a:if="{{redFlag}}" class="redflag-overlay">
+    <view class="rf-ico">⚠</view>
+    <view class="rf-h">紧急提醒</view>
+    <view class="rf-rule">{{redFlag.rule}}</view>
+    <view class="rf-advice">{{redFlag.advice}}</view>
+    <view class="rf-tip">小愈已中断本次预问诊，你的安全最重要。</view>
+    <view class="rf-btn" onTap="closeRedFlag">我知道了</view>
+  </view>
+</view>

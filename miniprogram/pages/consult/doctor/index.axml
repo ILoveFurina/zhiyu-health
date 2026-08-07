@@ -1,0 +1,75 @@
+<view class="page">
+  <consult-progress current="{{progressStep}}" />
+
+  <view a:if="{{loading}}" class="state">加载中…</view>
+
+  <block a:else>
+    <!-- 医生身份卡 -->
+    <view a:if="{{doctor}}" class="doctor-card">
+      <view class="doctor-avatar">{{doctorInitial}}</view>
+      <view class="doctor-info">
+        <view class="doctor-name">
+          {{doctor.name}}
+          <text class="doctor-title">{{doctor.title}}</text>
+        </view>
+        <view class="doctor-org">{{doctor.hospital_name}} · {{doctor.department_name}}</view>
+      </view>
+      <view class="method-label">{{consultMethodLabel}}</view>
+    </view>
+
+    <!-- 模拟视频问诊面板（纯 UI 模拟，不接真实音视频） -->
+    <view a:if="{{isVideo}}" class="video-panel">
+      <view class="video-avatar">{{doctorInitial}}</view>
+      <view class="video-status">模拟视频问诊 · 已连接</view>
+      <view class="video-elapsed">{{videoElapsed}}</view>
+    </view>
+
+    <!-- 终态边缘提示（CANCELLED/EXPIRED 正常不会从入口进来） -->
+    <view a:if="{{terminal}}" class="terminal-bar">{{terminalHint}}</view>
+
+    <!-- 问诊完成：诊断结论/医嘱只读卡（AI 辅助整理，必须带免责声明） -->
+    <view a:if="{{completed}}" class="result-card">
+      <view class="result-title">{{consultCompletedText}}</view>
+      <view class="result-section">
+        <view class="result-label">诊断结论</view>
+        <view class="result-text">{{consultation.diagnosis || '—'}}</view>
+      </view>
+      <view class="result-section">
+        <view class="result-label">医嘱</view>
+        <view class="result-text">{{consultation.advice || '—'}}</view>
+      </view>
+      <ai-disclaimer />
+    </view>
+
+    <!-- 医患消息流：患者右侧、医生左侧、系统消息居中灰条 -->
+    <scroll-view
+      class="thread"
+      scroll-y
+      scroll-into-view="{{anchorId}}"
+      scroll-with-animation
+    >
+      <view a:if="{{messages.length === 0}}" class="empty-msg">暂无消息</view>
+      <view a:for="{{messages}}" a:key="id">
+        <view a:if="{{item.isSystem}}" class="msg-system">{{item.content}}</view>
+        <view a:elif="{{item.isPatient}}" class="bubble user">{{item.content}}</view>
+        <view a:else class="bubble ai">{{item.content}}</view>
+      </view>
+      <view id="thread-bottom" class="thread-tail"></view>
+    </scroll-view>
+
+    <!-- 输入栏：仅 IN_PROGRESS 可用；COMPLETED 只读 -->
+    <view a:if="{{inProgress}}" class="composer">
+      <input
+        class="c-input"
+        value="{{inputValue}}"
+        onInput="onInput"
+        onConfirm="send"
+        confirm-type="send"
+        placeholder="向医生补充描述情况…"
+        disabled="{{sending}}"
+      />
+      <view class="send-btn {{canSend && !sending ? '' : 'send-disabled'}}" onTap="send">发送</view>
+    </view>
+    <view a:elif="{{completed}}" class="readonly-bar">问诊已完成，以上记录仅供查看</view>
+  </block>
+</view>

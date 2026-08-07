@@ -1,0 +1,61 @@
+/* 在线问诊入口路由页：大部分时间只是中转，仅无档案时停留展示引导卡 */
+.page {
+  min-height: 100vh;
+  padding: var(--zy-space-md);
+  box-sizing: border-box;
+}
+
+.state {
+  padding-top: 160rpx;
+  text-align: center;
+  color: var(--zy-text-weak);
+  font-size: 26rpx;
+}
+
+.guide-wrap {
+  padding-top: var(--zy-space-lg);
+}
+
+/* 与 pages/home/index.acss 的建档引导卡同款 */
+.profile-guide {
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+}
+
+.profile-guide-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-guide-copy {
+  flex: 1;
+  margin-left: var(--zy-space-sm);
+}
+
+.profile-guide-title {
+  color: var(--zy-text-title);
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.profile-guide-text {
+  margin-top: 6rpx;
+  color: var(--zy-text-secondary);
+  font-size: 23rpx;
+}
+
+.profile-guide-arrow {
+  color: var(--zy-text-weak);
+  font-size: 36rpx;
+}

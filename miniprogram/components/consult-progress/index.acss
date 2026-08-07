@@ -1,0 +1,74 @@
+/* 票 54：在线问诊五步进度条；done/current/pending 三态，终态分支全中性（currentIndex=-1） */
+.consult-progress {
+  display: flex;
+  padding: var(--zy-space-md) var(--zy-space-md) var(--zy-space-sm);
+  background: #fff;
+  border-bottom: 1rpx solid #eef3f1;
+}
+
+.cp-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cp-track {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.cp-line {
+  flex: 1;
+  height: 4rpx;
+  background: #e3ebe8;
+}
+
+.cp-line-done {
+  background: var(--zy-color-primary);
+}
+
+.cp-line-hidden {
+  visibility: hidden;
+}
+
+.cp-dot {
+  flex: 0 0 auto;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: #e3ebe8;
+  color: var(--zy-text-weak);
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-dot-done {
+  background: var(--zy-color-primary);
+  color: #fff;
+}
+
+.cp-dot-current {
+  background: var(--zy-color-primary);
+  color: #fff;
+  box-shadow: 0 0 0 8rpx var(--zy-color-primary-soft);
+}
+
+.cp-label {
+  margin-top: var(--zy-space-xs);
+  font-size: 20rpx;
+  color: var(--zy-text-weak);
+  text-align: center;
+}
+
+.cp-label-done {
+  color: var(--zy-text-secondary);
+}
+
+.cp-label-current {
+  color: var(--zy-color-primary);
+  font-weight: 600;
+}
