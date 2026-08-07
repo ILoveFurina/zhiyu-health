@@ -29,8 +29,11 @@ Page({
           return null
         }
         return listConsultations().then((data) => {
+          // 不同档案可分别发起在线问诊：只接续“当前档案”的进行中/等待中问诊
           const active = ((data && data.consultations) || []).find(
-            (item) => ACTIVE_STATUSES.indexOf(item.status) !== -1
+            (item) =>
+              ACTIVE_STATUSES.indexOf(item.status) !== -1 &&
+              item.health_profile_id === profile.id
           )
           if (active) {
             this.redirectToConsult(active.id, active.status)
