@@ -1,4 +1,6 @@
 import { ModalForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
+import { Form } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createDepartment,
   listCampuses,
@@ -6,7 +8,11 @@ import {
   listHospitals,
   listStandardDepartments,
   updateDepartment,
+  type Campus,
   type Department,
+  type DepartmentCategory,
+  type Hospital,
+  type StandardDepartment,
 } from '@/services/organization';
 
 interface Props {
@@ -17,13 +23,70 @@ interface Props {
 }
 
 export default function DepartmentForm({ open, record, onOpenChange, onSuccess }: Props) {
+  // 主动控制回显/重置：避免 initialValues 在 open 切换时不重读导致新建残留旧数据
+  const [form] = Form.useForm<Omit<Department, 'id'>>();
+  // 表单内本地缓存院区/分类/医院/标准科室，用于按所属院区联动过滤分类下拉，自然消除重复
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [categories, setCategories] = useState<DepartmentCategory[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [standardDepartments, setStandardDepartments] = useState<StandardDepartment[]>([]);
+
+  useEffect(() => {
+    listCampuses().then(setCampuses).catch(() => {});
+    listDepartmentCategories().then(setCategories).catch(() => {});
+    listHospitals().then(setHospitals).catch(() => {});
+    listStandardDepartments().then(setStandardDepartments).catch(() => {});
+  }, []);
+
+  // 院区下拉：拼出「医院-院区」label
+  const campusOptions = useMemo(
+    () =>
+      campuses.map((c) => {
+        const hospitalName = hospitals.find((h) => h.id === c.hospital_id)?.name;
+        return { label: hospitalName ? `${hospitalName}-${c.name}` : c.name, value: c.id };
+      }),
+    [campuses, hospitals],
+  );
+
+  // 科室分类下拉：分类已挂院区，选院区后直接按 campus_id 过滤，自然消除多家医院同名分类重复
+  const selectedCampusId = Form.useWatch('campus_id', form);
+  const categoryOptions = useMemo(
+    () =>
+      categories
+        .filter((c) => (selectedCampusId ? c.campus_id === selectedCampusId : true))
+        .map((c) => ({ label: c.name, value: c.id })),
+    [categories, selectedCampusId],
+  );
+
+  // 院区切换后，若当前分类已不属于新院区，清空以免提交错配的分类
+  useEffect(() => {
+    if (!selectedCampusId) return;
+    const currentCat = form.getFieldValue('category_id');
+    if (currentCat != null && !categoryOptions.some((o) => o.value === currentCat)) {
+      form.setFieldValue('category_id', undefined);
+    }
+  }, [selectedCampusId, categoryOptions, form]);
+
+  const standardOptions = useMemo(
+    () =>
+      standardDepartments.map((s) => ({ label: `${s.category}-${s.name}`, value: s.id })),
+    [standardDepartments],
+  );
+
   return (
     <ModalForm<Omit<Department, 'id'>>
+      form={form}
       title={record ? '编辑科室' : '新建科室'}
       open={open}
-      onOpenChange={onOpenChange}
-      initialValues={record}
-      modalProps={{ destroyOnClose: true, forceRender: true }}
+      onOpenChange={(o) => {
+        if (o) {
+          form.setFieldsValue(record ?? {});
+        } else {
+          form.resetFields();
+        }
+        onOpenChange(o);
+      }}
+      modalProps={{ destroyOnClose: false }}
       onFinish={async (values) => {
         if (record) {
           await updateDepartment(record.id, values);
@@ -37,28 +100,23 @@ export default function DepartmentForm({ open, record, onOpenChange, onSuccess }
       <ProFormSelect
         name="campus_id"
         label="所属院区"
+        options={campusOptions}
         rules={[{ required: true, message: '请选择所属院区' }]}
-        request={async () => {
-          const [campusList, hospitalList] = await Promise.all([listCampuses(), listHospitals()]);
-          return campusList.map((c) => {
-            const hospitalName = hospitalList.find((h) => h.id === c.hospital_id)?.name;
-            return { label: hospitalName ? `${hospitalName}-${c.name}` : c.name, value: c.id };
-          });
-        }}
+        placeholder="请先选择所属院区"
       />
       <ProFormSelect
         name="category_id"
         label="科室分类"
+        options={categoryOptions}
         rules={[{ required: true, message: '请选择科室分类' }]}
-        request={async () => (await listDepartmentCategories()).map((c) => ({ label: c.name, value: c.id }))}
+        placeholder={selectedCampusId ? '请选择科室分类' : '请先选择所属院区'}
+        disabled={!selectedCampusId}
       />
       <ProFormSelect
         name="standard_department_id"
         label="标准科室"
+        options={standardOptions}
         rules={[{ required: true, message: '请选择标准科室' }]}
-        request={async () =>
-          (await listStandardDepartments()).map((s) => ({ label: `${s.category}-${s.name}`, value: s.id }))
-        }
       />
       <ProFormText name="name" label="科室名称" rules={[{ required: true, message: '请输入科室名称' }]} />
       <ProFormText name="floor" label="楼层" rules={[{ required: true, message: '请输入楼层' }]} />

@@ -1,4 +1,5 @@
 import { ModalForm, ProFormDigit, ProFormSelect, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
+import { Form } from 'antd';
 import { createCampus, listHospitals, updateCampus, type Campus } from '@/services/organization';
 
 interface Props {
@@ -9,13 +10,23 @@ interface Props {
 }
 
 export default function CampusForm({ open, record, onOpenChange, onSuccess }: Props) {
+  // 主动控制回显/重置：避免 initialValues 在 open 切换时不重读导致新建残留旧数据
+  const [form] = Form.useForm<Omit<Campus, 'id'>>();
+
   return (
     <ModalForm<Omit<Campus, 'id'>>
+      form={form}
       title={record ? '编辑院区' : '新建院区'}
       open={open}
-      onOpenChange={onOpenChange}
-      initialValues={record}
-      modalProps={{ destroyOnClose: true, forceRender: true }}
+      onOpenChange={(o) => {
+        if (o) {
+          form.setFieldsValue(record ?? {});
+        } else {
+          form.resetFields();
+        }
+        onOpenChange(o);
+      }}
+      modalProps={{ destroyOnClose: false }}
       onFinish={async (values) => {
         if (record) {
           await updateCampus(record.id, values);

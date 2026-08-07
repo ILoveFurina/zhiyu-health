@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Popconfirm } from 'antd';
+import { Button, Input, Popconfirm } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import {
   listCampuses,
@@ -23,7 +23,8 @@ export default function DepartmentPage() {
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Department | undefined>();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [rows, setRows] = useState<Department[]>([]);
+  const [all, setAll] = useState<Department[]>([]);
+  const [keyword, setKeyword] = useState('');
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [categories, setCategories] = useState<DepartmentCategory[]>([]);
   const [standardDepartments, setStandardDepartments] = useState<StandardDepartment[]>([]);
@@ -38,6 +39,9 @@ export default function DepartmentPage() {
 
   const reload = () => actionRef.current?.reload();
 
+  // 本地即时过滤：科室名称输入即生效，无需点查询按钮
+  const filtered = keyword ? all.filter((d) => d.name.includes(keyword)) : all;
+
   const campusLabel = (campusId: number) => {
     const campus = campuses.find((c) => c.id === campusId);
     if (!campus) return campusId;
@@ -46,7 +50,7 @@ export default function DepartmentPage() {
   };
 
   const columns: ProColumns<Department>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     { title: '科室名称', dataIndex: 'name' },
     {
       title: '所属院区',
@@ -93,8 +97,8 @@ export default function DepartmentPage() {
   ];
 
   const stats = [
-    { label: '科室总数', value: rows.length },
-    { label: '挂靠院区', value: new Set(rows.map((r) => r.campus_id)).size, suffix: '个' },
+    { label: '科室总数', value: filtered.length },
+    { label: '挂靠院区', value: new Set(filtered.map((r) => r.campus_id)).size, suffix: '个' },
   ];
 
   return (
@@ -111,7 +115,19 @@ export default function DepartmentPage() {
         columns={columns}
         pagination={false}
         search={false}
-        headerTitle="科室列表"
+        headerTitle={
+          <>
+            科室列表
+            <span className="zy-searchbar">
+              <Input
+                placeholder="搜索科室名称"
+                allowClear
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            </span>
+          </>
+        }
         toolBarRender={() => [
           <Button
             key="create"
@@ -124,9 +140,10 @@ export default function DepartmentPage() {
             + 新建科室
           </Button>,
         ]}
+        dataSource={filtered}
         request={async () => {
           const data = await listDepartments();
-          setRows(data);
+          setAll(data);
           return { data, success: true };
         }}
       />

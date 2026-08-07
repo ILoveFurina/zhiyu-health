@@ -22,7 +22,7 @@ export interface Campus {
 
 export interface DepartmentCategory {
   id: number;
-  hospital_id: number;
+  campus_id: number;
   name: string;
   sort_order: number;
 }
@@ -48,6 +48,8 @@ export interface Doctor {
   id: number;
   department_id: number;
   name: string;
+  gender: string;
+  birth_date: string;
   title: string;
   registration_fee: number;
   specialty: string;
