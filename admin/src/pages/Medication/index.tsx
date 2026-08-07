@@ -1,22 +1,40 @@
 import { useRef, useState } from 'react';
-import { Input, Tag } from 'antd';
+import { App, Button, Input, Tag } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import { listMedications, type Medication } from '@/services/medication';
+import { syncPharmacyStock } from '@/services/demo';
 import MedicationForm from './components/MedicationForm';
+import PharmacyStockDrawer from './components/PharmacyStockDrawer';
 import StatCards from '@/components/StatCards';
 import PageHead from '@/components/PageHead';
 
 export default function MedicationPage() {
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Medication | undefined>();
   const [all, setAll] = useState<Medication[]>([]);
   const [keyword, setKeyword] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [syncCount, setSyncCount] = useState(0);
 
   const reload = () => actionRef.current?.reload();
 
   // 本地即时过滤：药品名称输入即生效，无需点查询按钮
   const filtered = keyword ? all.filter((m) => m.name.includes(keyword)) : all;
+
+  const onSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncPharmacyStock();
+      message.success(`已同步 ${result.pharmacy_count} 家药店、${result.record_count} 条库存记录`);
+      setSyncCount((count) => count + 1);
+      setDrawerOpen(true);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const columns: ProColumns<Medication>[] = [
     { title: '序号', valueType: 'index', width: 64, align: 'center' },
@@ -91,8 +109,14 @@ export default function MedicationPage() {
           setAll(data);
           return { data, success: true };
         }}
+        toolBarRender={() => [
+          <Button key="sync-pharmacy" loading={syncing} onClick={onSync}>
+            同步药店库存
+          </Button>,
+        ]}
       />
       <MedicationForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
+      <PharmacyStockDrawer open={drawerOpen} refreshKey={syncCount} onClose={() => setDrawerOpen(false)} />
     </PageContainer>
   );
 }
