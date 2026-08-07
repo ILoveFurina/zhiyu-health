@@ -1,6 +1,8 @@
 package com.zhiyu.health.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.ConsultationRecord;
@@ -23,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 在线问诊模块（票 55，Spec 0003）：摘要确认建单、取消/失效/重新提交、科室待接诊池、
@@ -45,6 +48,8 @@ public class OnlineConsultationService {
     private final TransactionTemplate transactionTemplate;
     private final Contracts contracts;
     private final OnlineConsultationDtoMapper dtoMapper;
+    private final MinioStorageService minioStorage;
+    private final ObjectMapper objectMapper;
 
     // ------------------------------------------------------------------
     // C 端：确认建单、查询、取消、重新提交、医患消息
@@ -183,7 +188,7 @@ public class OnlineConsultationService {
         OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
         requireInProgress(consultation);
         requireMethodInitiated(consultation);
-        return appendMessage(id, senderType("patient"), content);
+        return appendMessage(id, senderType("patient"), OnlineConsultationMessage.KIND_TEXT, content);
     }
 
     // ------------------------------------------------------------------
@@ -244,7 +249,7 @@ public class OnlineConsultationService {
             if (consultationMapper.accept(id, doctorId, waiting(), inProgress()) != 1) {
                 throw new ApiException(409, text("accept_conflict"));
             }
-            appendMessage(id, senderType("system"), text("doctor_accepted"));
+            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("doctor_accepted"));
             logDecision("accept", id, doctorId);
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
@@ -273,7 +278,7 @@ public class OnlineConsultationService {
                 }
                 throw new ApiException(409, text("method_already_set"));
             }
-            appendMessage(id, senderType("system"), systemTextForMethod(method));
+            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, systemTextForMethod(method));
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
     }
@@ -291,7 +296,7 @@ public class OnlineConsultationService {
         OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
         requireInProgress(consultation);
         requireMethodInitiated(consultation);
-        return appendMessage(id, senderType("doctor"), content);
+        return appendMessage(id, senderType("doctor"), OnlineConsultationMessage.KIND_TEXT, content);
     }
 
     /**
@@ -316,7 +321,7 @@ public class OnlineConsultationService {
             record.setDiagnosis(diagnosis.trim());
             record.setAdvice(advice.trim());
             consultationRecordMapper.insert(record);
-            appendMessage(id, senderType("system"), text("consult_completed"));
+            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("consult_completed"));
             logDecision("complete", id, doctorId);
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
@@ -402,13 +407,40 @@ public class OnlineConsultationService {
         return consultationMapper.selectActiveByProfile(healthProfileId, waiting(), inProgress());
     }
 
-    private MessageView appendMessage(long consultationId, String senderType, String content) {
+    private MessageView appendMessage(long consultationId, String senderType, String kind, String content) {
         OnlineConsultationMessage message = new OnlineConsultationMessage();
         message.setConsultationId(consultationId);
         message.setSenderType(senderType);
+        message.setKind(kind);
         message.setContent(content);
         messageMapper.insert(message);
         return dtoMapper.toMessageView(message);
+    }
+
+    /**
+     * 患者发送问诊图片（票 58，ADR-0029）：图片是消息本体，MinIO 写入失败即发送失败（抛错不降级），
+     * 与医生头像的可选旁路语义不同。content 存 {"object_key","media_type"} JSON，与 messages 表
+     * image kind 同构，C/B 端各自经 /c/photos、/api/b/photos 按 key 回看。
+     */
+    public MessageView sendImageForPatient(long patientId, long id, MultipartFile file) {
+        OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
+        requireInProgress(consultation);
+        requireMethodInitiated(consultation);
+        Contracts.ConsultationPhotoLimits limits = contracts.consultationPhotoLimits();
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(400, "请选择图片");
+        }
+        if (file.getSize() > limits.maxBytes()) {
+            throw new ApiException(400, "图片不能超过 " + (limits.maxBytes() / 1024 / 1024) + "MB");
+        }
+        String type = file.getContentType();
+        if (type == null || !limits.allowedTypes().contains(type)) {
+            throw new ApiException(400, "图片仅支持 JPEG/PNG 格式");
+        }
+        String objectKey = minioStorage.storePhoto(file).orElseThrow(() -> new ApiException(503, "图片发送失败，请稍后重试"));
+        ObjectNode content =
+                objectMapper.createObjectNode().put("object_key", objectKey).put("media_type", type);
+        return appendMessage(id, senderType("patient"), OnlineConsultationMessage.KIND_IMAGE, content.toString());
     }
 
     private ConsultationDetail detailView(OnlineConsultation consultation) {
@@ -625,6 +657,7 @@ public class OnlineConsultationService {
     public record MessageView(
             Long id,
             @JsonProperty("sender_type") String senderType,
+            String kind,
             String content,
             @JsonProperty("created_at") String createdAt) {}
 }

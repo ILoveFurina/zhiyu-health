@@ -41,6 +41,7 @@ public class Contracts {
     private final GuidedRegistration guidedRegistration;
     private final OnlineConsultation onlineConsultation;
     private final DoctorPhotoLimits doctorPhotoLimits;
+    private final ConsultationPhotoLimits consultationPhotoLimits;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -72,6 +73,8 @@ public class Contracts {
         this.guidedRegistration = read(mapper, dir, "guided-registration.json", GuidedRegistration.class);
         this.onlineConsultation = read(mapper, dir, "online-consultation.json", OnlineConsultation.class);
         this.doctorPhotoLimits = read(mapper, dir, "doctor-photo-limits.json", DoctorPhotoLimits.class);
+        this.consultationPhotoLimits =
+                read(mapper, dir, "consultation-photo-limits.json", ConsultationPhotoLimits.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -116,6 +119,10 @@ public class Contracts {
 
     public DoctorPhotoLimits doctorPhotoLimits() {
         return doctorPhotoLimits;
+    }
+
+    public ConsultationPhotoLimits consultationPhotoLimits() {
+        return consultationPhotoLimits;
     }
 
     public ChatDefaults chatDefaults() {
@@ -292,6 +299,13 @@ public class Contracts {
     /** 医生头像上传限制（票 54）：B 端 admin 上传校验的单一事实源，区别于报告上传。 */
     public record DoctorPhotoLimits(long maxBytes, List<String> allowedTypes, int maxFiles) {
         public DoctorPhotoLimits {
+            allowedTypes = List.copyOf(allowedTypes);
+        }
+    }
+
+    /** 在线问诊交流图片上传限制（票 58，ADR-0029）：患者发图校验的事实源；与医生头像同值但语义独立（图片是消息本体，不降级）。 */
+    public record ConsultationPhotoLimits(long maxBytes, List<String> allowedTypes, int maxFiles) {
+        public ConsultationPhotoLimits {
             allowedTypes = List.copyOf(allowedTypes);
         }
     }
@@ -605,6 +619,7 @@ public class Contracts {
             Map<String, String> consultMethods,
             Map<String, String> consultMethodLabels,
             Map<String, String> senderTypes,
+            List<String> messageKinds,
             int acceptTimeoutSeconds,
             Map<String, String> timelineTypes,
             List<String> summaryFields,
@@ -622,6 +637,7 @@ public class Contracts {
             consultMethods = Map.copyOf(consultMethods);
             consultMethodLabels = Map.copyOf(consultMethodLabels);
             senderTypes = Map.copyOf(senderTypes);
+            messageKinds = List.copyOf(messageKinds);
             timelineTypes = Map.copyOf(timelineTypes);
             summaryFields = List.copyOf(summaryFields);
             summaryFieldLabels = Map.copyOf(summaryFieldLabels);
@@ -641,6 +657,11 @@ public class Contracts {
         /** 接诊方式是否为契约白名单值（start-method 入口校验，防脏值写库）。 */
         public boolean isKnownConsultMethod(String method) {
             return method != null && consultMethods.containsValue(method);
+        }
+
+        /** 消息类型是否为契约白名单值（票 58：写库前校验，防脏值入库）。 */
+        public boolean isKnownMessageKind(String kind) {
+            return kind != null && messageKinds.contains(kind);
         }
 
         /** C 端五步进度的一步；key 与问诊状态值同源的步骤直接复用状态值。 */

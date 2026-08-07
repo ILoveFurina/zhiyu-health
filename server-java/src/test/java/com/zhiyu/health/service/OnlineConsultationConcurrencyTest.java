@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
@@ -74,7 +75,9 @@ class OnlineConsultationConcurrencyTest {
                 mock(ConsultationRecordMapper.class),
                 serializedTransaction(),
                 TestContracts.instance(),
-                Mappers.getMapper(OnlineConsultationDtoMapper.class));
+                Mappers.getMapper(OnlineConsultationDtoMapper.class),
+                mock(MinioStorageService.class),
+                new ObjectMapper());
 
         AtomicInteger successes = new AtomicInteger();
         AtomicInteger conflicts = new AtomicInteger();

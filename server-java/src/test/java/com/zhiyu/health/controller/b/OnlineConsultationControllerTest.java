@@ -172,10 +172,10 @@ class OnlineConsultationControllerTest {
     void messagesFlowBothDirections() throws Exception {
         when(consultations.listMessagesForDoctor(8L, 21L, 0L))
                 .thenReturn(List.of(new OnlineConsultationService.MessageView(
-                        41L, "PATIENT", "医生你好", "2026-08-07T10:04:00+08:00")));
+                        41L, "PATIENT", "text", "医生你好", "2026-08-07T10:04:00+08:00")));
         when(consultations.sendMessageForDoctor(8L, 21L, "你好，请补充体温"))
                 .thenReturn(new OnlineConsultationService.MessageView(
-                        42L, "DOCTOR", "你好，请补充体温", "2026-08-07T10:05:00+08:00"));
+                        42L, "DOCTOR", "text", "你好，请补充体温", "2026-08-07T10:05:00+08:00"));
 
         mockMvc.perform(get("/api/b/reception/online-consultations/21/messages")
                         .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))

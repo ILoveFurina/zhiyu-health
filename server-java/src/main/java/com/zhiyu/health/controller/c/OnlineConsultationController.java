@@ -1,7 +1,9 @@
 package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.AuthFilter;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.OnlineConsultationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -9,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** C 端在线问诊接口（票 55）：只做校验与装配，状态机与归属校验归 OnlineConsultationService。
  *  显式 bean 名：与 controller/b 同名类区分，避免默认 bean 名冲突导致启动失败。 */
@@ -26,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OnlineConsultationController {
 
     private final OnlineConsultationService consultations;
+    private final Contracts contracts;
 
     public record ConfirmInput(@JsonProperty("draft_id") @NotNull Long draftId) {}
 
@@ -84,5 +90,31 @@ public class OnlineConsultationController {
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
         return new MessageResponse(consultations.sendMessageForPatient(
                 patientId, id, input.content().trim()));
+    }
+
+    /** 患者发送问诊图片（票 58，ADR-0029）：controller 只做文件校验与装配，状态与归属守卫在 service。 */
+    @PostMapping("/{id}/photos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MessageResponse sendPhoto(
+            @PathVariable long id,
+            @RequestParam("file") MultipartFile file,
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        validatePhoto(file);
+        return new MessageResponse(consultations.sendImageForPatient(patientId, id, file));
+    }
+
+    // controller 只做校验与装配：文件类型/大小不合法直接 400，不进入 service。
+    private void validatePhoto(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(400, "请选择图片");
+        }
+        Contracts.ConsultationPhotoLimits limits = contracts.consultationPhotoLimits();
+        if (file.getSize() > limits.maxBytes()) {
+            throw new ApiException(400, "图片不能超过 " + (limits.maxBytes() / 1024 / 1024) + "MB");
+        }
+        String type = file.getContentType();
+        if (type == null || !limits.allowedTypes().contains(type)) {
+            throw new ApiException(400, "图片仅支持 JPEG/PNG 格式");
+        }
     }
 }

@@ -95,12 +95,23 @@ class VolcTtsClient:
         raise NotImplementedError("火山 TTS 开通后在此接入")
 
 
+def _volcano_voice_key_ready() -> bool:
+    """火山语音密钥是否就绪（开通后接入检测）。
+
+    当前 .env 无专用语音密钥、Volc 实现未开通，恒为 False：契约 enabled=true 时
+    回落 Fake 固定文本（票 58，ADR-0029），演示链路完整；开通后在此按 settings
+    密钥就绪与否选 Volc 或 Fake（密钥检测兜底）。
+    """
+    return False
+
+
 class VoiceService:
     """按 contracts/voice.json enabled + 运行时密钥选实例（与 vision interpreter 同构）。
 
-    enabled=false 或密钥缺失时返回 Disabled 占位（调用即抛 VOICE_UNCONFIGURED），
-    让 server-java 出口走降级文案；enabled=true 且密钥就绪后返回 Volc 实现。
-    测试经 inject_* 注入 Fake 实例，不触碰 settings。
+    enabled=false 时返回 Disabled 占位（调用即抛 VOICE_UNCONFIGURED），让 server-java
+    出口走降级文案；enabled=true 且密钥就绪后返回 Volc 实现，密钥未就绪回落 Fake
+    （票 58，ADR-0029：Fake 返回固定识别文本，不依赖真实密钥）。测试经 inject_*
+    注入 Fake 实例，不触碰 settings。
     """
 
     def __init__(self) -> None:
@@ -123,7 +134,8 @@ class VoiceService:
         contract = get_contracts().voice
         if not contract.asr_enabled:
             return _DisabledAsrClient()
-        # 开通后：按 settings 火山密钥就绪与否选 Volc 或 Disabled（密钥检测兜底）
+        if not _volcano_voice_key_ready():
+            return FakeAsrClient()
         if self._lazy_volc_asr is None:
             from app.config import get_settings
 
@@ -136,6 +148,8 @@ class VoiceService:
         contract = get_contracts().voice
         if not contract.tts_enabled:
             return _DisabledTtsClient()
+        if not _volcano_voice_key_ready():
+            return FakeTtsClient()
         if self._lazy_volc_tts is None:
             from app.config import get_settings
 

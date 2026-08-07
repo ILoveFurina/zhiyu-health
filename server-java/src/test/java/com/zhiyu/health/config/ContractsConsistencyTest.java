@@ -215,6 +215,11 @@ class ContractsConsistencyTest {
                     .as("online_consultation_messages CHECK 必须覆盖发送者类型 %s", sender)
                     .contains("'" + sender + "'");
         }
+        for (String kind : consultation.messageKinds()) {
+            assertThat(schema)
+                    .as("online_consultation_messages CHECK 必须覆盖消息类型 %s", kind)
+                    .contains("'" + kind + "'");
+        }
         // 单一进行中约束：部分唯一索引必须存在，且 WHERE 子句覆盖契约 active_statuses 全部取值
         assertThat(schema).contains("uq_online_consultations_active_profile");
         int indexStart = schema.indexOf("uq_online_consultations_active_profile");
@@ -302,9 +307,10 @@ class ContractsConsistencyTest {
 
     @Test
     void voiceContractSkeletonIsLoaded() {
-        // 票 45：骨架阶段 enabled=false、格式字段留 null；开通后只填值不改结构
+        // 票 45 骨架 + 票 58（ADR-0029）：asr_enabled 已点亮为 true（Fake 阶段），
+        // tts_enabled 保持 false；格式字段仍留 null，开通后只填值不改结构
         Contracts.Voice voice = contracts.voice();
-        assertThat(voice.asrEnabled()).isFalse();
+        assertThat(voice.asrEnabled()).isTrue();
         assertThat(voice.ttsEnabled()).isFalse();
         assertThat(voice.asrFormat()).isNull();
         assertThat(voice.ttsFormat()).isNull();

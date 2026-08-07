@@ -7,7 +7,7 @@
 - `server-java/`：Java / Spring Boot / MyBatis-Plus 单体服务；禁止引入 Spring Cloud、Dubbo、注册中心或网关中间件
 - `server-py/`：Python 3.12+ / FastAPI / LangChain / LangGraph；依赖由根目录 `pyproject.toml` 和 `uv.lock` 管理，代码必须对照锁定版本及其官方文档
 - LLM：火山方舟 OpenAI 兼容协议；对话/视觉用 `doubao-seed-2.1-turbo`，embedding 用 `doubao-embedding-vision`，语音识别/TTS 用火山引擎；调用仅发生在 server-py
-- 存储：PostgreSQL 16 + pgvector、Redis、Neo4j、MinIO；业务数据只存 PostgreSQL，医学知识图谱只存 Neo4j，拍照分析原图存 MinIO（ADR-0023）
+- 存储：PostgreSQL 16 + pgvector、Redis、Neo4j、MinIO；业务数据只存 PostgreSQL，医学知识图谱只存 Neo4j，图片对象（拍照分析原图、医生头像、在线问诊交流图片）存 MinIO（ADR-0023/0029）
 - 前端：支付宝原生小程序 + antd-mini；B 端使用 React + TypeScript + Umi + Ant Design + AntV + Zustand
 
 ### 运行拓扑（硬约束）
@@ -71,7 +71,7 @@ uv run python scripts/verify_zhiyu.py
 
 1. 所有 AI 产出必须带“仅供参考，不替代医生诊断”：server-py 生成时注入，server-java 出口兜底，界面无例外。
 2. 红线症状由 server-java 在 C 端对话入口确定性判断；用药禁忌仅在 B 端医生开方流程由 server-java 确定性判断。C 端 Agent 不做个性化用药决策，只提供通用药品知识解释并引导咨询医生或药师。
-3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；MinIO 只存拍照分析原图（ADR-0023）；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
+3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；MinIO 旁路存储图片对象：拍照分析原图、医生头像与在线问诊交流图片（ADR-0023、ADR-0029）；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
 4. 号源扣减必须使用 Redis 原子 DECR + PostgreSQL 事务对账，禁止先查后改。
 5. `.env` 永不入库、不打印、不写进代码或测试。审计日志和 Agent trace 不记录患者敏感原文，只记录脱敏摘要、工具名、参数类型与结果；审计统一在 server-java 入口执行。
 6. schema 由 `schema.sql` + 幂等 seed 管理，不使用迁移工具；开发期变更统一 drop + recreate + seed，由 AI 按“运行拓扑”一节在 schema 变更票完成后自动重建云演示库并验证。

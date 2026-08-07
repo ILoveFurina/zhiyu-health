@@ -1,6 +1,6 @@
 # 拍照分析原图持久化：MinIO 对象存储 + messages image kind
 
-Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔；票 54 扩展至医生头像）
+Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔；票 54 扩展至医生头像；2026-08-08 扩展 C 端消费约定与 seed 头像补传）
 
 票 15/16/17 的拍照分析流程中，患者上传的皮肤/饮食/舌苔照片作为**一等公民**持久化，而非报告解读的"即用即弃"模型。原图持久存于 MinIO 对象存储，PostgreSQL 只存图片路径；`messages` 表新增 `image` kind 承载图片路径，前端识别到该 kind 时按路径回拉 MinIO 原图。
 
@@ -24,6 +24,12 @@ Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔；票 54 扩展至
 - **报告解读式即用即弃**：最轻、不引入基础设施，但历史会话看不到原照，拍照分析的"回看"价值丢失。
 - **暂存可过期（如 7 天生命周期）**：折中，但引入过期策略后历史会话会出现"图片已失效"的破损体验，demo 评审与日常使用都不可接受；两周 demo 项目不值得为过期清理单独建运维流程。
 - **图片 base64 直存 PostgreSQL**：实现最简，但 10MB 单图 base64 后约 13MB，撑爆 messages 行与对话列表查询，且违反"业务数据只存 PostgreSQL、大对象走对象存储"的工程常识。
+
+## C 端消费约定与 seed 头像补传（2026-08-08 扩展）
+
+`doctors.photo_url` 存的是 MinIO **object key** 而非 URL。C 端 API 出口（医生列表、医生推荐卡、在线问诊详情）把 `photo_url` 映射为 `/api/c/photos?key=<key>` 相对 URL 后返回，前端 `<image>` 直接可用（该端点 AuthFilter 放行、key 即凭证，见 `PhotoController`）；加载失败（onError）降级姓氏文字圆。映射收敛在 server-java 出口（与 B 端票 54 的 `/api/b/photos?key=` 先例同构），前端不感知 object key。
+
+seed 中 15 位医生的头像对象此前**未实际存在于 MinIO**（桶内仅有运行时上传的 UUID 图），导致即便接线正确也回拉 404。演示头像经 `scripts/` 生成+上传脚本补齐：以 PIL 生成虚构占位头像（渐变底 + 姓氏文字，无肖像权问题），按 `<拼音>.jpg` 落入 `scripts/assets/doctor-avatars/`，幂等上传至 `photos/2026-08-07/<拼音>.jpg`（与 seed 的 `photo_url` 严格一致），传后 stat 验证。后续如需写实头像，仅替换该目录图片后重跑上传，管线不变。
 
 ## Consequences
 

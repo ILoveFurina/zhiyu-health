@@ -56,6 +56,7 @@ export interface ConsultationDetail extends PoolItem {
 export interface ConsultationMessage {
   id: number;
   sender_type: SenderType;
+  kind: string;
   content: string;
   created_at: string;
 }
