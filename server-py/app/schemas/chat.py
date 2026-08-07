@@ -43,6 +43,9 @@ class AgentChatRequest(BaseModel):
     scenario: Scenario = Field(default_factory=_scenario_default)
     # 知识增强源（ADR-0010）：rag/graph/none；缺省时 server-py 按 scenario 默认
     knowledge_source: str | None = None
-    # 用户授权定位后的经纬度；拒绝授权时不传，find_hospitals 据此降级
+    # 用户授权定位后的经纬度；拒绝授权时不传，按位置的服务端能力据此省略坐标
     longitude: float | None = Field(default=None, ge=_GEO.longitude_min, le=_GEO.longitude_max)
     latitude: float | None = Field(default=None, ge=_GEO.latitude_min, le=_GEO.latitude_max)
+    # 票 50 号源卡重试：复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复。
+    # 字段名与 contracts/guided-registration.json 的 retry_request_field 一致（契约钉值测试钉死）。
+    retry_standard_department_id: int | None = None

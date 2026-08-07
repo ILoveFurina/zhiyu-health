@@ -154,9 +154,26 @@ class VoiceContract(BaseModel):
     degrade_hint: str
 
 
+class GuidedRegistrationContract(BaseModel):
+    """智能导诊标准科室与科室号源卡（票 50）：解析结果、卡状态、确定性摘要模板。
+
+    触发与摘要拼装由编排代码（services 层）保证，不依赖 LLM 自主调工具；
+    resolution_statuses 前两态（explicit_booking/resolved）触发强制号源查询。
+    """
+
+    resolution_statuses: list[str]
+    card_event: str
+    card_statuses: list[str]
+    retry_request_field: str
+    summary_templates: dict[str, str]
+    time_slot_labels: dict[str, str]
+    retry_user_text: str
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
+    guided_registration: GuidedRegistrationContract
     medication_knowledge: MedicationKnowledgeContract
     vision_errors: VisionErrorsContract
     upload_limits: UploadLimitsContract
@@ -193,6 +210,9 @@ def _load(dir_path: Path) -> Contracts:
         return Contracts(
             disclaimer=DisclaimerContract.model_validate(_read_json(dir_path, "disclaimer.json")),
             sse_events=SseEventsContract.model_validate(_read_json(dir_path, "sse-events.json")),
+            guided_registration=GuidedRegistrationContract.model_validate(
+                _read_json(dir_path, "guided-registration.json")
+            ),
             medication_knowledge=MedicationKnowledgeContract.model_validate(
                 _read_json(dir_path, "medication-knowledge.json")
             ),

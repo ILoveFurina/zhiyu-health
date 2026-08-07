@@ -37,6 +37,7 @@ async def chat(
         knowledge_source=body.knowledge_source,
         longitude=body.longitude,
         latitude=body.latitude,
+        retry_standard_department_id=body.retry_standard_department_id,
     )
 
     return StreamingResponse(

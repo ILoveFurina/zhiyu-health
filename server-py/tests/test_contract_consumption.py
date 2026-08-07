@@ -15,6 +15,7 @@ from app.agent.vision import document, interpreter
 from app.api import vision as vision_api
 from app.core.contracts import get_contracts
 from app.schemas.chat import AgentChatRequest
+from app.schemas.triage import TriageResolution
 from app.services import chat as chat_service
 
 
@@ -71,6 +72,30 @@ def test_tool_event_mapping_follows_contract() -> None:
         assert _tool_event(tool_name) == event
     assert _tool_event("no_such_tool") is None
     assert _tool_event(None) is None
+    # 票 50：find_hospitals 已移除；department_slots 由编排代码产出，不经工具投影
+    assert _tool_event("find_hospitals") is None
+
+
+def test_guided_registration_consumption_matches_contract() -> None:
+    guided = get_contracts().guided_registration
+    sse = get_contracts().sse_events
+    # 卡事件名与契约一致，且已进 card_events/message_kinds/ai_card_kinds/event_to_kind
+    assert guided.card_event == "department_slots"
+    assert guided.card_event in sse.card_events
+    assert guided.card_event in sse.message_kinds
+    assert guided.card_event in sse.ai_card_kinds
+    assert sse.event_to_kind[guided.card_event] == guided.card_event
+    # TriageResolution.status Literal 与契约 resolution_statuses 一致
+    status_type = TriageResolution.model_fields["status"].annotation
+    assert set(get_args(status_type)) == set(guided.resolution_statuses)
+    # 触发强制查询的解析状态为契约前两态（explicit_booking/resolved）
+    assert chat_service._QUERY_STATUSES == frozenset(guided.resolution_statuses[:2])
+    # 重试字段名与契约 retry_request_field 一致
+    assert guided.retry_request_field == "retry_standard_department_id"
+    assert guided.retry_request_field in AgentChatRequest.model_fields
+    # 卡状态与摘要模板键齐备
+    assert guided.card_statuses == ["ok", "failed"]
+    assert set(guided.summary_templates) == {"ok", "empty", "failed"}
 
 
 def test_vision_error_codes_in_main_sources_match_contract() -> None:

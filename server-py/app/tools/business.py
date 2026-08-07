@@ -144,28 +144,9 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             action="查询挂号记录",
         )
 
-    @tool
-    async def find_hospitals(runtime: ToolRuntime[AgentContext]) -> dict[str, Any] | str:
-        """按当前定位查询就近医院（含距离与地址），用于用户说出症状或科室后的就近推荐。
-
-        不接收经纬度入参：坐标是可信设备数据，从注入的 context 直接取用，
-        避免模型誊抄数字出错。未授权定位时返回降级提示，由模型引导用户手动选区。
-        """
-        longitude = runtime.context.longitude
-        latitude = runtime.context.latitude
-        if longitude is None or latitude is None:
-            return {"hospitals": [], "need_location": True}
-        return await _forward_get(
-            client,
-            "/api/agent/hospitals/nearby",
-            {"longitude": longitude, "latitude": latitude},
-            action="查询附近医院",
-        )
-
     return [
         recommend_doctors,
         get_doctor_slots,
-        find_hospitals,
         create_appointment,
         get_appointment,
     ]

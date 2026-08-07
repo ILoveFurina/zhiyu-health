@@ -17,15 +17,18 @@ def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
     assert events.stream_events == ["meta", "knowledge", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
-    assert len(events.card_events) == 5
+    assert len(events.card_events) == 6
+    assert "department_slots" in events.card_events
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
-        "find_hospitals": "hospital_recommendations",
         "create_appointment": "appointment",
         "get_appointment": "appointments",
     }
-    assert len(events.message_kinds) == 13
+    # 票 50：find_hospitals 已移除，department_slots 由编排代码产出故不在 tool_to_event
+    assert "find_hospitals" not in events.tool_to_event
+    assert "department_slots" not in events.tool_to_event.values()
+    assert len(events.message_kinds) == 14
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
     assert "skin_analysis" in events.message_kinds
@@ -36,8 +39,24 @@ def test_sse_event_protocol_is_complete() -> None:
     # 说明书走流式文本（kind=text），禁忌仅留 B 端开方链路
     assert "medication_info" not in events.message_kinds
     assert "medication_safety" not in events.message_kinds
-    assert len(events.ai_card_kinds) == 9
-    assert len(events.event_to_kind) == 6
+    assert len(events.ai_card_kinds) == 10
+    assert len(events.event_to_kind) == 7
+
+
+def test_guided_registration_contract_is_loaded() -> None:
+    # 票 50：标准科室解析结果、卡事件/状态、确定性摘要模板与重试字段钉死
+    guided = get_contracts().guided_registration
+    assert guided.resolution_statuses == ["explicit_booking", "resolved", "ambiguous", "none"]
+    assert guided.card_event == "department_slots"
+    assert guided.card_statuses == ["ok", "failed"]
+    assert guided.retry_request_field == "retry_standard_department_id"
+    assert set(guided.summary_templates) == {"ok", "empty", "failed"}
+    assert "{department}" in guided.summary_templates["ok"]
+    assert "{earliest_date}" in guided.summary_templates["ok"]
+    assert "{earliest_slot}" in guided.summary_templates["ok"]
+    assert "{doctor_count}" in guided.summary_templates["ok"]
+    assert guided.time_slot_labels == {"AM": "上午", "PM": "下午"}
+    assert guided.retry_user_text == "重新查询号源"
 
 
 def test_medication_knowledge_contract_is_loaded() -> None:
