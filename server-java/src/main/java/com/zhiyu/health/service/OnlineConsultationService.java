@@ -179,6 +179,7 @@ public class OnlineConsultationService {
     public MessageView sendMessageForPatient(long patientId, long id, String content) {
         OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
         requireInProgress(consultation);
+        requireMethodInitiated(consultation);
         return appendMessage(id, senderType("patient"), content);
     }
 
@@ -206,6 +207,8 @@ public class OnlineConsultationService {
             }
             filter = status;
         }
+        // 列表入口统一先惰性收敛过期 WAITING（绑定单正常不在此态，收敛保持入口语义一致）
+        expireOverdue();
         return consultationMapper.selectMine(doctorId, filter).stream()
                 .map(this::toDoctorListItem)
                 .toList();
@@ -214,6 +217,8 @@ public class OnlineConsultationService {
     /** 医生详情：绑定医生或同科室待接诊单可见；查看不推进任何状态（不写库）。 */
     public DoctorConsultationDetail detailForDoctor(long staffId, long id) {
         long doctorId = requireDoctor(staffId);
+        // 详情入口先惰性收敛：过期待接诊单收敛后不再对医生可见（Spec 0003）
+        expireOverdue();
         OnlineConsultation consultation = consultationMapper.selectDetailedById(id);
         if (consultation == null || !visibleToDoctor(consultation, doctorId)) {
             throw new ApiException(404, "问诊单不存在");
@@ -282,6 +287,7 @@ public class OnlineConsultationService {
         long doctorId = requireDoctor(staffId);
         OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
         requireInProgress(consultation);
+        requireMethodInitiated(consultation);
         return appendMessage(id, senderType("doctor"), content);
     }
 
@@ -361,6 +367,20 @@ public class OnlineConsultationService {
         }
     }
 
+    /** 图文/视频都由医生明确发起后才允许双向发消息（Spec 0003：接诊方式只能在接受后发起）。 */
+    private void requireMethodInitiated(OnlineConsultation consultation) {
+        if (consultation.getConsultMethod() == null) {
+            throw new ApiException(409, text("method_required"));
+        }
+    }
+
+    /** 接诊方式标签：未发起时为 null，取值只经契约 consult_method_labels。 */
+    private String methodLabel(OnlineConsultation consultation) {
+        return consultation.getConsultMethod() == null
+                ? null
+                : contracts.onlineConsultation().consultMethodLabels().get(consultation.getConsultMethod());
+    }
+
     /** 惰性失效收敛：列表/详情/池/接受入口先执行（Spec 0003：不引入调度中间件）。 */
     private void expireOverdue() {
         consultationMapper.expireOverdue(waiting(), expired());
@@ -389,15 +409,12 @@ public class OnlineConsultationService {
         String status = consultation.getStatus();
         // 终态分支（CANCELLED/EXPIRED）不占五步进度步，只给 terminal_hint 文案。
         String progressStep = contracts.onlineConsultation().isProgressStatus(status) ? status : null;
-        String methodLabel = consultation.getConsultMethod() == null
-                ? null
-                : contracts.onlineConsultation().consultMethodLabels().get(consultation.getConsultMethod());
         return dtoMapper.toDetail(
                 consultation,
                 dtoMapper.toSummaryView(consultation),
                 statusLabel(status),
                 progressStep,
-                methodLabel,
+                methodLabel(consultation),
                 doctor,
                 terminalHint(status));
     }
@@ -417,6 +434,7 @@ public class OnlineConsultationService {
                 consultation,
                 dtoMapper.toSummaryView(consultation),
                 statusLabel(consultation.getStatus()),
+                methodLabel(consultation),
                 dtoMapper.toPatientRef(consultation),
                 profileRef(consultation));
     }
@@ -426,6 +444,7 @@ public class OnlineConsultationService {
                 consultation,
                 dtoMapper.toSummaryView(consultation),
                 statusLabel(consultation.getStatus()),
+                methodLabel(consultation),
                 dtoMapper.toPatientRef(consultation),
                 profileRef(consultation));
     }
@@ -564,6 +583,7 @@ public class OnlineConsultationService {
             PatientRef patient,
             @JsonProperty("health_profile") ProfileRef healthProfile,
             @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("consult_method_label") String consultMethodLabel,
             @JsonProperty("accepted_at") String acceptedAt,
             @JsonProperty("completed_at") String completedAt,
             @JsonProperty("created_at") String createdAt,
@@ -580,6 +600,7 @@ public class OnlineConsultationService {
             PatientRef patient,
             @JsonProperty("health_profile") ProfileRef healthProfile,
             @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("consult_method_label") String consultMethodLabel,
             @JsonProperty("method_started_at") String methodStartedAt,
             String diagnosis,
             String advice,

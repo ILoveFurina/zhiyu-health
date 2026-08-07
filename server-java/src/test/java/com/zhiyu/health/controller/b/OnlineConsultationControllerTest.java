@@ -240,6 +240,7 @@ class OnlineConsultationControllerTest {
                 null,
                 null,
                 null,
+                null,
                 "2026-08-07T10:00:00+08:00",
                 "2026-08-07T10:10:00+08:00");
     }
@@ -258,6 +259,7 @@ class OnlineConsultationControllerTest {
                 new OnlineConsultationService.PatientRef("小愈"),
                 profile(),
                 inProgress || completed ? "VIDEO" : null,
+                inProgress || completed ? "视频问诊" : null,
                 inProgress || completed ? "2026-08-07T10:04:00+08:00" : null,
                 completed ? "急性上呼吸道感染" : null,
                 completed ? "清淡饮食，按需复诊" : null,

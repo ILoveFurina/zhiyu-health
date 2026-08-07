@@ -35,23 +35,27 @@ public interface OnlineConsultationDtoMapper {
 
     @Mapping(target = "summary", source = "summary")
     @Mapping(target = "statusLabel", source = "statusLabel")
+    @Mapping(target = "consultMethodLabel", source = "consultMethodLabel")
     @Mapping(target = "patient", source = "patient")
     @Mapping(target = "healthProfile", source = "healthProfile")
     OnlineConsultationService.DoctorListItem toDoctorListItem(
             OnlineConsultation consultation,
             OnlineConsultationService.ConsultationSummaryView summary,
             String statusLabel,
+            String consultMethodLabel,
             OnlineConsultationService.PatientRef patient,
             OnlineConsultationService.ProfileRef healthProfile);
 
     @Mapping(target = "summary", source = "summary")
     @Mapping(target = "statusLabel", source = "statusLabel")
+    @Mapping(target = "consultMethodLabel", source = "consultMethodLabel")
     @Mapping(target = "patient", source = "patient")
     @Mapping(target = "healthProfile", source = "healthProfile")
     OnlineConsultationService.DoctorConsultationDetail toDoctorDetail(
             OnlineConsultation consultation,
             OnlineConsultationService.ConsultationSummaryView summary,
             String statusLabel,
+            String consultMethodLabel,
             OnlineConsultationService.PatientRef patient,
             OnlineConsultationService.ProfileRef healthProfile);
 

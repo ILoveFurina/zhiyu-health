@@ -222,7 +222,8 @@ class ContractsTest {
                         "not_waiting",
                         "not_in_progress",
                         "text_started",
-                        "method_already_set");
+                        "method_already_set",
+                        "method_required");
     }
 
     @Test

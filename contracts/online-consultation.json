@@ -85,6 +85,7 @@
     "not_waiting": "问诊单不在等待接诊状态",
     "not_in_progress": "问诊不在进行中",
     "text_started": "医生发起图文问诊",
-    "method_already_set": "接诊方式已发起，不可更换"
+    "method_already_set": "接诊方式已发起，不可更换",
+    "method_required": "医生尚未发起接诊方式"
   }
 }

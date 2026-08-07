@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +30,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
@@ -289,9 +292,40 @@ class OnlineConsultationServiceTest {
         assertThatThrownBy(() -> f.service.detailForDoctor(8L, 24L))
                 .isInstanceOfSatisfying(
                         ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
-        // 查看不推进状态：任何读取路径不得触发写操作
-        verify(f.consultationMapper, never()).expireOverdue(anyString(), anyString());
+        // 查看不推进状态：读取路径不触发接受/完成等状态写入；入口惰性收敛是规格要求的统一行为
+        verify(f.consultationMapper, atLeastOnce()).expireOverdue("WAITING_DOCTOR", "EXPIRED");
         verify(f.consultationMapper, never()).accept(anyLong(), anyLong(), anyString(), anyString());
+        verify(f.consultationMapper, never())
+                .complete(anyLong(), anyLong(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void doctorDetailSweepsExpiredPoolRowBeforeRead() {
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectStandardDepartmentIdByDoctor(3L)).thenReturn(2L);
+        // 惰性收敛后的读取结果：过期待接诊单已是 EXPIRED，对医生不再可见
+        OnlineConsultation expired = f.consultation("EXPIRED");
+        expired.setId(25L);
+        expired.setDoctorId(null);
+        when(f.consultationMapper.selectDetailedById(25L)).thenReturn(expired);
+
+        assertThatThrownBy(() -> f.service.detailForDoctor(8L, 25L))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
+        InOrder order = inOrder(f.consultationMapper);
+        order.verify(f.consultationMapper).expireOverdue("WAITING_DOCTOR", "EXPIRED");
+        order.verify(f.consultationMapper).selectDetailedById(25L);
+    }
+
+    @Test
+    void mineSweepsExpiredBeforeListing() {
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectMine(3L, "IN_PROGRESS")).thenReturn(List.of());
+
+        assertThat(f.service.mine(8L, "IN_PROGRESS")).isEmpty();
+        verify(f.consultationMapper).expireOverdue("WAITING_DOCTOR", "EXPIRED");
     }
 
     @Test
@@ -440,8 +474,17 @@ class OnlineConsultationServiceTest {
         assertThatThrownBy(() -> f.service.sendMessageForPatient(12L, 22L, "你好"))
                 .isInstanceOfSatisfying(
                         ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(409));
-        // 进行中：落 PATIENT 消息
-        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(f.consultation("IN_PROGRESS"));
+        // 进行中但医生尚未发起接诊方式：409 method_required（图文/视频都只能在接受后由医生发起）
+        when(f.consultationMapper.selectDetailedByIdAndPatient(24L, 12L)).thenReturn(f.consultation("IN_PROGRESS"));
+        assertThatThrownBy(() -> f.service.sendMessageForPatient(12L, 24L, "你好"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(409);
+                    assertThat(e.getMessage()).isEqualTo("医生尚未发起接诊方式");
+                });
+        // 进行中且已发起图文：落 PATIENT 消息
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
         OnlineConsultationService.MessageView sent = f.service.sendMessageForPatient(12L, 23L, "医生你好");
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
         verify(f.messageMapper).insert(message.capture());
@@ -460,6 +503,21 @@ class OnlineConsultationServiceTest {
         assertThatThrownBy(() -> f.service.sendMessageForDoctor(8L, 21L, "你好"))
                 .isInstanceOfSatisfying(
                         ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+    }
+
+    @Test
+    void doctorMessageRequiresInitiatedMethod() {
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        // 已绑定且进行中，但医生尚未发起图文/视频：409 method_required
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("IN_PROGRESS"));
+
+        assertThatThrownBy(() -> f.service.sendMessageForDoctor(8L, 21L, "你好"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(409);
+                    assertThat(e.getMessage()).isEqualTo("医生尚未发起接诊方式");
+                });
         verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
     }
 
