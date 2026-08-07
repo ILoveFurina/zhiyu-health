@@ -61,6 +61,10 @@
   "_sender_types_doc": "医患消息发送者类型；SYSTEM 用于医生接受、视频发起、问诊完成等系统通知消息。消息不进入 Agent 会话、审计原文或 Agent trace。",
   "accept_timeout_seconds": 600,
   "_accept_timeout_seconds_doc": "在线问诊单创建后默认接诊截止时间；超时在列表、详情与接受入口惰性收敛为 EXPIRED，不引入调度中间件，端内不得散落硬编码。",
+  "timeline_types": {
+    "online_consultation": "ONLINE_CONSULTATION"
+  },
+  "_timeline_types_doc": "健康档案时间线条目类型（票 55）：COMPLETED 在线问诊进入时间线投影，与 med-checkin-flow.json 的 timeline_types 同一约定；只读 UNION 投影，不双写聚合表。",
   "summary_fields": ["chief_complaint", "present_illness", "allergy_history"],
   "summary_field_labels": {
     "chief_complaint": "主诉",

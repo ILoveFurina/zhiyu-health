@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.zhiyu.health.entity.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -249,6 +250,19 @@ class ContractsConsistencyTest {
                 .containsEntry("rejected", "REJECTED");
         assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
         assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
+        // 票 55：处方来源二态（线下挂号/在线问诊），仅是外键派生展示值，数据库不落 source_type 列
+        assertThat(flow.sourceTypes())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("appointment", "APPOINTMENT", "online_consultation", "ONLINE_CONSULTATION"));
+        assertThat(flow.sourceTypeLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(flow.sourceTypes().values());
+    }
+
+    @Test
+    void onlineConsultationTimelineTypeIsLoaded() {
+        // 票 55：COMPLETED 在线问诊进入健康档案时间线，条目类型与 med-checkin 同一契约约定
+        assertThat(contracts.onlineConsultation().timelineTypes())
+                .containsEntry("online_consultation", "ONLINE_CONSULTATION");
     }
 
     @Test

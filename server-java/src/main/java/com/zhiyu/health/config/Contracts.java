@@ -382,11 +382,15 @@ public class Contracts {
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, String> decisions,
+            Map<String, String> sourceTypes,
+            Map<String, String> sourceTypeLabels,
             Map<String, String> messageTypes) {
         public PrescriptionFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
+            sourceTypes = Map.copyOf(sourceTypes);
+            sourceTypeLabels = Map.copyOf(sourceTypeLabels);
             messageTypes = Map.copyOf(messageTypes);
         }
     }
@@ -589,6 +593,7 @@ public class Contracts {
             Map<String, String> consultMethodLabels,
             Map<String, String> senderTypes,
             int acceptTimeoutSeconds,
+            Map<String, String> timelineTypes,
             List<String> summaryFields,
             Map<String, String> summaryFieldLabels,
             String summaryEventField,
@@ -604,6 +609,7 @@ public class Contracts {
             consultMethods = Map.copyOf(consultMethods);
             consultMethodLabels = Map.copyOf(consultMethodLabels);
             senderTypes = Map.copyOf(senderTypes);
+            timelineTypes = Map.copyOf(timelineTypes);
             summaryFields = List.copyOf(summaryFields);
             summaryFieldLabels = Map.copyOf(summaryFieldLabels);
             texts = Map.copyOf(texts);
