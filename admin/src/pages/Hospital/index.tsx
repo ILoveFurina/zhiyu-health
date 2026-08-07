@@ -11,7 +11,7 @@ export default function HospitalPage() {
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Hospital | undefined>();
-  const [rows, setRows] = useState<Hospital[]>([]);
+  const [all, setAll] = useState<Hospital[]>([]);
   const [keyword, setKeyword] = useState('');
   const [deptTotal, setDeptTotal] = useState(0);
   const [doctorTotal, setDoctorTotal] = useState(0);
@@ -24,8 +24,11 @@ export default function HospitalPage() {
     listDoctors().then((d) => setDoctorTotal(d.length)).catch(() => {});
   }, []);
 
+  // 本地即时过滤：输入即生效，无需点查询按钮
+  const filtered = keyword ? all.filter((h) => h.name.includes(keyword)) : all;
+
   const columns: ProColumns<Hospital>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false, render: (_, row) => <span className="zy-id">#{row.id}</span> },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     { title: '医院名称', dataIndex: 'name' },
     { title: '等级', dataIndex: 'level', search: false, render: (_, row) => <LevelTag level={row.level} /> },
     {
@@ -51,8 +54,8 @@ export default function HospitalPage() {
 
   // 统计卡：从已加载行实时计算；科室/医生总数来自并行拉取的全量
   const stats = [
-    { label: '医院总数', value: rows.length, suffix: '家' },
-    { label: '三甲', value: rows.filter((r) => r.level === '三甲').length, suffix: '家' },
+    { label: '医院总数', value: filtered.length, suffix: '家' },
+    { label: '三甲', value: filtered.filter((r) => r.level === '三甲').length, suffix: '家' },
     { label: '科室总数', value: deptTotal },
     { label: '在职医生', value: doctorTotal },
   ];
@@ -71,18 +74,20 @@ export default function HospitalPage() {
         columns={columns}
         pagination={false}
         search={false}
-        headerTitle="医院列表"
+        headerTitle={
+          <>
+            医院列表
+            <span className="zy-searchbar">
+              <Input
+                placeholder="搜索医院名称"
+                allowClear
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            </span>
+          </>
+        }
         toolBarRender={() => [
-          <div key="searchbar" className="zy-searchbar">
-            <Input
-              placeholder="搜索医院名称"
-              allowClear
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onPressEnter={() => actionRef.current?.reload()}
-            />
-            <Button onClick={() => actionRef.current?.reload()}>查询</Button>
-          </div>,
           <Button
             key="create"
             type="primary"
@@ -94,11 +99,11 @@ export default function HospitalPage() {
             + 新建医院
           </Button>,
         ]}
+        dataSource={filtered}
         request={async () => {
           const data = await listHospitals();
-          const filtered = keyword ? data.filter((h) => h.name.includes(keyword)) : data;
-          setRows(filtered);
-          return { data: filtered, success: true };
+          setAll(data);
+          return { data, success: true };
         }}
       />
       <HospitalForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />

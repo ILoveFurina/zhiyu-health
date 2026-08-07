@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Popconfirm } from 'antd';
+import { Button, Input, Popconfirm } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import {
   listStandardDepartments,
@@ -12,11 +12,21 @@ export default function StandardDepartmentPage() {
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<StandardDepartment | undefined>();
+  const [all, setAll] = useState<StandardDepartment[]>([]);
+  const [category, setCategory] = useState('');
+  const [keyword, setKeyword] = useState('');
 
   const reload = () => actionRef.current?.reload();
 
+  // 本地即时过滤：科类 + 标准科室名称双条件，输入即生效，无需点查询按钮
+  const filtered = all.filter((s) => {
+    const okCat = category ? s.category.includes(category) : true;
+    const okName = keyword ? s.name.includes(keyword) : true;
+    return okCat && okName;
+  });
+
   const columns: ProColumns<StandardDepartment>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     { title: '科类', dataIndex: 'category' },
     { title: '标准科室名称', dataIndex: 'name' },
     { title: '排序', dataIndex: 'sort_order', search: false, width: 80 },
@@ -48,7 +58,23 @@ export default function StandardDepartmentPage() {
         actionRef={actionRef}
         columns={columns}
         pagination={false}
-        request={async () => ({ data: await listStandardDepartments(), success: true })}
+        search={false}
+        headerTitle={
+          <span className="zy-searchbar zy-searchbar-compact">
+            <Input
+              placeholder="搜索科类"
+              allowClear
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            />
+            <Input
+              placeholder="搜索标准科室名称"
+              allowClear
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </span>
+        }
         toolBarRender={() => [
           <Button
             key="create"
@@ -61,6 +87,12 @@ export default function StandardDepartmentPage() {
             新建标准科室
           </Button>,
         ]}
+        dataSource={filtered}
+        request={async () => {
+          const data = await listStandardDepartments();
+          setAll(data);
+          return { data, success: true };
+        }}
       />
       <StandardDepartmentForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
     </PageContainer>

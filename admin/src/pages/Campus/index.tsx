@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Popconfirm } from 'antd';
+import { Button, Input, Popconfirm } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import {
   listCampuses,
@@ -15,6 +15,8 @@ export default function CampusPage() {
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Campus | undefined>();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [all, setAll] = useState<Campus[]>([]);
+  const [keyword, setKeyword] = useState('');
 
   // 列表列头需把 hospital_id 翻译成医院名，与表格数据并行拉一次
   useEffect(() => {
@@ -23,8 +25,11 @@ export default function CampusPage() {
 
   const reload = () => actionRef.current?.reload();
 
+  // 本地即时过滤：输入即生效，无需点查询按钮
+  const filtered = keyword ? all.filter((c) => c.name.includes(keyword)) : all;
+
   const columns: ProColumns<Campus>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     {
       title: '所属医院',
       dataIndex: 'hospital_id',
@@ -64,7 +69,17 @@ export default function CampusPage() {
         actionRef={actionRef}
         columns={columns}
         pagination={false}
-        request={async () => ({ data: await listCampuses(), success: true })}
+        search={false}
+        headerTitle={
+          <span className="zy-searchbar">
+            <Input
+              placeholder="搜索院区名称"
+              allowClear
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </span>
+        }
         toolBarRender={() => [
           <Button
             key="create"
@@ -77,6 +92,12 @@ export default function CampusPage() {
             新建院区
           </Button>,
         ]}
+        dataSource={filtered}
+        request={async () => {
+          const data = await listCampuses();
+          setAll(data);
+          return { data, success: true };
+        }}
       />
       <CampusForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
     </PageContainer>

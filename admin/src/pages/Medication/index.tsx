@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Tag } from 'antd';
+import { Input, Tag } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import { listMedications, type Medication } from '@/services/medication';
 import MedicationForm from './components/MedicationForm';
@@ -10,12 +10,16 @@ export default function MedicationPage() {
   const actionRef = useRef<ActionType>();
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<Medication | undefined>();
-  const [rows, setRows] = useState<Medication[]>([]);
+  const [all, setAll] = useState<Medication[]>([]);
+  const [keyword, setKeyword] = useState('');
 
   const reload = () => actionRef.current?.reload();
 
+  // 本地即时过滤：药品名称输入即生效，无需点查询按钮
+  const filtered = keyword ? all.filter((m) => m.name.includes(keyword)) : all;
+
   const columns: ProColumns<Medication>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     { title: '药品名称', dataIndex: 'name' },
     { title: '通用名', dataIndex: 'generic_name', search: false },
     { title: '规格', dataIndex: 'specification', search: false },
@@ -26,7 +30,7 @@ export default function MedicationPage() {
       dataIndex: 'is_active',
       search: false,
       render: (_, row) =>
-        row.is_active ? <Tag color="green">启用</Tag> : <Tag color="default">停用</Tag>,
+        row.is_active ? <Tag color="green">启用</Tag> : <Tag color="default">禁用</Tag>,
     },
     {
       title: '操作',
@@ -46,12 +50,12 @@ export default function MedicationPage() {
     },
   ];
 
-  const activeCount = rows.filter((r) => r.is_active).length;
+  const activeCount = filtered.filter((r) => r.is_active).length;
   const stats = [
-    { label: '药品总数', value: rows.length, suffix: '种' },
+    { label: '药品总数', value: filtered.length, suffix: '种' },
     { label: '启用', value: activeCount, suffix: '种' },
-    { label: '停用', value: rows.length - activeCount, suffix: '种' },
-    { label: '总库存', value: rows.reduce((s, r) => s + (r.stock ?? 0), 0) },
+    { label: '禁用', value: filtered.length - activeCount, suffix: '种' },
+    { label: '总库存', value: filtered.reduce((s, r) => s + (r.stock ?? 0), 0) },
   ];
 
   return (
@@ -68,22 +72,23 @@ export default function MedicationPage() {
         columns={columns}
         pagination={false}
         search={false}
-        headerTitle="药品列表"
-        toolBarRender={() => [
-          <Button
-            key="create"
-            type="primary"
-            onClick={() => {
-              setRecord(undefined);
-              setOpen(true);
-            }}
-          >
-            + 新建药品
-          </Button>,
-        ]}
+        headerTitle={
+          <>
+            药品列表
+            <span className="zy-searchbar">
+              <Input
+                placeholder="搜索药品名称"
+                allowClear
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            </span>
+          </>
+        }
+        dataSource={filtered}
         request={async () => {
           const data = await listMedications();
-          setRows(data);
+          setAll(data);
           return { data, success: true };
         }}
       />
