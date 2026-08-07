@@ -1,8 +1,10 @@
 # 拍照分析原图持久化：MinIO 对象存储 + messages image kind
 
-Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔）
+Status: accepted（票 15/16/17 拍皮肤/拍饮食/拍舌苔；票 54 扩展至医生头像）
 
 票 15/16/17 的拍照分析流程中，患者上传的皮肤/饮食/舌苔照片作为**一等公民**持久化，而非报告解读的"即用即弃"模型。原图持久存于 MinIO 对象存储，PostgreSQL 只存图片路径；`messages` 表新增 `image` kind 承载图片路径，前端识别到该 kind 时按路径回拉 MinIO 原图。
+
+票 54 将此旁路存储扩展至 B 端医生头像：`doctors.photo_url` 由任意 URL 改存 MinIO object key，上传经 server-java 复用 `MinioStorageService.storePhoto`，读取走 server-java 鉴权代理（不开 bucket 公共读）。医生头像同样遵循旁路语义--MinIO 不可用时降级为不留照片、不阻塞档案保存。
 
 ## 决策
 
