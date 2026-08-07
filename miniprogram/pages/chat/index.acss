@@ -175,6 +175,49 @@
   color: var(--zy-color-primary);
 }
 
+/* ===== 票 52：AI 气泡 Markdown 块样式 ===== */
+.md-p, .md-li, .md-h1, .md-h2, .md-h3 {
+  margin-top: 12rpx;
+}
+
+.md-p:first-child, .md-li:first-child,
+.md-h1:first-child, .md-h2:first-child, .md-h3:first-child {
+  margin-top: 0;
+}
+
+.md-h1 {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.md-h2 {
+  font-size: 31rpx;
+  font-weight: 600;
+}
+
+.md-h3 {
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.md-li {
+  display: flex;
+  margin-top: 8rpx;
+}
+
+.md-li-marker {
+  flex-shrink: 0;
+  margin-right: 10rpx;
+}
+
+.md-li-body {
+  flex: 1;
+}
+
+.md-bold {
+  font-weight: 600;
+}
+
 /* ===== 红线内联卡（历史回看时呈现） ===== */
 .redflag-card {
   margin: var(--zy-space-sm) 0;
