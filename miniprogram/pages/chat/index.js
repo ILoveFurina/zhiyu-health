@@ -14,6 +14,7 @@ const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
 const { loadRegistrationSummary } = require('../../services/registration')
 const { relocate } = require('../../utils/location')
+const { parseMarkdown } = require('../../utils/markdown')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -208,7 +209,7 @@ Page({
       latitude: location && location.latitude,
       handlers: {
         onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
-        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
+        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
         onToolStart: (data) => this.onToolStart(data),
@@ -251,7 +252,11 @@ Page({
   },
 
   streamAssistantToken(id, text) {
-    this.patchMessage(id, (msg) => ({ ...msg, content: msg.content + text }))
+    // 票 52：流式每次追加同步重算 Markdown 块；原文 content 保留给 TTS 与复制
+    this.patchMessage(id, (msg) => {
+      const content = msg.content + text
+      return { ...msg, content, blocks: parseMarkdown(content) }
+    })
     this.setData({ anchorId: 'thread-bottom' })
   },
 
@@ -261,6 +266,7 @@ Page({
     const patch = (msg) => ({
       ...msg,
       content: data.content,
+      blocks: parseMarkdown(data.content),
       disclaimer: data.disclaimer,
       emotion: data.emotion || 'calm',
       soothingText: data.soothing_text || '',

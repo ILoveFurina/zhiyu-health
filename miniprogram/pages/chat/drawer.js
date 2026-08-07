@@ -3,6 +3,7 @@ const { formatRelativeTime } = require('../../utils/time')
 const { ensureLogin } = require('../../utils/auth')
 const { isCardKind } = require('../../utils/message-kinds')
 const { soothingTextFor } = require('../../utils/emotion')
+const { parseMarkdown } = require('../../utils/markdown')
 
 /**
  * 对话记录抽屉逻辑（票 27 决策 6/9/13）。
@@ -172,6 +173,8 @@ const drawerMethods = {
       role: m.role,
       kind: m.kind,
       content: m.content,
+      // 票 52：历史回放的 AI 文本同样按 Markdown 块渲染
+      blocks: m.role === 'assistant' ? parseMarkdown(m.content) : undefined,
       disclaimer: m.disclaimer,
       // 票 44：历史回看复现情绪色；安抚语按本地映射补回（后端只存 emotion 列不存 soothing_text）
       emotion: m.emotion || 'calm',
