@@ -42,18 +42,20 @@ public interface DepartmentMapper extends BaseMapper<Department> {
      * 标准科室跨医院号源（票 49）：city_code 硬筛选 + 今天起 14 天窗口 + is_active。
      * 以医生为主 LEFT JOIN 排班：窗口内无排班/全部约满的医生都保留（无排班时 s.* 为 NULL），
      * 由 service 计算 bookable 让端侧置灰，保证「无论是否有号都返回同一种结构」。
-     * 距离为院区级 Haversine（无坐标参数时为 NULL）。
+     * 距离为院区级 Haversine；PG 的 LEAST 忽略 NULL 参数会把无坐标场景错算成 0，
+     * 故用 CASE WHEN 在无坐标参数时显式置 NULL。
      */
     @Select(
             """
             SELECT d.id AS doctor_id, d.name AS doctor_name, d.title, d.registration_fee,
                    h.id AS hospital_id, h.name AS hospital_name,
                    c.id AS campus_id, c.name AS campus_name,
-                   6371 * acos(LEAST(1.0,
-                       sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
-                     + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
-                     * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
-                   ) AS distance_km,
+                   CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
+                        ELSE 6371 * acos(LEAST(1.0,
+                            sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
+                          + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
+                          * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
+                   )) END AS distance_km,
                    s.id AS schedule_id, s.schedule_date, s.time_slot, s.remaining_slots
             FROM doctors d
             JOIN departments dep ON dep.id = d.department_id

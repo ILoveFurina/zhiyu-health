@@ -16,17 +16,19 @@ public interface HospitalCampusMapper extends BaseMapper<HospitalCampus> {
      *
      * Haversine 球面距离：6371km 为地球半径。acos 自变量用 LEAST 钳到 [-1,1]，
      * 防止浮点误差把 acos(>1) 置为 NULL 丢失整行（距离越近越容易触发）。
-     * 坐标参数为 NULL 时整个距离表达式为 NULL，MIN 聚合后仍为 NULL（即无定位场景）。
+     * PostgreSQL 的 LEAST 忽略 NULL 参数，无坐标时表达式会错误算成 acos(1.0)=0，
+     * 故距离统一由 CASE WHEN 在坐标参数为 NULL 时显式置 NULL，MIN 聚合后仍为 NULL。
      * 不引入 PostGIS，纯 SQL 在演示数据规模下足够（票 06 硬约束）。
      */
     @Select(
             """
             SELECT city_code, city_name,
-                   MIN(6371 * acos(LEAST(1.0,
-                       sin(radians(latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
-                     + cos(radians(latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
-                     * cos(radians(#{longitude,jdbcType=DOUBLE} - longitude))
-                   ))) AS distance_km
+                   MIN(CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
+                            ELSE 6371 * acos(LEAST(1.0,
+                                sin(radians(latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
+                              + cos(radians(latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
+                              * cos(radians(#{longitude,jdbcType=DOUBLE} - longitude))
+                       )) END) AS distance_km
             FROM hospital_campuses
             GROUP BY city_code, city_name
             ORDER BY distance_km ASC NULLS LAST, city_code
@@ -45,11 +47,12 @@ public interface HospitalCampusMapper extends BaseMapper<HospitalCampus> {
                 SELECT DISTINCT ON (h.id)
                        h.id AS hospital_id, h.name, h.level,
                        c.id AS campus_id, c.name AS campus_name,
-                       6371 * acos(LEAST(1.0,
-                           sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
-                         + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
-                         * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
-                       ) AS distance_km
+                       CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
+                            ELSE 6371 * acos(LEAST(1.0,
+                                sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
+                              + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
+                              * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
+                       )) END AS distance_km
                 FROM hospitals h
                 JOIN hospital_campuses c ON c.hospital_id = h.id
                 WHERE c.city_code = #{cityCode}
@@ -66,11 +69,12 @@ public interface HospitalCampusMapper extends BaseMapper<HospitalCampus> {
     @Select(
             """
             SELECT c.id AS campus_id, c.name, c.address,
-                   6371 * acos(LEAST(1.0,
-                       sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
-                     + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
-                     * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
-                   ) AS distance_km
+                   CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
+                        ELSE 6371 * acos(LEAST(1.0,
+                            sin(radians(c.latitude)) * sin(radians(#{latitude,jdbcType=DOUBLE}))
+                          + cos(radians(c.latitude)) * cos(radians(#{latitude,jdbcType=DOUBLE}))
+                          * cos(radians(#{longitude,jdbcType=DOUBLE} - c.longitude))
+                   )) END AS distance_km
             FROM hospital_campuses c
             WHERE c.hospital_id = #{hospitalId}
             ORDER BY distance_km ASC NULLS LAST, c.id
@@ -89,7 +93,7 @@ public interface HospitalCampusMapper extends BaseMapper<HospitalCampus> {
                        sin(radians(c.latitude)) * sin(radians(#{latitude}))
                      + cos(radians(c.latitude)) * cos(radians(#{latitude}))
                      * cos(radians(#{longitude} - c.longitude))
-                   ) AS distance_km
+                   )) AS distance_km
             FROM hospital_campuses c
             JOIN hospitals h ON h.id = c.hospital_id
             WHERE c.longitude IS NOT NULL AND c.latitude IS NOT NULL
