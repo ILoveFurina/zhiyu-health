@@ -130,7 +130,24 @@
       />
 
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
-        <text>{{item.content}}</text>
+        <!-- 票 52：AI 文本按 Markdown 块渲染；blocks 缺失（错误消息等）时回退纯文本 -->
+        <block a:if="{{item.blocks && item.blocks.length}}">
+          <view a:for="{{item.blocks}}" a:for-item="block" a:key="index">
+            <view a:if="{{block.type === 'heading'}}" class="md-h{{block.level}}">
+              <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+            </view>
+            <view a:elif="{{block.type === 'list_item'}}" class="md-li">
+              <text class="md-li-marker">{{block.ordered ? block.index + '.' : '•'}}</text>
+              <view class="md-li-body">
+                <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+              </view>
+            </view>
+            <view a:else class="md-p">
+              <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
+            </view>
+          </view>
+        </block>
+        <text a:else>{{item.content}}</text>
         <text a:if="{{item.streaming}}" class="cursor">▍</text>
         <view a:if="{{!item.streaming && item.soothingText}}" class="soothing">{{item.soothingText}}</view>
         <!-- 票 45：TTS 播放/停止按钮（按需点击触发，不自动播放）。ttsEnabled=false 时不渲染 -->
