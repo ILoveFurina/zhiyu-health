@@ -29,7 +29,21 @@ class PrescriptionReviewControllerTest {
     @Test
     void adminListsAndApprovesPrescription() throws Exception {
         PrescriptionService.PrescriptionView approved = new PrescriptionService.PrescriptionView(
-                31L, 21L, "已通过", null, "按医嘱服用。", "仅供参考，不替代医生诊断", "小愈", "林知远", "2026-07-29", List.of());
+                31L,
+                21L,
+                null,
+                "APPOINTMENT",
+                "线下接诊",
+                "已通过",
+                null,
+                "按医嘱服用。",
+                "仅供参考，不替代医生诊断",
+                "小愈",
+                "林知远",
+                "2026-07-29",
+                "上呼吸道感染",
+                "清淡饮食",
+                List.of());
         when(service.listForReview("PENDING")).thenReturn(List.of(approved));
         when(service.review(1L, 31L, "APPROVE", null)).thenReturn(approved);
 

@@ -1,0 +1,105 @@
+/* 病情摘要确认页 */
+.page {
+  min-height: 100vh;
+  padding-bottom: var(--zy-space-lg);
+  box-sizing: border-box;
+}
+
+.state {
+  padding-top: 160rpx;
+  text-align: center;
+  color: var(--zy-text-weak);
+  font-size: 26rpx;
+}
+
+.card {
+  margin: var(--zy-space-md);
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  padding-bottom: var(--zy-space-sm);
+  border-bottom: 1rpx solid #eef3f1;
+}
+
+.card-title {
+  flex: 1;
+  color: var(--zy-text-title);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.status-label {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+}
+
+.field {
+  margin-top: var(--zy-space-md);
+}
+
+.field-label {
+  color: var(--zy-text-weak);
+  font-size: 22rpx;
+}
+
+.field-value {
+  margin-top: 6rpx;
+  color: var(--zy-text-title);
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.field-value-empty {
+  color: var(--zy-text-weak);
+}
+
+.field-value.dept {
+  font-weight: 600;
+}
+
+.btn-row {
+  display: flex;
+  gap: var(--zy-space-sm);
+  margin: var(--zy-space-md);
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-primary);
+  color: var(--zy-color-primary);
+  background: #fff;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.btn-primary {
+  flex: 1;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.btn-disabled {
+  opacity: 0.45;
+}
+
+.confirm-hint {
+  margin: 0 var(--zy-space-md);
+  color: var(--zy-text-weak);
+  font-size: 22rpx;
+  text-align: center;
+}

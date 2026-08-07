@@ -40,7 +40,21 @@ class DoctorPrescriptionControllerTest {
                 .thenReturn(List.of(new PrescriptionService.MedicationView(1L, "阿莫西林胶囊", "阿莫西林", "0.25g*24粒", "饭后口服")));
         when(service.create(any()))
                 .thenReturn(new PrescriptionService.PrescriptionView(
-                        31L, 21L, "待审核", null, null, null, "小愈", "林知远", "2026-07-29", List.of()));
+                        31L,
+                        21L,
+                        null,
+                        "APPOINTMENT",
+                        "线下接诊",
+                        "待审核",
+                        null,
+                        null,
+                        null,
+                        "小愈",
+                        "林知远",
+                        "2026-07-29",
+                        null,
+                        null,
+                        List.of()));
         when(inputMapper.toCommand(anyLong(), anyLong(), any()))
                 .thenReturn(new PrescriptionService.CreateCommand(
                         8L,

@@ -145,6 +145,8 @@ function requestData(params) {
     medication_name: params.medicationName || undefined,
     // 票 50：号源卡「重新查询」重试时携带，后端跳过科室解析直查
     retry_standard_department_id: params.retryStandardDepartmentId || undefined,
+    // 票 54：预问诊对话绑定草稿 id，server-java 校验归属与状态后强制预问诊场景
+    preconsultation_draft_id: params.preconsultationDraftId || undefined,
     conversation_id: params.conversationId || undefined,
     effort: params.effort,
     scenario: params.scenario,

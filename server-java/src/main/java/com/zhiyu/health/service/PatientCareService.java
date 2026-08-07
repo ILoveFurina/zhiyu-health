@@ -19,6 +19,7 @@ public class PatientCareService {
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
     private final HealthProfileService healthProfiles;
+    private final ClinicalContextService clinicalContexts;
 
     public List<PatientPrescriptionView> approvedPrescriptions(long patientId) {
         // 查询层显式限定 APPROVED，是患者可见性的最后一道确定性边界。
@@ -44,7 +45,9 @@ public class PatientCareService {
         String date = prescription.getScheduleDate() == null
                 ? null
                 : prescription.getScheduleDate().toString();
-        return dtoMapper.toPatientPrescriptionView(prescription, date, items);
+        // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值只经契约（票 55）。
+        String sourceType = clinicalContexts.sourceTypeOf(prescription);
+        return dtoMapper.toPatientPrescriptionView(prescription, sourceType, date, items);
     }
 
     public record PatientItemView(
@@ -58,6 +61,7 @@ public class PatientCareService {
 
     public record PatientPrescriptionView(
             Long id,
+            String sourceType,
             String doctorName,
             String departmentName,
             String date,

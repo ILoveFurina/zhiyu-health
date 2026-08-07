@@ -1,6 +1,7 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listPrescriptions } = require('../../services/patient-care')
 const { createDrugOrder } = require('../../services/drug-orders')
+const { SOURCE_TYPES, SOURCE_TYPE_LABELS } = require('../../utils/prescription')
 
 Page({
   data: { loading: true, prescriptions: [], orderingId: null },
@@ -11,6 +12,10 @@ Page({
       .then((prescriptions) => this.setData({
         prescriptions: prescriptions.map((prescription) => ({
           ...prescription,
+          // 仅在线问诊处方展示来源标签；date 由服务端按来源语义给出（在线=问诊发生日期），端侧不加工
+          source_label: prescription.source_type === SOURCE_TYPES.online_consultation
+            ? SOURCE_TYPE_LABELS.ONLINE_CONSULTATION
+            : '',
           items: prescription.items.map((item) => ({ ...item, quantity: 1 })),
         })),
       }))

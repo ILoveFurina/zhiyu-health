@@ -80,7 +80,7 @@ class ContractsTest {
         assertThat(limits.maxTotalBytes()).isEqualTo(20L * 1024 * 1024);
         assertThat(limits.minFiles()).isEqualTo(1);
         assertThat(limits.maxFiles()).isEqualTo(5);
-        assertThat(limits.allowedTypes()).containsExactly("image/jpeg", "image/png", "application/pdf");
+        assertThat(limits.allowedTypes()).containsExactly("image/jpeg", "image/png", "image/webp", "application/pdf");
         assertThat(limits.pdfSingleFile()).isTrue();
     }
 
@@ -90,7 +90,8 @@ class ContractsTest {
         assertThat(defaults.effortDefault()).isEqualTo("auto");
         assertThat(defaults.scenarioDefault()).isEqualTo("triage");
         assertThat(defaults.effortChoices()).containsExactly("auto", "quick", "deep");
-        assertThat(defaults.scenarios()).containsExactly("triage", "interpretation");
+        // 票 54：preconsultation 场景登记入共享场景清单（预问诊只经草稿标识获得，见 online-consultation 契约）
+        assertThat(defaults.scenarios()).containsExactly("triage", "interpretation", "preconsultation");
         assertThat(defaults.longitudeMin()).isEqualTo(-180.0);
         assertThat(defaults.longitudeMax()).isEqualTo(180.0);
         assertThat(defaults.latitudeMin()).isEqualTo(-90.0);
@@ -113,8 +114,9 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
-        // 票 51/票 50：chat 信封可选字段（药品说明书流 / 科室号源失败重试）
-        assertThat(realtime.chatOptionalFields()).containsExactly("medication_name", "retry_standard_department_id");
+        // 票 51/票 50/票 54：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识）
+        assertThat(realtime.chatOptionalFields())
+                .containsExactly("medication_name", "retry_standard_department_id", "preconsultation_draft_id");
     }
 
     @Test
@@ -145,6 +147,83 @@ class ContractsTest {
         assertThat(contracts.sseEvents().messageKinds()).contains(guided.cardEvent());
         // 重试字段必须与 chat-realtime 的 chat_optional_fields 一致
         assertThat(contracts.chatRealtime().chatOptionalFields()).contains(guided.retryRequestField());
+    }
+
+    @Test
+    void onlineConsultationContractIsLoaded() {
+        // 票 54（Spec 0003）：在线问诊状态机/进度/方式/发送者/超时/文案全部来自契约单一事实源
+        Contracts.OnlineConsultation consultation = contracts.onlineConsultation();
+        assertThat(consultation.scenario()).isEqualTo("preconsultation");
+        assertThat(consultation.draftStatuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "collecting", "COLLECTING",
+                        "pending_confirm", "PENDING_CONFIRM",
+                        "submitted", "SUBMITTED"));
+        assertThat(consultation.draftStatusLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(
+                        consultation.draftStatuses().values());
+        assertThat(consultation.statuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "waiting_doctor", "WAITING_DOCTOR",
+                        "in_progress", "IN_PROGRESS",
+                        "completed", "COMPLETED",
+                        "cancelled", "CANCELLED",
+                        "expired", "EXPIRED"));
+        assertThat(consultation.statusLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(consultation.statuses().values());
+        // 单一进行中约束：活跃状态集与数据库部分唯一索引的 WHERE 子句一致（ConsistencyTest 另钉 schema）
+        assertThat(consultation.activeStatuses()).containsExactly("WAITING_DOCTOR", "IN_PROGRESS");
+        assertThat(consultation.decisions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("accept", "ACCEPT", "cancel", "CANCEL", "complete", "COMPLETE", "resubmit", "RESUBMIT"));
+        // C 端固定五步进度：后三步键与问诊状态值同源，终态分支（CANCELLED/EXPIRED）不占步
+        assertThat(consultation.progressSteps().stream().map(Contracts.OnlineConsultation.ProgressStep::key))
+                .containsExactly("PRECONSULTATION", "SUMMARY_CONFIRMED", "WAITING_DOCTOR", "IN_PROGRESS", "COMPLETED");
+        assertThat(consultation.isProgressStatus("WAITING_DOCTOR")).isTrue();
+        assertThat(consultation.isProgressStatus("IN_PROGRESS")).isTrue();
+        assertThat(consultation.isProgressStatus("COMPLETED")).isTrue();
+        assertThat(consultation.isProgressStatus("CANCELLED")).isFalse();
+        assertThat(consultation.isProgressStatus("EXPIRED")).isFalse();
+        assertThat(consultation.consultMethods())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("text", "TEXT", "video", "VIDEO"));
+        assertThat(consultation.consultMethodLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(
+                        consultation.consultMethods().values());
+        assertThat(consultation.isKnownConsultMethod("TEXT")).isTrue();
+        assertThat(consultation.isKnownConsultMethod("VIDEO")).isTrue();
+        assertThat(consultation.isKnownConsultMethod("AUDIO")).isFalse();
+        assertThat(consultation.senderTypes())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("patient", "PATIENT", "doctor", "DOCTOR", "system", "SYSTEM"));
+        assertThat(consultation.acceptTimeoutSeconds()).isEqualTo(600);
+        assertThat(consultation.summaryFields())
+                .containsExactly("chief_complaint", "present_illness", "allergy_history");
+        assertThat(consultation.summaryFieldLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(consultation.summaryFields());
+        assertThat(consultation.summaryEventField()).isEqualTo("preconsultation_summary");
+        // 预问诊场景值必须同步登记在 chat-defaults scenarios 与 knowledge 默认映射
+        assertThat(contracts.chatDefaults().scenarios()).contains(consultation.scenario());
+        assertThat(contracts.knowledge().defaultByScenario()).containsKey(consultation.scenario());
+        // 全部用户文案键钉死：状态机出口与系统消息不得私写文案
+        assertThat(consultation.texts().keySet())
+                .containsExactlyInAnyOrder(
+                        "waiting_matching",
+                        "expired_hint",
+                        "cancelled_hint",
+                        "resubmit_hint",
+                        "doctor_accepted",
+                        "video_started",
+                        "consult_completed",
+                        "profile_required",
+                        "department_unresolved",
+                        "summary_required",
+                        "scenario_requires_draft",
+                        "accept_conflict",
+                        "not_waiting",
+                        "not_in_progress",
+                        "text_started",
+                        "method_already_set",
+                        "method_required");
     }
 
     @Test
@@ -190,7 +269,9 @@ class ContractsTest {
         assertThat(knowledge.noneSource()).isEqualTo("none");
         assertThat(knowledge.defaultByScenario())
                 .containsEntry("triage", "rag")
-                .containsEntry("interpretation", "none");
+                .containsEntry("interpretation", "none")
+                // 票 54：预问诊场景知识源默认 rag（与 chat-defaults scenarios 同步登记）
+                .containsEntry("preconsultation", "rag");
         assertThat(knowledge.knowledgeMetaEvent()).isEqualTo("knowledge");
         assertThat(knowledge.knowledgeStatus()).containsExactly("ok", "degraded", "unavailable");
         assertThat(knowledge.embeddingDimension()).isEqualTo(2048);

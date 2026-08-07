@@ -10,11 +10,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.MedCheckinRecord;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
-import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.MedCheckinRecordMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
@@ -32,13 +30,13 @@ class MedCheckinServiceTest {
     private final MedCheckinRecordMapper checkinMapper = org.mockito.Mockito.mock(MedCheckinRecordMapper.class);
     private final PrescriptionMapper prescriptionMapper = org.mockito.Mockito.mock(PrescriptionMapper.class);
     private final PrescriptionItemMapper itemMapper = org.mockito.Mockito.mock(PrescriptionItemMapper.class);
-    private final AppointmentMapper appointmentMapper = org.mockito.Mockito.mock(AppointmentMapper.class);
+    private final ClinicalContextService clinicalContexts = org.mockito.Mockito.mock(ClinicalContextService.class);
     private final HealthProfileService healthProfiles = org.mockito.Mockito.mock(HealthProfileService.class);
     private final MedCheckinService service = new MedCheckinService(
             checkinMapper,
             prescriptionMapper,
             itemMapper,
-            appointmentMapper,
+            clinicalContexts,
             TestDisclaimers.instance(),
             TestContracts.instance(),
             healthProfiles,
@@ -48,8 +46,7 @@ class MedCheckinServiceTest {
     void eagerGeneratesDailyRemindersByDurationDays() {
         // duration="5天" -> 5 条 PENDING，due_date 从今天起逐日递增。
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
-        Appointment appointment = appointment(12L, 99L);
-        when(appointmentMapper.selectById(21L)).thenReturn(appointment);
+        when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(101L, "阿莫西林胶囊", "5天")));
 
         service.generateForApprovedPrescription(31L);
@@ -61,9 +58,26 @@ class MedCheckinServiceTest {
     }
 
     @Test
+    void eagerGeneratesForOnlineConsultationPrescriptionFromClinicalContext() {
+        // 在线问诊处方无挂号单：患者/档案必须由统一临床上下文派生（票 55）。
+        when(prescriptionMapper.selectDetailedById(32L)).thenReturn(onlinePrescription(32L, 41L));
+        when(clinicalContexts.ofPrescription(any(Prescription.class)))
+                .thenReturn(context(13L, 98L, "ONLINE_CONSULTATION"));
+        when(itemMapper.selectDetailed(32L)).thenReturn(List.of(item(101L, "阿莫西林胶囊", "3天")));
+
+        service.generateForApprovedPrescription(32L);
+
+        verify(checkinMapper, org.mockito.Mockito.times(3))
+                .insertIgnore(org.mockito.ArgumentMatchers.argThat(r -> r != null
+                        && r.getPatientId() == 13L
+                        && r.getHealthProfileId() == 98L
+                        && r.getPrescriptionId() == 32L));
+    }
+
+    @Test
     void eagerParsesWeekAndMonthDuration() {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
-        when(appointmentMapper.selectById(21L)).thenReturn(appointment(12L, 99L));
+        when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(102L, "布洛芬", "2周")));
 
         service.generateForApprovedPrescription(31L);
@@ -75,7 +89,7 @@ class MedCheckinServiceTest {
     @Test
     void eagerFallsBackToDefaultDaysWhenDurationUnparseable() {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
-        when(appointmentMapper.selectById(21L)).thenReturn(appointment(12L, 99L));
+        when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(103L, "维生素C", "遵医嘱")));
 
         service.generateForApprovedPrescription(31L);
@@ -184,11 +198,15 @@ class MedCheckinServiceTest {
         return p;
     }
 
-    private Appointment appointment(long patientId, long profileId) {
-        Appointment a = new Appointment();
-        a.setPatientId(patientId);
-        a.setHealthProfileId(profileId);
-        return a;
+    private Prescription onlinePrescription(long id, long onlineConsultationId) {
+        Prescription p = new Prescription();
+        p.setId(id);
+        p.setOnlineConsultationId(onlineConsultationId);
+        return p;
+    }
+
+    private ClinicalContextService.ClinicalContext context(long patientId, long profileId, String sourceType) {
+        return new ClinicalContextService.ClinicalContext(patientId, profileId, 5L, sourceType, null);
     }
 
     private PrescriptionItem item(long id, String name, String duration) {

@@ -10,13 +10,15 @@ import {
 import { listTemplates, type PrescriptionTemplate } from '@/services/prescriptionTemplate';
 
 interface Props {
-  appointmentId: number;
+  // 线下挂号开方传 appointmentId；在线问诊开方改传 checkSafety 覆盖禁忌检查端点
+  appointmentId?: number;
+  checkSafety?: (medicationIds: number[]) => Promise<SafetyCheckResult>;
   medications: Medication[];
   submitting: boolean;
   onSubmit: (values: PrescriptionInput) => Promise<void>;
 }
 
-export default function PrescriptionForm({ appointmentId, medications, submitting, onSubmit }: Props) {
+export default function PrescriptionForm({ appointmentId, checkSafety, medications, submitting, onSubmit }: Props) {
   const { message } = App.useApp();
   const [form] = Form.useForm<PrescriptionInput>();
   const items = Form.useWatch('items', form) ?? [];
@@ -71,16 +73,23 @@ export default function PrescriptionForm({ appointmentId, medications, submittin
       return;
     }
     const medicationIds = idsKey.split(',').map(Number);
+    // checkSafety 与 appointmentId 二选一由调用方保证；双双缺省时静默跳过而非强转 undefined 发请求。
+    if (!checkSafety && appointmentId == null) {
+      setSafety(undefined);
+      setChecking(false);
+      return;
+    }
+    const runCheck = checkSafety ?? ((ids: number[]) => checkPrescriptionSafety(appointmentId as number, ids));
     let stale = false;
     setChecking(true);
     const timer = setTimeout(() => {
-      checkPrescriptionSafety(appointmentId, medicationIds)
+      runCheck(medicationIds)
         .then((result) => { if (!stale) setSafety(result); })
         .catch(() => { if (!stale) setSafety(undefined); })
         .finally(() => { if (!stale) setChecking(false); });
     }, 300);
     return () => { stale = true; clearTimeout(timer); };
-  }, [appointmentId, idsKey]);
+  }, [appointmentId, checkSafety, idsKey]);
 
   const blocked = safety?.blocked === true;
 

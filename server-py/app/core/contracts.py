@@ -170,10 +170,24 @@ class GuidedRegistrationContract(BaseModel):
     retry_user_text: str
 
 
+class OnlineConsultationContract(BaseModel):
+    """在线问诊主闭环（票 54）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
+
+    server-py 只消费这三项（场景判定、摘要结构钉值、message 事件挂载字段名）；
+    状态机、进度步骤、接诊方式与文案由 server-java 与端侧消费，按既有契约模型
+    约定忽略未消费的顶层字段（pydantic 默认 ignore extra）。
+    """
+
+    scenario: str
+    summary_fields: list[str]
+    summary_event_field: str
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
     guided_registration: GuidedRegistrationContract
+    online_consultation: OnlineConsultationContract
     medication_knowledge: MedicationKnowledgeContract
     vision_errors: VisionErrorsContract
     upload_limits: UploadLimitsContract
@@ -212,6 +226,9 @@ def _load(dir_path: Path) -> Contracts:
             sse_events=SseEventsContract.model_validate(_read_json(dir_path, "sse-events.json")),
             guided_registration=GuidedRegistrationContract.model_validate(
                 _read_json(dir_path, "guided-registration.json")
+            ),
+            online_consultation=OnlineConsultationContract.model_validate(
+                _read_json(dir_path, "online-consultation.json")
             ),
             medication_knowledge=MedicationKnowledgeContract.model_validate(
                 _read_json(dir_path, "medication-knowledge.json")

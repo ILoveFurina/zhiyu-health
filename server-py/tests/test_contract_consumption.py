@@ -10,13 +10,15 @@ from typing import Any, get_args
 import pytest
 from pydantic import ValidationError
 
-from app.agent.runner import AgentOutput, _tool_event
+from app.agent.runner import AgentOutput, _PRECONSULT_SCENARIO, _tool_event
 from app.agent.vision import document, interpreter
 from app.api import vision as vision_api
 from app.core.contracts import get_contracts
 from app.schemas.chat import AgentChatRequest
+from app.schemas.preconsult import PreconsultationSummary
 from app.schemas.triage import TriageResolution
 from app.services import chat as chat_service
+from app.services.reasoning import _AUTO_BY_SCENARIO, Scenario
 
 
 def _literal_values(annotation: Any) -> set[str]:
@@ -139,3 +141,30 @@ def test_chat_request_defaults_and_geo_bounds_follow_contract() -> None:
         AgentChatRequest(**base, longitude=defaults.longitude_max + 1)
     with pytest.raises(ValidationError):
         AgentChatRequest(**base, latitude=defaults.latitude_min - 1)
+
+
+def test_online_consultation_consumption_matches_contract() -> None:
+    """票 54：preconsultation 场景值、摘要字段与快照事件字段名全部从契约推导。"""
+    online = get_contracts().online_consultation
+    defaults = get_contracts().chat_defaults
+    # 场景值与共享场景枚举：chat-defaults scenarios 与 Scenario Literal 双登记
+    assert online.scenario == "preconsultation"
+    assert online.scenario in defaults.scenarios
+    assert _literal_values(Scenario) == set(defaults.scenarios)
+    scenario_type = AgentChatRequest.model_fields["scenario"].annotation
+    assert online.scenario in _literal_values(scenario_type)
+    # 编排代码与 runner 的场景判定都从契约取值（不私写字面量）
+    assert chat_service._ONLINE.scenario == online.scenario
+    assert chat_service._ONLINE.summary_event_field == online.summary_event_field
+    assert _PRECONSULT_SCENARIO == online.scenario
+    # 摘要字段清单与快照事件字段名
+    assert online.summary_fields == ["chief_complaint", "present_illness", "allergy_history"]
+    assert online.summary_event_field == "preconsultation_summary"
+    assert set(PreconsultationSummary.model_fields) == {
+        *online.summary_fields,
+        "suggested_standard_department_id",
+    }
+    # 知识源默认映射：预问诊走 rag
+    assert get_contracts().knowledge.default_by_scenario[online.scenario] == "rag"
+    # 自动档映射：预问诊为对话型场景，关闭思考（速度优先）
+    assert _AUTO_BY_SCENARIO[online.scenario] == "disabled"

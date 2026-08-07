@@ -3,11 +3,9 @@ package com.zhiyu.health.service;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.MedCheckinRecord;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
-import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.MedCheckinRecordMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
@@ -41,7 +39,7 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
     private final MedCheckinRecordMapper checkinMapper;
     private final PrescriptionMapper prescriptionMapper;
     private final PrescriptionItemMapper itemMapper;
-    private final AppointmentMapper appointmentMapper;
+    private final ClinicalContextService clinicalContexts;
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
     private final HealthProfileService healthProfiles;
@@ -57,13 +55,11 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
         if (prescription == null) {
             return;
         }
-        // 处方行不带 patient/health_profile，必须经 appointment 反查（ADR-0018 Q6 直接式 FK 的来源）。
-        Appointment appointment = appointmentMapper.selectById(prescription.getAppointmentId());
-        if (appointment == null) {
-            return;
-        }
-        long patientId = appointment.getPatientId();
-        long profileId = appointment.getHealthProfileId();
+        // 票 55：处方行不带 patient/health_profile，统一经临床上下文按来源（挂号单/在线问诊）
+        // 双外键 COALESCE 投影派生，调用方不再各自反查挂号单（在线处方无挂号单可查）。
+        ClinicalContextService.ClinicalContext context = clinicalContexts.ofPrescription(prescription);
+        long patientId = context.patientId();
+        long profileId = context.healthProfileId();
         String pendingStatus = status("pending");
         String disclaimer = disclaimers.text();
         LocalDate start = LocalDate.now(STREAK_ZONE);

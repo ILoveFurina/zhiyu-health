@@ -1,0 +1,30 @@
+<view class="page">
+  <consult-progress current="{{progressStep}}" />
+
+  <view a:if="{{loading}}" class="state">加载中…</view>
+
+  <!-- 终态视图（CANCELLED/EXPIRED）：契约终态提示 + 复用摘要重新提交 -->
+  <block a:elif="{{terminal}}">
+    <view class="card terminal-card">
+      <view class="terminal-icon">!</view>
+      <view class="terminal-title">{{consultation.status_label}}</view>
+      <view class="terminal-hint">{{terminalHint}}</view>
+      <view class="terminal-resubmit-hint">{{resubmitHint}}</view>
+      <view class="btn-primary {{resubmitting ? 'btn-disabled' : ''}}" onTap="onResubmit">
+        {{resubmitting ? '提交中…' : '重新提交'}}
+      </view>
+      <view class="btn-secondary" onTap="backHome">返回首页</view>
+    </view>
+  </block>
+
+  <!-- 等待接诊视图 -->
+  <block a:else>
+    <view class="card wait-card">
+      <view class="wait-spinner"></view>
+      <view class="wait-title">{{consultation.status_label}}</view>
+      <view class="wait-text">{{waitingText}}</view>
+      <view a:if="{{countdown}}" class="wait-countdown">剩余等待时间 {{countdown}}</view>
+      <view class="btn-secondary {{cancelling ? 'btn-disabled' : ''}}" onTap="onCancel">取消问诊</view>
+    </view>
+  </block>
+</view>

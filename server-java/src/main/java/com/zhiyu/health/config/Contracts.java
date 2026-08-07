@@ -39,6 +39,7 @@ public class Contracts {
     private final Emotion emotion;
     private final Voice voice;
     private final GuidedRegistration guidedRegistration;
+    private final OnlineConsultation onlineConsultation;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -68,6 +69,7 @@ public class Contracts {
         this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
         this.voice = read(mapper, dir, "voice.json", Voice.class);
         this.guidedRegistration = read(mapper, dir, "guided-registration.json", GuidedRegistration.class);
+        this.onlineConsultation = read(mapper, dir, "online-consultation.json", OnlineConsultation.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -168,6 +170,11 @@ public class Contracts {
     /** 智能导诊标准科室与科室号源卡（票 50）：解析结果、卡事件状态、摘要模板与重试字段。 */
     public GuidedRegistration guidedRegistration() {
         return guidedRegistration;
+    }
+
+    /** 在线问诊主闭环（票 54）：预问诊场景、草稿与问诊状态机、五步进度、接诊方式、发送者类型、超时与文案。 */
+    public OnlineConsultation onlineConsultation() {
+        return onlineConsultation;
     }
 
     /** 免责声明标注：一切 AI 产出必须携带（硬约束 1）。text 为通用文案；
@@ -375,11 +382,15 @@ public class Contracts {
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, String> decisions,
+            Map<String, String> sourceTypes,
+            Map<String, String> sourceTypeLabels,
             Map<String, String> messageTypes) {
         public PrescriptionFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
+            sourceTypes = Map.copyOf(sourceTypes);
+            sourceTypeLabels = Map.copyOf(sourceTypeLabels);
             messageTypes = Map.copyOf(messageTypes);
         }
     }
@@ -561,5 +572,65 @@ public class Contracts {
             summaryTemplates = Map.copyOf(summaryTemplates);
             timeSlotLabels = Map.copyOf(timeSlotLabels);
         }
+    }
+
+    /**
+     * 在线问诊主闭环（票 54，Spec 0003）：预问诊场景值、草稿状态机（COLLECTING/PENDING_CONFIRM/SUBMITTED）、
+     * 问诊状态机（WAITING_DOCTOR→IN_PROGRESS→COMPLETED，旁路 CANCELLED/EXPIRED）、C 端固定五步进度、
+     * 接诊方式（TEXT/VIDEO，VIDEO 仅模拟）、医患消息发送者类型、默认接诊超时与全部用户文案。
+     * Java 侧零私写枚举：状态/方式/发送者/标签/文案一律经本 record 取值。
+     */
+    public record OnlineConsultation(
+            String scenario,
+            Map<String, String> draftStatuses,
+            Map<String, String> draftStatusLabels,
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            List<String> activeStatuses,
+            Map<String, String> decisions,
+            List<ProgressStep> progressSteps,
+            Map<String, String> consultMethods,
+            Map<String, String> consultMethodLabels,
+            Map<String, String> senderTypes,
+            int acceptTimeoutSeconds,
+            Map<String, String> timelineTypes,
+            List<String> summaryFields,
+            Map<String, String> summaryFieldLabels,
+            String summaryEventField,
+            Map<String, String> texts) {
+        public OnlineConsultation {
+            draftStatuses = Map.copyOf(draftStatuses);
+            draftStatusLabels = Map.copyOf(draftStatusLabels);
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            activeStatuses = List.copyOf(activeStatuses);
+            decisions = Map.copyOf(decisions);
+            progressSteps = List.copyOf(progressSteps);
+            consultMethods = Map.copyOf(consultMethods);
+            consultMethodLabels = Map.copyOf(consultMethodLabels);
+            senderTypes = Map.copyOf(senderTypes);
+            timelineTypes = Map.copyOf(timelineTypes);
+            summaryFields = List.copyOf(summaryFields);
+            summaryFieldLabels = Map.copyOf(summaryFieldLabels);
+            texts = Map.copyOf(texts);
+        }
+
+        /** 状态是否属于终态分支（CANCELLED/EXPIRED）：不占五步进度步，C 端展示 terminal_hint。 */
+        public boolean isTerminal(String status) {
+            return !isProgressStatus(status);
+        }
+
+        /** 状态是否对应五步进度中的一个步骤键（WAITING_DOCTOR/IN_PROGRESS/COMPLETED）。 */
+        public boolean isProgressStatus(String status) {
+            return progressSteps.stream().anyMatch(step -> step.key().equals(status));
+        }
+
+        /** 接诊方式是否为契约白名单值（start-method 入口校验，防脏值写库）。 */
+        public boolean isKnownConsultMethod(String method) {
+            return method != null && consultMethods.containsValue(method);
+        }
+
+        /** C 端五步进度的一步；key 与问诊状态值同源的步骤直接复用状态值。 */
+        public record ProgressStep(String key, String label) {}
     }
 }

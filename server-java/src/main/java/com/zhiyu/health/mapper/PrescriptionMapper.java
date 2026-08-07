@@ -10,16 +10,27 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface PrescriptionMapper extends BaseMapper<Prescription> {
+    // 票 55 双来源：处方经 appointment_id 或 online_consultation_id 二选一关联（schema XOR 保证），
+    // 患者/档案/发生时间一律 COALESCE 两来源取值，绝不能 INNER JOIN appointments 漏掉在线处方；
+    // 在线问诊无排班，schedule_date 投影取问诊发生日期而非伪造排班日期。
     String DETAIL_COLUMNS =
             """
             SELECT pr.*, d.name AS doctor_name, dep.name AS department_name,
-                   hp.display_name AS patient_nickname, a.patient_id, s.schedule_date
+                   hp.display_name AS patient_nickname,
+                   COALESCE(a.patient_id, oc.patient_id) AS patient_id,
+                   COALESCE(a.health_profile_id, oc.health_profile_id) AS health_profile_id,
+                   COALESCE(a.created_at, oc.created_at) AS occurred_at,
+                   COALESCE(s.schedule_date, oc.created_at::date) AS schedule_date,
+                   cr.diagnosis, cr.advice
             FROM prescriptions pr
-            JOIN appointments a ON a.id = pr.appointment_id
-            JOIN health_profiles hp ON hp.id = a.health_profile_id
+            LEFT JOIN appointments a ON a.id = pr.appointment_id
+            LEFT JOIN online_consultations oc ON oc.id = pr.online_consultation_id
+            JOIN health_profiles hp ON hp.id = COALESCE(a.health_profile_id, oc.health_profile_id)
             JOIN doctors d ON d.id = pr.doctor_id
             JOIN departments dep ON dep.id = d.department_id
-            JOIN schedules s ON s.id = a.schedule_id
+            LEFT JOIN schedules s ON s.id = a.schedule_id
+            LEFT JOIN consultation_records cr
+                ON cr.appointment_id = a.id OR cr.online_consultation_id = oc.id
             """;
 
     @Select(DETAIL_COLUMNS + " WHERE pr.id = #{id}")
@@ -28,11 +39,15 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select("SELECT * FROM prescriptions WHERE appointment_id = #{appointmentId}")
     Prescription selectByAppointmentId(@Param("appointmentId") long appointmentId);
 
+    @Select("SELECT * FROM prescriptions WHERE online_consultation_id = #{onlineConsultationId}")
+    Prescription selectByOnlineConsultationId(@Param("onlineConsultationId") long onlineConsultationId);
+
     @Select(
             """
             SELECT pr.* FROM prescriptions pr
-            JOIN appointments a ON a.id = pr.appointment_id
-            WHERE pr.id = #{id} AND a.patient_id = #{patientId}
+            LEFT JOIN appointments a ON a.id = pr.appointment_id
+            LEFT JOIN online_consultations oc ON oc.id = pr.online_consultation_id
+            WHERE pr.id = #{id} AND COALESCE(a.patient_id, oc.patient_id) = #{patientId}
             """)
     Prescription selectForPatient(@Param("id") long id, @Param("patientId") long patientId);
 
@@ -40,7 +55,8 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     List<Prescription> selectForReview(@Param("status") String status);
 
     @Select(DETAIL_COLUMNS
-            + " WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}"
+            + " WHERE COALESCE(a.patient_id, oc.patient_id) = #{patientId}"
+            + " AND COALESCE(a.health_profile_id, oc.health_profile_id) = #{profileId}"
             + " AND pr.status = #{status} ORDER BY pr.reviewed_at DESC")
     List<Prescription> selectApprovedForProfile(
             @Param("patientId") long patientId, @Param("profileId") long profileId, @Param("status") String status);

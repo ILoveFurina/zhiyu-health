@@ -1,6 +1,8 @@
 package com.zhiyu.health.controller.c;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -84,6 +86,57 @@ class DrugOrderControllerTest {
                 .andExpect(jsonPath("$.total_amount").value(37.00));
 
         verify(medicationMapper).deductStock(1L, 2);
+    }
+
+    @Test
+    void onlineConsultationPrescriptionCreatesOrderLikeAppointmentOne() throws Exception {
+        // 在线问诊处方（appointment_id 为空）与线下处方走同一下单主路径（票 55）。
+        Prescription prescription = prescription("APPROVED");
+        prescription.setOnlineConsultationId(41L);
+        Medication medication = medication(1L, "阿莫西林胶囊", "18.50");
+        when(prescriptionMapper.selectForPatient(32L, 7L)).thenReturn(prescription);
+        when(medicationMapper.selectForPrescriptionForUpdate(32L)).thenReturn(List.of(medication));
+        when(medicationMapper.deductStock(1L, 2)).thenReturn(1);
+        doAnswer(invocation -> {
+                    invocation.getArgument(0, DrugOrder.class).setId(52L);
+                    return 1;
+                })
+                .when(orderMapper)
+                .insert(any(DrugOrder.class));
+
+        mvc().perform(
+                        post("/api/c/drug-orders")
+                                .requestAttr("authSubject", 7L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"prescription_id":32,"items":[{"medication_id":1,"quantity":2}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(52))
+                .andExpect(jsonPath("$.status").value("UNPAID"));
+
+        verify(medicationMapper).deductStock(1L, 2);
+    }
+
+    @Test
+    void foreignPrescriptionIsInvisibleAndRejectedAs404() throws Exception {
+        // 归属不符：selectForPatient 按患者过滤返回 null -> 404，不泄露存在性、不建单。
+        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(null);
+
+        mvc().perform(
+                        post("/api/c/drug-orders")
+                                .requestAttr("authSubject", 7L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"prescription_id":31,"items":[{"medication_id":1,"quantity":2}]}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("电子处方不存在"));
+
+        verify(orderMapper, never()).insert(any(DrugOrder.class));
+        verify(medicationMapper, never()).deductStock(anyLong(), anyInt());
     }
 
     @Test

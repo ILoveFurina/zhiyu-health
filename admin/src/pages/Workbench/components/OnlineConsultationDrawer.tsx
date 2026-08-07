@@ -1,0 +1,416 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Alert, App, Avatar, Button, Descriptions, Divider, Drawer, Form, Input,
+  Popconfirm, Space, Spin, Tag, Typography,
+} from 'antd';
+import { SendOutlined, VideoCameraOutlined } from '@ant-design/icons';
+import {
+  consultationStatuses,
+  consultationTexts,
+  consultMethods,
+  senderTypes,
+  summaryFieldLabels,
+} from '@/contracts/consultation';
+import {
+  accept,
+  complete,
+  fetchDetail,
+  fetchMessages,
+  sendMessage,
+  startMethod,
+  type ConsultationDetail,
+  type ConsultationMessage,
+  type ConsultMethod,
+} from '@/services/consultation';
+import {
+  checkOnlinePrescriptionSafety,
+  createOnlinePrescription,
+  fetchMedications,
+  type Medication,
+  type PrescriptionInput,
+} from '@/services/prescription';
+import PrescriptionForm from './PrescriptionForm';
+
+interface Props {
+  consultationId?: number;
+  open: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}
+
+const statusTagColor = (status?: string) => {
+  switch (status) {
+    case consultationStatuses.waiting_doctor:
+      return 'gold';
+    case consultationStatuses.in_progress:
+      return 'blue';
+    case consultationStatuses.completed:
+      return 'green';
+    default:
+      return 'default';
+  }
+};
+
+export default function OnlineConsultationDrawer({ consultationId, open, onClose, onChanged }: Props) {
+  const { message } = App.useApp();
+  const [form] = Form.useForm<{ diagnosis: string; advice: string }>();
+  const [detail, setDetail] = useState<ConsultationDetail>();
+  const [loading, setLoading] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [methodSubmitting, setMethodSubmitting] = useState(false);
+  const [messages, setMessages] = useState<ConsultationMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
+  const [prescriptionCreated, setPrescriptionCreated] = useState(false);
+  const lastIdRef = useRef(0);
+  const medicationsLoadedRef = useRef(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  const inProgress = detail?.status === consultationStatuses.in_progress;
+
+  // 打开时按 id 加载完整详情，并重置消息、开方状态与完成表单
+  useEffect(() => {
+    if (!open || !consultationId) return;
+    setDetail(undefined);
+    setMessages([]);
+    setDraft('');
+    setPrescriptionCreated(false);
+    form.resetFields();
+    lastIdRef.current = 0;
+    setLoading(true);
+    fetchDetail(consultationId)
+      .then((res) => setDetail(res.consultation))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    // 药品可选列表与问诊无关，只拉一次；用 ref 避免把 medications 写进依赖造成详情重拉
+    if (!medicationsLoadedRef.current) {
+      medicationsLoadedRef.current = true;
+      fetchMedications()
+        .then(setMedications)
+        .catch(() => {
+          medicationsLoadedRef.current = false;
+        });
+    }
+  }, [open, consultationId]);
+
+  // 增量合并消息，按 id 去重，维持轮询游标
+  const appendMessages = useCallback((incoming: ConsultationMessage[]) => {
+    if (!incoming.length) return;
+    lastIdRef.current = Math.max(lastIdRef.current, incoming[incoming.length - 1].id);
+    setMessages((prev) => {
+      const seen = new Set(prev.map((item) => item.id));
+      const fresh = incoming.filter((item) => !seen.has(item.id));
+      return fresh.length ? [...prev, ...fresh] : prev;
+    });
+  }, []);
+
+  // 打开时先全量加载一次；进行中每 3s 增量轮询，关闭或结束后清除
+  useEffect(() => {
+    if (!open || !consultationId) return;
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const res = await fetchMessages(consultationId, lastIdRef.current);
+        if (!cancelled) appendMessages(res.messages);
+      } catch {
+        // 轮询失败静默，交由下一 tick 重试
+      }
+    };
+    pull();
+    if (!inProgress) return () => { cancelled = true; };
+    const timer = setInterval(pull, 3000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [open, consultationId, inProgress, appendMessages]);
+
+  // 新消息滚动到底部
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  const handleAccept = async () => {
+    if (!consultationId) return;
+    setAccepting(true);
+    try {
+      const res = await accept(consultationId);
+      setDetail(res.consultation);
+      message.success(consultationTexts.doctor_accepted);
+      onChanged();
+    } catch (err: any) {
+      // 409 提示由全局 errorHandler 弹出（accept_conflict）；问诊单已被抢走，刷新池并关闭
+      if (err?.response?.status === 409) {
+        onChanged();
+        onClose();
+      }
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const handleStartMethod = async (method: ConsultMethod) => {
+    if (!consultationId) return;
+    setMethodSubmitting(true);
+    try {
+      const res = await startMethod(consultationId, method);
+      setDetail(res.consultation);
+      message.success(method === consultMethods.video
+        ? consultationTexts.video_started
+        : consultationTexts.text_started);
+    } catch {
+      // method_already_set 等冲突由全局提示；回读详情保持界面一致
+      fetchDetail(consultationId)
+        .then((res) => setDetail(res.consultation))
+        .catch(() => {});
+    } finally {
+      setMethodSubmitting(false);
+    }
+  };
+
+  const handleSend = async () => {
+    const content = draft.trim();
+    if (!content || !consultationId || !inProgress) return;
+    setSending(true);
+    try {
+      const res = await sendMessage(consultationId, content);
+      appendMessages([res.message]);
+      setDraft('');
+    } catch {
+      // 非进行中发送等错误由全局 errorHandler 弹出
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleComplete = async (values: { diagnosis: string; advice: string }) => {
+    if (!consultationId) return;
+    setCompleting(true);
+    try {
+      const res = await complete(consultationId, values);
+      setDetail(res.consultation);
+      message.success(consultationTexts.consult_completed);
+      onChanged();
+    } catch {
+      // 幂等完成接口，错误由全局 errorHandler 弹出
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const handlePrescribe = async (values: PrescriptionInput) => {
+    if (!consultationId) return;
+    setPrescriptionSubmitting(true);
+    try {
+      await createOnlinePrescription(consultationId, values);
+      setPrescriptionCreated(true);
+      message.success('电子处方已提交审核');
+    } catch (err: any) {
+      // 一问诊一处方：409 冲突话术由全局 errorHandler 弹出（服务端 detail），同步隐藏开方区
+      if (err?.response?.status === 409) setPrescriptionCreated(true);
+    } finally {
+      setPrescriptionSubmitting(false);
+    }
+  };
+
+  return (
+    <Drawer title="在线问诊详情" width={640} open={open} onClose={onClose} destroyOnHidden>
+      <Spin spinning={loading}>
+        {detail && (
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="患者">{detail.patient.nickname}</Descriptions.Item>
+              <Descriptions.Item label="服务对象">{detail.health_profile.display_name}</Descriptions.Item>
+              <Descriptions.Item label="性别">{detail.health_profile.gender}</Descriptions.Item>
+              <Descriptions.Item label="出生日期">{detail.health_profile.birth_date}</Descriptions.Item>
+              <Descriptions.Item label="与本人关系">{detail.health_profile.relationship}</Descriptions.Item>
+              <Descriptions.Item label="标准科室">{detail.standard_department_name}</Descriptions.Item>
+              <Descriptions.Item label="过敏史">
+                {detail.health_profile.allergies.length ? detail.health_profile.allergies.join('、') : '无'}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={statusTagColor(detail.status)}>{detail.status_label}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="接诊截止" span={2}>{detail.expires_at}</Descriptions.Item>
+            </Descriptions>
+
+            <Alert
+              type="info"
+              showIcon
+              message="AI 病情摘要"
+              description={
+                <Space direction="vertical" size={4}>
+                  {detail.summary ? (
+                    <>
+                      <Typography.Text>{summaryFieldLabels.chief_complaint}：{detail.summary.chief_complaint}</Typography.Text>
+                      <Typography.Text>{summaryFieldLabels.present_illness}：{detail.summary.present_illness}</Typography.Text>
+                      <Typography.Text>{summaryFieldLabels.allergy_history}：{detail.summary.allergy_history}</Typography.Text>
+                    </>
+                  ) : (
+                    <Typography.Text>暂无病情摘要。</Typography.Text>
+                  )}
+                  <Typography.Text strong type="warning">{detail.summary_disclaimer}</Typography.Text>
+                </Space>
+              }
+            />
+
+            {detail.status === consultationStatuses.waiting_doctor && (
+              <Button type="primary" block loading={accepting} onClick={handleAccept}>接受问诊</Button>
+            )}
+
+            {inProgress && (
+              <>
+                <Divider orientation="left" style={{ margin: 0 }}>接诊方式</Divider>
+                {detail.consult_method === null && (
+                  <Space>
+                    <Button type="primary" loading={methodSubmitting}
+                      onClick={() => handleStartMethod(consultMethods.text)}>
+                      发起图文问诊
+                    </Button>
+                    <Popconfirm title="确认发起模拟视频问诊？" onConfirm={() => handleStartMethod(consultMethods.video)}>
+                      <Button loading={methodSubmitting}>发起模拟视频</Button>
+                    </Popconfirm>
+                  </Space>
+                )}
+                {detail.consult_method === consultMethods.text && (
+                  <Tag color="blue">{detail.consult_method_label}</Tag>
+                )}
+                {detail.consult_method === consultMethods.video && (
+                  <div style={{
+                    background: '#123f38', borderRadius: 8, padding: '14px 16px',
+                    color: '#fff', display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                    <Avatar size={40} icon={<VideoCameraOutlined />} style={{ background: '#0e7a6c' }} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>模拟视频问诊 · 已连接</div>
+                      <div style={{ fontSize: 12, opacity: 0.75 }}>
+                        {detail.consult_method_label}
+                        {detail.method_started_at ? ` · ${detail.method_started_at}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {(inProgress || detail.status === consultationStatuses.completed) && (
+              <>
+                <Divider orientation="left" style={{ margin: 0 }}>问诊沟通</Divider>
+                <div
+                  ref={threadRef}
+                  style={{
+                    maxHeight: 280, overflowY: 'auto', border: '1px solid #e6f2ee',
+                    borderRadius: 8, padding: 12, background: '#fafdfc',
+                  }}
+                >
+                  {messages.length === 0 && (
+                    <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center' }}>
+                      暂无沟通消息
+                    </Typography.Text>
+                  )}
+                  {messages.map((item) => {
+                    if (item.sender_type === senderTypes.system) {
+                      return (
+                        <div key={item.id} style={{ textAlign: 'center', margin: '8px 0' }}>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                            {item.content} · {item.created_at}
+                          </Typography.Text>
+                        </div>
+                      );
+                    }
+                    const fromDoctor = item.sender_type === senderTypes.doctor;
+                    return (
+                      <div key={item.id} style={{
+                        display: 'flex', margin: '8px 0',
+                        justifyContent: fromDoctor ? 'flex-end' : 'flex-start',
+                      }}>
+                        <div style={{
+                          maxWidth: '75%', padding: '8px 12px', borderRadius: 8,
+                          background: fromDoctor ? '#0e7a6c' : '#fff',
+                          color: fromDoctor ? '#fff' : 'inherit',
+                          border: fromDoctor ? 'none' : '1px solid #e6f2ee',
+                        }}>
+                          <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{item.content}</div>
+                          <div style={{ fontSize: 11, opacity: 0.65, marginTop: 4, textAlign: 'right' }}>
+                            {item.created_at}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {inProgress ? (
+                  detail.consult_method === null ? (
+                    <Typography.Text type="secondary">{consultationTexts.method_required}。</Typography.Text>
+                  ) : (
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onPressEnter={handleSend}
+                        placeholder="输入回复内容，回车发送"
+                        maxLength={2000}
+                      />
+                      <Button type="primary" icon={<SendOutlined />} loading={sending}
+                        disabled={!draft.trim()} onClick={handleSend}>
+                        发送
+                      </Button>
+                    </Space.Compact>
+                  )
+                ) : (
+                  <Typography.Text type="secondary">
+                    {consultationTexts.consult_completed}，沟通记录仅供查看。
+                  </Typography.Text>
+                )}
+              </>
+            )}
+
+            {inProgress && (
+              <>
+                <Divider orientation="left" style={{ margin: 0 }}>开具处方</Divider>
+                {prescriptionCreated ? (
+                  <Alert type="success" showIcon message="电子处方已提交，等待管理员审核；问诊可独立完成，不等待审核结果" />
+                ) : (
+                  <PrescriptionForm
+                    checkSafety={(ids) => checkOnlinePrescriptionSafety(detail.id, ids)}
+                    medications={medications}
+                    submitting={prescriptionSubmitting}
+                    onSubmit={handlePrescribe}
+                  />
+                )}
+              </>
+            )}
+
+            {inProgress && (
+              <>
+                <Divider orientation="left" style={{ margin: 0 }}>完成问诊</Divider>
+                <Form form={form} layout="vertical" onFinish={handleComplete}>
+                  <Form.Item name="diagnosis" label="诊断结论"
+                    rules={[{ required: true, whitespace: true, message: '请填写诊断结论' }, { max: 2000 }]}>
+                    <Input.TextArea rows={3} placeholder="填写医生诊断结论" />
+                  </Form.Item>
+                  <Form.Item name="advice" label="医嘱"
+                    rules={[{ required: true, whitespace: true, message: '请填写医嘱' }, { max: 2000 }]}>
+                    <Input.TextArea rows={3} placeholder="填写后续治疗、复诊或生活建议" />
+                  </Form.Item>
+                  <Popconfirm title="确认完成问诊？完成后不可再发送消息" onConfirm={() => form.submit()}>
+                    <Button type="primary" loading={completing}>完成问诊</Button>
+                  </Popconfirm>
+                </Form>
+              </>
+            )}
+
+            {detail.status === consultationStatuses.completed && (
+              <Descriptions title="问诊记录" column={1} bordered size="small">
+                <Descriptions.Item label="诊断结论">{detail.diagnosis}</Descriptions.Item>
+                <Descriptions.Item label="医嘱">{detail.advice}</Descriptions.Item>
+                <Descriptions.Item label="完成时间">{detail.completed_at}</Descriptions.Item>
+              </Descriptions>
+            )}
+          </Space>
+        )}
+      </Spin>
+    </Drawer>
+  );
+}

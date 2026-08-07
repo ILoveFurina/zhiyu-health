@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
@@ -12,7 +11,6 @@ import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.MedicationMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
-import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.service.mapping.PrescriptionDtoMapper;
@@ -20,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -27,7 +26,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescription> {
     private final StaffUserMapper staffUserMapper;
-    private final ReceptionMapper receptionMapper;
     private final MedicationMapper medicationMapper;
     private final PrescriptionMapper prescriptionMapper;
     private final PrescriptionItemMapper itemMapper;
@@ -38,6 +36,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
     private final MedCheckinService medCheckinService;
+    private final ClinicalContextService clinicalContexts;
 
     public List<MedicationView> listMedications(long staffId) {
         requireDoctor(staffId);
@@ -47,42 +46,75 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     }
 
     public ContraindicationResult checkSafety(CheckSafetyCommand command) {
-        Appointment appointment = requirePrescribableAppointment(command.staffId(), command.appointmentId());
+        ClinicalContextService.ClinicalContext context =
+                clinicalContexts.requirePrescribableFromAppointment(command.staffId(), command.appointmentId());
         // 患者身份只来自已鉴权医生名下的挂号单，绝不接受请求体传入。
         return contraindicationService.check(
-                new ContraindicationService.CheckCommand(appointment.getPatientId(), command.medicationIds()));
+                new ContraindicationService.CheckCommand(context.patientId(), command.medicationIds()));
+    }
+
+    public ContraindicationResult checkSafetyFromOnlineConsultation(CheckSafetyOnlineCommand command) {
+        ClinicalContextService.ClinicalContext context = clinicalContexts.requirePrescribableFromOnlineConsultation(
+                command.staffId(), command.onlineConsultationId());
+        return contraindicationService.check(
+                new ContraindicationService.CheckCommand(context.patientId(), command.medicationIds()));
     }
 
     public PrescriptionView create(CreateCommand command) {
-        Appointment appointment = requirePrescribableAppointment(command.staffId(), command.appointmentId());
-        long doctorId = appointment.getDoctorId();
+        ClinicalContextService.ClinicalContext context =
+                clinicalContexts.requirePrescribableFromAppointment(command.staffId(), command.appointmentId());
         if (prescriptionMapper.selectByAppointmentId(command.appointmentId()) != null) {
             throw new ApiException(409, "该挂号单已开具电子处方");
         }
-        List<Medication> medications = command.items().stream()
+        return persist(
+                context, command.items(), dtoMapper.toPrescription(command, context.doctorId(), status("pending")));
+    }
+
+    /** 在线问诊开方（票 55）：同一问诊最多一张处方；患者/档案/医生身份由统一临床上下文派生。 */
+    public PrescriptionView createFromOnlineConsultation(CreateOnlineCommand command) {
+        ClinicalContextService.ClinicalContext context = clinicalContexts.requirePrescribableFromOnlineConsultation(
+                command.staffId(), command.onlineConsultationId());
+        if (prescriptionMapper.selectByOnlineConsultationId(command.onlineConsultationId()) != null) {
+            throw new ApiException(409, "该问诊已开具电子处方");
+        }
+        return persist(
+                context,
+                command.items(),
+                dtoMapper.toOnlinePrescription(command, context.doctorId(), status("pending")));
+    }
+
+    /** 两来源共用落库主路径：entity 按来源写好对应外键列（另一列为 null，schema XOR 兜底）。 */
+    private PrescriptionView persist(
+            ClinicalContextService.ClinicalContext context, List<CreateItem> items, Prescription prescription) {
+        List<Medication> medications = items.stream()
                 .map(item -> requireMedication(item.medicationId()))
                 .toList();
         // 提交侧强制复跑同一确定性规则：前端禁用按钮只是体验层，不能作为安全边界。
         ContraindicationResult safety = contraindicationService.check(new ContraindicationService.CheckCommand(
-                appointment.getPatientId(),
-                command.items().stream().map(CreateItem::medicationId).toList()));
+                context.patientId(),
+                items.stream().map(CreateItem::medicationId).toList()));
         if (safety.blocked()) {
             throw safetyException(safety);
         }
-        Long id = transactionTemplate.execute(status -> {
-            Prescription prescription = dtoMapper.toPrescription(command, doctorId, status("pending"));
-            prescriptionMapper.insert(prescription);
-            for (CreateItem input : command.items()) {
-                itemMapper.insert(dtoMapper.toPrescriptionItem(input, prescription.getId()));
-            }
-            return prescription.getId();
-        });
+        Long id;
+        try {
+            id = transactionTemplate.execute(status -> {
+                prescriptionMapper.insert(prescription);
+                for (CreateItem input : items) {
+                    itemMapper.insert(dtoMapper.toPrescriptionItem(input, prescription.getId()));
+                }
+                return prescription.getId();
+            });
+        } catch (DataIntegrityViolationException e) {
+            // 并发重复提交越过上方预检撞唯一约束（每来源一对一）：明确冲突，不冒 500。
+            throw new ApiException(409, prescription.getOnlineConsultationId() != null ? "该问诊已开具电子处方" : "该挂号单已开具电子处方");
+        }
         Prescription created = prescriptionMapper.selectDetailedById(id);
         if (created == null) {
-            created = dtoMapper.toPrescription(command, doctorId, status("pending"));
-            created.setId(id);
+            prescription.setId(id);
+            created = prescription;
         }
-        return toView(created, pairItems(command.items(), medications));
+        return toView(created, pairItems(items, medications));
     }
 
     public List<PrescriptionView> listForReview(String status) {
@@ -154,19 +186,6 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         return medication;
     }
 
-    /** 挂号单归属与可开方校验：医生只能操作自己排班下的挂号单，患者上下文由挂号单派生。 */
-    private Appointment requirePrescribableAppointment(long staffId, long appointmentId) {
-        long doctorId = requireDoctor(staffId);
-        Appointment appointment = receptionMapper.selectAppointment(appointmentId, doctorId);
-        if (appointment == null) {
-            throw new ApiException(404, "挂号单不存在");
-        }
-        if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
-            throw new ApiException(409, "已取消挂号不可开方");
-        }
-        return appointment;
-    }
-
     /** 命中禁忌或数据不完整（fail closed）一律 409 拒绝提交；话术只取 contracts/。 */
     private ApiException safetyException(ContraindicationResult safety) {
         Contracts.Contraindication contract = contracts.contraindication();
@@ -213,7 +232,10 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                 .prescriptionFlow()
                 .statusLabels()
                 .getOrDefault(prescription.getStatus(), prescription.getStatus());
-        return dtoMapper.toPrescriptionView(prescription, label, date, items);
+        // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值与标签只经契约。
+        String sourceType = clinicalContexts.sourceTypeOf(prescription);
+        String sourceLabel = contracts.prescriptionFlow().sourceTypeLabels().get(sourceType);
+        return dtoMapper.toPrescriptionView(prescription, label, sourceType, sourceLabel, date, items);
     }
 
     private String status(String name) {
@@ -236,6 +258,10 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
 
     public record CheckSafetyCommand(long staffId, long appointmentId, List<Long> medicationIds) {}
 
+    public record CreateOnlineCommand(long staffId, long onlineConsultationId, String notes, List<CreateItem> items) {}
+
+    public record CheckSafetyOnlineCommand(long staffId, long onlineConsultationId, List<Long> medicationIds) {}
+
     public record ItemView(
             Long medicationId,
             String name,
@@ -248,6 +274,9 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     public record PrescriptionView(
             Long id,
             Long appointmentId,
+            Long onlineConsultationId,
+            String sourceType,
+            String sourceTypeLabel,
             String status,
             String notes,
             String interpretation,
@@ -255,5 +284,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             String patientNickname,
             String doctorName,
             String date,
+            String diagnosis,
+            String advice,
             List<ItemView> items) {}
 }

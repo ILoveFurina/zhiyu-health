@@ -4,7 +4,7 @@
   <view a:elif="{{prescriptions.length === 0}}" class="state">暂无已审核通过的电子处方</view>
   <view a:for="{{prescriptions}}" a:key="id" class="card">
     <view class="title">电子处方 #{{item.id}}</view>
-    <view class="meta">{{item.department_name}} · {{item.doctor_name}}医生 · {{item.date}}</view>
+    <view class="meta">{{item.department_name}} · {{item.doctor_name}}医生 · {{item.date}}<text a:if="{{item.source_label}}" class="source-tag">{{item.source_label}}</text></view>
     <view a:for="{{item.items}}" a:for-item="drug" a:key="name" class="drug">
       <view class="drug-name">{{drug.name}} {{drug.specification}}</view>
       <view>{{drug.dosage}} · {{drug.frequency}} · {{drug.duration}}</view>

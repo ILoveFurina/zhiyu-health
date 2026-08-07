@@ -28,6 +28,9 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
     // 只读 UNION 将跨业务表记录投影成统一时间线；不双写聚合表，并以业务发生时间稳定倒序。
     // 服药打卡分支读 CHECKED 记录，summary 只投影药名+剂量+频次的事实信息；
     // 连续天数（streak）是跨记录聚合值，由打卡接口现算返回，不进单行时间线投影（ADR-0018）。
+    // 票 55 双来源：处方分支 LEFT JOIN 挂号单/在线问诊两来源（INNER JOIN 会漏在线处方），
+    // 患者/档案过滤用 COALESCE；在线问诊分支投影 COMPLETED 单，类型字面量与
+    // contracts online-consultation.timeline_types 一致（ContractsConsistencyTest 钉死）。
     @Select(
             """
             SELECT * FROM (
@@ -42,13 +45,24 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
                 JOIN departments dep ON dep.id = d.department_id
                 WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}
                 UNION ALL
-                SELECT 'PRESCRIPTION', pr.id, '电子处方',
+                SELECT 'PRESCRIPTION', pr.id,
+                       CASE WHEN pr.online_consultation_id IS NOT NULL THEN '在线问诊处方' ELSE '电子处方' END,
                        d.name || ' · 已审核通过', COALESCE(pr.reviewed_at, pr.created_at), pr.disclaimer
                 FROM prescriptions pr
-                JOIN appointments a ON a.id = pr.appointment_id
+                LEFT JOIN appointments a ON a.id = pr.appointment_id
+                LEFT JOIN online_consultations oc ON oc.id = pr.online_consultation_id
                 JOIN doctors d ON d.id = pr.doctor_id
-                WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}
+                WHERE COALESCE(a.patient_id, oc.patient_id) = #{patientId}
+                  AND COALESCE(a.health_profile_id, oc.health_profile_id) = #{profileId}
                   AND pr.status = 'APPROVED'
+                UNION ALL
+                SELECT 'ONLINE_CONSULTATION', oc.id, '在线问诊',
+                       d.name || ' · ' || dep.name, oc.completed_at, NULL::VARCHAR
+                FROM online_consultations oc
+                JOIN doctors d ON d.id = oc.doctor_id
+                JOIN departments dep ON dep.id = d.department_id
+                WHERE oc.patient_id = #{patientId} AND oc.health_profile_id = #{profileId}
+                  AND oc.status = 'COMPLETED'
                 UNION ALL
                 SELECT 'REPORT_INTERPRETATION', r.id, '报告解读',
                        COALESCE((r.result_json::jsonb ->> 'summary'), '报告解读完成'), r.created_at, r.disclaimer

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.zhiyu.health.entity.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -186,10 +187,49 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void onlineConsultationEnumsAreCoveredBySchemaCheckConstraints() throws Exception {
+        // 票 54：新表 CHECK 必须覆盖契约全部枚举值，漏列会在 DB 层拒写并掐断问诊闭环
+        // （与 ck_messages_kind 同一纪律，取值清单一致性由本测试钉死）
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Contracts.OnlineConsultation consultation = contracts.onlineConsultation();
+        for (String status : consultation.draftStatuses().values()) {
+            assertThat(schema)
+                    .as("preconsultation_drafts CHECK 必须覆盖草稿状态 %s", status)
+                    .contains("'" + status + "'");
+        }
+        for (String status : consultation.statuses().values()) {
+            assertThat(schema)
+                    .as("online_consultations CHECK 必须覆盖问诊状态 %s", status)
+                    .contains("'" + status + "'");
+        }
+        for (String method : consultation.consultMethods().values()) {
+            assertThat(schema)
+                    .as("online_consultations CHECK 必须覆盖接诊方式 %s", method)
+                    .contains("'" + method + "'");
+        }
+        for (String sender : consultation.senderTypes().values()) {
+            assertThat(schema)
+                    .as("online_consultation_messages CHECK 必须覆盖发送者类型 %s", sender)
+                    .contains("'" + sender + "'");
+        }
+        // 单一进行中约束：部分唯一索引必须存在，且 WHERE 子句覆盖契约 active_statuses 全部取值
+        assertThat(schema).contains("uq_online_consultations_active_profile");
+        int indexStart = schema.indexOf("uq_online_consultations_active_profile");
+        String indexRegion = schema.substring(indexStart, schema.indexOf(";", indexStart));
+        for (String active : consultation.activeStatuses()) {
+            assertThat(indexRegion).as("活跃问诊部分唯一索引必须覆盖状态 %s", active).contains("'" + active + "'");
+        }
+        assertThat(schema).contains("uq_preconsultation_drafts_active");
+    }
+
+    @Test
     void uploadTypeAccessorsMatchContract() {
         Contracts.UploadLimits limits = contracts.uploadLimits();
         assertThat(limits.pdfType()).isEqualTo("application/pdf");
-        assertThat(limits.imageTypes()).containsExactly("image/jpeg", "image/png");
+        assertThat(limits.imageTypes()).containsExactly("image/jpeg", "image/png", "image/webp");
     }
 
     @Test
@@ -210,6 +250,35 @@ class ContractsConsistencyTest {
                 .containsEntry("rejected", "REJECTED");
         assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
         assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
+        // 票 55：处方来源二态（线下挂号/在线问诊），仅是外键派生展示值，数据库不落 source_type 列
+        assertThat(flow.sourceTypes())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("appointment", "APPOINTMENT", "online_consultation", "ONLINE_CONSULTATION"));
+        assertThat(flow.sourceTypeLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(flow.sourceTypes().values());
+    }
+
+    @Test
+    void onlineConsultationTimelineTypeIsLoaded() {
+        // 票 55：COMPLETED 在线问诊进入健康档案时间线，条目类型与 med-checkin 同一契约约定
+        assertThat(contracts.onlineConsultation().timelineTypes())
+                .containsEntry("online_consultation", "ONLINE_CONSULTATION");
+    }
+
+    @Test
+    void healthTimelineSqlLiteralsMatchContracts() throws Exception {
+        // 票 55：HealthProfileMapper.selectTimeline 是静态 SQL，类型字面量必须与契约值一致，
+        // 漂移会让 C 端时间线出现契约外类型（ mapper 无法注入 Contracts，只能在此钉死）。
+        String sql = String.join(
+                "\n",
+                com.zhiyu.health.mapper.HealthProfileMapper.class
+                        .getMethod("selectTimeline", long.class, long.class)
+                        .getAnnotation(org.apache.ibatis.annotations.Select.class)
+                        .value());
+        String onlineType = contracts.onlineConsultation().timelineTypes().get("online_consultation");
+        assertThat(sql).as("时间线 SQL 必须含在线问诊条目类型字面量 %s", onlineType).contains("'" + onlineType + "'");
+        String medCheckinType = contracts.medCheckinFlow().timelineTypes().get("med_checkin");
+        assertThat(sql).as("时间线 SQL 必须含服药打卡条目类型字面量 %s", medCheckinType).contains("'" + medCheckinType + "'");
     }
 
     @Test

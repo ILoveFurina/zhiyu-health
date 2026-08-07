@@ -1,0 +1,13 @@
+<view class="consult-progress">
+  <view a:for="{{steps}}" a:key="key" class="cp-step">
+    <view class="cp-track">
+      <view class="cp-line {{index === 0 ? 'cp-line-hidden' : ''}} {{index <= currentIndex ? 'cp-line-done' : ''}}"></view>
+      <view class="cp-dot {{index < currentIndex ? 'cp-dot-done' : ''}} {{index === currentIndex ? 'cp-dot-current' : ''}}">
+        <text a:if="{{index < currentIndex}}">✓</text>
+        <text a:else>{{index + 1}}</text>
+      </view>
+      <view class="cp-line {{index === steps.length - 1 ? 'cp-line-hidden' : ''}} {{index < currentIndex ? 'cp-line-done' : ''}}"></view>
+    </view>
+    <view class="cp-label {{index === currentIndex ? 'cp-label-current' : ''}} {{index < currentIndex ? 'cp-label-done' : ''}}">{{item.label}}</view>
+  </view>
+</view>

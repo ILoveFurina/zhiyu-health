@@ -1,0 +1,133 @@
+/* 等待医生接诊页 */
+.page {
+  min-height: 100vh;
+  padding-bottom: var(--zy-space-lg);
+  box-sizing: border-box;
+}
+
+.state {
+  padding-top: 160rpx;
+  text-align: center;
+  color: var(--zy-text-weak);
+  font-size: 26rpx;
+}
+
+.card {
+  margin: var(--zy-space-md);
+  padding: var(--zy-space-xl) var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===== 等待态 ===== */
+.wait-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid var(--zy-color-primary-soft);
+  border-top-color: var(--zy-color-primary);
+  border-radius: 50%;
+  animation: wait-spin 0.9s linear infinite;
+}
+
+@keyframes wait-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wait-title {
+  margin-top: var(--zy-space-md);
+  color: var(--zy-text-title);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.wait-text {
+  margin-top: var(--zy-space-sm);
+  color: var(--zy-text-secondary);
+  font-size: 26rpx;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.wait-countdown {
+  margin-top: var(--zy-space-sm);
+  color: var(--zy-text-weak);
+  font-size: 22rpx;
+}
+
+/* ===== 终态 ===== */
+.terminal-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #f2f3f5;
+  color: var(--zy-text-weak);
+  font-size: 44rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal-title {
+  margin-top: var(--zy-space-md);
+  color: var(--zy-text-title);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.terminal-hint {
+  margin-top: var(--zy-space-sm);
+  color: var(--zy-text-secondary);
+  font-size: 26rpx;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.terminal-resubmit-hint {
+  margin-top: var(--zy-space-xs);
+  color: var(--zy-text-weak);
+  font-size: 22rpx;
+  text-align: center;
+}
+
+/* ===== 按钮 ===== */
+.btn-primary {
+  margin-top: var(--zy-space-lg);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.btn-secondary {
+  margin-top: var(--zy-space-sm);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-primary);
+  color: var(--zy-color-primary);
+  background: #fff;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.wait-card .btn-secondary {
+  margin-top: var(--zy-space-lg);
+  border-color: #e0e0e0;
+  color: var(--zy-text-secondary);
+}
+
+.btn-disabled {
+  opacity: 0.45;
+}

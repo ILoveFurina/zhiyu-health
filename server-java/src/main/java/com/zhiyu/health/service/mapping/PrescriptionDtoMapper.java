@@ -22,6 +22,13 @@ public interface PrescriptionDtoMapper {
     Prescription toPrescription(PrescriptionService.CreateCommand command, long doctorId, String status);
 
     @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "onlineConsultationId", source = "command.onlineConsultationId")
+    @Mapping(target = "doctorId", source = "doctorId")
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "notes", source = "command.notes", qualifiedByName = "trimToNull")
+    Prescription toOnlinePrescription(PrescriptionService.CreateOnlineCommand command, long doctorId, String status);
+
+    @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "prescriptionId", source = "prescriptionId")
     @Mapping(target = "medicationId", source = "input.medicationId")
     @Mapping(target = "dosage", source = "input.dosage", qualifiedByName = "trimRequired")
@@ -55,7 +62,12 @@ public interface PrescriptionDtoMapper {
     @Mapping(target = "patientNickname", source = "prescription.patientNickname")
     @Mapping(target = "doctorName", source = "prescription.doctorName")
     PrescriptionService.PrescriptionView toPrescriptionView(
-            Prescription prescription, String statusLabel, String date, List<PrescriptionService.ItemView> items);
+            Prescription prescription,
+            String statusLabel,
+            String sourceType,
+            String sourceTypeLabel,
+            String date,
+            List<PrescriptionService.ItemView> items);
 
     @Mapping(target = "name", source = "medicationName")
     PatientCareService.PatientItemView toPatientItemView(PrescriptionItem item);
@@ -68,7 +80,7 @@ public interface PrescriptionDtoMapper {
     @Mapping(target = "interpretation", source = "prescription.interpretation")
     @Mapping(target = "disclaimer", source = "prescription.disclaimer")
     PatientCareService.PatientPrescriptionView toPatientPrescriptionView(
-            Prescription prescription, String date, List<PatientCareService.PatientItemView> items);
+            Prescription prescription, String sourceType, String date, List<PatientCareService.PatientItemView> items);
 
     @Mapping(target = "id", source = "message.id")
     @Mapping(target = "type", source = "message.type")

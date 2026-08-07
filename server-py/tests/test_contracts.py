@@ -59,6 +59,14 @@ def test_guided_registration_contract_is_loaded() -> None:
     assert guided.retry_user_text == "重新查询号源"
 
 
+def test_online_consultation_contract_is_loaded() -> None:
+    # 票 54：预问诊场景值、病情摘要字段清单与摘要快照事件字段名钉死
+    online = get_contracts().online_consultation
+    assert online.scenario == "preconsultation"
+    assert online.summary_fields == ["chief_complaint", "present_illness", "allergy_history"]
+    assert online.summary_event_field == "preconsultation_summary"
+
+
 def test_medication_knowledge_contract_is_loaded() -> None:
     # 票 51（ADR-0028）：C 端通用药品说明书流事件与话术钉死
     contract = get_contracts().medication_knowledge
@@ -104,7 +112,7 @@ def test_upload_limits_match_both_stacks() -> None:
     assert limits.max_total_bytes == 20 * 1024 * 1024
     assert limits.min_files == 1
     assert limits.max_files == 5
-    assert limits.allowed_types == ["image/jpeg", "image/png", "application/pdf"]
+    assert limits.allowed_types == ["image/jpeg", "image/png", "image/webp", "application/pdf"]
     assert limits.pdf_single_file is True
 
 
@@ -113,7 +121,8 @@ def test_chat_defaults_and_geo_ranges_are_loaded() -> None:
     assert defaults.effort_default == "auto"
     assert defaults.scenario_default == "triage"
     assert defaults.effort_choices == ["auto", "quick", "deep"]
-    assert defaults.scenarios == ["triage", "interpretation"]
+    # 票 54：preconsultation 场景已登记（online-consultation.json 为场景值事实源）
+    assert defaults.scenarios == ["triage", "interpretation", "preconsultation"]
     assert defaults.longitude_min == -180
     assert defaults.longitude_max == 180
     assert defaults.latitude_min == -90
@@ -155,7 +164,11 @@ def test_knowledge_contract_values_are_loaded() -> None:
     knowledge = get_contracts().knowledge
     assert knowledge.knowledge_sources == ["rag", "graph"]
     assert knowledge.none_source == "none"
-    assert knowledge.default_by_scenario == {"triage": "rag", "interpretation": "none"}
+    assert knowledge.default_by_scenario == {
+        "triage": "rag",
+        "interpretation": "none",
+        "preconsultation": "rag",  # 票 54：预问诊默认走向量检索
+    }
     assert knowledge.knowledge_meta_event == "knowledge"
     assert knowledge.knowledge_status == ["ok", "degraded", "unavailable"]
     assert knowledge.embedding_dimension == 2048

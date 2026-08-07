@@ -15,10 +15,12 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.Medication;
+import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.MedicationMapper;
+import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
@@ -30,6 +32,8 @@ import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
+import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,6 +41,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 class PrescriptionServiceTest {
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
     private final ReceptionMapper receptionMapper = mock(ReceptionMapper.class);
+    private final OnlineConsultationMapper onlineConsultationMapper = mock(OnlineConsultationMapper.class);
     private final MedicationMapper medicationMapper = mock(MedicationMapper.class);
     private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
     private final PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);
@@ -44,9 +49,11 @@ class PrescriptionServiceTest {
     private final AgentClient agentClient = mock(AgentClient.class);
     private final ContraindicationService contraindicationService = mock(ContraindicationService.class);
     private final MedCheckinService medCheckinService = mock(MedCheckinService.class);
+    // 临床上下文用真实模块接同一批 mapper mock：线下路径的既有打桩（receptionMapper 等）原样生效。
+    private final ClinicalContextService clinicalContexts = new ClinicalContextService(
+            staffUserMapper, receptionMapper, onlineConsultationMapper, TestContracts.instance());
     private final PrescriptionService service = new PrescriptionService(
             staffUserMapper,
-            receptionMapper,
             medicationMapper,
             prescriptionMapper,
             itemMapper,
@@ -56,7 +63,8 @@ class PrescriptionServiceTest {
             TestDisclaimers.instance(),
             TestContracts.instance(),
             Mappers.getMapper(PrescriptionDtoMapper.class),
-            medCheckinService);
+            medCheckinService,
+            clinicalContexts);
 
     @Test
     void approvalGeneratesExplanationThenPublishesWithJavaDisclaimer() {
@@ -235,6 +243,144 @@ class PrescriptionServiceTest {
         verify(itemMapper).insert(any(PrescriptionItem.class));
     }
 
+    @Test
+    void createFromOnlineConsultationWritesOnlineForeignKeyAndSourceType() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+                .thenReturn(new ContraindicationResult(
+                        "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation
+                .getArgument(0, TransactionCallback.class)
+                .doInTransaction(mock(TransactionStatus.class)));
+        doAnswer(invocation -> {
+                    invocation.getArgument(0, Prescription.class).setId(51L);
+                    return 1;
+                })
+                .when(prescriptionMapper)
+                .insert(any(Prescription.class));
+        Prescription stored = onlinePrescription(51L, "PENDING");
+        when(prescriptionMapper.selectDetailedById(51L)).thenReturn(stored);
+
+        // 命令只携带 staffId 与问诊单 ID：患者/档案/医生身份全部由临床上下文派生，不接受请求体
+        PrescriptionService.PrescriptionView view =
+                service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
+                        8L, 41L, "足疗程服用", List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+
+        ArgumentCaptor<Prescription> inserted = ArgumentCaptor.forClass(Prescription.class);
+        verify(prescriptionMapper).insert(inserted.capture());
+        assertEquals(41L, inserted.getValue().getOnlineConsultationId());
+        assertEquals(null, inserted.getValue().getAppointmentId());
+        assertEquals(5L, inserted.getValue().getDoctorId());
+        assertEquals("ONLINE_CONSULTATION", view.sourceType());
+        assertEquals("在线问诊", view.sourceTypeLabel());
+        assertEquals("待审核", view.status());
+        // 禁忌复跑用的是问诊单派生的患者身份
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L)));
+    }
+
+    @Test
+    void createFromOnlineConsultationRejectsDuplicate() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        when(prescriptionMapper.selectByOnlineConsultationId(41L)).thenReturn(onlinePrescription(51L, "PENDING"));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
+                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+
+        assertEquals(409, error.getStatus());
+        assertEquals("该问诊已开具电子处方", error.getMessage());
+        verify(prescriptionMapper, never()).insert(any(Prescription.class));
+        verifyNoInteractions(contraindicationService);
+    }
+
+    @Test
+    void createFromOnlineConsultationTranslatesConcurrentUniqueCollisionToConflict() {
+        // 并发重复提交越过预检撞 uq_prescriptions_online_consultation：明确 409，不冒 500
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+                .thenReturn(new ContraindicationResult(
+                        "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation
+                .getArgument(0, TransactionCallback.class)
+                .doInTransaction(mock(TransactionStatus.class)));
+        when(prescriptionMapper.insert(any(Prescription.class)))
+                .thenThrow(new DataIntegrityViolationException("uq_prescriptions_online_consultation"));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
+                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+
+        assertEquals(409, error.getStatus());
+        assertEquals("该问诊已开具电子处方", error.getMessage());
+    }
+
+    @Test
+    void createFromOnlineConsultationRejectsBlockedSubmission() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+                .thenReturn(new ContraindicationResult(
+                        "BLOCKED",
+                        "contraindication_warning",
+                        true,
+                        List.of("过敏史“青霉素”与药品 1 的成分/禁忌项匹配"),
+                        "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
+                        "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。"));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
+                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+
+        assertEquals(409, error.getStatus());
+        verify(prescriptionMapper, never()).insert(any(Prescription.class));
+        verifyNoInteractions(transactionTemplate);
+    }
+
+    @Test
+    void createFromOnlineConsultationRejectsUnboundDoctorAndNotInProgress() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 88L));
+        ApiException foreign = assertThrows(
+                ApiException.class,
+                () -> service.checkSafetyFromOnlineConsultation(
+                        new PrescriptionService.CheckSafetyOnlineCommand(8L, 41L, List.of(1L))));
+        assertEquals(404, foreign.getStatus());
+
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("COMPLETED", 5L));
+        ApiException notInProgress = assertThrows(
+                ApiException.class,
+                () -> service.checkSafetyFromOnlineConsultation(
+                        new PrescriptionService.CheckSafetyOnlineCommand(8L, 41L, List.of(1L))));
+        assertEquals(409, notInProgress.getStatus());
+        assertEquals("问诊不在进行中", notInProgress.getMessage());
+        verifyNoInteractions(contraindicationService);
+    }
+
+    @Test
+    void checkSafetyFromOnlineConsultationUsesDerivedPatientContext() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        ContraindicationResult safe =
+                new ContraindicationResult("SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null);
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L))))
+                .thenReturn(safe);
+
+        ContraindicationResult result = service.checkSafetyFromOnlineConsultation(
+                new PrescriptionService.CheckSafetyOnlineCommand(8L, 41L, List.of(1L, 2L)));
+
+        assertEquals("SAFE", result.decision());
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L)));
+    }
+
     private StaffUser doctor(long doctorId) {
         StaffUser staff = new StaffUser();
         staff.setRole(StaffUser.ROLE_DOCTOR);
@@ -256,6 +402,25 @@ class PrescriptionServiceTest {
         medication.setId(id);
         medication.setIsActive(true);
         return medication;
+    }
+
+    private OnlineConsultation onlineConsultation(String status, Long doctorId) {
+        OnlineConsultation consultation = new OnlineConsultation();
+        consultation.setId(41L);
+        consultation.setPatientId(12L);
+        consultation.setHealthProfileId(3L);
+        consultation.setStatus(status);
+        consultation.setDoctorId(doctorId);
+        consultation.setCreatedAt(java.time.OffsetDateTime.parse("2026-08-01T10:00:00+08:00"));
+        return consultation;
+    }
+
+    private Prescription onlinePrescription(long id, String status) {
+        Prescription prescription = new Prescription();
+        prescription.setId(id);
+        prescription.setOnlineConsultationId(41L);
+        prescription.setStatus(status);
+        return prescription;
     }
 
     private Prescription prescription(long id, String status) {

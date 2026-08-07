@@ -18,6 +18,7 @@ const GRIDS = [
     columns: 2,
     items: [
       { key: 'triage', icon: '✚', label: '智能导诊', desc: '描述症状，推荐科室', action: 'switchTab', url: '/pages/chat/index' },
+      { key: 'consult', icon: '⚕', label: '在线问诊', desc: 'AI 预问诊，医生接诊', action: 'navigateTo', url: '/pages/consult/entry/index' },
       { key: 'booking', icon: '⚑', label: '预约挂号', desc: '选科室、医生与时间', action: 'navigateTo', url: '/pages/booking/standard-departments/index' },
       { key: 'report', icon: '▦', label: '报告解读', desc: '上传报告，AI 解读', action: 'navigateTo', url: '/pages/report/index' },
     ],

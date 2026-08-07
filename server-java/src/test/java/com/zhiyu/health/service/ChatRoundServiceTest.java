@@ -291,8 +291,8 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-retry")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-retry", null, "重新查询号源")).thenReturn(round);
-        ChatRoundService.Command retry =
-                new ChatRoundService.Command(12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L);
+        ChatRoundService.Command retry = new ChatRoundService.Command(
+                12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L, null);
 
         fixture.service.accept(retry);
 
@@ -319,6 +319,7 @@ class ChatRoundServiceTest {
         private final AgentCallLogService agentCallLogs = mock(AgentCallLogService.class);
         private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
         private final ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        private final PreconsultationService preconsultationService = mock(PreconsultationService.class);
         private final ObjectMapper mapper = new ObjectMapper();
         private final Sinks.Many<ServerSentEvent<String>> upstream =
                 Sinks.many().replay().all();
@@ -340,7 +341,8 @@ class ChatRoundServiceTest {
                     TestContracts.instance(),
                     healthProfiles,
                     agentCallLogs,
-                    redis);
+                    redis,
+                    preconsultationService);
         }
 
         private ChatRound round(String status) {
@@ -351,7 +353,8 @@ class ChatRoundServiceTest {
         }
 
         private ChatRoundService.Command command(String requestId) {
-            return new ChatRoundService.Command(12L, requestId, null, "你好", "quick", "triage", null, null, null, null);
+            return new ChatRoundService.Command(
+                    12L, requestId, null, "你好", "quick", "triage", null, null, null, null, null);
         }
     }
 }

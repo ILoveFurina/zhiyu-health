@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Button } from 'antd';
+import { App, Button, Tabs } from 'antd';
 import {
   completeAppointment,
   fetchAppointmentDetail,
@@ -9,6 +9,7 @@ import {
   type ReceptionDashboard,
 } from '@/services/reception';
 import ConsultationDrawer from './components/ConsultationDrawer';
+import OnlineConsultationPanel from './components/OnlineConsultationPanel';
 import { createPrescription, fetchMedications, type Medication, type PrescriptionInput } from '@/services/prescription';
 import ReceptionQueue from './components/ReceptionQueue';
 import ScheduleOverview from './components/ScheduleOverview';
@@ -80,12 +81,26 @@ export default function WorkbenchPage() {
         description={`${dashboard?.date ?? '今日'} · 仅展示当前医生的排班与挂号患者`}
         tags={['排班概览', '挂号队列']}
       />
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button onClick={() => setTemplateOpen(true)}>处方模板</Button>
-      </div>
-      <ScheduleOverview schedules={dashboard?.schedules ?? []} />
-      <div style={{ height: 16 }} />
-      <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
+      <Tabs
+        destroyOnHidden
+        items={[
+          {
+            key: 'offline',
+            label: '线下接诊',
+            children: (
+              <>
+                <div style={{ marginBottom: 16, textAlign: 'right' }}>
+                  <Button onClick={() => setTemplateOpen(true)}>处方模板</Button>
+                </div>
+                <ScheduleOverview schedules={dashboard?.schedules ?? []} />
+                <div style={{ height: 16 }} />
+                <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
+              </>
+            ),
+          },
+          { key: 'online', label: '在线问诊', children: <OnlineConsultationPanel /> },
+        ]}
+      />
       <ConsultationDrawer open={open} loading={loadingDetail} submitting={submitting}
         detail={detail} medications={medications} prescriptionSubmitting={prescriptionSubmitting}
         prescriptionCreated={prescriptionCreated} onPrescribe={prescribe}

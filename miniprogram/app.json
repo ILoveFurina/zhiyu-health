@@ -16,7 +16,12 @@
     "pages/booking/schedules/index",
     "pages/booking/confirm/index",
     "pages/booking/standard-departments/index",
-    "pages/booking/department-slots/index"
+    "pages/booking/department-slots/index",
+    "pages/consult/entry/index",
+    "pages/consult/preconsult/index",
+    "pages/consult/summary/index",
+    "pages/consult/waiting/index",
+    "pages/consult/doctor/index"
   ],
   "window": {
     "defaultTitle": "智愈",
@@ -55,6 +60,7 @@
     }
   },
   "usingComponents": {
-    "ai-disclaimer": "/components/ai-disclaimer/index"
+    "ai-disclaimer": "/components/ai-disclaimer/index",
+    "consult-progress": "/components/consult-progress/index"
   }
 }

@@ -1,0 +1,36 @@
+<view class="page">
+  <consult-progress current="{{progressStep}}" />
+
+  <view a:if="{{loading}}" class="state">加载中…</view>
+
+  <block a:else>
+    <view class="card">
+      <view class="card-head">
+        <view class="card-title">病情摘要</view>
+        <view class="status-label">{{draftStatusLabel}}</view>
+      </view>
+
+      <view a:for="{{fields}}" a:key="key" class="field">
+        <view class="field-label">{{item.label}}</view>
+        <view class="field-value {{item.value ? '' : 'field-value-empty'}}">{{item.value || '未提及'}}</view>
+      </view>
+
+      <view class="field">
+        <view class="field-label">建议科室</view>
+        <view class="field-value dept {{departmentName ? '' : 'field-value-empty'}}">{{departmentName || '暂未确定'}}</view>
+      </view>
+
+      <!-- AI 产出的摘要必须携带免责声明标注（硬约束） -->
+      <ai-disclaimer a:if="{{disclaimer}}" text="{{disclaimer}}" />
+      <ai-disclaimer a:else />
+    </view>
+
+    <view class="btn-row">
+      <view class="btn-secondary" onTap="backToChat">继续调整</view>
+      <view class="btn-primary {{canConfirm && !submitting ? '' : 'btn-disabled'}}" onTap="confirm">
+        {{submitting ? '提交中…' : '确认提交问诊'}}
+      </view>
+    </view>
+    <view a:if="{{confirmHint}}" class="confirm-hint">{{confirmHint}}</view>
+  </block>
+</view>
