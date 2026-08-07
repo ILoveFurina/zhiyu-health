@@ -39,8 +39,8 @@ class DoctorControllerTest {
 
     private static final String VALID_BODY =
             """
-            {"department_id": 1, "name": "林知远", "title": "主任医师",
-             "registration_fee": 50.00, "specialty": "高血压、冠心病",
+            {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
+             "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
              "photo_url": "https://example.com/demo/lin.jpg"}
             """;
 
@@ -49,6 +49,8 @@ class DoctorControllerTest {
         doctor.setId(1L);
         doctor.setDepartmentId(1L);
         doctor.setName("林知远");
+        doctor.setGender("男");
+        doctor.setBirthDate(java.time.LocalDate.of(1975, 3, 15));
         doctor.setTitle("主任医师");
         doctor.setRegistrationFee(new BigDecimal("30.00"));
         doctor.setSpecialty("高血压、冠心病");
@@ -128,8 +130,8 @@ class DoctorControllerTest {
                                 .contentType("application/json")
                                 .content(
                                         """
-                                {"department_id": 1, "name": "林知远", "title": "主任医师",
-                                 "registration_fee": 50.00, "specialty": "高血压、冠心病",
+                                {"department_id": 1, "name": "林知远", "gender": "男", "birth_date": "1975-03-15",
+                                 "title": "主任医师", "registration_fee": 50.00, "specialty": "高血压、冠心病",
                                  "photo_url": "https://example.com/demo/lin.jpg"}
                                 """))
                 .andExpect(status().isOk())

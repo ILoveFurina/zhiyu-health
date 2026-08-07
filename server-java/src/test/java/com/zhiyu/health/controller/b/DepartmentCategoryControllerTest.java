@@ -37,13 +37,13 @@ class DepartmentCategoryControllerTest {
 
     private static final String VALID_BODY =
             """
-            {"hospital_id": 1, "name": "内科", "sort_order": 1}
+            {"campus_id": 11, "name": "内科", "sort_order": 1}
             """;
 
     private DepartmentCategory demoCategory() {
         DepartmentCategory category = new DepartmentCategory();
         category.setId(11L);
-        category.setHospitalId(1L);
+        category.setCampusId(11L);
         category.setName("内科");
         category.setSortOrder(1);
         return category;
@@ -56,7 +56,7 @@ class DepartmentCategoryControllerTest {
         mockMvc.perform(get("/api/b/department-categories").with(StaffTokens.withRole(StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(11))
-                .andExpect(jsonPath("$[0].hospital_id").value(1))
+                .andExpect(jsonPath("$[0].campus_id").value(11))
                 .andExpect(jsonPath("$[0].sort_order").value(1));
     }
 
@@ -84,7 +84,7 @@ class DepartmentCategoryControllerTest {
     }
 
     @Test
-    void createRejectsMissingHospitalId() throws Exception {
+    void createRejectsMissingCampusId() throws Exception {
         mockMvc.perform(post("/api/b/department-categories")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
@@ -93,29 +93,29 @@ class DepartmentCategoryControllerTest {
     }
 
     @Test
-    void createReturns404WhenHospitalMissing() throws Exception {
+    void createReturns404WhenCampusMissing() throws Exception {
         when(departmentCategoryAdminService.create(any(DepartmentCategory.class)))
-                .thenThrow(new ApiException(404, "医院不存在"));
+                .thenThrow(new ApiException(404, "院区不存在"));
 
         mockMvc.perform(post("/api/b/department-categories")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
                         .content(VALID_BODY))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("医院不存在"));
+                .andExpect(jsonPath("$.detail").value("院区不存在"));
     }
 
     @Test
     void updateReturns404WhenMissing() throws Exception {
         when(departmentCategoryAdminService.update(any(DepartmentCategory.class)))
-                .thenThrow(new ApiException(404, "科室分类或医院不存在"));
+                .thenThrow(new ApiException(404, "科室分类或院区不存在"));
 
         mockMvc.perform(put("/api/b/department-categories/99")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
                         .content(VALID_BODY))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("科室分类或医院不存在"));
+                .andExpect(jsonPath("$.detail").value("科室分类或院区不存在"));
     }
 
     @Test

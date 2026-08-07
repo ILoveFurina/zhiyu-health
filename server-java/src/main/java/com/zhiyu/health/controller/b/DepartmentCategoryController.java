@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 医院科室分类管理（票 49）：仅 admin 角色可操作（AdminInterceptor），业务在 DepartmentCategoryAdminService */
+/** 院区科室分类管理：仅 admin 角色可操作（AdminInterceptor），业务在 DepartmentCategoryAdminService */
 @RestController
 @RequestMapping("/api/b/department-categories")
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class DepartmentCategoryController {
     private final DepartmentCategoryInputMapper departmentCategoryInputMapper;
 
     public record DepartmentCategoryInput(
-            @NotNull Long hospitalId, @NotBlank @Size(max = 50) String name, @NotNull Integer sortOrder) {}
+            @NotNull Long campusId, @NotBlank @Size(max = 50) String name, @NotNull Integer sortOrder) {}
 
     @GetMapping
     public List<DepartmentCategory> list() {

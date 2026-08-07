@@ -21,7 +21,7 @@ import com.zhiyu.health.mapper.StandardDepartmentMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/** B 端科室管理（票 49）：三外键 404、院区与分类同医院 400、存在医生删除 409 */
+/** B 端科室管理：三外键 404、院区与分类同院区 400、存在医生删除 409 */
 class DepartmentAdminServiceTest {
 
     private final DepartmentMapper departmentMapper = mock(DepartmentMapper.class);
@@ -33,7 +33,7 @@ class DepartmentAdminServiceTest {
 
     @Test
     void createDepartmentInsertsWhenAllReferencesExist() {
-        stubValidReferences(1L, 1L);
+        stubValidReferences();
         Department department = demoDepartment();
 
         assertThat(service.create(department)).isSameAs(department);
@@ -52,8 +52,7 @@ class DepartmentAdminServiceTest {
 
     @Test
     void createDepartmentRejectsWhenCategoryMissing() {
-        HospitalCampus campus = campus(1L);
-        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus);
+        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus());
         when(departmentCategoryMapper.selectById(11L)).thenReturn(null);
 
         assertThatThrownBy(() -> service.create(demoDepartment()))
@@ -64,8 +63,8 @@ class DepartmentAdminServiceTest {
 
     @Test
     void createDepartmentRejectsWhenStandardDepartmentMissing() {
-        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus(1L));
-        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(1L));
+        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus());
+        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(11L));
         when(standardDepartmentMapper.selectById(1L)).thenReturn(null);
 
         assertThatThrownBy(() -> service.create(demoDepartment()))
@@ -75,14 +74,15 @@ class DepartmentAdminServiceTest {
     }
 
     @Test
-    void createDepartmentRejects400WhenCampusAndCategoryBelongToDifferentHospitals() {
-        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus(1L));
-        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(2L));
+    void createDepartmentRejects400WhenCampusAndCategoryBelongToDifferentCampuses() {
+        // 科室挂院区 11，但分类挂院区 12，触发同院区校验 400
+        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus());
+        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(12L));
         when(standardDepartmentMapper.selectById(1L)).thenReturn(new StandardDepartment());
 
         assertThatThrownBy(() -> service.create(demoDepartment()))
                 .isInstanceOf(ApiException.class)
-                .hasMessage("院区与科室分类不属于同一医院");
+                .hasMessage("院区与科室分类不属于同一院区");
         verify(departmentMapper, never()).insert(any(Department.class));
     }
 
@@ -108,23 +108,23 @@ class DepartmentAdminServiceTest {
         verify(departmentMapper, never()).deleteById(any(Long.class));
     }
 
-    private void stubValidReferences(long hospitalId, long categoryHospitalId) {
-        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus(hospitalId));
-        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(categoryHospitalId));
+    private void stubValidReferences() {
+        // 科室与分类同属院区 11
+        when(hospitalCampusMapper.selectById(11L)).thenReturn(campus());
+        when(departmentCategoryMapper.selectById(11L)).thenReturn(category(11L));
         when(standardDepartmentMapper.selectById(1L)).thenReturn(new StandardDepartment());
     }
 
-    private HospitalCampus campus(long hospitalId) {
+    private HospitalCampus campus() {
         HospitalCampus campus = new HospitalCampus();
         campus.setId(11L);
-        campus.setHospitalId(hospitalId);
         return campus;
     }
 
-    private DepartmentCategory category(long hospitalId) {
+    private DepartmentCategory category(long campusId) {
         DepartmentCategory category = new DepartmentCategory();
         category.setId(11L);
-        category.setHospitalId(hospitalId);
+        category.setCampusId(campusId);
         return category;
     }
 

@@ -60,7 +60,7 @@ public class DepartmentAdminService extends ServiceImpl<DepartmentMapper, Depart
     }
 
     /**
-     * 三个外键分别校验存在性（404）；院区与分类必须同属一家医院（400），
+     * 三个外键分别校验存在性（404）；科室院区与分类院区必须一致（400），
      * DB 不跨表约束，该业务一致性由 service 保证（schema.sql departments 注释）。
      */
     private void validateReferences(Department department) {
@@ -75,8 +75,8 @@ public class DepartmentAdminService extends ServiceImpl<DepartmentMapper, Depart
         if (standardDepartmentMapper.selectById(department.getStandardDepartmentId()) == null) {
             throw new ApiException(404, "标准科室不存在");
         }
-        if (!campus.getHospitalId().equals(category.getHospitalId())) {
-            throw new ApiException(400, "院区与科室分类不属于同一医院");
+        if (!department.getCampusId().equals(category.getCampusId())) {
+            throw new ApiException(400, "院区与科室分类不属于同一院区");
         }
     }
 }

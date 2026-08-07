@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 医院科室分类实体，镜像 schema.sql department_categories 表（票 49）：各院区共享该医院的分类体系 */
+/** 院区科室分类实体，镜像 schema.sql department_categories 表：每个院区独立维护一套分类 */
 @Getter
 @Setter
 @TableName("department_categories")
@@ -15,7 +15,7 @@ public class DepartmentCategory {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long hospitalId;
+    private Long campusId;
     private String name;
     private Integer sortOrder;
 }

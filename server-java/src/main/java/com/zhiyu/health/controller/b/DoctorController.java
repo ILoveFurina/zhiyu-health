@@ -35,6 +35,8 @@ public class DoctorController {
     public record DoctorInput(
             @NotNull Long departmentId,
             @NotBlank @Size(max = 50) String name,
+            @NotBlank @Size(max = 10) String gender,
+            @NotNull java.time.LocalDate birthDate,
             @NotBlank @Size(max = 50) String title,
             @NotNull @DecimalMin("0.00") @DecimalMax("99999999.99") BigDecimal registrationFee,
             @NotBlank String specialty,
