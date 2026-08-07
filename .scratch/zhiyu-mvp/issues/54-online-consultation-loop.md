@@ -42,5 +42,5 @@
 
 - 2026-08-07 施工记录（分支 t54-online-consultation-loop）：四栈分阶段提交（contracts → admin → miniprogram → server-py → server-java），code-review 两轴审查后两项修复合入（发送消息前置接诊方式发起；B 端 mine/detail 惰性失效与类型对齐）。server-java 523 测试 + spotless 绿；server-py 175 绿（2 条 test_knowledge_integration 为本机连云 pgvector/方舟 embedding 的既有环境问题，stash 对照复现一致，与本票无关）；admin typecheck/build 绿；小程序 node --check 绿。
 - PostgreSQL 集成测试落地形态：`OnlineConsultationPgIntegrationTest` 以 `-Dpg.it=true` 显式开启，已对云端一次性库 `zhiyu_it`（与演示库同实例隔离）跑绿 3 用例（原子接受 affected-rows、每档案部分唯一索引、失效后不可接受），fixtures 9900xx 号段跑后自动清场；默认套件不依赖数据库，并发语义由内存并发测试覆盖。
-- 注意：云演示库 zhiyu 的 `department_categories` 仍是票 49 前的旧形状（campus_id 而非 hospital_id），且缺票 54 三张新表；按“数据库连接失败只报告”约束未改动云端数据。演示前需人工按开发期约定 drop + recreate + seed 演示库，否则 server-java 启动 sql.init 会在旧表上报错。
+- 注意：云演示库 zhiyu 的旧形状问题已随票 55 收尾解决（2026-08-07）——演示库 drop + recreate + seed 改为 AI 自动执行（AGENTS.md 运行拓扑新增约定，`scripts/reset_zhiyu.py` / `verify_zhiyu.py`），重建后 verify 全项通过，本票三张新表已就位。
 - 待人工：支付宝开发者工具与浏览器端到端走通后，勾掉最后两项 checklist、置 done 并在 README 依赖图标记 `[x]54`。
