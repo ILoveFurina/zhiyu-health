@@ -85,6 +85,15 @@ class ContractsTest {
     }
 
     @Test
+    void doctorPhotoLimitsMatchBothStacks() {
+        // 票 54：医生头像上传限制与报告上传不同（单张 2MB、仅 JPEG/PNG），钉死双栈一致
+        Contracts.DoctorPhotoLimits limits = contracts.doctorPhotoLimits();
+        assertThat(limits.maxBytes()).isEqualTo(2L * 1024 * 1024);
+        assertThat(limits.maxFiles()).isEqualTo(1);
+        assertThat(limits.allowedTypes()).containsExactly("image/jpeg", "image/png");
+    }
+
+    @Test
     void chatDefaultsAndGeoRangesAreLoaded() {
         Contracts.ChatDefaults defaults = contracts.chatDefaults();
         assertThat(defaults.effortDefault()).isEqualTo("auto");

@@ -39,6 +39,7 @@ public class Contracts {
     private final Emotion emotion;
     private final Voice voice;
     private final GuidedRegistration guidedRegistration;
+    private final DoctorPhotoLimits doctorPhotoLimits;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -68,6 +69,7 @@ public class Contracts {
         this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
         this.voice = read(mapper, dir, "voice.json", Voice.class);
         this.guidedRegistration = read(mapper, dir, "guided-registration.json", GuidedRegistration.class);
+        this.doctorPhotoLimits = read(mapper, dir, "doctor-photo-limits.json", DoctorPhotoLimits.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -108,6 +110,10 @@ public class Contracts {
 
     public UploadLimits uploadLimits() {
         return uploadLimits;
+    }
+
+    public DoctorPhotoLimits doctorPhotoLimits() {
+        return doctorPhotoLimits;
     }
 
     public ChatDefaults chatDefaults() {
@@ -273,6 +279,13 @@ public class Contracts {
             return allowedTypes.stream()
                     .filter(type -> type.startsWith("image/"))
                     .toList();
+        }
+    }
+
+    /** 医生头像上传限制（票 54）：B 端 admin 上传校验的单一事实源，区别于报告上传。 */
+    public record DoctorPhotoLimits(long maxBytes, List<String> allowedTypes, int maxFiles) {
+        public DoctorPhotoLimits {
+            allowedTypes = List.copyOf(allowedTypes);
         }
     }
 
