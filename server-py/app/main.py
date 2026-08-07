@@ -14,6 +14,7 @@ from app.agent.runner import AgentRunner, LazySettingsAgentRunner
 from app.agent.clinical import ClinicalGenerator, LazyClinicalGenerator
 from app.agent.emotion import EmotionJudge
 from app.agent.medication import LazyMedicationKnowledgeStreamer, MedicationKnowledgeStreamer
+from app.agent.preconsult import PreconsultJudge
 from app.agent.triage import TriageJudge
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.api.agent import router as agent_router
@@ -51,6 +52,7 @@ def create_app(
     graph_projector: object | None = None,
     emotion_judge: EmotionJudge | None = None,
     triage_judge: TriageJudge | None = None,
+    preconsult_judge: PreconsultJudge | None = None,
     directory: DepartmentDirectory | None = None,
     voice_service: VoiceService | None = None,
     medication_streamer: MedicationKnowledgeStreamer | None = None,
@@ -68,6 +70,7 @@ def create_app(
                 graph_available=graph_available,
                 emotion_judge=emotion_judge,
                 triage_judge=triage_judge,
+                preconsult_judge=preconsult_judge,
                 directory=directory,
             )
             app.state.health_service = health_service
@@ -100,6 +103,7 @@ def create_app(
             rag_available=knowledge_retriever is not None,
             graph_available=graph_traverser is not None,
             triage_judge=triage_judge,
+            preconsult_judge=preconsult_judge,
             directory=directory or CallbackDepartmentDirectory(app.state.business_client),
         )
         app.state.graph_projector = built_projector

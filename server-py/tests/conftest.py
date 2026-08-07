@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.agent.runner import AgentContext, AgentOutput
 from app.main import create_app
 from app.schemas.emotion import EmotionResult
+from app.schemas.preconsult import PreconsultationSummary
 from app.schemas.triage import TriageResolution
 from app.tools.graph import GraphNeighbor
 from app.tools.knowledge import KnowledgeChunk
@@ -72,6 +73,31 @@ class FakeTriageJudge:
         return TriageResolution.none_default()
 
 
+class FakePreconsultJudge:
+    """预问诊摘要 seam 的 fake（票 54）：可编排返回序列（None=本轮无快照），记录调用。
+
+    raises=True 模拟判定器异常：编排层必须降级为省略快照字段，不得掐断 SSE 流。
+    """
+
+    def __init__(
+        self,
+        results: list[PreconsultationSummary | None] | None = None,
+        *,
+        raises: bool = False,
+    ) -> None:
+        self._results = list(results or [])
+        self._raises = raises
+        self.calls: list[dict[str, object]] = []
+
+    async def judge(self, messages, candidates) -> PreconsultationSummary | None:
+        self.calls.append({"messages": messages, "candidates": candidates})
+        if self._raises:
+            raise RuntimeError("摘要整理失败（fake）")
+        if self._results:
+            return self._results.pop(0)
+        return None
+
+
 class FakeKnowledgeRetriever:
     """检索 seam 的 fake：可控召回内容/空/异常，记录调用。"""
 
@@ -117,14 +143,17 @@ def harness() -> Iterator[SimpleNamespace]:
     fake_agent = FakeAgentRunner()
     fake_emotion = FakeEmotionJudge()
     fake_triage = FakeTriageJudge()
+    fake_preconsult = FakePreconsultJudge()
     app = create_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,
         emotion_judge=fake_emotion,
         triage_judge=fake_triage,
+        preconsult_judge=fake_preconsult,
     )
     with TestClient(app) as client:
         yield SimpleNamespace(
-            client=client, agent=fake_agent, emotion=fake_emotion, triage=fake_triage
+            client=client, agent=fake_agent, emotion=fake_emotion,
+            triage=fake_triage, preconsult=fake_preconsult,
         )

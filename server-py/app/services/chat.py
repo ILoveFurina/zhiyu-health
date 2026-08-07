@@ -18,12 +18,18 @@ server-java 只读号源——请求携带 retry_standard_department_id 时直�
 事件、再产出 department_slots 卡片事件、最后 done，不进入 Agent 流；
 未命中或目录不可用时退回正常 Agent 流。摘要措辞由代码按契约模板拼装，
 LLM 不参与医院、医生、排班、余号等事实的生成。
+
+票 54 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
+跳过强制号源查询；runner 按场景隔离业务工具并选专用提示词；每个成功轮次后
+串行调用摘要判定器，把结构化病情摘要快照挂在 message 事件的契约字段
+（summary_event_field）上下发，判定失败本轮省略快照字段，不掐断流。
 """
 
 from collections.abc import AsyncIterator
 from typing import Any
 
 from app.agent.emotion import EmotionJudge, LazyEmotionJudge
+from app.agent.preconsult import LazyPreconsultJudge, PreconsultJudge
 from app.agent.runner import AgentContext, AgentRunner, HealthProfileContext
 from app.agent.triage import LazyTriageJudge, TriageJudge
 from app.core.contracts import get_contracts
@@ -44,6 +50,9 @@ EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
 # （explicit_booking/resolved），与契约的一致性由 tests/test_contract_consumption.py 钉死。
 _GUIDED = get_contracts().guided_registration
 _QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:2])
+
+# 票 54：预问诊场景值与摘要快照事件字段名，唯一事实源是 contracts/online-consultation.json
+_ONLINE = get_contracts().online_consultation
 
 
 def _earliest_key(guided: Any, earliest: dict[str, Any]) -> tuple[str, int]:
@@ -86,6 +95,7 @@ class AgentChatService:
         graph_available: bool = False,
         emotion_judge: EmotionJudge | None = None,
         triage_judge: TriageJudge | None = None,
+        preconsult_judge: PreconsultJudge | None = None,
         directory: DepartmentDirectory | None = None,
     ) -> None:
         self._agent_runner = agent_runner
@@ -97,6 +107,8 @@ class AgentChatService:
         # 票 50：科室解析判定器（默认懒装配）与标准科室目录/号源能力。
         # directory 为 None 视为能力未装配：跳过解析与强制查询，退回正常 Agent 流。
         self._triage_judge = triage_judge or LazyTriageJudge()
+        # 票 54：预问诊摘要判定器（默认懒装配，失败降级 None 本轮省略快照）。
+        self._preconsult_judge = preconsult_judge or LazyPreconsultJudge()
         self._directory = directory
         # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
         # 装配期取出缓存，禁止在本地另立文案常量。
@@ -136,6 +148,7 @@ class AgentChatService:
         self,
         messages: list[dict[str, str]],
         retry_standard_department_id: int | None,
+        scenario: Scenario,
         longitude: float | None,
         latitude: float | None,
     ) -> int | None:
@@ -143,8 +156,9 @@ class AgentChatService:
 
         重试字段非空 = 复用已确定科室直查（跳过目录拉取、解析与 Agent 流）；
         目录不可用/无候选/解析未收敛/ID 越界均返回 None，退回正常 Agent 流。
+        预问诊场景（票 54）直接短路：预问诊不进挂号闭环，不直查号源、不出科室号源卡。
         """
-        if self._directory is None:
+        if self._directory is None or scenario == _ONLINE.scenario:
             return None
         if retry_standard_department_id is not None:
             return retry_standard_department_id
@@ -160,6 +174,34 @@ class AgentChatService:
         ):
             return resolution.standard_department_id
         return None
+
+    async def _preconsult_summary(
+        self,
+        messages: list[dict[str, str]],
+        assistant_text: str,
+        longitude: float | None,
+        latitude: float | None,
+    ) -> dict[str, object] | None:
+        """票 54：预问诊成功轮次后以非流式结构化调用整理病情摘要快照。
+
+        快照输入为本轮完整对话（历史 + 本轮助手回复）。目录不可用按空候选处理
+        （建议科室必然归一化为 None）；目录/判定任一环节失败返回 None——本轮
+        只省略快照字段，不掐断流，上一版快照由 server-java 侧草稿保留。
+        """
+        try:
+            candidates: list[dict[str, Any]] = []
+            if self._directory is not None:
+                listed = await self._directory.list_departments(longitude, latitude)
+                if isinstance(listed, list):
+                    candidates = listed
+            round_messages = [*messages, {"role": "assistant", "content": assistant_text}]
+            summary = await self._preconsult_judge.judge(round_messages, candidates)
+        except Exception:
+            return None
+        if summary is None:
+            return None
+        # 摘要属 AI 产出，快照内携带免责声明标注（硬约束 1，契约 _summary_event_field_doc）
+        return {**summary.model_dump(), "disclaimer": self._disclaimer}
 
     async def _department_slots_stream(
         self,
@@ -208,6 +250,46 @@ class AgentChatService:
         }
         yield {"event": EVENT_DONE, "data": {}}
 
+    async def _message_event_data(
+        self,
+        messages: list[dict[str, str]],
+        parts: list[str],
+        effort: str,
+        scenario: Scenario,
+        longitude: float | None,
+        latitude: float | None,
+    ) -> dict[str, object]:
+        """message 事件负载组装：回复全文 + 免责声明 + emotion/安抚语 + 预问诊摘要快照。"""
+        # 票 44：主回复 token 流完成后、message 事件发出前，串行非流式 LLM 调用判情绪。
+        # emotion 挂 message 事件（不新增 SSE 事件）；判断失败/超时降级 calm 不阻塞回复。
+        # 仅取最后一条用户消息作为情绪判断输入（避免把整段历史塞进二次调用）。
+        last_user_text = next(
+            (m["content"] for m in reversed(messages) if m.get("role") == "user"),
+            "",
+        )
+        emotion_result = await self._emotion_judge.judge(last_user_text)
+        soothing = emotion_soothing_text(emotion_result.emotion)
+        message_data: dict[str, object] = {
+            "role": "assistant",
+            "content": "".join(parts),
+            "disclaimer": self._disclaimer,
+            "effort": effort,
+            "emotion": emotion_result.emotion,
+        }
+        # calm 无安抚语（映射缺省即无）；anxious/fearful 附一条确定性安抚文案，
+        # 与回复共用同一条免责声明，不单独标注、不作为独立消息、不进 messages 数组。
+        if soothing is not None:
+            message_data["soothing_text"] = soothing
+        # 票 54：预问诊成功轮次挂摘要快照（字段名取契约 summary_event_field）；
+        # 判定失败返回 None 时省略该字段，流与上一版快照均不受影响。
+        if scenario == _ONLINE.scenario:
+            summary_payload = await self._preconsult_summary(
+                messages, "".join(parts), longitude, latitude
+            )
+            if summary_payload is not None:
+                message_data[_ONLINE.summary_event_field] = summary_payload
+        return message_data
+
     async def stream(
         self,
         *,
@@ -227,8 +309,9 @@ class AgentChatService:
         yield {"event": EVENT_META, "data": {"effort": effort}}
 
         # 票 50：编排层强制号源查询（不依赖 LLM 自主调工具）；命中即短路 Agent 流
+        # （预问诊场景在 _resolve_forced_department 内短路，不进挂号闭环）。
         forced_id = await self._resolve_forced_department(
-            messages, retry_standard_department_id, longitude, latitude
+            messages, retry_standard_department_id, scenario, longitude, latitude
         )
         if forced_id is not None:
             async for event in self._department_slots_stream(forced_id, effort, longitude, latitude):
@@ -250,6 +333,7 @@ class AgentChatService:
             longitude=longitude,
             latitude=latitude,
             knowledge_source=effective,
+            scenario=scenario,
         )
         async for output in self._agent_runner.astream_reply(messages, effort, context):
             if output.event == EVENT_TOKEN and isinstance(output.data, str):
@@ -267,25 +351,8 @@ class AgentChatService:
                     "event": output.event,
                     "data": {**output.data, "disclaimer": self._disclaimer},
                 }
-        # 票 44：主回复 token 流完成后、message 事件发出前，串行非流式 LLM 调用判情绪。
-        # emotion 挂 message 事件（不新增 SSE 事件）；判断失败/超时降级 calm 不阻塞回复。
-        # 仅取最后一条用户消息作为情绪判断输入（避免把整段历史塞进二次调用）。
-        last_user_text = next(
-            (m["content"] for m in reversed(messages) if m.get("role") == "user"),
-            "",
+        message_data = await self._message_event_data(
+            messages, parts, effort, scenario, longitude, latitude
         )
-        emotion_result = await self._emotion_judge.judge(last_user_text)
-        soothing = emotion_soothing_text(emotion_result.emotion)
-        message_data: dict[str, object] = {
-            "role": "assistant",
-            "content": "".join(parts),
-            "disclaimer": self._disclaimer,
-            "effort": effort,
-            "emotion": emotion_result.emotion,
-        }
-        # calm 无安抚语（映射缺省即无）；anxious/fearful 附一条确定性安抚文案，
-        # 与回复共用同一条免责声明，不单独标注、不作为独立消息、不进 messages 数组。
-        if soothing is not None:
-            message_data["soothing_text"] = soothing
         yield {"event": EVENT_MESSAGE, "data": message_data}
         yield {"event": EVENT_DONE, "data": {}}
