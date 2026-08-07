@@ -33,6 +33,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -294,6 +295,30 @@ class PrescriptionServiceTest {
         assertEquals("该问诊已开具电子处方", error.getMessage());
         verify(prescriptionMapper, never()).insert(any(Prescription.class));
         verifyNoInteractions(contraindicationService);
+    }
+
+    @Test
+    void createFromOnlineConsultationTranslatesConcurrentUniqueCollisionToConflict() {
+        // 并发重复提交越过预检撞 uq_prescriptions_online_consultation：明确 409，不冒 500
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
+        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+                .thenReturn(new ContraindicationResult(
+                        "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation
+                .getArgument(0, TransactionCallback.class)
+                .doInTransaction(mock(TransactionStatus.class)));
+        when(prescriptionMapper.insert(any(Prescription.class)))
+                .thenThrow(new DataIntegrityViolationException("uq_prescriptions_online_consultation"));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
+                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+
+        assertEquals(409, error.getStatus());
+        assertEquals("该问诊已开具电子处方", error.getMessage());
     }
 
     @Test

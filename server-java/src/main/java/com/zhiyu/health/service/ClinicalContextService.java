@@ -78,18 +78,22 @@ public class ClinicalContextService {
 
     /**
      * 从已落库处方派生上下文（服药提醒生成、C 端可见性、订单归属等下游使用）：
-     * 按非空外键判定来源，患者/档案/发生时间来自 DETAIL_COLUMNS 双来源 COALESCE 投影。
+     * 患者/档案/发生时间来自 DETAIL_COLUMNS 双来源 COALESCE 投影。
      */
     public ClinicalContext ofPrescription(Prescription prescription) {
-        boolean online = prescription.getOnlineConsultationId() != null;
         return new ClinicalContext(
                 prescription.getPatientId(),
                 prescription.getHealthProfileId(),
                 prescription.getDoctorId(),
-                sourceType(online ? "online_consultation" : "appointment"),
+                sourceTypeOf(prescription),
                 prescription.getOccurredAt() == null
                         ? null
                         : prescription.getOccurredAt().toLocalDateTime());
+    }
+
+    /** 处方来源按非空外键派生（数据库不落 source_type 列），取值只经契约；所有调用方共用本入口。 */
+    public String sourceTypeOf(Prescription prescription) {
+        return sourceType(prescription.getOnlineConsultationId() != null ? "online_consultation" : "appointment");
     }
 
     /** B 端医生身份派生（与 ReceptionService 同一模式）：角色与绑定关系只信员工账号记录。 */

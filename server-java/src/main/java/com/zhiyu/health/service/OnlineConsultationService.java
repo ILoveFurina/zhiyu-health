@@ -296,8 +296,8 @@ public class OnlineConsultationService {
 
     /**
      * 完成问诊（幂等）：状态推进与接诊记录写入同一事务——先条件 UPDATE（并发完成只有一个
-     * affected rows = 1），再 insert consultation_records；其 online_consultation_id UNIQUE
-     * 兜底重复写入，撞唯一约束按已完成回放。已完成重复调用直接返回当前单。
+     * affected rows = 1，输家在 UPDATE 处即 409），再 insert consultation_records；
+     * 其 online_consultation_id UNIQUE 由同一事务保证不被撞库。已完成重复调用直接返回当前单。
      */
     public DoctorConsultationDetail complete(long staffId, long id, String diagnosis, String advice) {
         long doctorId = requireDoctor(staffId);
@@ -306,29 +306,20 @@ public class OnlineConsultationService {
             return toDoctorDetail(consultation);
         }
         requireInProgress(consultation);
-        try {
-            return transactionTemplate.execute(status -> {
-                if (consultationMapper.complete(id, doctorId, inProgress(), completed()) != 1) {
-                    throw new ApiException(409, text("not_in_progress"));
-                }
-                ConsultationRecord record = new ConsultationRecord();
-                record.setOnlineConsultationId(id);
-                record.setDoctorId(doctorId);
-                record.setDiagnosis(diagnosis.trim());
-                record.setAdvice(advice.trim());
-                consultationRecordMapper.insert(record);
-                appendMessage(id, senderType("system"), text("consult_completed"));
-                logDecision("complete", id, doctorId);
-                return toDoctorDetail(consultationMapper.selectDetailedById(id));
-            });
-        } catch (DataIntegrityViolationException e) {
-            // 并发重复完成撞接诊记录唯一约束：整体回滚后按已完成回放（幂等）。
-            OnlineConsultation raced = consultationMapper.selectDetailedById(id);
-            if (raced != null && completed().equals(raced.getStatus())) {
-                return toDoctorDetail(raced);
+        return transactionTemplate.execute(status -> {
+            if (consultationMapper.complete(id, doctorId, inProgress(), completed()) != 1) {
+                throw new ApiException(409, text("not_in_progress"));
             }
-            throw e;
-        }
+            ConsultationRecord record = new ConsultationRecord();
+            record.setOnlineConsultationId(id);
+            record.setDoctorId(doctorId);
+            record.setDiagnosis(diagnosis.trim());
+            record.setAdvice(advice.trim());
+            consultationRecordMapper.insert(record);
+            appendMessage(id, senderType("system"), text("consult_completed"));
+            logDecision("complete", id, doctorId);
+            return toDoctorDetail(consultationMapper.selectDetailedById(id));
+        });
     }
 
     // ------------------------------------------------------------------

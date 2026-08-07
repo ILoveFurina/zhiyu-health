@@ -565,25 +565,6 @@ class OnlineConsultationServiceTest {
         verify(f.consultationRecordMapper, never()).insert(any(ConsultationRecord.class));
     }
 
-    @Test
-    void completeConcurrentDuplicateReplaysCompletedConsultation() {
-        Fixture f = new Fixture();
-        f.givenDoctor(8L, 3L);
-        OnlineConsultation inProgress = f.consultation("IN_PROGRESS");
-        OnlineConsultation completed = f.consultation("COMPLETED");
-        completed.setDiagnosis("急性上呼吸道感染");
-        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(inProgress, completed);
-        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
-        // 并发另一方已写入接诊记录：撞 online_consultation_id 唯一约束，整体回滚按已完成回放
-        when(f.consultationRecordMapper.insert(any(ConsultationRecord.class)))
-                .thenThrow(new DataIntegrityViolationException("uq_consultation_records_online_consultation"));
-        when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
-
-        OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
-
-        assertThat(detail.status()).isEqualTo("COMPLETED");
-    }
-
     // ------------------------------------------------------------------
     // Fixture
     // ------------------------------------------------------------------

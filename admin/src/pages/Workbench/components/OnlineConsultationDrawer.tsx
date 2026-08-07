@@ -66,6 +66,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
   const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
   const [prescriptionCreated, setPrescriptionCreated] = useState(false);
   const lastIdRef = useRef(0);
+  const medicationsLoadedRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const inProgress = detail?.status === consultationStatuses.in_progress;
@@ -84,9 +85,14 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
       .then((res) => setDetail(res.consultation))
       .catch(() => {})
       .finally(() => setLoading(false));
-    // 药品可选列表与问诊无关，已加载过则不重复拉取
-    if (medications.length === 0) {
-      fetchMedications().then(setMedications).catch(() => {});
+    // 药品可选列表与问诊无关，只拉一次；用 ref 避免把 medications 写进依赖造成详情重拉
+    if (!medicationsLoadedRef.current) {
+      medicationsLoadedRef.current = true;
+      fetchMedications()
+        .then(setMedications)
+        .catch(() => {
+          medicationsLoadedRef.current = false;
+        });
     }
   }, [open, consultationId]);
 

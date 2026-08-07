@@ -8,8 +8,11 @@ import static org.mockito.Mockito.when;
 import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.mapper.InAppMessageMapper;
+import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
+import com.zhiyu.health.mapper.ReceptionMapper;
+import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.service.mapping.PrescriptionDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
@@ -31,7 +34,8 @@ class PatientCareServiceTest {
                 mock(InAppMessageMapper.class),
                 TestContracts.instance(),
                 Mappers.getMapper(PrescriptionDtoMapper.class),
-                healthProfiles);
+                healthProfiles,
+                clinicalContexts());
         Prescription approved = new Prescription();
         approved.setId(31L);
         approved.setStatus("APPROVED");
@@ -58,7 +62,8 @@ class PatientCareServiceTest {
                 mock(InAppMessageMapper.class),
                 TestContracts.instance(),
                 Mappers.getMapper(PrescriptionDtoMapper.class),
-                healthProfiles);
+                healthProfiles,
+                clinicalContexts());
         Prescription online = new Prescription();
         online.setId(32L);
         online.setOnlineConsultationId(55L);
@@ -72,5 +77,13 @@ class PatientCareServiceTest {
         assertEquals(
                 TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation"),
                 views.get(0).sourceType());
+    }
+
+    private static ClinicalContextService clinicalContexts() {
+        return new ClinicalContextService(
+                mock(StaffUserMapper.class),
+                mock(ReceptionMapper.class),
+                mock(OnlineConsultationMapper.class),
+                TestContracts.instance());
     }
 }

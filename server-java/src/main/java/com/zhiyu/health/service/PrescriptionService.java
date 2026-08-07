@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -95,13 +96,19 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         if (safety.blocked()) {
             throw safetyException(safety);
         }
-        Long id = transactionTemplate.execute(status -> {
-            prescriptionMapper.insert(prescription);
-            for (CreateItem input : items) {
-                itemMapper.insert(dtoMapper.toPrescriptionItem(input, prescription.getId()));
-            }
-            return prescription.getId();
-        });
+        Long id;
+        try {
+            id = transactionTemplate.execute(status -> {
+                prescriptionMapper.insert(prescription);
+                for (CreateItem input : items) {
+                    itemMapper.insert(dtoMapper.toPrescriptionItem(input, prescription.getId()));
+                }
+                return prescription.getId();
+            });
+        } catch (DataIntegrityViolationException e) {
+            // 并发重复提交越过上方预检撞唯一约束（每来源一对一）：明确冲突，不冒 500。
+            throw new ApiException(409, prescription.getOnlineConsultationId() != null ? "该问诊已开具电子处方" : "该挂号单已开具电子处方");
+        }
         Prescription created = prescriptionMapper.selectDetailedById(id);
         if (created == null) {
             prescription.setId(id);
@@ -225,19 +232,14 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
                 .prescriptionFlow()
                 .statusLabels()
                 .getOrDefault(prescription.getStatus(), prescription.getStatus());
-        // 来源按非空外键派生（数据库不落 source_type 列），取值与标签只经契约。
-        String sourceType =
-                sourceType(prescription.getOnlineConsultationId() != null ? "online_consultation" : "appointment");
+        // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值与标签只经契约。
+        String sourceType = clinicalContexts.sourceTypeOf(prescription);
         String sourceLabel = contracts.prescriptionFlow().sourceTypeLabels().get(sourceType);
         return dtoMapper.toPrescriptionView(prescription, label, sourceType, sourceLabel, date, items);
     }
 
     private String status(String name) {
         return contracts.prescriptionFlow().statuses().get(name);
-    }
-
-    private String sourceType(String name) {
-        return contracts.prescriptionFlow().sourceTypes().get(name);
     }
 
     private String decision(String name) {

@@ -73,6 +73,12 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
       return;
     }
     const medicationIds = idsKey.split(',').map(Number);
+    // checkSafety 与 appointmentId 二选一由调用方保证；双双缺省时静默跳过而非强转 undefined 发请求。
+    if (!checkSafety && appointmentId == null) {
+      setSafety(undefined);
+      setChecking(false);
+      return;
+    }
     const runCheck = checkSafety ?? ((ids: number[]) => checkPrescriptionSafety(appointmentId as number, ids));
     let stale = false;
     setChecking(true);
