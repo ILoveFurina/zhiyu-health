@@ -345,6 +345,7 @@ Page({
       .then(() => {
         const coords = getCoords()
         this.startRound(
+          // 镜像 contracts/guided-registration.json retry_user_text（端侧无法读契约 JSON）
           '重新查询号源',
           { longitude: coords.lng, latitude: coords.lat },
           { retryStandardDepartmentId: departmentId }
