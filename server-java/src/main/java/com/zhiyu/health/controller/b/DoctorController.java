@@ -1,8 +1,10 @@
 package com.zhiyu.health.controller.b;
 
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.controller.b.mapping.DoctorInputMapper;
 import com.zhiyu.health.entity.Doctor;
 import com.zhiyu.health.service.DoctorAdminService;
+import com.zhiyu.health.service.PhotoObjectKeys;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/b/doctors")
 @RequiredArgsConstructor
+@Validated
 public class DoctorController {
 
     private final DoctorAdminService doctorAdminService;
@@ -35,10 +38,13 @@ public class DoctorController {
     public record DoctorInput(
             @NotNull Long departmentId,
             @NotBlank @Size(max = 50) String name,
+            @NotBlank @Size(max = 10) String gender,
+            @NotNull java.time.LocalDate birthDate,
             @NotBlank @Size(max = 50) String title,
             @NotNull @DecimalMin("0.00") @DecimalMax("99999999.99") BigDecimal registrationFee,
             @NotBlank String specialty,
-            @NotBlank @Size(max = 500) String photoUrl) {}
+            // 照片可选（无图留空）；非空时必须是 MinIO object key（票 54：禁止任意 URL 入库）
+            @Size(max = 500) String photoUrl) {}
 
     @GetMapping
     public List<Doctor> list() {
@@ -48,11 +54,13 @@ public class DoctorController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Doctor create(@Validated @RequestBody DoctorInput input) {
+        validatePhotoUrl(input.photoUrl());
         return doctorAdminService.create(doctorInputMapper.toEntity(input));
     }
 
     @PutMapping("/{id}")
     public Doctor update(@PathVariable long id, @Validated @RequestBody DoctorInput input) {
+        validatePhotoUrl(input.photoUrl());
         Doctor doctor = doctorInputMapper.toEntity(input);
         doctor.setId(id);
         return doctorAdminService.update(doctor);
@@ -62,5 +70,15 @@ public class DoctorController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
         doctorAdminService.delete(id);
+    }
+
+    // controller 只做校验与装配：photo_url 为空表示无照片，非空必须形如 MinIO object key
+    private void validatePhotoUrl(String photoUrl) {
+        if (photoUrl == null || photoUrl.isBlank()) {
+            return;
+        }
+        if (!PhotoObjectKeys.isValid(photoUrl)) {
+            throw new ApiException(400, "照片必须为有效图片，请重新上传");
+        }
     }
 }

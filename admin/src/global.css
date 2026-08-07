@@ -337,21 +337,95 @@ a.ant-typography,
   color: var(--zy-muted);
 }
 
-/* ===== 面板搜索条（对齐 option-a .search：输入框 + 查询按钮） ===== */
+/* ===== 工具栏内联搜索（标题 + 搜索框同行，新建按钮在右） ===== */
+/* ProTable 工具栏为 flex justify-between：左侧标题区默认 flex:0 1 auto 会被右侧按钮挤压，
+   多个搜索框因此触发换行。这里让左侧占满可用空间、右侧按钮不收缩，搜索条强制不换行。 */
+.ant-pro-table-list-toolbar-left {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ant-pro-table-list-toolbar-right {
+  flex: none;
+}
+
+.ant-pro-table-list-toolbar-title {
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
 .zy-searchbar {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.zy-searchbar .ant-input,
+.zy-searchbar .ant-input-affix-wrapper,
+.zy-searchbar .ant-select .ant-select-selector {
+  height: 32px;
+  border-radius: 9px;
+  border-color: var(--zy-border-strong);
+}
+
+/* affix-wrapper（allowClear 包裹器）内部 input 垂直居中，避免 placeholder 文字偏下 */
+.zy-searchbar .ant-input-affix-wrapper {
   display: flex;
-  gap: 10px;
   align-items: center;
 }
 
-.zy-searchbar .ant-input {
-  height: 36px;
-  width: 200px;
-  border-radius: 10px;
-  border-color: var(--zy-border-strong);
+.zy-searchbar .ant-input-affix-wrapper > input.ant-input {
+  height: auto;
+  line-height: 1.4;
+}
+
+/* Select 选中项/占位文字垂直居中 */
+.zy-searchbar .ant-select .ant-select-selection-item,
+.zy-searchbar .ant-select .ant-select-selection-placeholder {
+  line-height: 30px;
+}
+
+/* 单框窄、双框/多框更窄，避免撑宽工具栏行 */
+.zy-searchbar .ant-input,
+.zy-searchbar .ant-input-affix-wrapper {
+  width: 160px;
+  flex: none;
+}
+
+.zy-searchbar .ant-select {
+  width: 140px;
+  flex: none;
+}
+
+/* 多条件页（标准科室 / 医生）用 .zy-searchbar-compact 进一步收窄 */
+.zy-searchbar.zy-searchbar-compact .ant-input,
+.zy-searchbar.zy-searchbar-compact .ant-input-affix-wrapper {
+  width: 130px;
+}
+
+.zy-searchbar.zy-searchbar-compact .ant-select {
+  width: 120px;
+}
+
+/* 医生页个性化：院区名长加宽、性别仅男女缩窄 */
+.zy-searchbar .ant-select.zy-sel-wide {
+  width: 180px;
+}
+
+.zy-searchbar .ant-select.zy-sel-narrow {
+  width: 80px;
 }
 
 .zy-searchbar .ant-input:focus {
   border-color: var(--zy-green);
   box-shadow: 0 0 0 3px rgba(14, 122, 108, 0.12);
+}
+
+/* 医生表：表头标题与数据单元格统一居中 */
+.zy-doctor-table .ant-table-thead > tr > th,
+.zy-doctor-table .ant-table-tbody > tr > td {
+  text-align: center !important;
 }

@@ -1,4 +1,5 @@
 import { ModalForm, ProFormDigit, ProFormText } from '@ant-design/pro-components';
+import { Form } from 'antd';
 import {
   createStandardDepartment,
   updateStandardDepartment,
@@ -13,13 +14,23 @@ interface Props {
 }
 
 export default function StandardDepartmentForm({ open, record, onOpenChange, onSuccess }: Props) {
+  // 主动控制回显/重置：避免 initialValues 在 open 切换时不重读导致新建残留旧数据
+  const [form] = Form.useForm<Omit<StandardDepartment, 'id'>>();
+
   return (
     <ModalForm<Omit<StandardDepartment, 'id'>>
+      form={form}
       title={record ? '编辑标准科室' : '新建标准科室'}
       open={open}
-      onOpenChange={onOpenChange}
-      initialValues={record}
-      modalProps={{ destroyOnClose: true, forceRender: true }}
+      onOpenChange={(o) => {
+        if (o) {
+          form.setFieldsValue(record ?? {});
+        } else {
+          form.resetFields();
+        }
+        onOpenChange(o);
+      }}
+      modalProps={{ destroyOnClose: false }}
       onFinish={async (values) => {
         if (record) {
           await updateStandardDepartment(record.id, values);

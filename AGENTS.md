@@ -52,10 +52,13 @@ uv run python scripts/verify_zhiyu.py
 
 ## 4. Conventions
 
-- server-java 以 MockMvc 测 HTTP 外部行为；规则引擎单测必须覆盖危险输入触发和正常输入不误触
+- 新票测试从简、分层施工；存量测试不做收敛或删除：
+  - 必须：规则引擎/红线逻辑单测覆盖危险输入触发与正常输入不误触；跨栈契约一致性测试随 `contracts/` 增量同步维护（`ContractsTest`）
+  - 常规：server-java 新功能以 service 级单测为主，每模块一条 MockMvc 主链路冒烟；server-py 以 TestClient 测 Agent 接口，LLM 与业务回调用 fake，断言工具调用顺序
+  - 按需（仅当票真正改动权限边界、约束或并发逻辑）：负向 HTTP 测试、PostgreSQL 集成测试（`-Dpg.it=true` 门控）
+  - 回归只跑受影响模块 + 契约测试；票单 checklist 不再写"全量回归既有测试"
 - server-java 异常只抛 `ApiException`（controller 零 try-catch，统一 advice 出口）；号源只经 `SlotAccounting`（ArchUnit 强制）；契约值只从 `contracts/` 加载；B 端新 CRUD 继承 MyBatis-Plus `ServiceImpl`；DTO 映射用 MapStruct
 - 测试配置隔离：`src/test/resources/application.yml` 与 main 同步维护，不导入 `.env`
-- server-py 以 TestClient 测 Agent HTTP 接口；用 fake 替换 LLM 和业务回调，断言工具调用顺序
 - 前端不写自动化测试，但必须浏览器实测无控制台错误，并人工走通“登录 → 主要页面”；仅编译或 API 冒烟不算验收
 - 按 `.scratch/zhiyu-mvp/issues/` 票单施工，一票一个分支，完成后合入 `main`
 - 双栈语境禁止单独使用“后端”，必须写 server-java（业务后端）或 server-py（Agent 层）

@@ -1,4 +1,6 @@
 import { request } from '@umijs/max';
+import { getToken } from '@/utils/session';
+import type { DoctorPhotoUpload } from '@/contracts/doctorPhoto';
 
 export interface Hospital {
   id: number;
@@ -22,7 +24,7 @@ export interface Campus {
 
 export interface DepartmentCategory {
   id: number;
-  hospital_id: number;
+  campus_id: number;
   name: string;
   sort_order: number;
 }
@@ -48,6 +50,8 @@ export interface Doctor {
   id: number;
   department_id: number;
   name: string;
+  gender: string;
+  birth_date: string;
   title: string;
   registration_fee: number;
   specialty: string;
@@ -148,4 +152,23 @@ export function updateDoctor(id: number, body: Omit<Doctor, 'id'>) {
 
 export function removeDoctor(id: number) {
   return request(`/api/b/doctors/${id}`, { method: 'DELETE' });
+}
+
+// 票 54：医生照片上传返回 MinIO object_key 与可访问 url。
+// object_key 写入 doctors.photo_url；url 走 server-java 代理（/api/b/photos）。
+export function uploadDoctorPhoto(file: File): Promise<DoctorPhotoUpload> {
+  // Upload 组件的请求不经 Umi request 拦截器，需手动带 Bearer token
+  const form = new FormData();
+  form.append('file', file);
+  return fetch('/api/b/doctors/photos', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: form,
+  }).then(async (resp) => {
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(typeof detail.detail === 'string' ? detail.detail : '照片上传失败');
+    }
+    return resp.json() as Promise<DoctorPhotoUpload>;
+  });
 }

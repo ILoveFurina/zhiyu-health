@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Popconfirm } from 'antd';
+import { Button, Input, Popconfirm } from 'antd';
 import { PageContainer, ProTable, type ActionType, type ProColumns } from '@ant-design/pro-components';
 import {
+  listCampuses,
   listDepartmentCategories,
   listHospitals,
   removeDepartmentCategory,
+  type Campus,
   type DepartmentCategory,
   type Hospital,
 } from '@/services/organization';
@@ -15,21 +17,35 @@ export default function DepartmentCategoryPage() {
   const [open, setOpen] = useState(false);
   const [record, setRecord] = useState<DepartmentCategory | undefined>();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [all, setAll] = useState<DepartmentCategory[]>([]);
+  const [keyword, setKeyword] = useState('');
 
-  // 列表列头需把 hospital_id 翻译成医院名，与表格数据并行拉一次
+  // 列表列头需把 campus_id 翻译成「医院-院区」，与表格数据并行拉一次
   useEffect(() => {
     listHospitals().then(setHospitals).catch(() => {});
+    listCampuses().then(setCampuses).catch(() => {});
   }, []);
 
   const reload = () => actionRef.current?.reload();
 
+  // 本地即时过滤：输入即生效，无需点查询按钮
+  const filtered = keyword ? all.filter((c) => c.name.includes(keyword)) : all;
+
+  const campusLabel = (campusId: number) => {
+    const campus = campuses.find((c) => c.id === campusId);
+    if (!campus) return campusId;
+    const hospitalName = hospitals.find((h) => h.id === campus.hospital_id)?.name;
+    return hospitalName ? `${hospitalName}-${campus.name}` : campus.name;
+  };
+
   const columns: ProColumns<DepartmentCategory>[] = [
-    { title: 'ID', dataIndex: 'id', width: 64, search: false },
+    { title: '序号', valueType: 'index', width: 64, align: 'center' },
     {
-      title: '所属医院',
-      dataIndex: 'hospital_id',
+      title: '所属院区',
+      dataIndex: 'campus_id',
       search: false,
-      render: (_, row) => hospitals.find((h) => h.id === row.hospital_id)?.name ?? row.hospital_id,
+      render: (_, row) => campusLabel(row.campus_id),
     },
     { title: '分类名称', dataIndex: 'name' },
     { title: '排序', dataIndex: 'sort_order', search: false, width: 80 },
@@ -61,7 +77,17 @@ export default function DepartmentCategoryPage() {
         actionRef={actionRef}
         columns={columns}
         pagination={false}
-        request={async () => ({ data: await listDepartmentCategories(), success: true })}
+        search={false}
+        headerTitle={
+          <span className="zy-searchbar">
+            <Input
+              placeholder="搜索分类名称"
+              allowClear
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </span>
+        }
         toolBarRender={() => [
           <Button
             key="create"
@@ -74,6 +100,12 @@ export default function DepartmentCategoryPage() {
             新建科室分类
           </Button>,
         ]}
+        dataSource={filtered}
+        request={async () => {
+          const data = await listDepartmentCategories();
+          setAll(data);
+          return { data, success: true };
+        }}
       />
       <DepartmentCategoryForm open={open} record={record} onOpenChange={setOpen} onSuccess={reload} />
     </PageContainer>

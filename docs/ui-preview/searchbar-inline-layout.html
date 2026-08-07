@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>搜索框并入工具栏行 · 效果预览</title>
+<style>
+  :root {
+    --green: #0e7a6c;
+    --green-soft: #e6f2ee;
+    --green-100: #f0f8f5;
+    --deep: #123f38;
+    --bg: #f3f8f6;
+    --card: #ffffff;
+    --text: #1f2d2a;
+    --muted: #5b7470;
+    --border: #e6f2ee;
+    --border-strong: #dceee8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 28px 60px; }
+
+  .doc-head { margin-bottom: 18px; }
+  .doc-head h1 { margin: 0; font-size: 22px; color: var(--deep); }
+  .doc-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .legend {
+    margin-top: 14px; padding: 12px 16px; border: 1px dashed var(--border-strong);
+    border-radius: 10px; background: #fff; color: var(--muted); font-size: 13px; line-height: 1.8;
+  }
+  .legend b { color: var(--deep); }
+  .legend .new { color: var(--green); font-weight: 600; }
+
+  .nav { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px;
+    background: var(--bg); padding: 12px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+  .nav a { font-size: 12px; color: var(--green); text-decoration: none; padding: 5px 11px;
+    border: 1px solid var(--border-strong); border-radius: 999; background: #fff; }
+  .nav a:hover { background: var(--green-soft); }
+
+  .block { margin-bottom: 34px; }
+  .block-label { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .block-label .no { font-size: 12px; color: #fff; background: var(--green); border-radius: 6px;
+    padding: 2px 8px; font-weight: 600; }
+  .block-label h2 { margin: 0; font-size: 15px; color: var(--deep); }
+  .block-label .desc { font-size: 12px; color: var(--muted); }
+
+  /* ===== 统计行（仅医院/科室/医生/药品有） ===== */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; box-shadow: 0 6px 18px rgba(15,118,110,.05); }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 22px; font-weight: 700; color: var(--deep); margin-top: 4px; }
+
+  /* ===== 卡片 ===== */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(15,118,110,.05); overflow: hidden; }
+  /* 关键：工具栏行——左侧 标题+搜索框，右侧 新建按钮 */
+  .panel-head { padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .tb-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+  .tb-title { font-size: 15px; color: var(--deep); font-weight: 600; white-space: nowrap; }
+  .tb-search { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .inp { height: 34px; border: 1px solid var(--border-strong); border-radius: 9px;
+    padding: 0 11px; font-size: 13px; outline: none; background: #fff; color: var(--text); }
+  .inp::placeholder { color: #9fb3ae; }
+  .inp:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(14,122,108,.12); }
+  .inp.sm { width: 160px; }
+  .inp.xs { width: 120px; }
+  .btn-primary { background: var(--green); color: #fff; border: none; border-radius: 10px;
+    padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+
+  .panel-body { padding: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600;
+    padding: 11px 20px; border-bottom: 1px solid var(--border); background: var(--green-100); }
+  tbody td { padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 13.5px; color: var(--text); }
+  tbody tr:last-child td { border-bottom: none; }
+  .muted { color: var(--muted); }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999; }
+  .tag-green { background: var(--green-soft); color: var(--green); }
+  .tag-blue { background: #e8f1fb; color: #1d6fb8; }
+  .link { color: var(--green); cursor: pointer; margin-right: 14px; }
+  .link-danger { color: #d4605a; cursor: pointer; }
+
+  .note { margin-top: 8px; font-size: 12px; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="doc-head">
+    <h1>搜索框并入工具栏行 · 效果预览</h1>
+    <p>把原先单独占一行的搜索框，移进表格「标题 + 新建按钮」所在的那一行。左侧紧跟标题（无标题页直接偏左），右侧放新建按钮，搜索框统一收窄。</p>
+    <div class="legend">
+      <b>改动原则：</b><br>
+      ① <span class="new">有列表标题的页</span>（医院 / 科室 / 医生 / 药品）：搜索框紧跟「XX列表」标题右侧，不要太长。<br>
+      ② <span class="new">无列表标题的页</span>（院区 / 科室分类 / 标准科室）：搜索框直接靠左偏左，与「新建」按钮同一行。<br>
+      ③ 多搜索框页（标准科室 / 医生）：所有框挤在同一行，宽度收窄，不再独占整行。
+    </div>
+  </div>
+
+  <div class="nav">
+    <a href="#p1">① 医院管理</a>
+    <a href="#p2">② 院区管理</a>
+    <a href="#p3">③ 科室分类</a>
+    <a href="#p4">④ 标准科室</a>
+    <a href="#p5">⑤ 科室管理</a>
+    <a href="#p6">⑥ 医生管理</a>
+    <a href="#p7">⑦ 药品管理</a>
+  </div>
+
+  <!-- ① 医院管理 -->
+  <div class="block" id="p1">
+    <div class="block-label"><span class="no">1</span><h2>医院管理</h2><span class="desc">单搜索框，紧跟「医院列表」标题右侧</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">医院总数</div><div class="v">12 <span style="font-size:13px;color:var(--green)">家</span></div></div>
+      <div class="stat"><div class="k">三甲</div><div class="v">4 <span style="font-size:13px;color:var(--green)">家</span></div></div>
+      <div class="stat"><div class="k">科室总数</div><div class="v">86</div></div>
+      <div class="stat"><div class="k">在职医生</div><div class="v">132</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <span class="tb-title">医院列表</span>
+          <div class="tb-search"><input class="inp sm" placeholder="搜索医院名称" /></div>
+        </div>
+        <button class="btn-primary">+ 新建医院</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>医院名称</th><th>等级</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>智愈示范医院</td><td><span class="tag tag-blue">三甲</span></td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>清松康复医院</td><td><span class="tag tag-blue">三乙</span></td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 院区管理 -->
+  <div class="block" id="p2">
+    <div class="block-label"><span class="no">2</span><h2>院区管理</h2><span class="desc">无列表标题，搜索框直接靠左偏左，与「新建院区」同一行</span></div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <div class="tb-search"><input class="inp sm" placeholder="搜索院区名称" /></div>
+        </div>
+        <button class="btn-primary">新建院区</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>所属医院</th><th>院区名称</th><th>城市</th><th>地址</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>智愈示范医院</td><td>西湖院区</td><td>杭州</td><td>文三路 88 号</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>智愈示范医院</td><td>滨江院区</td><td>杭州</td><td>江南大道 1 号</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 科室分类 -->
+  <div class="block" id="p3">
+    <div class="block-label"><span class="no">3</span><h2>科室分类</h2><span class="desc">同院区：搜索框靠左，与「新建科室分类」同一行</span></div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <div class="tb-search"><input class="inp sm" placeholder="搜索分类名称" /></div>
+        </div>
+        <button class="btn-primary">新建科室分类</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>所属院区</th><th>分类名称</th><th style="width:80px">排序</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>智愈示范医院-西湖院区</td><td>内科</td><td>1</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>智愈示范医院-西湖院区</td><td>外科</td><td>2</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 标准科室 -->
+  <div class="block" id="p4">
+    <div class="block-label"><span class="no">4</span><h2>标准科室目录</h2><span class="desc">两个搜索框同一行，靠左偏左，宽度收窄</span></div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <div class="tb-search">
+            <input class="inp xs" placeholder="搜索科类" />
+            <input class="inp sm" placeholder="搜索标准科室名称" />
+          </div>
+        </div>
+        <button class="btn-primary">新建标准科室</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>科类</th><th>标准科室名称</th><th style="width:80px">排序</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>内科</td><td>心血管内科</td><td>1</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>外科</td><td>普通外科</td><td>2</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 科室管理 -->
+  <div class="block" id="p5">
+    <div class="block-label"><span class="no">5</span><h2>科室管理</h2><span class="desc">单搜索框，紧跟「科室列表」标题右侧</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">科室总数</div><div class="v">86</div></div>
+      <div class="stat"><div class="k">挂靠院区</div><div class="v">5 <span style="font-size:13px;color:var(--green)">个</span></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <span class="tb-title">科室列表</span>
+          <div class="tb-search"><input class="inp sm" placeholder="搜索科室名称" /></div>
+        </div>
+        <button class="btn-primary">+ 新建科室</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>科室名称</th><th>所属院区</th><th>科室分类</th><th>楼层</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>心血管内科</td><td>智愈示范医院-西湖院区</td><td>内科</td><td>3F</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>普通外科</td><td>智愈示范医院-滨江院区</td><td>外科</td><td>5F</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 医生管理 -->
+  <div class="block" id="p6">
+    <div class="block-label"><span class="no">6</span><h2>医生管理</h2><span class="desc">5 个搜索条件挤同一行（紧跟标题），宽度收窄，不再独占整行</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">医生总数</div><div class="v">132 <span style="font-size:13px;color:var(--green)">人</span></div></div>
+      <div class="stat"><div class="k">所属科室</div><div class="v">28 <span style="font-size:13px;color:var(--green)">个</span></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <span class="tb-title">医生列表</span>
+          <div class="tb-search">
+            <input class="inp xs" placeholder="搜索姓名" />
+            <select class="inp xs"><option>所属院区</option></select>
+            <select class="inp xs"><option>所属科室</option></select>
+            <select class="inp xs"><option>职称</option></select>
+            <select class="inp xs"><option>性别</option></select>
+          </div>
+        </div>
+        <button class="btn-primary">+ 新建医生</button>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>姓名</th><th>所属院区</th><th>所属科室</th><th>职称</th><th>挂号费</th><th style="width:140px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>林清和</td><td>智愈示范医院-西湖院区</td><td>心血管内科</td><td>主任医师</td><td>50.00</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+            <tr><td class="muted">2</td><td>周明远</td><td>智愈示范医院-滨江院区</td><td>普通外科</td><td>副主任医师</td><td>30.00</td><td><span class="link">编辑</span><span class="link-danger">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">注：医生页 5 个条件挤一行较紧凑，若你觉得过窄可改为保留「姓名 / 院区 / 科室」3 个，职称与性别下沉为表格列筛选——等你定。</p>
+  </div>
+
+  <!-- ⑦ 药品管理 -->
+  <div class="block" id="p7">
+    <div class="block-label"><span class="no">7</span><h2>药品管理</h2><span class="desc">单搜索框，紧跟「药品列表」标题右侧</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">药品总数</div><div class="v">240 <span style="font-size:13px;color:var(--green)">种</span></div></div>
+      <div class="stat"><div class="k">启用</div><div class="v">218 <span style="font-size:13px;color:var(--green)">种</span></div></div>
+      <div class="stat"><div class="k">禁用</div><div class="v">22 <span style="font-size:13px;color:var(--green)">种</span></div></div>
+      <div class="stat"><div class="k">总库存</div><div class="v">18640</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tb-left">
+          <span class="tb-title">药品列表</span>
+          <div class="tb-search"><input class="inp sm" placeholder="搜索药品名称" /></div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th style="width:64px">序号</th><th>药品名称</th><th>通用名</th><th>规格</th><th>价格</th><th>库存</th><th>状态</th><th style="width:80px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">1</td><td>阿莫西林胶囊</td><td>阿莫西林</td><td>0.25g*24粒</td><td>12.50</td><td>2000</td><td><span class="tag tag-green">启用</span></td><td><span class="link">编辑</span></td></tr>
+            <tr><td class="muted">2</td><td>布洛芬缓释胶囊</td><td>布洛芬</td><td>0.3g*20粒</td><td>18.00</td><td>1500</td><td><span class="tag tag-green">启用</span></td><td><span class="link">编辑</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">注：药品页当前没有「新建」按钮（只有编辑），工具栏右侧暂留空；如需要可补「+ 新建药品」。</p>
+  </div>
+
+</div>
+</body>
+</html>

@@ -9,38 +9,38 @@ import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.DepartmentCategory;
-import com.zhiyu.health.entity.Hospital;
+import com.zhiyu.health.entity.HospitalCampus;
 import com.zhiyu.health.mapper.DepartmentCategoryMapper;
 import com.zhiyu.health.mapper.DepartmentMapper;
-import com.zhiyu.health.mapper.HospitalMapper;
+import com.zhiyu.health.mapper.HospitalCampusMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/** B 端医院科室分类管理（票 49）：医院外键 404；存在科室删除 409 */
+/** B 端院区科室分类管理：院区外键 404；存在科室删除 409 */
 class DepartmentCategoryAdminServiceTest {
 
     private final DepartmentCategoryMapper categoryMapper = mock(DepartmentCategoryMapper.class);
-    private final HospitalMapper hospitalMapper = mock(HospitalMapper.class);
+    private final HospitalCampusMapper hospitalCampusMapper = mock(HospitalCampusMapper.class);
     private final DepartmentMapper departmentMapper = mock(DepartmentMapper.class);
     private final DepartmentCategoryAdminService service = service();
 
     @Test
-    void createCategoryRejectsWhenHospitalMissing() {
-        when(hospitalMapper.selectById(99L)).thenReturn(null);
+    void createCategoryRejectsWhenCampusMissing() {
+        when(hospitalCampusMapper.selectById(99L)).thenReturn(null);
         DepartmentCategory category = new DepartmentCategory();
-        category.setHospitalId(99L);
+        category.setCampusId(99L);
 
         assertThatThrownBy(() -> service.create(category))
                 .isInstanceOf(ApiException.class)
-                .hasMessage("医院不存在");
+                .hasMessage("院区不存在");
         verify(categoryMapper, never()).insert(any(DepartmentCategory.class));
     }
 
     @Test
-    void createCategoryInsertsWhenHospitalExists() {
-        when(hospitalMapper.selectById(1L)).thenReturn(new Hospital());
+    void createCategoryInsertsWhenCampusExists() {
+        when(hospitalCampusMapper.selectById(11L)).thenReturn(new HospitalCampus());
         DepartmentCategory category = new DepartmentCategory();
-        category.setHospitalId(1L);
+        category.setCampusId(11L);
 
         service.create(category);
         verify(categoryMapper).insert(category);
@@ -70,7 +70,7 @@ class DepartmentCategoryAdminServiceTest {
     }
 
     private DepartmentCategoryAdminService service() {
-        DepartmentCategoryAdminService service = new DepartmentCategoryAdminService(hospitalMapper, departmentMapper);
+        DepartmentCategoryAdminService service = new DepartmentCategoryAdminService(hospitalCampusMapper, departmentMapper);
         // ServiceImpl 的 baseMapper 由 Spring 字段注入；直接 new 时需手动挂上 mock mapper
         ReflectionTestUtils.setField(service, "baseMapper", categoryMapper);
         return service;

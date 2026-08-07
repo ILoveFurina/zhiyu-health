@@ -1,0 +1,10 @@
+{
+  "_doc": "医生头像上传限制与响应契约（票 54）：B 端 admin 上传医生照片的文件类型、大小上限，以及上传成功后的响应结构。与报告上传（upload-limits.json）不同：医生头像仅限单张 JPEG/PNG 且不超过 2MB。本文件是 server-java 校验与 admin Upload 前置校验的单一事实源，改此文件需双栈同步发版。",
+  "max_bytes": 2097152,
+  "allowed_types": ["image/jpeg", "image/png"],
+  "max_files": 1,
+  "response": {
+    "object_key": "string — MinIO object key，写入 doctors.photo_url；MinIO 不可用时为空串",
+    "url": "string — 走 /api/b/photos 代理的可访问 URL；MinIO 不可用时为空串"
+  }
+}

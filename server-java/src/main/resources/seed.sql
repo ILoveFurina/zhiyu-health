@@ -51,50 +51,63 @@ INSERT INTO standard_departments (id, category, name, sort_order) VALUES
     (10, '妇产科', '妇科', 1)
 ON CONFLICT (id) DO NOTHING;
 
--- 医院科室分类：各医院自维护的分类体系，该院区共享。
-INSERT INTO department_categories (id, hospital_id, name, sort_order) VALUES
-    (11, 1, '内科', 1),
-    (12, 1, '外科', 2),
-    (13, 1, '皮肤科', 3),
-    (21, 2, '儿内科', 1),
-    (22, 2, '儿外科', 2),
-    (31, 3, '内科', 1),
-    (32, 3, '外科', 2),
-    (33, 3, '五官科', 3),
-    (34, 3, '妇产科', 4)
+-- 院区科室分类：每个院区独立维护一套分类体系。
+INSERT INTO department_categories (id, campus_id, name, sort_order) VALUES
+    (111, 11, '内科', 1),
+    (112, 11, '外科', 2),
+    (113, 11, '皮肤科', 3),
+    (121, 12, '内科', 1),
+    (122, 12, '外科', 2),
+    (131, 13, '皮肤科', 1),
+    (211, 21, '儿内科', 1),
+    (212, 21, '儿外科', 2),
+    (221, 22, '儿内科', 1),
+    (222, 22, '儿外科', 2),
+    (311, 31, '内科', 1),
+    (312, 31, '外科', 2),
+    (313, 31, '五官科', 3),
+    (314, 31, '妇产科', 4)
 ON CONFLICT (id) DO NOTHING;
 
--- 实际科室：归属院区 + 医院分类 + 非空标准科室映射。
+-- 实际科室：归属院区 + 院区分类 + 非空标准科室映射（category 必须与 campus 同院区）。
 INSERT INTO departments (id, campus_id, category_id, standard_department_id, name, floor, location) VALUES
-    (1, 11, 11, 1, '心血管内科', '门诊楼 3 层', '东区 301 室'),
-    (2, 11, 11, 2, '呼吸内科', '门诊楼 3 层', '东区 305 室'),
-    (3, 11, 11, 3, '消化内科', '门诊楼 4 层', '东区 402 室'),
-    (4, 12, 11, 4, '神经内科', '门诊楼 4 层', '东区 408 室'),
-    (5, 12, 11, 5, '内分泌科', '门诊楼 5 层', '东区 503 室'),
-    (6, 13, 13, 7, '皮肤科', '门诊楼 2 层', '西区 205 室'),
-    (7, 21, 21, 9, '儿科', '门诊楼 3 层', '西区 302 室'),
-    (8, 31, 32, 6, '骨科', '门诊楼 1 层', '西区 108 室'),
-    (9, 31, 33, 8, '眼科', '门诊楼 2 层', '西区 210 室'),
-    (10, 31, 34, 10, '妇科', '门诊楼 4 层', '西区 405 室')
+    (1, 11, 111, 1, '心血管内科', '门诊楼 3 层', '东区 301 室'),
+    (2, 11, 111, 2, '呼吸内科', '门诊楼 3 层', '东区 305 室'),
+    (3, 11, 111, 3, '消化内科', '门诊楼 4 层', '东区 402 室'),
+    (4, 12, 121, 4, '神经内科', '门诊楼 4 层', '东区 408 室'),
+    (5, 12, 121, 5, '内分泌科', '门诊楼 5 层', '东区 503 室'),
+    (6, 13, 131, 7, '皮肤科', '门诊楼 2 层', '西区 205 室'),
+    (7, 21, 211, 9, '儿科', '门诊楼 3 层', '西区 302 室'),
+    (8, 31, 312, 6, '骨科', '门诊楼 1 层', '西区 108 室'),
+    (9, 31, 313, 8, '眼科', '门诊楼 2 层', '西区 210 室'),
+    (10, 31, 314, 10, '妇科', '门诊楼 4 层', '西区 405 室')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO doctors (id, department_id, name, title, registration_fee, specialty, photo_url) VALUES
-    (1, 1, '林知远', '主任医师', 50.00, '高血压、冠心病、心律失常', 'https://example.com/demo/lin-zhiyuan.jpg'),
-    (2, 1, '周安宁', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'https://example.com/demo/zhou-anning.jpg'),
-    (3, 6, '陈清禾', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'https://example.com/demo/chen-qinghe.jpg'),
-    (4, 2, '苏明哲', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'https://example.com/demo/su-mingzhe.jpg'),
-    (5, 2, '李婉清', '副主任医师', 30.00, '肺部感染、支气管扩张', 'https://example.com/demo/li-wanqing.jpg'),
-    (6, 3, '赵启明', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'https://example.com/demo/zhao-qiming.jpg'),
-    (7, 3, '吴佩珊', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'https://example.com/demo/wu-peishan.jpg'),
-    (8, 4, '孙立航', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'https://example.com/demo/sun-lihang.jpg'),
-    (9, 4, '郑雅文', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'https://example.com/demo/zheng-yawen.jpg'),
-    (10, 5, '马俊杰', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'https://example.com/demo/ma-junjie.jpg'),
-    (11, 5, '何静怡', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'https://example.com/demo/he-jingyi.jpg'),
-    (12, 8, '黄志远', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'https://example.com/demo/huang-zhiyuan.jpg'),
-    (13, 8, '梁书瑶', '主治医师', 20.00, '运动损伤、骨质疏松', 'https://example.com/demo/liang-shuyao.jpg'),
-    (14, 9, '冯雪松', '主任医师', 50.00, '青光眼、白内障、眼底病', 'https://example.com/demo/feng-xuesong.jpg'),
-    (15, 7, '韩思敏', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'https://example.com/demo/han-simin.jpg')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO doctors (id, department_id, name, gender, birth_date, title, registration_fee, specialty, photo_url) VALUES
+    (1, 1, '林知远', '男', '1975-03-15', '主任医师', 50.00, '高血压、冠心病、心律失常', 'photos/2026-08-07/lin-zhiyuan.jpg'),
+    (2, 1, '周安宁', '女', '1982-07-22', '副主任医师', 30.00, '胸痛评估、心力衰竭', 'photos/2026-08-07/zhou-anning.jpg'),
+    (3, 6, '陈清禾', '女', '1988-11-09', '主治医师', 20.00, '湿疹、荨麻疹、痤疮', 'photos/2026-08-07/chen-qinghe.jpg'),
+    (4, 2, '苏明哲', '男', '1973-05-18', '主任医师', 50.00, '慢性咳嗽、哮喘、慢阻肺', 'photos/2026-08-07/su-mingzhe.jpg'),
+    (5, 2, '李婉清', '女', '1985-09-30', '副主任医师', 30.00, '肺部感染、支气管扩张', 'photos/2026-08-07/li-wanqing.jpg'),
+    (6, 3, '赵启明', '男', '1970-12-05', '主任医师', 50.00, '胃食管反流、消化性溃疡', 'photos/2026-08-07/zhao-qiming.jpg'),
+    (7, 3, '吴佩珊', '女', '1990-04-14', '主治医师', 20.00, '慢性胃炎、功能性消化不良', 'photos/2026-08-07/wu-peishan.jpg'),
+    (8, 4, '孙立航', '男', '1976-08-21', '主任医师', 50.00, '脑卒中、癫痫、头痛', 'photos/2026-08-07/sun-lihang.jpg'),
+    (9, 4, '郑雅文', '女', '1983-02-27', '副主任医师', 30.00, '眩晕、面瘫、睡眠障碍', 'photos/2026-08-07/zheng-yawen.jpg'),
+    (10, 5, '马俊杰', '男', '1978-06-11', '主任医师', 50.00, '糖尿病、甲状腺疾病', 'photos/2026-08-07/ma-junjie.jpg'),
+    (11, 5, '何静怡', '女', '1986-10-03', '副主任医师', 30.00, '骨质疏松、肥胖代谢', 'photos/2026-08-07/he-jingyi.jpg'),
+    (12, 8, '黄志远', '男', '1972-01-19', '主任医师', 50.00, '骨折、关节退变、颈肩腰腿痛', 'photos/2026-08-07/huang-zhiyuan.jpg'),
+    (13, 8, '梁书瑶', '女', '1989-12-25', '主治医师', 20.00, '运动损伤、骨质疏松', 'photos/2026-08-07/liang-shuyao.jpg'),
+    (14, 9, '冯雪松', '男', '1974-04-08', '主任医师', 50.00, '青光眼、白内障、眼底病', 'photos/2026-08-07/feng-xuesong.jpg'),
+    (15, 7, '韩思敏', '女', '1987-08-16', '副主任医师', 30.00, '儿童呼吸道感染、过敏性疾病', 'photos/2026-08-07/han-simin.jpg')
+ON CONFLICT (id) DO UPDATE SET
+    department_id = EXCLUDED.department_id,
+    name = EXCLUDED.name,
+    gender = EXCLUDED.gender,
+    birth_date = EXCLUDED.birth_date,
+    title = EXCLUDED.title,
+    registration_fee = EXCLUDED.registration_fee,
+    specialty = EXCLUDED.specialty,
+    photo_url = EXCLUDED.photo_url;
 
 INSERT INTO medications (id, name, generic_name, specification, instructions, price, stock) VALUES
     (1, '阿莫西林胶囊', '阿莫西林', '0.25g*24粒', '口服；青霉素过敏者禁用', 18.50, 320),
@@ -312,3 +325,10 @@ SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));
 SELECT setval('prescription_templates_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_templates));
 SELECT setval('prescription_template_items_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_template_items));
+
+-- 补回 doctors.department_id→departments(id) FK 约束。
+-- 必须在 departments/doctors 数据重灌之后执行：schema.sql 里 DROP departments CASCADE
+-- 会移除 doctors 上的 FK，但 doctors 旧行驻留为孤儿行；此处两侧数据都已就位，
+-- 再补 FK 才能通过校验（提前补会在 schema 阶段报 fk_doctors_department 违规，阻断启动）。
+ALTER TABLE doctors ADD CONSTRAINT fk_doctors_department
+    FOREIGN KEY (department_id) REFERENCES departments(id);
