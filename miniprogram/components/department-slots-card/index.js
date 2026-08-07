@@ -47,8 +47,14 @@ Component({
         active: date === nextProps.selectedDate,
       }
     })
+    // 首屏不带 date 时 server-java 返回窗口内 14 天全部排班（供上方日期条圆点判定），
+    // 卡片时段必须按选中日期过滤，否则单个医生的上午/下午会堆叠几十条
+    const selectedDate = nextProps.selectedDate
     const doctorsView = (nextProps.doctors || []).map((doctor) => ({
       ...doctor,
+      slots: selectedDate
+        ? (doctor.slots || []).filter((slot) => slot.schedule_date === selectedDate)
+        : doctor.slots || [],
       distance_text: doctor.distance_km != null ? Number(doctor.distance_km).toFixed(1) : '',
     }))
     this.setData({ daysView, doctorsView })
