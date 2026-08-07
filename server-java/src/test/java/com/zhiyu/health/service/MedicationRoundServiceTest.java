@@ -48,9 +48,9 @@ class MedicationRoundServiceTest {
         fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
         fixture.upstream.tryEmitComplete();
 
-        List<ChatRoundService.Event> observed =
-                handle.events().collectList().block(Duration.ofSeconds(1));
-        List<String> events = observed.stream().map(ChatRoundService.Event::event).toList();
+        List<ChatRoundService.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
+        List<String> events =
+                observed.stream().map(ChatRoundService.Event::event).toList();
         // meta → token×3 → 流尾 consult 话术 token → message → done
         assertThat(events).containsExactly("meta", "token", "token", "token", "token", "message", "done");
         // 流尾双话术：免责声明（server-py 注入透传）+ consult_professional（java 出口兜底追加）
@@ -62,8 +62,7 @@ class MedicationRoundServiceTest {
         assertThat(content).endsWith("具体是否适用请咨询医生或药师");
         assertThat(message.data().path("disclaimer").asText()).isEqualTo("仅供参考，不替代医生诊断");
         // 轮次落 KIND_TEXT（经 message 事件持久化边界）
-        verify(fixture.persistence)
-                .persistEvent(eq(round), eq("message"), any());
+        verify(fixture.persistence).persistEvent(eq(round), eq("message"), any());
         verify(fixture.persistence).markCompleted(34L);
         // C 端说明书流零依赖：健康档案/规则引擎不被调用（不做个性化禁忌判定）
         verify(fixture.healthProfiles, never()).agentContext(org.mockito.ArgumentMatchers.anyLong());
@@ -85,8 +84,7 @@ class MedicationRoundServiceTest {
         fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
         fixture.upstream.tryEmitComplete();
 
-        List<ChatRoundService.Event> observed =
-                handle.events().collectList().block(Duration.ofSeconds(1));
+        List<ChatRoundService.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
         // meta → token → 兜底免责 token → consult token → message → done
         assertThat(observed.stream().map(ChatRoundService.Event::event).toList())
                 .containsExactly("meta", "token", "token", "token", "message", "done");
@@ -116,7 +114,8 @@ class MedicationRoundServiceTest {
         Fixture fixture = new Fixture();
         ChatRound round = fixture.round();
         when(fixture.persistence.find(12L, "req-med-fail")).thenReturn(null);
-        when(fixture.persistence.create(eq(12L), eq("req-med-fail"), org.mockito.ArgumentMatchers.isNull(), anyString()))
+        when(fixture.persistence.create(
+                        eq(12L), eq("req-med-fail"), org.mockito.ArgumentMatchers.isNull(), anyString()))
                 .thenReturn(round);
         ChatRoundService.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-fail"));
 
@@ -145,20 +144,20 @@ class MedicationRoundServiceTest {
         private final AgentCallLogService agentCallLogs = mock(AgentCallLogService.class);
         private final StringRedisTemplate redis = mock(StringRedisTemplate.class);
         private final ObjectMapper mapper = new ObjectMapper();
-        private final Sinks.Many<ServerSentEvent<String>> upstream = Sinks.many().replay().all();
+        private final Sinks.Many<ServerSentEvent<String>> upstream =
+                Sinks.many().replay().all();
         private final ChatRoundService service;
 
         private Fixture() {
             when(agentClient.medicationKnowledge(anyString())).thenReturn(upstream.asFlux());
-            when(persistence.persistEvent(any(), anyString(), any()))
-                    .thenAnswer(invocation -> {
-                        JsonNode data = invocation.getArgument(2);
-                        // 模拟持久化边界的免责挂载与 message_id 回填
-                        ((com.fasterxml.jackson.databind.node.ObjectNode) data)
-                                .put("message_id", 99L)
-                                .put("disclaimer", "仅供参考，不替代医生诊断");
-                        return data;
-                    });
+            when(persistence.persistEvent(any(), anyString(), any())).thenAnswer(invocation -> {
+                JsonNode data = invocation.getArgument(2);
+                // 模拟持久化边界的免责挂载与 message_id 回填
+                ((com.fasterxml.jackson.databind.node.ObjectNode) data)
+                        .put("message_id", 99L)
+                        .put("disclaimer", "仅供参考，不替代医生诊断");
+                return data;
+            });
             service = new ChatRoundService(
                     agentClient,
                     persistence,
@@ -167,7 +166,8 @@ class MedicationRoundServiceTest {
                     TestContracts.instance(),
                     healthProfiles,
                     agentCallLogs,
-                    redis);
+                    redis,
+                    mock(PreconsultationService.class));
         }
 
         private ChatRound round() {

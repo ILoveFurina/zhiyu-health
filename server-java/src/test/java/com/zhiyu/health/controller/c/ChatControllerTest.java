@@ -51,7 +51,32 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(12L, "req-34", null, "你好", "quick", null, null, null, null, null));
+                .chat(new ChatRoundService.Command(
+                        12L, "req-34", null, "你好", "quick", null, null, null, null, null, null));
+        emitter.complete();
+    }
+
+    @Test
+    void preconsultationDraftIdIsForwardedToRoundCommand() throws Exception {
+        // 票 54：预问诊草稿标识透传给对话轮次，场景强制与校验在 ChatRoundService 完成
+        ChatService service = mock(ChatService.class);
+        SseEmitter emitter = new SseEmitter();
+        when(service.chat(any())).thenReturn(emitter);
+        MockMvc mvc = mvc(service);
+
+        mvc.perform(
+                        post("/api/c/chat")
+                                .requestAttr("authSubject", 12L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"request_id":"req-pre","content":"我咳嗽三天了","preconsultation_draft_id":5}
+                                """))
+                .andExpect(request().asyncStarted());
+
+        verify(service)
+                .chat(new ChatRoundService.Command(
+                        12L, "req-pre", null, "我咳嗽三天了", null, null, null, null, null, null, 5L));
         emitter.complete();
     }
 
@@ -75,7 +100,8 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L));
+                .chat(new ChatRoundService.Command(
+                        12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null));
         emitter.complete();
     }
 

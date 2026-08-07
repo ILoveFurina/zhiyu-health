@@ -40,7 +40,9 @@ public class ChatController {
             @JsonProperty("longitude") @DecimalMin("-180") @DecimalMax("180") Double longitude,
             @JsonProperty("latitude") @DecimalMin("-90") @DecimalMax("90") Double latitude,
             // 票 50：科室号源查询失败后重试，复用已确定的标准科室 ID 直查
-            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId) {}
+            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId,
+            // 票 54：预问诊草稿标识；携带时 server-java 校验归属/状态后强制 preconsultation 场景
+            @JsonProperty("preconsultation_draft_id") Long preconsultationDraftId) {}
 
     @PostMapping("/chat")
     public SseEmitter chat(
@@ -66,6 +68,7 @@ public class ChatController {
                 request.knowledgeSource(),
                 request.longitude(),
                 request.latitude(),
-                request.retryStandardDepartmentId()));
+                request.retryStandardDepartmentId(),
+                request.preconsultationDraftId()));
     }
 }

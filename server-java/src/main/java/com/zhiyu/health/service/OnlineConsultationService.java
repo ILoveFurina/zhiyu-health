@@ -1,0 +1,597 @@
+package com.zhiyu.health.service;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.entity.OnlineConsultation;
+import com.zhiyu.health.entity.OnlineConsultationMessage;
+import com.zhiyu.health.entity.PreconsultationDraft;
+import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.OnlineConsultationMapper;
+import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
+import com.zhiyu.health.mapper.PreconsultationDraftMapper;
+import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
+import java.time.OffsetDateTime;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * 在线问诊模块（票 54，Spec 0003）：摘要确认建单、取消/失效/重新提交、科室待接诊池、
+ * 医生原子接受、图文/模拟视频接诊与完成。状态校验、身份派生、超时惰性收敛与并发控制
+ * 全部收口在本模块内，controller 不自行拼装状态流转；医患消息只持久化于本模块，
+ * 不进 Agent 会话、审计原文与 Agent trace（硬约束 5）。
+ */
+@Service
+@RequiredArgsConstructor
+public class OnlineConsultationService {
+
+    private static final Logger log = LoggerFactory.getLogger(OnlineConsultationService.class);
+
+    private final OnlineConsultationMapper consultationMapper;
+    private final OnlineConsultationMessageMapper messageMapper;
+    private final PreconsultationDraftMapper draftMapper;
+    private final StaffUserMapper staffUserMapper;
+    private final HealthProfileAllergyMapper allergyMapper;
+    private final TransactionTemplate transactionTemplate;
+    private final Contracts contracts;
+    private final OnlineConsultationDtoMapper dtoMapper;
+
+    // ------------------------------------------------------------------
+    // C 端：确认建单、查询、取消、重新提交、医患消息
+    // ------------------------------------------------------------------
+
+    /**
+     * 确认摘要并建单（幂等）：已提交草稿只回放关联问诊单；建单与草稿提交同事务。
+     * 并发重复确认撞上 uq_online_consultations_active_profile 时改查既有活跃单返回。
+     */
+    public ConsultationDetail confirm(long patientId, long draftId) {
+        PreconsultationDraft draft = draftMapper.selectById(draftId);
+        if (draft == null || draft.getPatientId() != patientId) {
+            throw new ApiException(404, "预问诊草稿不存在");
+        }
+        if (submitted().equals(draft.getStatus())) {
+            OnlineConsultation existing = consultationMapper.selectLatestByDraftId(draftId);
+            if (existing == null) {
+                // SUBMITTED 与建单在同一事务提交，此处缺失属数据完整性异常而非业务分支。
+                throw new IllegalStateException("已提交草稿缺少关联问诊单 draftId=" + draftId);
+            }
+            return detailView(existing);
+        }
+        if (draft.getSummaryUpdatedAt() == null) {
+            throw new ApiException(409, text("summary_required"));
+        }
+        if (draft.getSuggestedStandardDepartmentId() == null) {
+            throw new ApiException(409, text("department_unresolved"));
+        }
+        try {
+            return transactionTemplate.execute(status -> {
+                OnlineConsultation consultation = new OnlineConsultation();
+                consultation.setPatientId(patientId);
+                consultation.setHealthProfileId(draft.getHealthProfileId());
+                consultation.setDraftId(draft.getId());
+                consultation.setConversationId(draft.getConversationId());
+                consultation.setStandardDepartmentId(draft.getSuggestedStandardDepartmentId());
+                consultation.setChiefComplaint(draft.getChiefComplaint());
+                consultation.setPresentIllness(draft.getPresentIllness());
+                consultation.setAllergyHistory(draft.getAllergyHistory());
+                consultation.setSummaryDisclaimer(draft.getSummaryDisclaimer());
+                consultation.setStatus(waiting());
+                // 接诊截止时间 = 创建 + 契约 accept_timeout_seconds（端内不散落硬编码）。
+                consultation.setExpiresAt(OffsetDateTime.now()
+                        .plusSeconds(contracts.onlineConsultation().acceptTimeoutSeconds()));
+                consultationMapper.insert(consultation);
+                if (draftMapper.markSubmitted(draft.getId(), submitted(), collecting(), pendingConfirm()) != 1) {
+                    // 并发确认另一方已提交：整体回滚，由唯一索引兜底不产生重复单。
+                    throw new IllegalStateException("预问诊草稿提交失败 draftId=" + draft.getId());
+                }
+                return detailView(consultationMapper.selectDetailedById(consultation.getId()));
+            });
+        } catch (DataIntegrityViolationException e) {
+            OnlineConsultation active = activeByProfile(draft.getHealthProfileId());
+            if (active != null) {
+                return detailView(active);
+            }
+            throw e;
+        }
+    }
+
+    /** 本人问诊列表（进入模块先惰性收敛过期待接诊单）。 */
+    public List<ConsultationListItem> listMine(long patientId) {
+        expireOverdue();
+        return consultationMapper.selectByPatient(patientId).stream()
+                .map(c -> dtoMapper.toListItem(c, statusLabel(c.getStatus())))
+                .toList();
+    }
+
+    public ConsultationDetail detail(long patientId, long id) {
+        expireOverdue();
+        return detailView(requireOwnedByPatient(id, patientId));
+    }
+
+    /** 患者取消：仅 WAITING_DOCTOR 可取消；已取消重复调用返回当前单（幂等）。 */
+    public ConsultationDetail cancel(long patientId, long id) {
+        expireOverdue();
+        OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
+        if (cancelled().equals(consultation.getStatus())) {
+            return detailView(consultation);
+        }
+        if (!waiting().equals(consultation.getStatus())) {
+            throw new ApiException(409, text("not_waiting"));
+        }
+        if (consultationMapper.cancel(id, patientId, waiting(), cancelled()) != 1) {
+            throw new ApiException(409, text("not_waiting"));
+        }
+        logDecision("cancel", id, null);
+        return detailView(consultationMapper.selectDetailedById(id));
+    }
+
+    /** 取消/失效后复用原摘要重新提交：新单沿用草稿/档案/科室快照，仅刷新状态与截止时间。 */
+    public ConsultationDetail resubmit(long patientId, long id) {
+        OnlineConsultation source = requireOwnedByPatient(id, patientId);
+        if (!cancelled().equals(source.getStatus()) && !expired().equals(source.getStatus())) {
+            throw new ApiException(409, "仅已取消或已失效的问诊可重新提交");
+        }
+        try {
+            ConsultationDetail created = transactionTemplate.execute(status -> {
+                OnlineConsultation fresh = new OnlineConsultation();
+                fresh.setPatientId(source.getPatientId());
+                fresh.setHealthProfileId(source.getHealthProfileId());
+                fresh.setDraftId(source.getDraftId());
+                fresh.setConversationId(source.getConversationId());
+                fresh.setStandardDepartmentId(source.getStandardDepartmentId());
+                fresh.setChiefComplaint(source.getChiefComplaint());
+                fresh.setPresentIllness(source.getPresentIllness());
+                fresh.setAllergyHistory(source.getAllergyHistory());
+                fresh.setSummaryDisclaimer(source.getSummaryDisclaimer());
+                fresh.setStatus(waiting());
+                fresh.setExpiresAt(OffsetDateTime.now()
+                        .plusSeconds(contracts.onlineConsultation().acceptTimeoutSeconds()));
+                consultationMapper.insert(fresh);
+                return detailView(consultationMapper.selectDetailedById(fresh.getId()));
+            });
+            logDecision("resubmit", created.id(), null);
+            return created;
+        } catch (DataIntegrityViolationException e) {
+            // 同一档案已有活跃问诊（如并发重新提交）：幂等回放既有活跃单。
+            OnlineConsultation active = activeByProfile(source.getHealthProfileId());
+            if (active != null) {
+                return detailView(active);
+            }
+            throw e;
+        }
+    }
+
+    /** 医患消息增量轮询：仅绑定患者可读；COMPLETED 后只读（任何状态都可拉取历史）。 */
+    public List<MessageView> listMessagesForPatient(long patientId, long id, long afterId) {
+        requireOwnedByPatient(id, patientId);
+        return messageMapper.selectAfterId(id, afterId).stream()
+                .map(dtoMapper::toMessageView)
+                .toList();
+    }
+
+    public MessageView sendMessageForPatient(long patientId, long id, String content) {
+        OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
+        requireInProgress(consultation);
+        return appendMessage(id, senderType("patient"), content);
+    }
+
+    // ------------------------------------------------------------------
+    // B 端医生：科室待接诊池、接受、发起方式、医患消息、完成
+    // ------------------------------------------------------------------
+
+    /** 科室待接诊池：平台范围按医生实际科室映射的标准科室过滤，进入先惰性收敛过期单。 */
+    public List<DoctorListItem> pool(long staffId) {
+        long doctorId = requireDoctor(staffId);
+        long departmentId = requireStandardDepartment(doctorId);
+        expireOverdue();
+        return consultationMapper.selectPool(departmentId, waiting()).stream()
+                .map(this::toDoctorListItem)
+                .toList();
+    }
+
+    /** 医生本人接诊记录：可选状态过滤仅支持进行中/已完成。 */
+    public List<DoctorListItem> mine(long staffId, String status) {
+        long doctorId = requireDoctor(staffId);
+        String filter = null;
+        if (status != null && !status.isBlank()) {
+            if (!inProgress().equals(status) && !completed().equals(status)) {
+                throw new ApiException(400, "status 仅支持 IN_PROGRESS/COMPLETED");
+            }
+            filter = status;
+        }
+        return consultationMapper.selectMine(doctorId, filter).stream()
+                .map(this::toDoctorListItem)
+                .toList();
+    }
+
+    /** 医生详情：绑定医生或同科室待接诊单可见；查看不推进任何状态（不写库）。 */
+    public DoctorConsultationDetail detailForDoctor(long staffId, long id) {
+        long doctorId = requireDoctor(staffId);
+        OnlineConsultation consultation = consultationMapper.selectDetailedById(id);
+        if (consultation == null || !visibleToDoctor(consultation, doctorId)) {
+            throw new ApiException(404, "问诊单不存在");
+        }
+        return toDoctorDetail(consultation);
+    }
+
+    /**
+     * 原子接受：跨科室在任何写入前 404；单条条件更新同时校验预期状态/未绑定/未过期，
+     * 并发只有 affected rows = 1 的医生成功，失败者得到明确冲突（Spec 0003）。
+     */
+    public DoctorConsultationDetail accept(long staffId, long id) {
+        long doctorId = requireDoctor(staffId);
+        OnlineConsultation consultation = consultationMapper.selectDetailedById(id);
+        if (consultation == null || !visibleToDoctor(consultation, doctorId)) {
+            throw new ApiException(404, "问诊单不存在");
+        }
+        return transactionTemplate.execute(status -> {
+            expireOverdue();
+            if (consultationMapper.accept(id, doctorId, waiting(), inProgress()) != 1) {
+                throw new ApiException(409, text("accept_conflict"));
+            }
+            appendMessage(id, senderType("system"), text("doctor_accepted"));
+            logDecision("accept", id, doctorId);
+            return toDoctorDetail(consultationMapper.selectDetailedById(id));
+        });
+    }
+
+    /** 发起接诊方式：首次设定写库并补系统消息；同方式重复调用幂等，换方式明确冲突。 */
+    public DoctorConsultationDetail startMethod(long staffId, long id, String method) {
+        if (!contracts.onlineConsultation().isKnownConsultMethod(method)) {
+            throw new ApiException(400, "接诊方式不合法");
+        }
+        long doctorId = requireDoctor(staffId);
+        OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
+        requireInProgress(consultation);
+        if (consultation.getConsultMethod() != null) {
+            if (consultation.getConsultMethod().equals(method)) {
+                return toDoctorDetail(consultation);
+            }
+            throw new ApiException(409, text("method_already_set"));
+        }
+        return transactionTemplate.execute(status -> {
+            if (consultationMapper.startMethod(id, doctorId, inProgress(), method) != 1) {
+                // 并发双发：另一请求已设定——重读后按幂等/冲突语义出口。
+                OnlineConsultation raced = consultationMapper.selectDetailedById(id);
+                if (raced.getConsultMethod() != null && raced.getConsultMethod().equals(method)) {
+                    return toDoctorDetail(raced);
+                }
+                throw new ApiException(409, text("method_already_set"));
+            }
+            appendMessage(id, senderType("system"), systemTextForMethod(method));
+            return toDoctorDetail(consultationMapper.selectDetailedById(id));
+        });
+    }
+
+    public List<MessageView> listMessagesForDoctor(long staffId, long id, long afterId) {
+        long doctorId = requireDoctor(staffId);
+        requireBoundToDoctor(id, doctorId);
+        return messageMapper.selectAfterId(id, afterId).stream()
+                .map(dtoMapper::toMessageView)
+                .toList();
+    }
+
+    public MessageView sendMessageForDoctor(long staffId, long id, String content) {
+        long doctorId = requireDoctor(staffId);
+        OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
+        requireInProgress(consultation);
+        return appendMessage(id, senderType("doctor"), content);
+    }
+
+    /** 完成问诊（幂等）：诊断/医嘱与状态推进同一条条件更新；已完成重复调用返回当前单。 */
+    public DoctorConsultationDetail complete(long staffId, long id, String diagnosis, String advice) {
+        long doctorId = requireDoctor(staffId);
+        OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
+        if (completed().equals(consultation.getStatus())) {
+            return toDoctorDetail(consultation);
+        }
+        requireInProgress(consultation);
+        return transactionTemplate.execute(status -> {
+            if (consultationMapper.complete(id, doctorId, inProgress(), completed(), diagnosis.trim(), advice.trim())
+                    != 1) {
+                throw new ApiException(409, text("not_in_progress"));
+            }
+            appendMessage(id, senderType("system"), text("consult_completed"));
+            logDecision("complete", id, doctorId);
+            return toDoctorDetail(consultationMapper.selectDetailedById(id));
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 内部：身份派生、状态守卫、视图装配、契约取值
+    // ------------------------------------------------------------------
+
+    /** B 端医生身份派生（与 ReceptionService 同一模式）：角色与绑定关系只信员工账号记录。 */
+    private long requireDoctor(long staffId) {
+        StaffUser staff = staffUserMapper.selectById(staffId);
+        if (staff == null || !StaffUser.ROLE_DOCTOR.equals(staff.getRole()) || staff.getDoctorId() == null) {
+            throw new ApiException(403, "仅医生可操作");
+        }
+        return staff.getDoctorId();
+    }
+
+    /** 医生实际科室映射的标准科室是科室池可见性与接诊资格的唯一判据。 */
+    private long requireStandardDepartment(long doctorId) {
+        Long departmentId = consultationMapper.selectStandardDepartmentIdByDoctor(doctorId);
+        if (departmentId == null) {
+            throw new ApiException(409, "医生科室未映射标准科室，暂不可接诊在线问诊");
+        }
+        return departmentId;
+    }
+
+    /** 医生可见性：本人绑定单，或同标准科室的待接诊单；其余一律不可见。 */
+    private boolean visibleToDoctor(OnlineConsultation consultation, long doctorId) {
+        if (consultation.getDoctorId() != null && consultation.getDoctorId() == doctorId) {
+            return true;
+        }
+        if (!waiting().equals(consultation.getStatus())) {
+            return false;
+        }
+        Long departmentId = consultationMapper.selectStandardDepartmentIdByDoctor(doctorId);
+        return departmentId != null && departmentId.equals(consultation.getStandardDepartmentId());
+    }
+
+    private OnlineConsultation requireOwnedByPatient(long id, long patientId) {
+        OnlineConsultation consultation = consultationMapper.selectDetailedByIdAndPatient(id, patientId);
+        if (consultation == null) {
+            // 归属/不存在一律 404，不区分原因以免泄露存在性（对齐票 27 决策 3）。
+            throw new ApiException(404, "问诊单不存在");
+        }
+        return consultation;
+    }
+
+    private OnlineConsultation requireBoundToDoctor(long id, long doctorId) {
+        OnlineConsultation consultation = consultationMapper.selectDetailedById(id);
+        if (consultation == null || consultation.getDoctorId() == null || consultation.getDoctorId() != doctorId) {
+            throw new ApiException(404, "问诊单不存在");
+        }
+        return consultation;
+    }
+
+    private void requireInProgress(OnlineConsultation consultation) {
+        if (!inProgress().equals(consultation.getStatus())) {
+            throw new ApiException(409, text("not_in_progress"));
+        }
+    }
+
+    /** 惰性失效收敛：列表/详情/池/接受入口先执行（Spec 0003：不引入调度中间件）。 */
+    private void expireOverdue() {
+        consultationMapper.expireOverdue(waiting(), expired());
+    }
+
+    private OnlineConsultation activeByProfile(long healthProfileId) {
+        return consultationMapper.selectActiveByProfile(healthProfileId, waiting(), inProgress());
+    }
+
+    private MessageView appendMessage(long consultationId, String senderType, String content) {
+        OnlineConsultationMessage message = new OnlineConsultationMessage();
+        message.setConsultationId(consultationId);
+        message.setSenderType(senderType);
+        message.setContent(content);
+        messageMapper.insert(message);
+        return dtoMapper.toMessageView(message);
+    }
+
+    private ConsultationDetail detailView(OnlineConsultation consultation) {
+        DoctorView doctor = null;
+        if (consultation.getDoctorId() != null) {
+            OnlineConsultationMapper.DoctorIdentityRow identity =
+                    consultationMapper.selectDoctorIdentity(consultation.getDoctorId());
+            doctor = identity == null ? null : dtoMapper.toDoctorView(identity);
+        }
+        String status = consultation.getStatus();
+        // 终态分支（CANCELLED/EXPIRED）不占五步进度步，只给 terminal_hint 文案。
+        String progressStep = contracts.onlineConsultation().isProgressStatus(status) ? status : null;
+        String methodLabel = consultation.getConsultMethod() == null
+                ? null
+                : contracts.onlineConsultation().consultMethodLabels().get(consultation.getConsultMethod());
+        return dtoMapper.toDetail(
+                consultation,
+                dtoMapper.toSummaryView(consultation),
+                statusLabel(status),
+                progressStep,
+                methodLabel,
+                doctor,
+                terminalHint(status));
+    }
+
+    private String terminalHint(String status) {
+        if (expired().equals(status)) {
+            return text("expired_hint") + text("resubmit_hint");
+        }
+        if (cancelled().equals(status)) {
+            return text("cancelled_hint") + text("resubmit_hint");
+        }
+        return null;
+    }
+
+    private DoctorListItem toDoctorListItem(OnlineConsultation consultation) {
+        return dtoMapper.toDoctorListItem(
+                consultation,
+                dtoMapper.toSummaryView(consultation),
+                statusLabel(consultation.getStatus()),
+                dtoMapper.toPatientRef(consultation),
+                profileRef(consultation));
+    }
+
+    private DoctorConsultationDetail toDoctorDetail(OnlineConsultation consultation) {
+        return dtoMapper.toDoctorDetail(
+                consultation,
+                dtoMapper.toSummaryView(consultation),
+                statusLabel(consultation.getStatus()),
+                dtoMapper.toPatientRef(consultation),
+                profileRef(consultation));
+    }
+
+    private ProfileRef profileRef(OnlineConsultation consultation) {
+        return dtoMapper.toProfileRef(consultation, allergyMapper.selectAllergens(consultation.getHealthProfileId()));
+    }
+
+    private String systemTextForMethod(String method) {
+        return contracts.onlineConsultation().consultMethods().get("video").equals(method)
+                ? text("video_started")
+                : text("text_started");
+    }
+
+    /** 领域日志（审计由 AuditFilter 在 HTTP 入口统一执行）：只记决定值与身份 ID，不记任何原文。 */
+    private void logDecision(String decisionKey, long consultationId, Long doctorId) {
+        log.info(
+                "online consultation decision={} consultationId={} doctorId={}",
+                contracts.onlineConsultation().decisions().get(decisionKey),
+                consultationId,
+                doctorId);
+    }
+
+    private String waiting() {
+        return contracts.onlineConsultation().statuses().get("waiting_doctor");
+    }
+
+    private String inProgress() {
+        return contracts.onlineConsultation().statuses().get("in_progress");
+    }
+
+    private String completed() {
+        return contracts.onlineConsultation().statuses().get("completed");
+    }
+
+    private String cancelled() {
+        return contracts.onlineConsultation().statuses().get("cancelled");
+    }
+
+    private String expired() {
+        return contracts.onlineConsultation().statuses().get("expired");
+    }
+
+    private String collecting() {
+        return contracts.onlineConsultation().draftStatuses().get("collecting");
+    }
+
+    private String pendingConfirm() {
+        return contracts.onlineConsultation().draftStatuses().get("pending_confirm");
+    }
+
+    private String submitted() {
+        return contracts.onlineConsultation().draftStatuses().get("submitted");
+    }
+
+    private String senderType(String key) {
+        return contracts.onlineConsultation().senderTypes().get(key);
+    }
+
+    private String statusLabel(String status) {
+        return contracts.onlineConsultation().statusLabels().get(status);
+    }
+
+    private String text(String key) {
+        return contracts.onlineConsultation().texts().get(key);
+    }
+
+    // ------------------------------------------------------------------
+    // 视图记录（接口形状；状态标签/文案一律来自契约，时间统一 ISO 字符串）
+    // ------------------------------------------------------------------
+
+    /** 问诊单上的病情摘要快照（建单时自草稿整体拷贝）。 */
+    public record ConsultationSummaryView(
+            @JsonProperty("chief_complaint") String chiefComplaint,
+            @JsonProperty("present_illness") String presentIllness,
+            @JsonProperty("allergy_history") String allergyHistory) {}
+
+    /** C 端可信医生身份：接受后轮询获得，不信任请求体携带的任何医生信息。 */
+    public record DoctorView(
+            String name,
+            String title,
+            @JsonProperty("hospital_name") String hospitalName,
+            @JsonProperty("department_name") String departmentName) {}
+
+    public record ConsultationListItem(
+            Long id,
+            String status,
+            @JsonProperty("status_label") String statusLabel,
+            @JsonProperty("health_profile_id") Long healthProfileId,
+            @JsonProperty("standard_department_name") String standardDepartmentName,
+            @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("created_at") String createdAt,
+            @JsonProperty("expires_at") String expiresAt) {}
+
+    public record ConsultationDetail(
+            Long id,
+            String status,
+            @JsonProperty("status_label") String statusLabel,
+            @JsonProperty("progress_step") String progressStep,
+            @JsonProperty("standard_department_id") Long standardDepartmentId,
+            @JsonProperty("standard_department_name") String standardDepartmentName,
+            ConsultationSummaryView summary,
+            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
+            @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("consult_method_label") String consultMethodLabel,
+            @JsonProperty("method_started_at") String methodStartedAt,
+            DoctorView doctor,
+            String diagnosis,
+            String advice,
+            @JsonProperty("expires_at") String expiresAt,
+            @JsonProperty("accepted_at") String acceptedAt,
+            @JsonProperty("completed_at") String completedAt,
+            @JsonProperty("cancelled_at") String cancelledAt,
+            @JsonProperty("created_at") String createdAt,
+            @JsonProperty("terminal_hint") String terminalHint) {}
+
+    public record PatientRef(String nickname) {}
+
+    /** 医生接受前可见的锁定档案信息：判断是否适合接诊的最小集合。 */
+    public record ProfileRef(
+            @JsonProperty("display_name") String displayName,
+            String gender,
+            @JsonProperty("birth_date") String birthDate,
+            String relationship,
+            List<String> allergies) {}
+
+    /** B 端列表项（科室池与本人记录同形；科室池行的方式/接受/完成时间为 null）。 */
+    public record DoctorListItem(
+            Long id,
+            String status,
+            @JsonProperty("status_label") String statusLabel,
+            @JsonProperty("standard_department_id") Long standardDepartmentId,
+            @JsonProperty("standard_department_name") String standardDepartmentName,
+            ConsultationSummaryView summary,
+            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
+            PatientRef patient,
+            @JsonProperty("health_profile") ProfileRef healthProfile,
+            @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("accepted_at") String acceptedAt,
+            @JsonProperty("completed_at") String completedAt,
+            @JsonProperty("created_at") String createdAt,
+            @JsonProperty("expires_at") String expiresAt) {}
+
+    public record DoctorConsultationDetail(
+            Long id,
+            String status,
+            @JsonProperty("status_label") String statusLabel,
+            @JsonProperty("standard_department_id") Long standardDepartmentId,
+            @JsonProperty("standard_department_name") String standardDepartmentName,
+            ConsultationSummaryView summary,
+            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
+            PatientRef patient,
+            @JsonProperty("health_profile") ProfileRef healthProfile,
+            @JsonProperty("consult_method") String consultMethod,
+            @JsonProperty("method_started_at") String methodStartedAt,
+            String diagnosis,
+            String advice,
+            @JsonProperty("accepted_at") String acceptedAt,
+            @JsonProperty("completed_at") String completedAt,
+            @JsonProperty("cancelled_at") String cancelledAt,
+            @JsonProperty("created_at") String createdAt,
+            @JsonProperty("expires_at") String expiresAt) {}
+
+    public record MessageView(
+            Long id,
+            @JsonProperty("sender_type") String senderType,
+            String content,
+            @JsonProperty("created_at") String createdAt) {}
+}

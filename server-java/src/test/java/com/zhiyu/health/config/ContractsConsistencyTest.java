@@ -186,10 +186,49 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void onlineConsultationEnumsAreCoveredBySchemaCheckConstraints() throws Exception {
+        // 票 54：新表 CHECK 必须覆盖契约全部枚举值，漏列会在 DB 层拒写并掐断问诊闭环
+        // （与 ck_messages_kind 同一纪律，取值清单一致性由本测试钉死）
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Contracts.OnlineConsultation consultation = contracts.onlineConsultation();
+        for (String status : consultation.draftStatuses().values()) {
+            assertThat(schema)
+                    .as("preconsultation_drafts CHECK 必须覆盖草稿状态 %s", status)
+                    .contains("'" + status + "'");
+        }
+        for (String status : consultation.statuses().values()) {
+            assertThat(schema)
+                    .as("online_consultations CHECK 必须覆盖问诊状态 %s", status)
+                    .contains("'" + status + "'");
+        }
+        for (String method : consultation.consultMethods().values()) {
+            assertThat(schema)
+                    .as("online_consultations CHECK 必须覆盖接诊方式 %s", method)
+                    .contains("'" + method + "'");
+        }
+        for (String sender : consultation.senderTypes().values()) {
+            assertThat(schema)
+                    .as("online_consultation_messages CHECK 必须覆盖发送者类型 %s", sender)
+                    .contains("'" + sender + "'");
+        }
+        // 单一进行中约束：部分唯一索引必须存在，且 WHERE 子句覆盖契约 active_statuses 全部取值
+        assertThat(schema).contains("uq_online_consultations_active_profile");
+        int indexStart = schema.indexOf("uq_online_consultations_active_profile");
+        String indexRegion = schema.substring(indexStart, schema.indexOf(";", indexStart));
+        for (String active : consultation.activeStatuses()) {
+            assertThat(indexRegion).as("活跃问诊部分唯一索引必须覆盖状态 %s", active).contains("'" + active + "'");
+        }
+        assertThat(schema).contains("uq_preconsultation_drafts_active");
+    }
+
+    @Test
     void uploadTypeAccessorsMatchContract() {
         Contracts.UploadLimits limits = contracts.uploadLimits();
         assertThat(limits.pdfType()).isEqualTo("application/pdf");
-        assertThat(limits.imageTypes()).containsExactly("image/jpeg", "image/png");
+        assertThat(limits.imageTypes()).containsExactly("image/jpeg", "image/png", "image/webp");
     }
 
     @Test

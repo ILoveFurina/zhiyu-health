@@ -92,7 +92,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                             data.knowledgeSource(),
                             data.longitude(),
                             data.latitude(),
-                            data.retryStandardDepartmentId()));
+                            data.retryStandardDepartmentId(),
+                            data.preconsultationDraftId()));
             sendAccepted(state.session, handle);
             state.observer = handle.events()
                     .subscribe(
@@ -174,7 +175,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             Double longitude,
             Double latitude,
             // 票 50：科室号源查询失败后的重试字段（契约 chat_optional_fields）
-            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId) {}
+            @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId,
+            // 票 54：预问诊草稿标识（与 HTTP 通道同一字段名）
+            @JsonProperty("preconsultation_draft_id") Long preconsultationDraftId) {}
 
     private static final class SessionState {
         private final WebSocketSession session;
