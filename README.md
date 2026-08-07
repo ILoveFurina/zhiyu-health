@@ -72,6 +72,7 @@ flowchart LR
     T51["51 拍药盒收口与说明书流"]
     T52["52 对话Markdown渲染"]
     T53["53 药品查询Markdown排版"]
+    T54["[x]54 医生照片上传MinIO"]
 
     T28 --> T29
     T28 --> T31
@@ -171,6 +172,9 @@ flowchart LR
 
     T51 --> T53
     T52 --> T53
+
+    T39 --> T54
+    T15 --> T54
 ```
 
 server-java、server-py 和前端不部署到这台云服务器，日常开发、测试、SSE 联调和断点调试均在各成员本机完成。
