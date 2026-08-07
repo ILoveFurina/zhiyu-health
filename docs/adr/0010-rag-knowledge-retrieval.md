@@ -1,40 +1,57 @@
-# RAG 知识库检索链路与知识增强模式
+# RAG 知识检索只用于受控证据问答与技术演示
 
-Status: accepted
+Status: accepted（2026-08-07 修订）
 
 ## 背景
 
-票 10 落地 RAG 知识库。ADR-0009 数据访问权边界定"向量检索 = server-py 只读""LLM 调用仅发生在 server-py"，本决策在该边界内落地 RAG，不破例：embedding 离线生成属数据准备（server-py），运行时 server-py 对 pgvector 始终只读，knowledge_chunks 表 schema 仍由统一 schema.sql 管理。
+票 10 最初把 RAG 设计成 C 端导诊的默认知识增强：`triage -> rag`，由普通 Agent 自主调用 `search_knowledge`，空召回再降级到裸 LLM。实际产品验证暴露了两个问题：知识源选择被误当成业务意图路由；导诊解析未收敛时会退回普通 Agent，继而出现“该挂什么科”触发 RAG、空召回后向用户暴露知识库状态的错误链路。
+
+[医疗助手 RAG 产品调研](../research/medical-assistant-rag-necessity.md)进一步表明，成熟产品通常把症状导诊、业务工具和证据检索分层：导诊采用规则、临床路径、概率推理或专用状态机；RAG 只在回答需要最新、私有、可更新且可引用的外部知识时有明确价值。当前 50 条症状 seed 没有权威出处、版本、审核人、证据等级或原文引用，只能证明向量检索链路可运行，不能证明它比基础模型更安全或更准确。
+
+本修订保留 ADR-0009 的数据访问边界与既有 RAG/图谱基础设施，但撤销“导诊默认 RAG”和“所有空召回都静默切裸模型”的产品决策。
 
 ## 决策
 
-1. **knowledge_chunks 表归统一 schema**：表与 pgvector HNSW cosine 索引在 server-java `schema.sql`（HNSW + `vector_cosine_ops`）。保留 `department` 列衔接导诊科室推荐；一场景一 chunk 粒度。向量维度用路径 B：DDL 写死 `vector(1024)`（pgvector 列维度必须为常量），`application.yml` 配置默认值，启动/写入前校验配置维度 == DDL 维度 == endpoint 实际返回，不一致 fail-fast。维度实际值实现期连 endpoint 探测确认。
+1. **知识源选择不承担意图路由**：`knowledge_source` 只描述本轮是否注入 RAG、知识图谱或不注入知识工具，不能决定本轮是导诊、预问诊、挂号、药品解释或普通对话。业务场景必须先由专用编排确定，再决定该场景是否允许知识检索。
 
-2. **embedding 离线在 server-py**：server-py 提供离线 embedding 生成工具，读知识文本 seed -> 调 doubao-embedding-vision -> 产出可审查可版本化的向量，纳入幂等 seed 入库。工具不得在运行时直写 pgvector，运行时 server-py 对 knowledge_chunks 只读。
+2. **C 端默认不使用 RAG**：智能导诊、预问诊和报告解读均默认 `none`。当前阶段只有 B 端演示开关显式选择 RAG/图谱时，才允许向普通对话注入对应知识工具，用于展示技术差异；Redis 键不存在或演示重置后必须回到 `none`，不能再按 `triage -> rag` 自动补位。
 
-3. **search_knowledge 工具范式（范式 1）**：`search_knowledge` 作为 LangGraph `@tool` 在 server-py `tools/knowledge.py`，server-py 运行时直连 pgvector 只读检索（embed query + Top-K + 阈值过滤）。不作为检索前置注入（范式 2）--让 LLM 在导诊中自主调用，与既有 `recommend_doctors` 等工具架构一致。system prompt 引导"导诊前先检索知识"。红线症状规则在 server-java 先于一切执行，命中即中断不进检索。
+3. **导诊和挂号走专用编排**：server-java 红线规则始终先于模型和检索。用户表达“该挂什么科”等导诊意图后进入专用导诊状态：信息不足时受控追问一个关键问题并保持在该状态；收敛到唯一标准科室后调用 server-java 的科室/号源能力。`ambiguous` 不得退回会自主调用 RAG 的普通 Agent 流。医院、科室、医生、排班、余号和挂号结果永远来自 server-java 确定性业务能力。
 
-4. **知识增强开关 = 是否注入 search_knowledge 工具**：关闭增强时不把 search_knowledge 注入工具集，LLM 看不到它，自然不检索（裸 LLM）。开关经 `contracts/` 定义知识增强模式，server-java 对话入口按契约向 server-py 透传 `knowledge_source`，server-py 据此决定是否注入工具。票 10 提供可测试的运行时 seam；B 端现场切换 UI 出口归票 25。
+4. **预问诊不使用通用医学 RAG**：预问诊只采集用户事实、识别缺失字段并整理供医生审阅的病情摘要。问题路径来自可版本化模板或受控状态机；未来若接入院内科室模板，只检索私有流程配置，不检索当前通用症状 chunk，也不借检索结果生成诊断或治疗建议。
 
-5. **知识源选择器（模型 Y）**：`knowledge_source` 为二态 rag/graph + 自动降级。默认 rag；非导诊场景（interpretation）默认 none。检索失败或空召回静默降级走裸 LLM；graph 票 13 接手，未实现时视为 unavailable 降级。降级状态经 SSE `knowledge` 元事件暴露（source=用户选择、status=ok/degraded/unavailable、count=N），用户侧不强提示，演示与 B 端 trace 可见。
+5. **RAG 的正式产品入口必须是受控证据问答**：未来只有当问题需要模型参数之外的事实源，例如授权指南、官方药品说明书、院内制度、患者教育材料或经用户授权的本人记录，才可新增独立的证据问答场景并注入检索。上线前语料必须具备来源、版本、发布日期、适用范围、失效日期和审核人；答案必须支持逐条引用和查看原文。
 
-6. **召回块注入格式**：工具返回的召回块以 `【标题·科室】正文` 结构化纯文本进入 LLM 上下文，让模型能衔接科室推荐（呼应 department 列）。
+6. **检索失败按承诺语义降级**：技术演示中的空召回、超时和异常对 C 端静默，不得出现“知识库暂时没有内容”等内部实现文案，状态仅通过 `knowledge` 元事件供 B 端 trace 查看。未来若入口明确承诺循证回答，证据不足时必须收窄回答或明确表示暂无足够可靠资料，不能静默切换裸模型并把猜测伪装成有证据的结论。
 
-7. **范围扩至 50 场景**：超票面 15-20，10 科室 × 5 症状；扩充 seed 科室至约 10 个、医生至约 15 个补齐 spec 欠账，让 department 对齐真实科室。胸痛伴冷汗等红线场景保留在库（红线优先拦截，轻症仍可检索）。
+7. **开放联网搜索不能直接替代受控 RAG**：需要时效信息时只能搜索可信来源白名单，并保留来源、日期、证据冲突处理和无证据拒答。开放网页、搜索摘要或单一向量相似度不得直接成为个体医疗建议依据。
 
-8. **免责声明不变**：token/message 事件带免责声明（既有注入逻辑），search_knowledge 工具返回的召回块与 `knowledge` 元事件不带（非 AI 产出）。
+8. **保留双栈数据边界**：`knowledge_chunks` 仍由 PostgreSQL `schema.sql` 管理，离线 embedding 由 server-py 调用 `doubao-embedding-vision` 生成，运行时 server-py 对 pgvector 只读；server-java 不调用 LLM，server-py 不写业务库。当前向量维度为 2048；因超过 pgvector HNSW 2000 维上限且知识块仅 50 条，采用 cosine 顺序扫描，不建 HNSW 索引。
 
-9. **验收**：集成测试连真实 PG+pgvector+方舟，10 条典型症状查询 Top-3 命中 ≥8（query 向量缓存）；TestClient 用 fake embedding/检索替身断言"先检索后生成"及关闭增强时不检索。
+9. **现有知识库降级为演示资产**：50 条症状 seed 与 `search_knowledge`、`traverse_graph`、知识元事件和 B 端切换能力继续保留，用于答辩展示 RAG/图谱/裸模型三态及失败降级。演示文案必须如实标注“技术对比”，不得宣称这些 seed 构成权威医学知识库或提升医疗安全。
 
-## 被否决的方案
+10. **实现与验收必须跟随本修订**：后续实现需将 `contracts/knowledge.json` 中 `triage`、`preconsultation` 默认值改为 `none`，移除导诊 prompt 的强制检索要求，并用 HTTP 测试锁定“导诊意图不会进入 RAG”“ambiguous 只受控追问”“resolved 才查询真实号源”“空召回不暴露知识库状态”。RAG 自身仍保留真实 pgvector Top-k 召回和 B 端显式切换测试。
 
-- **embedding 入库在 server-java、检索全归 server-java（A1 破例）**：违反 ADR-0009"LLM 调用仅 server-py""向量检索 server-py 只读"，需破例修订约束；远端票 10 校正后明确维持原边界，否决。
-- **检索前置注入（范式 2）**：在 server-py 检索边界下，工具范式与既有 `tools/` 架构更一致、关闭增强时"不注入工具即不检索"更自然，否决范式 2。
-- **schema.sql 模板化、维度从配置注入 DDL（路径 A）**：破坏"schema.sql 纯静态可执行"纪律（硬约束 6），否决，用路径 B。
+## 被撤销或否决的方案
+
+- **`triage -> rag`、`preconsultation -> rag` 默认映射**：撤销。场景类型不等于知识需求，全局默认导致导诊、追问和知识检索耦合。
+- **导诊未收敛后退回普通 Agent**：撤销。它会丢失专用导诊状态，并让 RAG 或其他业务工具意外介入。
+- **所有空召回一律静默走裸 LLM**：仅保留给不承诺证据的技术演示；循证问答中否决，因为这会掩盖证据缺失。
+- **用 RAG 生成科室、医生、号源或挂号事实**：否决。这些事实有唯一业务数据源，必须调用 server-java。
+- **用开放互联网搜索替代语料治理**：否决。搜索扩大覆盖面，但不自动解决来源质量、版本、冲突、引用一致性或提示注入。
+- **删除 RAG/图谱基础设施**：否决。既有能力仍有演示价值，也为未来受控证据问答保留技术基础。
+- **embedding 或向量写入迁到 server-java**：维持原否决；违反 ADR-0009 的 LLM 与数据访问边界。
+
+## 后果
+
+- C 端默认链路更短，避免一次普通导诊同时承担科室解析、知识检索和业务查询。
+- RAG 不再作为“医疗助手专业性”的默认证明；专业性由红线规则、专用流程、真实业务数据、临床评测和未来可审查证据共同保障。
+- B 端演示仍可显式比较 RAG、图谱和裸模型，但演示状态不能成为 C 端隐式默认值。
+- 若未来上线循证问答，主要成本不在向量数据库，而在内容授权、版本治理、临床审核、引用验证、拒答策略和持续评测。
 
 ## 关联
 
-- 不修订 ADR-0009（维持原数据访问权边界）。
-- 票 13（图谱 traverse_graph）接手时填充 `graph` 分支，`knowledge_source` 契约已就位。
-- 票 25 提供 B 端现场切换 UI 出口。
-- 票 50 演示"切换 RAG/图谱增强开关现场对比"依赖本契约 + 票 25 出口。
+- ADR-0009：维持 server-java 唯一业务写入方、server-py 承载 LLM 与只读知识检索的边界。
+- ADR-0027：智能导诊只确定标准科室，医院、医生、号源与挂号走确定性业务能力。
+- ADR-0028：C 端药品能力只做通用解释；未来正式说明书能力应优先接地官方或合法授权数据，仍不做个性化用药决策。
+- 票 13、票 25：继续提供图谱能力与 B 端知识源技术演示出口。

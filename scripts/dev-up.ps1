@@ -2,6 +2,7 @@
 # 小程序无法用脚本启动，需用支付宝小程序开发者工具手动导入 miniprogram/
 # 用法：在仓库根目录执行  powershell -File scripts/dev-up.ps1
 # 停止：到对应窗口按 Ctrl+C，或直接关掉窗口
+# 端口被占用时自动释放：本项目进程（python/java/node）直接强杀，其他进程询问确认后再强杀
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -24,12 +25,50 @@ if (-not (Test-Path "$root/.venv")) {
 # admin 用 PORT=5173 固定 dev 端口（umi 默认 8000，若 server-py 未起会抢占 8000，
 # 导致 server-java 的 Agent 调用打到 admin 上 404，见小程序对话失败问题）。
 $services = @(
-    @{ Name = "server-py :8000";   Cmd = "uv run python scripts/run-server-py.py" },
-    @{ Name = "server-java :8080"; Cmd = "mvn -f server-java/pom.xml spring-boot:run" },
-    @{ Name = "admin :5173";       Cmd = "`$env:PORT='5173'; npm --prefix admin run dev" }
+    @{ Name = "server-py :8000";   Port = 8000; Cmd = "uv run python scripts/run-server-py.py" },
+    @{ Name = "server-java :8080"; Port = 8080; Cmd = "mvn -f server-java/pom.xml spring-boot:run" },
+    @{ Name = "admin :5173";       Port = 5173; Cmd = "`$env:PORT='5173'; npm --prefix admin run dev" }
 )
 
+# 端口被占用时自动释放（强占）：白名单进程（本项目的 python/java/node 运行时）直接强杀，
+# 其他进程打印信息询问 y/N；杀完轮询等待端口真正空出（进程退出/TIME_WAIT 延迟），再放行启动。
+function Free-Port($port, $svcName) {
+    $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if (-not $listeners) { return }
+
+    foreach ($conn in $listeners) {
+        $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+        if (-not $proc) { continue }
+        $auto = $proc.ProcessName -in @("python", "java", "node")
+        if (-not $auto) {
+            $answer = Read-Host "端口 $port 被进程 $($proc.ProcessName) (PID $($proc.Id)) 占用，非本项目进程，强杀? [y/N]"
+            if ($answer -notmatch '^[yY]') {
+                Write-Host "[失败] 用户拒绝释放端口 $port，$svcName 无法启动" -ForegroundColor Red
+                exit 1
+            }
+        }
+        try {
+            Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+            Write-Host "[释放] 端口 $port 被 $($proc.ProcessName) (PID $($proc.Id)) 占用，已强杀" -ForegroundColor Yellow
+        } catch {
+            Write-Host "[失败] 无法结束进程 $($proc.ProcessName) (PID $($proc.Id)): $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    # 等待端口真正空出，避免进程刚退出/TIME_WAIT 时服务启动绑定失败
+    $deadline = (Get-Date).AddSeconds(10)
+    while (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+        if ((Get-Date) -gt $deadline) {
+            Write-Host "[失败] 端口 $port 在 10s 内未释放" -ForegroundColor Red
+            exit 1
+        }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 foreach ($svc in $services) {
+    Free-Port $svc.Port $svc.Name
     Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",

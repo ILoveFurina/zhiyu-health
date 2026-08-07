@@ -3,6 +3,7 @@ import { Button, Card, Table, Tabs, Tag, type TableColumnsType } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { consultationStatuses } from '@/contracts/consultation';
 import { fetchMine, fetchPool, type ConsultationStatus, type PoolItem } from '@/services/consultation';
+import { formatDateTime } from '@/utils/time';
 import OnlineConsultationDrawer from './OnlineConsultationDrawer';
 
 type TabKey = 'pool' | 'in_progress' | 'completed';
@@ -79,7 +80,7 @@ export default function OnlineConsultationPanel() {
       title: '主诉', dataIndex: ['summary', 'chief_complaint'], ellipsis: true,
       render: (value) => value ?? '—',
     },
-    { title: '创建时间', dataIndex: 'created_at', width: 180 },
+    { title: '创建时间', dataIndex: 'created_at', width: 180, render: (value) => formatDateTime(value) },
     {
       title: '操作', width: 130,
       render: (_, row) => <Button type="link" onClick={() => openDrawer(row.id)}>查看并接诊</Button>,
@@ -93,7 +94,7 @@ export default function OnlineConsultationPanel() {
       title: '接诊方式', dataIndex: 'consult_method_label', width: 110,
       render: (value) => (value ? <Tag color="blue">{value}</Tag> : <Tag>未发起</Tag>),
     },
-    { title: '接诊时间', dataIndex: 'accepted_at', width: 180 },
+    { title: '接诊时间', dataIndex: 'accepted_at', width: 180, render: (value) => formatDateTime(value) },
     {
       title: '操作', width: 110,
       render: (_, row) => <Button type="link" onClick={() => openDrawer(row.id)}>继续问诊</Button>,
@@ -107,7 +108,7 @@ export default function OnlineConsultationPanel() {
       title: '接诊方式', dataIndex: 'consult_method_label', width: 110,
       render: (value) => (value ? <Tag>{value}</Tag> : '—'),
     },
-    { title: '完成时间', dataIndex: 'completed_at', width: 180 },
+    { title: '完成时间', dataIndex: 'completed_at', width: 180, render: (value) => formatDateTime(value) },
     {
       title: '操作', width: 110,
       render: (_, row) => <Button type="link" onClick={() => openDrawer(row.id)}>查看</Button>,

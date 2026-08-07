@@ -30,6 +30,7 @@ import {
   type PrescriptionInput,
 } from '@/services/prescription';
 import PrescriptionForm from './PrescriptionForm';
+import { formatChatTime, formatDateTime } from '@/utils/time';
 
 interface Props {
   consultationId?: number;
@@ -70,6 +71,10 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
   const threadRef = useRef<HTMLDivElement>(null);
 
   const inProgress = detail?.status === consultationStatuses.in_progress;
+  // 消息仅对已绑定医生可见（服务端 requireBoundToDoctor）：待接诊单未接受时打开抽屉
+  // 若拉消息会 404"问诊单不存在"并被全局 errorHandler 弹窗；接受后 inProgress 翻转触发重拉
+  const canViewMessages = detail != null
+    && (inProgress || detail.status === consultationStatuses.completed);
 
   // 打开时按 id 加载完整详情，并重置消息、开方状态与完成表单
   useEffect(() => {
@@ -109,7 +114,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
 
   // 打开时先全量加载一次；进行中每 3s 增量轮询，关闭或结束后清除
   useEffect(() => {
-    if (!open || !consultationId) return;
+    if (!open || !consultationId || !canViewMessages) return;
     let cancelled = false;
     const pull = async () => {
       try {
@@ -123,7 +128,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     if (!inProgress) return () => { cancelled = true; };
     const timer = setInterval(pull, 3000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [open, consultationId, inProgress, appendMessages]);
+  }, [open, consultationId, inProgress, canViewMessages, appendMessages]);
 
   // 新消息滚动到底部
   useEffect(() => {
@@ -232,7 +237,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
               <Descriptions.Item label="状态">
                 <Tag color={statusTagColor(detail.status)}>{detail.status_label}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="接诊截止" span={2}>{detail.expires_at}</Descriptions.Item>
+              <Descriptions.Item label="接诊截止" span={2}>{formatDateTime(detail.expires_at)}</Descriptions.Item>
             </Descriptions>
 
             <Alert
@@ -286,7 +291,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                       <div style={{ fontWeight: 600 }}>模拟视频问诊 · 已连接</div>
                       <div style={{ fontSize: 12, opacity: 0.75 }}>
                         {detail.consult_method_label}
-                        {detail.method_started_at ? ` · ${detail.method_started_at}` : ''}
+                        {detail.method_started_at ? ` · ${formatDateTime(detail.method_started_at)}` : ''}
                       </div>
                     </div>
                   </div>
@@ -314,7 +319,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                       return (
                         <div key={item.id} style={{ textAlign: 'center', margin: '8px 0' }}>
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {item.content} · {item.created_at}
+                            {item.content} · {formatChatTime(item.created_at)}
                           </Typography.Text>
                         </div>
                       );
@@ -333,7 +338,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                         }}>
                           <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{item.content}</div>
                           <div style={{ fontSize: 11, opacity: 0.65, marginTop: 4, textAlign: 'right' }}>
-                            {item.created_at}
+                            {formatChatTime(item.created_at)}
                           </div>
                         </div>
                       </div>
@@ -405,7 +410,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
               <Descriptions title="问诊记录" column={1} bordered size="small">
                 <Descriptions.Item label="诊断结论">{detail.diagnosis}</Descriptions.Item>
                 <Descriptions.Item label="医嘱">{detail.advice}</Descriptions.Item>
-                <Descriptions.Item label="完成时间">{detail.completed_at}</Descriptions.Item>
+                <Descriptions.Item label="完成时间">{formatDateTime(detail.completed_at)}</Descriptions.Item>
               </Descriptions>
             )}
           </Space>
