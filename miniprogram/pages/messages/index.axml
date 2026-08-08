@@ -11,17 +11,22 @@
   </block>
   <zy-empty a:elif="{{messages.length === 0 && reminders.length === 0}}" icon="mail" text="暂无站内消息" />
   <block a:else>
-    <view a:if="{{reminders.length > 0}}" class="section-title">服药提醒</view>
-    <view a:for="{{reminders}}" a:key="id" class="card reminder zy-fade-in" style="animation-delay: {{index * 40}}ms">
-      <view class="head">
-        <view class="title">{{item.medication_name}}</view>
-        <view class="time">{{item.due_date}}</view>
+    <view a:if="{{reminders.length > 0}}" class="reminder-zone">
+      <view class="reminder-zone-head">
+        <view class="section-title reminder-zone-title">服药提醒</view>
+        <view class="reminder-zone-badge">待打卡 {{reminders.length}}</view>
       </view>
-      <view class="content">{{item.dosage}} · {{item.frequency}}</view>
-      <view class="reminder-action">
-        <button class="checkin-btn" data-id="{{item.id}}" onTap="onCheckIn">已服用</button>
+      <view a:for="{{reminders}}" a:key="id" class="card reminder zy-fade-in" style="animation-delay: {{index * 40}}ms">
+        <view class="head">
+          <view class="title">{{item.medication_name}}</view>
+          <view class="time">{{item.due_date}}</view>
+        </view>
+        <view class="content">{{item.dosage}} · {{item.frequency}}</view>
+        <view class="reminder-action">
+          <button class="checkin-btn" data-id="{{item.id}}" onTap="onCheckIn">已服用</button>
+        </view>
+        <ai-disclaimer text="{{item.disclaimer}}" />
       </view>
-      <ai-disclaimer text="{{item.disclaimer}}" />
     </view>
     <view a:if="{{messages.length > 0}}" class="section-title">站内消息</view>
     <view

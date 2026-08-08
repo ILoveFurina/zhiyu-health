@@ -3,11 +3,30 @@ const { listAppointments, cancelAppointment, payAppointment } = require('../../s
 const { currentProfile } = require('../../services/health-profiles')
 const { decorateAppointment } = require('../../utils/appointment')
 
+const FILTER_TABS = [
+  { key: 'all', label: '全部' },
+  { key: 'unpaid', label: '待支付' },
+  { key: 'upcoming', label: '待就诊' },
+  { key: 'history', label: '历史' },
+]
+
+function filterAppointments(appointments, key) {
+  if (key === 'unpaid') return appointments.filter((item) => item.payment_payable)
+  if (key === 'upcoming') return appointments.filter((item) => item.isBooked || item.isInProgress)
+  if (key === 'history') {
+    return appointments.filter((item) => !item.payment_payable && !item.isBooked && !item.isInProgress)
+  }
+  return appointments
+}
+
 Page({
   data: {
     loading: true,
+    allAppointments: [],
     appointments: [],
     currentProfile: null,
+    filterTabs: FILTER_TABS,
+    activeFilter: 'all',
   },
 
   onShow() {
@@ -17,14 +36,24 @@ Page({
   loadAppointments() {
     this.setData({ loading: true })
     Promise.all([listAppointments(), currentProfile()])
-      .then(([appointments, profileResult]) =>
+      .then(([appointments, profileResult]) => {
+        const decorated = appointments.map(decorateAppointment)
         this.setData({
-          appointments: appointments.map(decorateAppointment),
+          allAppointments: decorated,
+          appointments: filterAppointments(decorated, this.data.activeFilter),
           currentProfile: profileResult.profile,
         })
-      )
+      })
       .catch(() => my.showToast({ content: '挂号记录加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
+  },
+
+  onFilterTap(e) {
+    const activeFilter = e.currentTarget.dataset.key
+    this.setData({
+      activeFilter,
+      appointments: filterAppointments(this.data.allAppointments, activeFilter),
+    })
   },
 
   cancel(e) {

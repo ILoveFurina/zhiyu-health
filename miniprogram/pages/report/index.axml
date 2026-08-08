@@ -8,15 +8,15 @@
     <view class="upload-tip">将发送至多模态模型；请先遮盖姓名、身份证号等身份信息，报告原图留存于历史会话供回看</view>
 
     <view a:if="{{!pending}}" class="upload-actions">
-      <view class="upload-btn" data-index="0" onTap="pickReport">
+      <view class="upload-btn upload-btn-primary" data-index="0" onTap="pickReport">
         <view class="upload-btn-icon zy-ico zy-ico-camera"></view>
         <view class="upload-btn-label">拍摄报告</view>
       </view>
-      <view class="upload-btn" data-index="1" onTap="pickReport">
+      <view class="upload-btn upload-btn-secondary" data-index="1" onTap="pickReport">
         <view class="upload-btn-icon zy-ico zy-ico-image"></view>
         <view class="upload-btn-label">从相册选择</view>
       </view>
-      <view class="upload-btn" data-index="2" onTap="pickReport">
+      <view class="upload-btn upload-btn-secondary" data-index="2" onTap="pickReport">
         <view class="upload-btn-icon zy-ico zy-ico-file"></view>
         <view class="upload-btn-label">上传 PDF</view>
       </view>

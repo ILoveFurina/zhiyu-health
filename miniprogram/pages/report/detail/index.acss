@@ -24,10 +24,11 @@
 
 /* 概要与逐项指标（结构化卡片字段与 chat 会话内同款） */
 .report-summary { color: var(--zy-text-title); font-size: 26rpx; line-height: 1.55; }
-.finding-head { display: flex; align-items: center; }
+.finding-head { display: flex; align-items: flex-start; gap: var(--zy-space-sm); }
+.finding-identity { min-width: 0; flex: 1; }
+.finding-result { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: var(--zy-space-xs); }
 .priority-label {
-  margin-right: 10rpx;
-  padding: 3rpx 8rpx;
+  padding: 3rpx 10rpx;
   border-radius: var(--zy-radius-sm);
   color: #fff;
   font-size: 18rpx;
@@ -37,9 +38,9 @@
 .priority-yellow { background: var(--zy-color-warning); }
 .priority-blue { background: #4389d8; }
 .priority-green { background: var(--zy-color-primary); }
-.finding-name { flex: 1; color: var(--zy-text-title); font-size: 25rpx; font-weight: 600; }
-.finding-value { color: var(--zy-text-title); font-size: 24rpx; }
-.finding-ref { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 20rpx; }
+.finding-name { color: var(--zy-text-title); font-size: 27rpx; font-weight: 700; }
+.finding-value { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.finding-ref { margin-top: 6rpx; color: var(--zy-text-weak); font-size: 20rpx; }
 .state-badge {
   display: inline-block;
   margin-top: var(--zy-space-xs);
@@ -55,13 +56,14 @@
 .state-DUPLICATE_SLOT,
 .state-NO_DATE,
 .state-UNMAPPED { background: var(--zy-color-fill); color: var(--zy-text-secondary); }
+.finding-secondary { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); background: var(--zy-color-fill); }
 .finding-text, .finding-action, .report-line {
-  margin-top: var(--zy-space-xs);
   color: var(--zy-text-secondary);
   font-size: 23rpx;
   line-height: 1.55;
 }
-.finding-action { color: var(--zy-color-primary); }
+.finding-action { margin-top: var(--zy-space-xs); color: var(--zy-color-primary); }
+.report-line { margin-top: var(--zy-space-xs); }
 .report-section-title { color: var(--zy-text-title); font-size: 24rpx; font-weight: 600; }
 .unreadable {
   margin-top: var(--zy-space-sm);
@@ -71,7 +73,7 @@
 }
 
 /* 沉淀观测核验操作 */
-.obs-ops { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); }
+.obs-ops { margin: var(--zy-space-md) -24rpx -24rpx; padding: var(--zy-space-sm) var(--zy-space-md); border-top: 1rpx solid var(--zy-color-border); border-radius: 0 0 var(--zy-radius-card) var(--zy-radius-card); background: #fafcfb; }
 .obs-op-row { display: flex; gap: var(--zy-space-sm); }
 .obs-op-row + .obs-op-row { margin-top: var(--zy-space-xs); }
 .op-btn {
