@@ -1,14 +1,16 @@
-import { ModalForm, ProFormDigit, ProFormSelect, ProFormText } from '@ant-design/pro-components';
+import { ModalForm, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
 import { Form } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import {
   createDepartmentCategory,
   listCampuses,
   listHospitals,
+  listStandardDepartments,
   updateDepartmentCategory,
   type Campus,
   type DepartmentCategory,
   type Hospital,
+  type StandardDepartment,
 } from '@/services/organization';
 
 interface Props {
@@ -24,10 +26,12 @@ export default function DepartmentCategoryForm({ open, record, onOpenChange, onS
   // 院区下拉拼「医院-院区」label
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [standardDepartments, setStandardDepartments] = useState<StandardDepartment[]>([]);
 
   useEffect(() => {
     listCampuses().then(setCampuses).catch(() => {});
     listHospitals().then(setHospitals).catch(() => {});
+    listStandardDepartments().then(setStandardDepartments).catch(() => {});
   }, []);
 
   const campusOptions = useMemo(
@@ -38,6 +42,19 @@ export default function DepartmentCategoryForm({ open, record, onOpenChange, onS
       }),
     [campuses, hospitals],
   );
+
+  // 分类名称下拉：候选来自标准科室目录的科类名（category）去重，使院区分类与平台标准科类对齐
+  const categoryOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { label: string; value: string }[] = [];
+    for (const s of standardDepartments) {
+      if (s.category && !seen.has(s.category)) {
+        seen.add(s.category);
+        opts.push({ label: s.category, value: s.category });
+      }
+    }
+    return opts;
+  }, [standardDepartments]);
 
   return (
     <ModalForm<Omit<DepartmentCategory, 'id'>>
@@ -69,7 +86,12 @@ export default function DepartmentCategoryForm({ open, record, onOpenChange, onS
         options={campusOptions}
         rules={[{ required: true, message: '请选择所属院区' }]}
       />
-      <ProFormText name="name" label="分类名称" rules={[{ required: true, message: '请输入分类名称' }]} />
+      <ProFormSelect
+        name="name"
+        label="分类名称"
+        options={categoryOptions}
+        rules={[{ required: true, message: '请选择分类名称' }]}
+      />
       <ProFormDigit name="sort_order" label="排序" rules={[{ required: true, message: '请输入排序' }]} />
     </ModalForm>
   );

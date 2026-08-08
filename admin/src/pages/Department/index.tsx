@@ -113,7 +113,7 @@ export default function DepartmentPage() {
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
-        pagination={false}
+        pagination={{ defaultPageSize: 10, pageSizeOptions: [10, 20, 50, 100] }}
         search={false}
         headerTitle={
           <>
