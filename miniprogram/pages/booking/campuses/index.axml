@@ -1,4 +1,5 @@
 <view class="page">
+  <booking-progress current="{{1}}" />
   <view class="header">
     <view class="subtitle">{{hospitalName}} · 选择就诊院区</view>
   </view>
@@ -16,8 +17,12 @@
     onTap="openDepartments"
   >
     <view class="card-main">
+      <view class="card-kicker">就诊院区</view>
       <view class="name">{{item.name}}</view>
-      <view a:if="{{item.address}}" class="address">{{item.address}}</view>
+      <view a:if="{{item.address}}" class="address">
+        <text class="address-label">院区地址</text>
+        <text>{{item.address}}</text>
+      </view>
       <view a:if="{{item.distance_text}}" class="distance">距您约 {{item.distance_text}} km</view>
     </view>
     <view class="arrow">›</view>

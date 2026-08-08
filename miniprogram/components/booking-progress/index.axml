@@ -1,0 +1,12 @@
+<view class="booking-progress">
+  <view a:for="{{steps}}" a:key="label" class="booking-step">
+    <view class="booking-track">
+      <view class="booking-line {{index === 0 ? 'booking-line-hidden' : ''}} {{index <= current ? 'booking-line-done' : ''}}"></view>
+      <view class="booking-dot {{index < current ? 'booking-dot-done' : ''}} {{index === current ? 'booking-dot-current' : ''}}">
+        {{index < current ? '✓' : index + 1}}
+      </view>
+      <view class="booking-line {{index === steps.length - 1 ? 'booking-line-hidden' : ''}} {{index < current ? 'booking-line-done' : ''}}"></view>
+    </view>
+    <view class="booking-label {{index <= current ? 'booking-label-active' : ''}}">{{item.label}}</view>
+  </view>
+</view>

@@ -3,15 +3,22 @@
   <zy-empty a:elif="{{orders.length === 0}}" icon="capsule" text="暂无药品订单" />
   <view a:for="{{orders}}" a:key="id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
     <view class="head">
-      <view class="title">药品订单 #{{item.id}}</view>
+      <view>
+        <view class="order-kicker">药品订单</view>
+        <view class="title">#{{item.id}}</view>
+      </view>
       <view class="status status-{{item.status}}">{{item.status_label}}</view>
     </view>
-    <view class="meta">电子处方 #{{item.prescription_id}} · {{item.created_at}}</view>
-    <view a:for="{{item.items}}" a:for-item="drug" a:key="medication_id" class="drug">
-      <view>{{drug.name}} {{drug.specification}}</view>
-      <view class="price">¥{{drug.unit_price}} × {{drug.quantity}} = ¥{{drug.subtotal}}</view>
+    <view class="meta">
+      <view><text class="meta-label">关联处方</text>#{{item.prescription_id}}</view>
+      <view><text class="meta-label">创建时间</text>{{item.created_at}}</view>
     </view>
-    <view class="total">合计：¥{{item.total_amount}}</view>
+    <view a:for="{{item.items}}" a:for-item="drug" a:key="medication_id" class="drug">
+      <view class="drug-name">{{drug.name}}</view>
+      <view class="drug-spec">{{drug.specification}}</view>
+      <view class="price"><text>¥{{drug.unit_price}} × {{drug.quantity}}</text><text class="subtotal">¥{{drug.subtotal}}</text></view>
+    </view>
+    <view class="total"><text class="total-label">订单合计</text><text>¥{{item.total_amount}}</text></view>
     <view a:if="{{item.payable || item.cancellable}}" class="actions">
       <button a:if="{{item.payable}}" class="pay" data-id="{{item.id}}"
         loading="{{payingId === item.id}}" disabled="{{payingId === item.id || cancellingId === item.id}}" onTap="pay">

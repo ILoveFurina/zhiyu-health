@@ -3,15 +3,21 @@
 .card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: var(--zy-shadow-card); transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
 .card:active { transform: scale(0.98); }
 .head { display: flex; align-items: center; justify-content: space-between; }
+.order-kicker { color: var(--zy-text-weak); font-size: 20rpx; }
 .title { color: var(--zy-text-title); font-size: 29rpx; font-weight: 700; }
 /* 状态色：待支付=warning、已取消=danger，已支付/已完成沿 .status 主色；修饰类名直接取服务端 status 契约值 */
-.status { color: var(--zy-color-primary); font-size: 23rpx; }
-.status-UNPAID { color: var(--zy-color-warning); }
-.status-CANCELLED { color: var(--zy-color-danger); }
-.meta { margin-top: 10rpx; color: var(--zy-text-secondary); font-size: 22rpx; }
-.drug { margin-top: 18rpx; padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); background: var(--zy-color-primary-soft); color: var(--zy-text-title); font-size: 24rpx; }
-.price { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); }
-.total { margin-top: 20rpx; color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; text-align: right; }
+.status { padding: 7rpx 18rpx; border-radius: 999rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 21rpx; font-weight: 600; }
+.status-UNPAID { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
+.status-CANCELLED { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
+.meta { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); background: var(--zy-color-fill); color: var(--zy-text-secondary); font-size: 22rpx; line-height: 1.8; }
+.meta-label { display: inline-block; width: 120rpx; color: var(--zy-text-weak); }
+.drug { margin-top: 18rpx; padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); border: 1rpx solid var(--zy-color-border); color: var(--zy-text-title); font-size: 24rpx; }
+.drug-name { font-weight: 600; }
+.drug-spec { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 21rpx; }
+.price { margin-top: var(--zy-space-sm); color: var(--zy-text-secondary); display: flex; justify-content: space-between; }
+.subtotal { color: var(--zy-text-title); font-weight: 600; }
+.total { margin-top: 20rpx; padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; display: flex; justify-content: space-between; }
+.total-label { color: var(--zy-text-secondary); font-size: 23rpx; font-weight: 400; }
 .actions { display: flex; gap: var(--zy-space-sm); margin-top: 18rpx; }
 .actions button { flex: 1; margin: 0; border-radius: var(--zy-radius-lg); font-size: 25rpx; }
 .pay { border: 0; background: var(--zy-color-primary); color: #fff; transition: transform var(--zy-motion-fast) var(--zy-ease-out); }

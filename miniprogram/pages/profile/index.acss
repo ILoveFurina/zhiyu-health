@@ -2,28 +2,47 @@
 .page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
 
 .account {
-  padding: var(--zy-space-lg) var(--zy-space-md);
+  position: relative;
+  overflow: hidden;
+  padding: 44rpx var(--zy-space-lg);
   border-radius: var(--zy-radius-card);
-  background: #fff;
-  box-shadow: var(--zy-shadow-card);
+  background: linear-gradient(135deg, var(--zy-color-primary) 0%, #43c79b 100%);
+  box-shadow: var(--zy-shadow-raised);
   display: flex;
   align-items: center;
 }
+.account-orb { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.12); }
+.account-orb-large { width: 240rpx; height: 240rpx; top: -120rpx; right: -40rpx; }
+.account-orb-small { width: 100rpx; height: 100rpx; right: 120rpx; bottom: -55rpx; }
 .avatar {
+  position: relative;
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: var(--zy-color-primary);
-  color: #fff;
+  border: 6rpx solid rgba(255, 255, 255, 0.5);
+  background: #fff;
+  color: var(--zy-color-primary);
   font-size: 48rpx;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.account-copy { margin-left: var(--zy-space-md); }
-.nickname { color: var(--zy-text-title); font-size: 36rpx; font-weight: 700; }
-.account-sub { margin-top: 8rpx; color: var(--zy-text-secondary); font-size: 24rpx; }
+.account-copy { position: relative; min-width: 0; flex: 1; margin-left: var(--zy-space-md); }
+.nickname { color: #fff; font-size: 38rpx; font-weight: 700; }
+.account-sub { margin-top: 8rpx; color: rgba(255, 255, 255, 0.82); font-size: 22rpx; }
+.account-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: var(--zy-space-sm);
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 20rpx;
+}
+.account-status-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #fff; }
 
 .section { margin-top: var(--zy-space-lg); }
 .section-title { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
@@ -47,5 +66,7 @@
   align-items: center;
   justify-content: center;
 }
-.row-label { flex: 1; margin-left: var(--zy-space-sm); color: var(--zy-text-title); font-size: 29rpx; }
+.row-copy { min-width: 0; flex: 1; margin-left: var(--zy-space-sm); }
+.row-label { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.row-desc { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 21rpx; }
 .row-arrow { color: var(--zy-text-weak); font-size: 36rpx; }
