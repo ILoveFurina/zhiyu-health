@@ -1,0 +1,38 @@
+{
+  "statuses": {
+    "pending": "PENDING",
+    "approved": "APPROVED",
+    "rejected": "REJECTED"
+  },
+  "status_labels": {
+    "PENDING": "待审核",
+    "APPROVED": "已通过",
+    "REJECTED": "已驳回"
+  },
+  "decisions": {
+    "approve": "APPROVE",
+    "reject": "REJECT"
+  },
+  "actions": {
+    "create": "CREATE",
+    "modify": "MODIFY",
+    "disable": "DISABLE"
+  },
+  "action_labels": {
+    "CREATE": "新增排班",
+    "MODIFY": "调整号源",
+    "DISABLE": "停诊"
+  },
+  "time_slots": {
+    "morning": "上午",
+    "afternoon": "下午"
+  },
+  "time_slot_windows": {
+    "上午": { "start": "09:00", "end": "11:30" },
+    "下午": { "start": "14:00", "end": "18:00" }
+  },
+  "max_days_ahead": 14,
+  "max_total_slots": 50,
+  "review_reason_max_length": 500,
+  "_doc": "医生排班申请审核流：医生提交排班申请（限当天起 max_days_ahead 天内），管理员审核通过后落盘为 schedules 行，C 端即可见。actions 区分新增/调整号源/停诊三种操作类型；time_slots 去掉晚上，只保留上午(9:00-11:30)/下午(14:00-18:00)；time_slot_windows 是挂号时段截止校验的单一事实源，server-java 在挂号时判断当前时间是否已超过时段结束时间。max_days_ahead 是双栈共享的可排班天数上限。"
+}

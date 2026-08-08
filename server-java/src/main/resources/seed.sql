@@ -198,11 +198,12 @@ INSERT INTO health_observations (id, health_profile_id, report_interpretation_id
     (16, 1, 2, 'RH_D_BLOOD_TYPE', NULL, 'POSITIVE', NULL, NULL, '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- 排班（票 25/49）：用 CURRENT_DATE + interval 'N day' 动态生成今天起连续 14 天排班，
--- 保证任意演示日当天起仍有完整 14 天号源可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
--- 重置 TRUNCATE schedules 后再执行本段可重新插入；已存在则跳过。
--- 覆盖全部 15 个医生、上午/下午两时段、每段 10 号，满足演示与并发抢号脚本需求。
--- 时段值与 TimeSlot 枚举字面量一致（schema 用枚举存中文）；中文读取靠 spring.sql.init.encoding=UTF-8。
+-- 排班（票 25/49）：用 CURRENT_DATE + interval 'N day' 动态生成今天起连续 7 天排班，
+-- 保证任意演示日当天起仍有完整 7 天号源可挂，超出部分由医生排班申请->审核流程产生。
+-- 显式 id + ON CONFLICT DO NOTHING 保证幂等：重置 TRUNCATE schedules 后再执行本段
+-- 可重新插入；已存在则跳过。覆盖全部 15 个医生、上午/下午两时段、每段 10 号，
+-- 满足演示与并发抢号脚本需求。时段值与 TimeSlot 枚举字面量一致（schema 用枚举存中文）；
+-- 中文读取靠 spring.sql.init.encoding=UTF-8。
 INSERT INTO schedules (id, doctor_id, schedule_date, time_slot, total_slots, remaining_slots, is_active)
 SELECT
     row_number() OVER (ORDER BY d.doctor_id, days.day, slots.slot) AS id,
@@ -216,7 +217,7 @@ FROM (VALUES
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)
 ) AS d(doctor_id)
 CROSS JOIN (VALUES
-    (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13)
+    (0),(1),(2),(3),(4),(5),(6)
 ) AS days(day)
 CROSS JOIN (VALUES
     ('上午'),('下午')
