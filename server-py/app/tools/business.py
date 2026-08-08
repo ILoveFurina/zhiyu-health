@@ -28,10 +28,15 @@ class BusinessCallbackClient:
         callback_secret: str = "",
     ) -> None:
         # transport 注入只改变 I/O seam，生产默认仍使用 HTTPX 网络传输。
+        # trust_env=False：httpx 默认 trust_env=True 会从环境变量与 Windows 系统代理
+        # （注册表）解析代理，把 server-java 业务回调塞进本机代理导致全 502
+        # （预问诊科室恒 null、导诊工具全失败，票 60 后续发现）。server-java 是内网
+        # 直连目标，必须绕过系统代理；MockTransport 测试不触网不受影响。
         self._client = httpx.AsyncClient(
             base_url=base_url,
             timeout=timeout,
             transport=transport,
+            trust_env=False,
             headers={"X-Agent-Callback-Token": callback_secret} if callback_secret else None,
         )
         self._callback_secret = callback_secret
