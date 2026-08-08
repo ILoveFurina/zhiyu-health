@@ -248,6 +248,85 @@ class ContractsTest {
     }
 
     @Test
+    void healthObservationsContractIsLoaded() {
+        // 票 61（ADR-0031）：九项白名单指标、血压组合项拆分、来源/核验/沉淀状态全部来自契约单一事实源
+        Contracts.HealthObservations observations = contracts.healthObservations();
+        assertThat(observations.metricCodes())
+                .containsExactly(
+                        "HEIGHT",
+                        "WEIGHT",
+                        "BMI",
+                        "SYSTOLIC_BP",
+                        "DIASTOLIC_BP",
+                        "FASTING_GLUCOSE",
+                        "TOTAL_CHOLESTEROL",
+                        "ABO_BLOOD_TYPE",
+                        "RH_D_BLOOD_TYPE");
+        assertThat(observations.numericValueType()).isEqualTo("NUMERIC");
+        assertThat(observations.categoricalValueType()).isEqualTo("CATEGORICAL");
+        Contracts.HealthObservations.Metric height = observations.metrics().get("HEIGHT");
+        assertThat(height.nameZh()).isEqualTo("身高");
+        assertThat(height.valueType()).isEqualTo("NUMERIC");
+        assertThat(height.canonicalUnit()).isEqualTo("cm");
+        assertThat(height.aliases()).containsExactly("身高");
+        assertThat(height.unitAliases()).containsEntry("厘米", "cm");
+        assertThat(height.allowUnitMissing()).isFalse();
+        // BMI 只允许提取报告原值，空单位按规范单位处理
+        Contracts.HealthObservations.Metric bmi = observations.metrics().get("BMI");
+        assertThat(bmi.aliases()).contains("BMI", "体质指数", "身体质量指数", "体重指数");
+        assertThat(bmi.allowUnitMissing()).isTrue();
+        assertThat(bmi.unitAliases()).containsEntry("kg/m2", "kg/m²");
+        // 分类指标（血型）：分类值与别名归一
+        Contracts.HealthObservations.Metric abo = observations.metrics().get("ABO_BLOOD_TYPE");
+        assertThat(abo.valueType()).isEqualTo("CATEGORICAL");
+        assertThat(abo.categories()).containsExactly("A", "B", "AB", "O");
+        assertThat(abo.categoryAliases()).containsEntry("A型", "A").containsEntry("O 型", "O");
+        assertThat(abo.categoryDisplayZh()).containsEntry("A", "A 型");
+        Contracts.HealthObservations.Metric rh = observations.metrics().get("RH_D_BLOOD_TYPE");
+        assertThat(rh.categories()).containsExactly("POSITIVE", "NEGATIVE");
+        assertThat(rh.categoryAliases()).containsEntry("阳性", "POSITIVE").containsEntry("-", "NEGATIVE");
+        // 血压组合项拆分规则
+        Contracts.HealthObservations.BloodPressurePair pair = observations.bloodPressurePair();
+        assertThat(pair.aliases()).containsExactly("血压");
+        assertThat(pair.valuePattern()).isEqualTo("^(\\d{2,3})\\s*/\\s*(\\d{2,3})$");
+        assertThat(pair.systolicCode()).isEqualTo("SYSTOLIC_BP");
+        assertThat(pair.diastolicCode()).isEqualTo("DIASTOLIC_BP");
+        assertThat(pair.canonicalUnit()).isEqualTo("mmHg");
+        assertThat(pair.allowUnitMissing()).isTrue();
+        // 来源、核验状态、患者决定与沉淀状态枚举
+        assertThat(observations.sourceTypes())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("report_ai", "REPORT_AI", "user_correction", "USER_CORRECTION"));
+        assertThat(observations.reportAiSource()).isEqualTo("REPORT_AI");
+        assertThat(observations.userCorrectionSource()).isEqualTo("USER_CORRECTION");
+        assertThat(observations.sourceDisplayZh()).containsEntry("REPORT_AI", "报告 AI 提取");
+        assertThat(observations.verificationStatuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "unverified", "UNVERIFIED",
+                        "user_confirmed", "USER_CONFIRMED",
+                        "rejected", "REJECTED",
+                        "superseded", "SUPERSEDED"));
+        assertThat(observations.unverifiedStatus()).isEqualTo("UNVERIFIED");
+        assertThat(observations.userConfirmedStatus()).isEqualTo("USER_CONFIRMED");
+        assertThat(observations.rejectedStatus()).isEqualTo("REJECTED");
+        assertThat(observations.supersededStatus()).isEqualTo("SUPERSEDED");
+        assertThat(observations.verificationDisplayZh()).containsEntry("UNVERIFIED", "报告提取 · 待核验");
+        assertThat(observations.patientDecisions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("confirm", "CONFIRM", "correct", "CORRECT", "reject", "REJECT"));
+        assertThat(observations.itemStates())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "deposited_unverified", "DEPOSITED_UNVERIFIED",
+                        "deposited_confirmed", "DEPOSITED_CONFIRMED",
+                        "deposited_rejected", "DEPOSITED_REJECTED",
+                        "duplicate_slot", "DUPLICATE_SLOT",
+                        "conflict_skipped", "CONFLICT_SKIPPED",
+                        "no_date", "NO_DATE",
+                        "unmapped", "UNMAPPED"));
+        assertThat(observations.itemStateDisplayZh()).containsEntry("NO_DATE", "报告缺少明确检查日期，未沉淀");
+    }
+
+    @Test
     void missingContractsDirFailsFast() {
         assertThatThrownBy(() -> Contracts.load(Contracts.resolveDir().resolve("missing")))
                 .isInstanceOf(IllegalStateException.class)

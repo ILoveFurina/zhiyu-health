@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.controller.c.ReportInterpretationController;
 import com.zhiyu.health.entity.ReportInterpretation;
+import com.zhiyu.health.mapper.HealthObservationMapper;
 import com.zhiyu.health.mapper.ReportInterpretationMapper;
 import com.zhiyu.health.service.mapping.ReportInterpretationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -39,7 +40,10 @@ class ReportInterpretationHistoryHttpIntegrationTest {
                 mock(ConversationService.class),
                 new ObjectMapper(),
                 TestDisclaimers.instance(),
-                mock(HealthProfileService.class));
+                mock(HealthProfileService.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationMapper.class),
+                TestContracts.instance());
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence,
                 mock(AgentClient.class),
@@ -48,7 +52,9 @@ class ReportInterpretationHistoryHttpIntegrationTest {
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
         MockMvc mvc = standaloneSetup(
                         new ReportInterpretationController(service, mock(ReportUploadStagingService.class)))
                 .build();

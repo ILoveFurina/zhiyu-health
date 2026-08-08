@@ -60,45 +60,10 @@
       <view a:if="{{item.summary}}" class="record-summary">{{item.summary}}</view>
       <view class="record-meta">
         <text a:if="{{item.pageMeta}}">{{item.pageMeta}} · </text>
-        <text>{{item.conversation_id ? '查看会话中的解读' : '查看详情'}} ›</text>
+        <text>查看详情 ›</text>
       </view>
       <!-- 列表摘要为 AI 产出，免责声明随卡挂载（硬约束） -->
       <ai-disclaimer a:if="{{item.summary}}" />
-    </view>
-  </view>
-
-  <!-- 无关联会话记录的页内详情（结构化解读卡片与会话内同款） -->
-  <view a:if="{{detail}}" class="detail-mask" onTap="closeDetail">
-    <view class="detail" catchTap="noop">
-      <view class="detail-head">
-        <view class="detail-title">解读详情</view>
-        <view class="detail-close" onTap="closeDetail">×</view>
-      </view>
-      <scroll-view scroll-y class="detail-body">
-        <view class="report-summary">{{detail.result.summary}}</view>
-        <view a:for="{{detail.result.items}}" a:for-item="finding" a:key="index" class="finding">
-          <view class="finding-head">
-            <view a:if="{{finding.priority === 'red'}}" class="priority-label priority-red">尽快咨询（非急救）</view>
-            <view a:elif="{{finding.priority === 'yellow'}}" class="priority-label priority-yellow">重点关注</view>
-            <view a:elif="{{finding.priority === 'blue'}}" class="priority-label priority-blue">日常观察</view>
-            <view a:else class="priority-label priority-green">范围内</view>
-            <text class="finding-name">{{finding.name}}</text>
-            <text class="finding-value">{{finding.value}} {{finding.unit}}</text>
-          </view>
-          <view class="finding-ref">参考范围：{{finding.reference_range}} · 第 {{finding.page}} 页</view>
-          <view class="finding-text">{{finding.explanation}}</view>
-          <view class="finding-action">建议：{{finding.action}}</view>
-        </view>
-        <view a:if="{{detail.result.actions.length}}" class="report-section">
-          <view class="report-section-title">下一步建议</view>
-          <view a:for="{{detail.result.actions}}" a:key="index" class="report-line">• {{item}}</view>
-        </view>
-        <view a:if="{{detail.result.unreadable.length}}" class="unreadable">
-          <view class="report-section-title">未能可靠识别</view>
-          <view a:for="{{detail.result.unreadable}}" a:key="index" class="report-line">• {{item}}</view>
-        </view>
-        <ai-disclaimer text="{{detail.disclaimer}}" />
-      </scroll-view>
     </view>
   </view>
 </view>

@@ -228,6 +228,25 @@ def test_voice_contract_skeleton_is_loaded() -> None:
     assert "语音功能暂不可用" in voice.degrade_hint
 
 
+def test_health_observations_contract_is_loaded() -> None:
+    # 票 61（ADR-0031）：九项白名单指标契约登记，server-py 只负责加载与 fail-fast，
+    # 确定性映射全在 server-java。
+    contract = get_contracts().health_observations
+    assert set(contract.value_types.values()) == {"NUMERIC", "CATEGORICAL"}
+    assert len(contract.metrics) == 9
+    assert "HEIGHT" in contract.metrics
+    assert "RH_D_BLOOD_TYPE" in contract.metrics
+    assert contract.source_types["report_ai"] == "REPORT_AI"
+    assert set(contract.verification_statuses.values()) >= {
+        "UNVERIFIED",
+        "USER_CONFIRMED",
+        "REJECTED",
+        "SUPERSEDED",
+    }
+    assert set(contract.patient_decisions.values()) == {"CONFIRM", "CORRECT", "REJECT"}
+    assert "UNMAPPED" in contract.item_states.values()
+
+
 def test_missing_contracts_dir_fails_fast(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="跨栈契约加载失败"):
         _load(tmp_path / "missing")

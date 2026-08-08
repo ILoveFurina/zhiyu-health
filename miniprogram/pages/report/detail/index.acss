@@ -1,0 +1,138 @@
+/* 报告解读详情页（票 61）：样式模式复制自 report/health 页，统一消费 app.acss 设计 token */
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
+
+.card {
+  margin-bottom: var(--zy-space-sm);
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+.section { margin-top: var(--zy-space-lg); }
+.section-title { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.state { padding: 80rpx 0; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+/* 头部 */
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--zy-space-sm); }
+.head-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.record-status { padding: 4rpx 16rpx; border-radius: 999rpx; font-size: 20rpx; white-space: nowrap; }
+.status-succeeded { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
+.status-processing { background: #fdf3e3; color: #d48806; }
+.status-failed { background: #fff0ef; color: #b5443d; }
+.head-meta { margin-top: var(--zy-space-xs); color: var(--zy-text-weak); font-size: 22rpx; }
+.conv-entry { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid #f0f0f0; color: var(--zy-color-primary); font-size: 24rpx; }
+
+/* 概要与逐项指标（结构化卡片字段与 chat 会话内同款） */
+.report-summary { color: var(--zy-text-title); font-size: 26rpx; line-height: 1.55; }
+.finding-head { display: flex; align-items: center; }
+.priority-label {
+  margin-right: 10rpx;
+  padding: 3rpx 8rpx;
+  border-radius: 8rpx;
+  color: #fff;
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+.priority-red { background: #c2414b; }
+.priority-yellow { background: #c58422; }
+.priority-blue { background: #4389d8; }
+.priority-green { background: #368c5d; }
+.finding-name { flex: 1; color: var(--zy-text-title); font-size: 25rpx; font-weight: 600; }
+.finding-value { color: var(--zy-text-title); font-size: 24rpx; }
+.finding-ref { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 20rpx; }
+.state-badge {
+  display: inline-block;
+  margin-top: var(--zy-space-xs);
+  padding: 3rpx 12rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+}
+.state-DEPOSITED_UNVERIFIED { background: #fdf3e3; color: #c58422; }
+.state-DEPOSITED_REJECTED,
+.state-CONFLICT_SKIPPED,
+.state-DUPLICATE_SLOT,
+.state-NO_DATE,
+.state-UNMAPPED { background: #f2f4f4; color: var(--zy-text-secondary); }
+.finding-text, .finding-action, .report-line {
+  margin-top: var(--zy-space-xs);
+  color: var(--zy-text-secondary);
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+.finding-action { color: var(--zy-color-primary); }
+.report-section-title { color: var(--zy-text-title); font-size: 24rpx; font-weight: 600; }
+.unreadable {
+  margin-top: var(--zy-space-sm);
+  padding: 14rpx 16rpx;
+  border-radius: 14rpx;
+  background: #fff7e8;
+}
+
+/* 沉淀观测核验操作 */
+.obs-ops { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid #f0f0f0; }
+.obs-op-row { display: flex; gap: var(--zy-space-sm); }
+.obs-op-row + .obs-op-row { margin-top: var(--zy-space-xs); }
+.op-btn {
+  flex: 1;
+  padding: 12rpx 0;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  text-align: center;
+}
+.op-confirm { background: var(--zy-color-primary); color: #fff; }
+.op-correct { border: 1rpx solid var(--zy-color-primary); color: var(--zy-color-primary); }
+.op-reject { border: 1rpx solid #c85d5d; color: #c85d5d; }
+
+/* 纠错输入弹层（自绘，风格同 report 页 detail-mask） */
+.dialog-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dialog {
+  width: 620rpx;
+  box-sizing: border-box;
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+}
+.dialog-title { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
+.dialog-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--zy-space-sm);
+  color: var(--zy-text-secondary);
+  font-size: 24rpx;
+}
+.dialog-row text:last-child { color: var(--zy-text-title); }
+.dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 80rpx;
+  margin-top: var(--zy-space-sm);
+  padding: 20rpx 22rpx;
+  border: 1rpx solid #d9e8e4;
+  border-radius: 18rpx;
+  background: #fbfdfc;
+  font-size: 26rpx;
+}
+.dialog-picker { display: flex; justify-content: space-between; color: var(--zy-text-title); }
+.dialog-actions { margin-top: var(--zy-space-md); display: flex; gap: var(--zy-space-sm); }
+.dialog-cancel, .dialog-submit {
+  flex: 1;
+  padding: 18rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  text-align: center;
+}
+.dialog-cancel { border: 1rpx solid var(--zy-text-weak); color: var(--zy-text-secondary); }
+.dialog-submit { background: var(--zy-color-primary); color: #fff; }

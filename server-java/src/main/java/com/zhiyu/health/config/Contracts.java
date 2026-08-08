@@ -42,6 +42,7 @@ public class Contracts {
     private final OnlineConsultation onlineConsultation;
     private final DoctorPhotoLimits doctorPhotoLimits;
     private final ConsultationPhotoLimits consultationPhotoLimits;
+    private final HealthObservations healthObservations;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -75,6 +76,7 @@ public class Contracts {
         this.doctorPhotoLimits = read(mapper, dir, "doctor-photo-limits.json", DoctorPhotoLimits.class);
         this.consultationPhotoLimits =
                 read(mapper, dir, "consultation-photo-limits.json", ConsultationPhotoLimits.class);
+        this.healthObservations = read(mapper, dir, "health-observations.json", HealthObservations.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -123,6 +125,11 @@ public class Contracts {
 
     public ConsultationPhotoLimits consultationPhotoLimits() {
         return consultationPhotoLimits;
+    }
+
+    /** 报告驱动健康观测（票 61，ADR-0031）：九项白名单指标、血压组合项拆分、来源/核验/沉淀状态与文案。 */
+    public HealthObservations healthObservations() {
+        return healthObservations;
     }
 
     public ChatDefaults chatDefaults() {
@@ -673,5 +680,113 @@ public class Contracts {
 
         /** 随访关怀站内消息（票 60）：COMPLETED 时同事务 eager 生成，visible_at 延迟 delayDays 天可见。 */
         public record FollowUp(String messageType, String title, String content, int delayDays) {}
+    }
+
+    /**
+     * 报告驱动健康观测（票 61，ADR-0031）：九项白名单指标（别名/值类型/规范单位/单位别名/血型分类）、
+     * 血压组合项拆分规则、来源类型、核验状态、患者决定与报告项沉淀状态及中文文案。
+     * LLM/server-py 绝不输出 metric_code，只有 server-java 按本契约做确定性映射并写业务库。
+     */
+    public record HealthObservations(
+            Map<String, String> valueTypes,
+            Map<String, Metric> metrics,
+            BloodPressurePair bloodPressurePair,
+            Map<String, String> sourceTypes,
+            Map<String, String> sourceDisplayZh,
+            Map<String, String> verificationStatuses,
+            Map<String, String> verificationDisplayZh,
+            Map<String, String> patientDecisions,
+            Map<String, String> itemStates,
+            Map<String, String> itemStateDisplayZh) {
+        public HealthObservations {
+            valueTypes = Map.copyOf(valueTypes);
+            // Map.copyOf 不保迭代顺序；指标声明顺序即概要/趋势展示顺序，必须用 LinkedHashMap 保序
+            metrics = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(metrics));
+            sourceTypes = Map.copyOf(sourceTypes);
+            sourceDisplayZh = Map.copyOf(sourceDisplayZh);
+            verificationStatuses = Map.copyOf(verificationStatuses);
+            verificationDisplayZh = Map.copyOf(verificationDisplayZh);
+            patientDecisions = Map.copyOf(patientDecisions);
+            // item_states 含 _doc 说明性字段：Map 组件会把说明键一并载入，消费前剔除
+            itemStates = itemStates.entrySet().stream()
+                    .filter(entry -> !entry.getKey().startsWith("_"))
+                    .collect(java.util.stream.Collectors.collectingAndThen(
+                            java.util.stream.Collectors.toMap(
+                                    Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, java.util.LinkedHashMap::new),
+                            java.util.Collections::unmodifiableMap));
+            itemStateDisplayZh = Map.copyOf(itemStateDisplayZh);
+        }
+
+        /** 白名单指标代码，按契约声明顺序（概要与趋势的固定展示顺序）。 */
+        public List<String> metricCodes() {
+            return List.copyOf(metrics.keySet());
+        }
+
+        public String numericValueType() {
+            return valueTypes.get("numeric");
+        }
+
+        public String categoricalValueType() {
+            return valueTypes.get("categorical");
+        }
+
+        public String reportAiSource() {
+            return sourceTypes.get("report_ai");
+        }
+
+        public String userCorrectionSource() {
+            return sourceTypes.get("user_correction");
+        }
+
+        public String unverifiedStatus() {
+            return verificationStatuses.get("unverified");
+        }
+
+        public String userConfirmedStatus() {
+            return verificationStatuses.get("user_confirmed");
+        }
+
+        public String rejectedStatus() {
+            return verificationStatuses.get("rejected");
+        }
+
+        public String supersededStatus() {
+            return verificationStatuses.get("superseded");
+        }
+
+        /** 单项指标：分类指标（血型）无 canonical_unit/unit_aliases，缺省字段归一为空容器。 */
+        public record Metric(
+                String nameZh,
+                String valueType,
+                String canonicalUnit,
+                List<String> aliases,
+                Map<String, String> unitAliases,
+                boolean allowUnitMissing,
+                List<String> categories,
+                Map<String, String> categoryDisplayZh,
+                Map<String, String> categoryAliases) {
+            public Metric {
+                aliases = aliases == null ? List.of() : List.copyOf(aliases);
+                unitAliases = unitAliases == null ? Map.of() : Map.copyOf(unitAliases);
+                categories = categories == null ? List.of() : List.copyOf(categories);
+                categoryDisplayZh = categoryDisplayZh == null ? Map.of() : Map.copyOf(categoryDisplayZh);
+                categoryAliases = categoryAliases == null ? Map.of() : Map.copyOf(categoryAliases);
+            }
+        }
+
+        /** 血压组合项（如“血压 120/80 mmHg”）：值匹配 value_pattern 才拆成收缩压/舒张压两条观测。 */
+        public record BloodPressurePair(
+                List<String> aliases,
+                String valuePattern,
+                String systolicCode,
+                String diastolicCode,
+                String canonicalUnit,
+                Map<String, String> unitAliases,
+                boolean allowUnitMissing) {
+            public BloodPressurePair {
+                aliases = List.copyOf(aliases);
+                unitAliases = Map.copyOf(unitAliases);
+            }
+        }
     }
 }

@@ -183,6 +183,22 @@ class OnlineConsultationContract(BaseModel):
     summary_event_field: str
 
 
+class HealthObservationsContract(BaseModel):
+    """报告驱动健康观测白名单（票 61，ADR-0031）：九项指标、值类型与状态枚举。
+
+    确定性映射与业务写入全在 server-java；server-py 登记本契约只为保证文件损坏时
+    fail-fast 且结构双栈同步。按既有契约模型约定忽略 _doc/_note 等说明性字段
+    （pydantic 默认 ignore extra）。
+    """
+
+    value_types: dict[str, str]
+    metrics: dict[str, dict[str, Any]]
+    source_types: dict[str, str]
+    verification_statuses: dict[str, str]
+    patient_decisions: dict[str, str]
+    item_states: dict[str, str]
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -198,6 +214,7 @@ class Contracts(BaseModel):
     knowledge: KnowledgeContract
     emotion: EmotionContract
     voice: VoiceContract
+    health_observations: HealthObservationsContract
 
 
 def _contracts_dir() -> Path:
@@ -254,6 +271,9 @@ def _load(dir_path: Path) -> Contracts:
             knowledge=KnowledgeContract.model_validate(_read_json(dir_path, "knowledge.json")),
             emotion=EmotionContract.model_validate(_read_json(dir_path, "emotion.json")),
             voice=VoiceContract.model_validate(_read_json(dir_path, "voice.json")),
+            health_observations=HealthObservationsContract.model_validate(
+                _read_json(dir_path, "health-observations.json")
+            ),
         )
     except ValidationError as exc:
         raise RuntimeError(f"跨栈契约结构校验失败（需双栈同步检查 contracts/）: {exc}") from exc

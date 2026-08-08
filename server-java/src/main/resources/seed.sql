@@ -161,6 +161,43 @@ INSERT INTO health_profile_allergies (health_profile_id, allergen) VALUES
     (1, '青霉素')
 ON CONFLICT (health_profile_id, allergen) DO NOTHING;
 
+-- 林小满历史体检报告解读与健康观测（票 61）：两条日期更早、内容完全虚构的 SUCCEEDED
+-- 报告解读，与黄金样例报告（scripts/assets/report-samples/，2026-08-06）形成三点演示趋势。
+-- 观测全部由报告确定性映射产生（source_type=REPORT_AI、UNVERIFIED、current=TRUE），
+-- report_interpretation_id 非空，不用无来源观测偷造趋势；数值合理且不构成疾病诊断。
+INSERT INTO report_interpretations (id, patient_id, health_profile_id, conversation_id, request_id,
+    file_type, file_name, page_count, status, result_json, context_summary, error_code, disclaimer) VALUES
+    (1, 1, 1, NULL, 'seed-report-lin-20260218', 'image', '演示体检报告-20260218.png', 1, 'SUCCEEDED',
+     '{"summary":"本次体检各项受检指标均在参考范围内，血压、空腹血糖与总胆固醇未见明显异常。","sample_or_exam_date":"2026-02-18","report_date":"2026-02-20","items":[{"name":"身高","value":"165","unit":"cm","reference_range":"无","priority":"green","explanation":"身高为体格测量基础项。","action":"无需特殊处理。","page":1},{"name":"体重","value":"58.5","unit":"kg","reference_range":"无","priority":"green","explanation":"体重处于常见范围。","action":"保持均衡饮食。","page":1},{"name":"BMI","value":"21.5","unit":"kg/m2","reference_range":"18.5-24.0","priority":"green","explanation":"体质指数在参考范围内。","action":"保持现有生活方式。","page":1},{"name":"血压","value":"118/76","unit":"mmHg","reference_range":"90-140/60-90","priority":"green","explanation":"血压在参考范围内。","action":"定期监测即可。","page":1},{"name":"空腹血糖","value":"5.1","unit":"mmol/L","reference_range":"3.9-6.1","priority":"green","explanation":"空腹血糖在参考范围内。","action":"保持规律饮食。","page":1},{"name":"总胆固醇","value":"4.2","unit":"mmol/L","reference_range":"2.8-5.2","priority":"green","explanation":"总胆固醇在参考范围内。","action":"保持适量运动。","page":1},{"name":"丙氨酸氨基转移酶","value":"18","unit":"U/L","reference_range":"7-40","priority":"green","explanation":"肝功能指标在参考范围内。","action":"无需特殊处理。","page":1}],"actions":["保持规律作息与适量运动，建议每年复查一次。"],"unreadable":[]}',
+     '2026-02-18 体检：身高 165cm、体重 58.5kg、血压 118/76mmHg、空腹血糖 5.1mmol/L、总胆固醇 4.2mmol/L，均在参考范围内。',
+     NULL, '仅供参考，不替代医生诊断'),
+    (2, 1, 1, NULL, 'seed-report-lin-20260520', 'image', '演示体检报告-20260520.png', 1, 'SUCCEEDED',
+     '{"summary":"本次体检各项受检指标均在参考范围内，血压较上次略有波动但仍在正常范围，血型为 A 型 Rh 阳性。","sample_or_exam_date":"2026-05-20","report_date":"2026-05-22","items":[{"name":"身高","value":"165","unit":"cm","reference_range":"无","priority":"green","explanation":"身高为体格测量基础项。","action":"无需特殊处理。","page":1},{"name":"体重","value":"57.8","unit":"kg","reference_range":"无","priority":"green","explanation":"体重处于常见范围。","action":"保持均衡饮食。","page":1},{"name":"BMI","value":"21.2","unit":"kg/m2","reference_range":"18.5-24.0","priority":"green","explanation":"体质指数在参考范围内。","action":"保持现有生活方式。","page":1},{"name":"血压","value":"122/78","unit":"mmHg","reference_range":"90-140/60-90","priority":"green","explanation":"血压在参考范围内。","action":"定期监测即可。","page":1},{"name":"空腹血糖","value":"5.3","unit":"mmol/L","reference_range":"3.9-6.1","priority":"green","explanation":"空腹血糖在参考范围内。","action":"保持规律饮食。","page":1},{"name":"总胆固醇","value":"4.5","unit":"mmol/L","reference_range":"2.8-5.2","priority":"green","explanation":"总胆固醇在参考范围内。","action":"保持适量运动。","page":1},{"name":"ABO血型","value":"A","unit":"","reference_range":"无","priority":"green","explanation":"ABO 血型为 A 型。","action":"知晓即可。","page":1},{"name":"Rh血型","value":"阳性","unit":"","reference_range":"无","priority":"green","explanation":"Rh 血型为阳性。","action":"知晓即可。","page":1}],"actions":["保持规律作息与适量运动，建议每年复查一次。"],"unreadable":[]}',
+     '2026-05-20 体检：体重 57.8kg、血压 122/78mmHg、空腹血糖 5.3mmol/L、总胆固醇 4.5mmol/L，均在参考范围内；血型 A 型 Rh 阳性。',
+     NULL, '仅供参考，不替代医生诊断')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO health_observations (id, health_profile_id, report_interpretation_id, metric_code,
+    value_numeric, value_category, unit, reference_range, observed_on,
+    source_type, verification_status, current, supersedes_id) VALUES
+    (1, 1, 1, 'HEIGHT', 165, NULL, 'cm', NULL, '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (2, 1, 1, 'WEIGHT', 58.5, NULL, 'kg', NULL, '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (3, 1, 1, 'BMI', 21.5, NULL, 'kg/m²', '18.5-24.0', '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (4, 1, 1, 'SYSTOLIC_BP', 118, NULL, 'mmHg', '90-140', '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (5, 1, 1, 'DIASTOLIC_BP', 76, NULL, 'mmHg', '60-90', '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (6, 1, 1, 'FASTING_GLUCOSE', 5.1, NULL, 'mmol/L', '3.9-6.1', '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (7, 1, 1, 'TOTAL_CHOLESTEROL', 4.2, NULL, 'mmol/L', '2.8-5.2', '2026-02-18', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (8, 1, 2, 'HEIGHT', 165, NULL, 'cm', NULL, '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (9, 1, 2, 'WEIGHT', 57.8, NULL, 'kg', NULL, '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (10, 1, 2, 'BMI', 21.2, NULL, 'kg/m²', '18.5-24.0', '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (11, 1, 2, 'SYSTOLIC_BP', 122, NULL, 'mmHg', '90-140', '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (12, 1, 2, 'DIASTOLIC_BP', 78, NULL, 'mmHg', '60-90', '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (13, 1, 2, 'FASTING_GLUCOSE', 5.3, NULL, 'mmol/L', '3.9-6.1', '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (14, 1, 2, 'TOTAL_CHOLESTEROL', 4.5, NULL, 'mmol/L', '2.8-5.2', '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (15, 1, 2, 'ABO_BLOOD_TYPE', NULL, 'A', NULL, NULL, '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL),
+    (16, 1, 2, 'RH_D_BLOOD_TYPE', NULL, 'POSITIVE', NULL, NULL, '2026-05-20', 'REPORT_AI', 'UNVERIFIED', TRUE, NULL)
+ON CONFLICT (id) DO NOTHING;
+
 -- 排班（票 25/49）：用 CURRENT_DATE + interval 'N day' 动态生成今天起连续 14 天排班，
 -- 保证任意演示日当天起仍有完整 14 天号源可挂。显式 id + ON CONFLICT DO NOTHING 保证幂等：
 -- 重置 TRUNCATE schedules 后再执行本段可重新插入；已存在则跳过。
@@ -321,6 +358,8 @@ SELECT setval('medications_id_seq', (SELECT MAX(id) FROM medications));
 SELECT setval('patients_id_seq', (SELECT COALESCE(MAX(id), 1) FROM patients));
 SELECT setval('health_profiles_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_profiles));
 SELECT setval('health_profile_allergies_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_profile_allergies));
+SELECT setval('report_interpretations_id_seq', (SELECT COALESCE(MAX(id), 1) FROM report_interpretations));
+SELECT setval('health_observations_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_observations));
 SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));
 SELECT setval('prescription_templates_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_templates));

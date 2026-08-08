@@ -1,0 +1,98 @@
+<view class="page">
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+
+  <block a:elif="{{detail}}">
+    <!-- 头部：文件名/报告日期/状态 + 查看原会话入口 -->
+    <view class="card">
+      <view class="head-row">
+        <view class="head-name">{{detail.file_name || '报告解读'}}</view>
+        <view class="record-status status-{{detail.statusClass}}">{{detail.statusLabel}}</view>
+      </view>
+      <view class="head-meta">
+        <text a:if="{{detail.dateLabel}}">报告日期：{{detail.dateLabel}}</text>
+        <text a:if="{{detail.page_count}}"> · 共 {{detail.page_count}} 页</text>
+      </view>
+      <view a:if="{{detail.conversation_id}}" class="conv-entry" onTap="openConversation">查看原会话 ›</view>
+    </view>
+
+    <view a:if="{{detail.summary}}" class="card">
+      <view class="section-title">总体概要</view>
+      <view class="report-summary">{{detail.summary}}</view>
+    </view>
+
+    <!-- 逐项指标：priority 徽标 + 沉淀/核验状态徽标 + 确认/纠错/排除操作 -->
+    <view a:if="{{detail.items.length}}" class="section">
+      <view class="section-title">逐项指标</view>
+      <view
+        a:for="{{detail.items}}"
+        a:for-index="itemIndex"
+        a:key="index"
+        class="card finding"
+      >
+        <view class="finding-head">
+          <view class="priority-label priority-{{item.priorityClass}}">{{item.priorityLabel}}</view>
+          <text class="finding-name">{{item.name}}</text>
+          <text class="finding-value">{{item.value}} {{item.unit}}</text>
+        </view>
+        <view class="finding-ref">
+          参考范围：{{item.reference_range || '—'}}<text a:if="{{item.page}}"> · 第 {{item.page}} 页</text>
+        </view>
+        <view a:if="{{item.item_state_label}}" class="state-badge state-{{item.item_state}}">{{item.item_state_label}}</view>
+        <view a:if="{{item.explanation}}" class="finding-text">{{item.explanation}}</view>
+        <view a:if="{{item.action}}" class="finding-action">建议：{{item.action}}</view>
+        <!-- UNVERIFIED：确认+纠错+排除；CONFIRMED：纠错+排除；按 observation_id 逐个操作 -->
+        <view a:if="{{item.hasOps}}" class="obs-ops">
+          <view a:for="{{item.obsList}}" a:for-item="obs" a:key="id" class="obs-op-row">
+            <view a:if="{{item.canConfirm}}" class="op-btn op-confirm" data-id="{{obs.id}}" onTap="confirmObservation">确认</view>
+            <view class="op-btn op-correct" data-id="{{obs.id}}" data-item-index="{{itemIndex}}" onTap="openCorrect">纠错</view>
+            <view class="op-btn op-reject" data-id="{{obs.id}}" onTap="rejectObservation">排除</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view a:if="{{detail.actions.length}}" class="card report-section">
+      <view class="report-section-title">下一步建议</view>
+      <view a:for="{{detail.actions}}" a:key="index" class="report-line">• {{item}}</view>
+    </view>
+
+    <view a:if="{{detail.unreadable.length}}" class="unreadable">
+      <view class="report-section-title">未能可靠识别</view>
+      <view a:for="{{detail.unreadable}}" a:key="index" class="report-line">• {{item}}</view>
+    </view>
+
+    <ai-disclaimer text="{{detail.disclaimer}}" />
+  </block>
+
+  <view a:elif="{{!detail}}" class="state">报告详情加载失败</view>
+
+  <!-- 纠错输入弹层：指标名/单位固定展示，仅新值可编辑；血型类为分类 picker -->
+  <view a:if="{{correctDialog}}" class="dialog-mask" onTap="closeCorrect">
+    <view class="dialog" catchTap="noop">
+      <view class="dialog-title">纠正指标值</view>
+      <view class="dialog-row"><text>指标</text><text>{{correctDialog.name}}</text></view>
+      <view class="dialog-row"><text>当前值</text><text>{{correctDialog.value}}</text></view>
+      <view a:if="{{correctDialog.unit}}" class="dialog-row"><text>单位</text><text>{{correctDialog.unit}}</text></view>
+      <input
+        a:if="{{correctDialog.mode === 'input'}}"
+        class="dialog-input"
+        placeholder="输入新值"
+        value="{{correctDialog.input}}"
+        onInput="onCorrectInput"
+      />
+      <picker
+        a:else
+        mode="selector"
+        range="{{correctDialog.options}}"
+        value="{{correctDialog.pickerIndex}}"
+        onChange="onCorrectPickerChange"
+      >
+        <view class="dialog-input dialog-picker">新值：{{correctDialog.options[correctDialog.pickerIndex]}} ›</view>
+      </picker>
+      <view class="dialog-actions">
+        <view class="dialog-cancel" onTap="closeCorrect">取消</view>
+        <view class="dialog-submit" onTap="submitCorrect">保存</view>
+      </view>
+    </view>
+  </view>
+</view>

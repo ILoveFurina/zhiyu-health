@@ -32,7 +32,7 @@
   </view>
 
   <view a:if="{{profiles.length}}" class="section">
-    <view class="section-title">选择服务对象</view>
+    <view class="section-title">当前服务对象</view>
     <scroll-view class="profile-strip" scroll-x>
       <view class="profile-row">
         <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}}" data-id="{{item.id}}" onTap="switchProfile">
@@ -46,17 +46,18 @@
     </scroll-view>
   </view>
 
-  <view a:if="{{activeProfile}}" class="card profile-card">
-    <view class="section-title">基础资料</view>
-    <view class="info-row"><text>姓名</text><text>{{activeProfile.display_name}}</text></view>
-    <view class="info-row"><text>性别</text><text>{{activeProfile.gender}}</text></view>
-    <view class="info-row"><text>出生日期</text><text>{{activeProfile.birth_date}}</text></view>
-    <view class="info-row"><text>关系</text><text>{{activeProfile.relationship}}</text></view>
-  </view>
-
+  <!-- 重要健康信息：血型等分类指标最新值 + 过敏史 chips（增删保持现功能） -->
   <view a:if="{{activeProfile}}" class="card">
-    <view class="section-title">过敏史</view>
+    <view class="section-title">重要健康信息</view>
     <view class="safe-note">用于确定性用药禁忌检查；信息不完整时系统不会声称已完成个性化检查。</view>
+    <view a:for="{{categorical}}" a:key="metric_code" class="info-row">
+      <text>{{item.name_zh}}</text>
+      <view class="cat-value">
+        <text>{{item.display_value}}</text>
+        <text a:if="{{item.verification_label}}" class="verify-badge">{{item.verification_label}}</text>
+      </view>
+    </view>
+    <view class="sub-label">过敏史</view>
     <view class="chips">
       <view a:for="{{activeProfile.allergies}}" a:key="*this" class="chip danger" data-value="{{item}}" onTap="removeExistingAllergy">{{item}} ×</view>
       <view a:if="{{activeProfile.allergies.length === 0}}" class="empty-inline">暂未填写</view>
@@ -65,6 +66,66 @@
       <input class="allergy-input" placeholder="新增药品或成分" value="{{existingAllergyInput}}" onInput="onExistingAllergyInput" />
       <view class="small-button" onTap="addExistingAllergy">添加</view>
     </view>
+  </view>
+
+  <!-- 健康指标：仅渲染有数据的数值指标；有血型行或指标卡时固定挂免责声明 -->
+  <view a:if="{{activeProfile && (metrics.length || categorical.length)}}" class="section">
+    <view a:if="{{metrics.length}}" class="section-title">健康指标</view>
+    <view a:for="{{metrics}}" a:key="metric_code" class="card metric-card" data-code="{{item.metric_code}}" data-index="{{index}}" onTap="toggleMetric">
+      <view class="metric-head">
+        <text class="metric-name">{{item.name_zh}}</text>
+        <text a:if="{{item.latest.verification_label}}" class="verify-badge">{{item.latest.verification_label}}</text>
+      </view>
+      <view class="metric-value">{{item.latest.value}} <text class="metric-unit">{{item.unit}}</text></view>
+      <view class="metric-date">{{item.latest.observed_on}}</view>
+      <canvas a:if="{{item.showTrend}}" type="2d" id="trend-{{index}}" class="trend-canvas" />
+      <view a:if="{{expandedMetric && expandedMetric.code === item.metric_code}}" class="obs-list">
+        <view a:if="{{expandedMetric.loading}}" class="empty-inline">正在加载…</view>
+        <view a:elif="{{expandedMetric.error}}" class="empty-inline">加载失败，请稍后重试</view>
+        <block a:else>
+          <view a:if="{{expandedMetric.items.length === 0}}" class="empty-inline">暂无有效观测记录</view>
+          <view a:for="{{expandedMetric.items}}" a:for-item="obs" a:key="id" class="obs-row">
+            <view class="obs-main">
+              <text class="obs-value">{{obs.displayValue}}</text>
+              <text a:if="{{obs.reference_range}}" class="obs-ref">参考 {{obs.reference_range}}</text>
+            </view>
+            <view class="obs-side">
+              <text a:if="{{obs.verification_label}}" class="verify-badge">{{obs.verification_label}}</text>
+              <text class="obs-date">{{obs.observed_on}}</text>
+            </view>
+          </view>
+          <ai-disclaimer a:if="{{expandedMetric.items.length}}" text="{{expandedMetric.disclaimer}}" />
+        </block>
+      </view>
+      <view class="metric-more">{{expandedMetric && expandedMetric.code === item.metric_code ? '收起' : '查看历次记录'}} ›</view>
+    </view>
+    <ai-disclaimer text="{{metricsDisclaimer}}" />
+  </view>
+
+  <!-- 无指标且无血型数据：行动卡引导上传报告生成健康概要 -->
+  <view
+    a:if="{{activeProfile && overviewLoaded && metrics.length === 0 && categorical.length === 0}}"
+    class="card upload-cta"
+    onTap="goUploadReport"
+  >
+    <view class="cta-title">上传体检报告，生成健康概要</view>
+    <view class="cta-sub">AI 提取报告指标并沉淀到健康档案 ›</view>
+  </view>
+
+  <!-- 最近报告：报告日期取 exam_date → report_date → created_at；卡底部为上传入口 -->
+  <view a:if="{{activeProfile && overviewLoaded}}" class="card">
+    <view class="section-title">最近报告</view>
+    <view a:if="{{recentReports.length === 0}}" class="empty-inline">暂无报告</view>
+    <view a:for="{{recentReports}}" a:key="id" class="report-item" data-id="{{item.id}}" onTap="openReportDetail">
+      <view class="report-item-head">
+        <text class="report-name">{{item.file_name}}</text>
+        <text class="report-date">{{item.dateLabel}}</text>
+      </view>
+      <view a:if="{{item.summary}}" class="report-summary-line">{{item.summary}}</view>
+      <view a:if="{{item.attention_count > 0}}" class="attention">需关注 {{item.attention_count}} 项</view>
+    </view>
+    <ai-disclaimer a:if="{{hasReportSummary}}" text="{{metricsDisclaimer}}" />
+    <view class="upload-entry" onTap="goUploadReport">上传体检报告 ›</view>
   </view>
 
   <view a:if="{{activeProfile}}" class="section">

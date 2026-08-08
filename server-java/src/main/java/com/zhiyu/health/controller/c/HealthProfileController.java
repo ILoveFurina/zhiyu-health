@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -69,6 +70,20 @@ public class HealthProfileController {
     public List<HealthProfileService.TimelineView> timeline(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long profileId) {
         return service.timeline(patientId, profileId);
+    }
+
+    @GetMapping("/{profileId}/overview")
+    public HealthProfileService.OverviewView overview(
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId, @PathVariable long profileId) {
+        return service.overview(patientId, profileId);
+    }
+
+    @GetMapping("/{profileId}/observations")
+    public HealthProfileService.MetricObservationsView observations(
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId,
+            @PathVariable long profileId,
+            @RequestParam("metric_code") String metricCode) {
+        return service.metricObservations(patientId, profileId, metricCode);
     }
 
     @PutMapping("/{profileId}/allergies")

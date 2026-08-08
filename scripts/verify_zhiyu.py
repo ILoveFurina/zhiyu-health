@@ -37,12 +37,12 @@ cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHER
 print("   ", cols)
 assert "campus_id" in cols and "hospital_id" not in cols, "department_categories 形状不符合院区化约定"
 
-print("== 2. 票55 三张新表存在")
-t54 = ["preconsultation_drafts", "online_consultations", "online_consultation_messages"]
+print("== 2. 票55/票61 新表存在")
+t54 = ["preconsultation_drafts", "online_consultations", "online_consultation_messages", "health_observations"]
 tables = [r[0] for r in q("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")]
 for t in t54:
     print(f"   {t}: {'OK' if t in tables else 'MISSING'}")
-    assert t in tables, f"缺票55表 {t}"
+    assert t in tables, f"缺新表 {t}"
 
 print("== 2b. 票56 双外键二选一形状（prescriptions/consultation_records）")
 for t in ["prescriptions", "consultation_records"]:
@@ -73,9 +73,17 @@ n = q("SELECT count(*) FROM schedules")[0][0]
 print(f"   schedules: {n}")
 assert n == 420, f"schedules 应为 420，实际 {n}"
 
+print("== 5b. 票61 seed 基线（林小满两条历史报告解读 + 16 条健康观测）")
+for t, expected in [("report_interpretations", 2), ("health_observations", 16)]:
+    n = q(f'SELECT count(*) FROM "{t}"')[0][0]
+    print(f"   {t}: {n}")
+    assert n == expected, f"{t} 应为 {expected}，实际 {n}"
+
 print("== 6. 序列与 MAX(id) 对齐（setval 生效）")
 for t, seq in [("hospitals", "hospitals_id_seq"), ("doctors", "doctors_id_seq"),
                ("patients", "patients_id_seq"), ("knowledge_chunks", "knowledge_chunks_id_seq"),
+               ("report_interpretations", "report_interpretations_id_seq"),
+               ("health_observations", "health_observations_id_seq"),
                ("schedules", "schedules_id_seq")]:
     mx = q(f'SELECT MAX(id) FROM "{t}"')[0][0] or 0
     nxt = q(f"SELECT last_value FROM {seq}")[0][0]
