@@ -479,4 +479,46 @@ class ContractsTest {
         assertThat(emotion.isKnown("angry")).isFalse();
         assertThat(emotion.isKnown(null)).isFalse();
     }
+
+    @Test
+    void scheduleRequestFlowContractIsLoaded() {
+        // 排班申请审核流：状态机/决定/操作类型/时段窗口/可排天数上限/号源上限来自契约单一事实源
+        Contracts.ScheduleRequestFlow flow = contracts.scheduleRequestFlow();
+        assertThat(flow.statuses())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("pending", "PENDING", "approved", "APPROVED", "rejected", "REJECTED"));
+        assertThat(flow.statusLabels())
+                .containsEntry("PENDING", "待审核")
+                .containsEntry("APPROVED", "已通过")
+                .containsEntry("REJECTED", "已驳回");
+        assertThat(flow.decisions())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("approve", "APPROVE", "reject", "REJECT"));
+        // 操作类型：CREATE 新增 / MODIFY 调整号源 / DISABLE 停诊
+        assertThat(flow.actions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("create", "CREATE", "modify", "MODIFY", "disable", "DISABLE"));
+        assertThat(flow.actionLabels())
+                .containsEntry("CREATE", "新增排班")
+                .containsEntry("MODIFY", "调整号源")
+                .containsEntry("DISABLE", "停诊");
+        // 时段去掉晚上，只保留上午/下午
+        assertThat(flow.timeSlots())
+                .hasSize(2)
+                .containsEntry("morning", "上午")
+                .containsEntry("afternoon", "下午")
+                .doesNotContainKey("evening");
+        // 时段窗口：上午 09:00-11:30，下午 14:00-18:00（挂号截止校验的单一事实源）
+        Contracts.ScheduleRequestFlow.TimeSlotWindow morning =
+                flow.timeSlotWindows().get("上午");
+        assertThat(morning.start()).isEqualTo("09:00");
+        assertThat(morning.end()).isEqualTo("11:30");
+        Contracts.ScheduleRequestFlow.TimeSlotWindow afternoon =
+                flow.timeSlotWindows().get("下午");
+        assertThat(afternoon.start()).isEqualTo("14:00");
+        assertThat(afternoon.end()).isEqualTo("18:00");
+        // 可排班天数上限是双栈共享约束，server-java 校验与 admin 前端日期范围均读此值
+        assertThat(flow.maxDaysAhead()).isEqualTo(14);
+        assertThat(flow.maxTotalSlots()).isEqualTo(50);
+        assertThat(flow.reviewReasonMaxLength()).isEqualTo(500);
+    }
 }
