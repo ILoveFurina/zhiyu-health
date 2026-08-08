@@ -1,10 +1,11 @@
 """跨栈契约基座测试：加载仓库根 contracts/（与 server-java 共享同一 JSON），核对关键值。"""
 
+import json
 from pathlib import Path
 
 import pytest
 
-from app.core.contracts import _load, get_contracts
+from app.core.contracts import _contracts_dir, _load, get_contracts
 
 
 def test_disclaimer_matches_authoritative_text() -> None:
@@ -50,11 +51,16 @@ def test_guided_registration_contract_is_loaded() -> None:
     assert guided.card_event == "department_slots"
     assert guided.card_statuses == ["ok", "failed"]
     assert guided.retry_request_field == "retry_standard_department_id"
-    assert set(guided.summary_templates) == {"ok", "empty", "failed"}
+    assert set(guided.summary_templates) == {"ok", "empty", "failed", "recommendation"}
     assert "{department}" in guided.summary_templates["ok"]
     assert "{earliest_date}" in guided.summary_templates["ok"]
     assert "{earliest_slot}" in guided.summary_templates["ok"]
     assert "{doctor_count}" in guided.summary_templates["ok"]
+    # 票 60：推荐理由子句，拼接到 ok 摘要末尾，无擅长时整句省略
+    recommendation = guided.summary_templates["recommendation"]
+    assert "{doctor_name}" in recommendation
+    assert "{doctor_title}" in recommendation
+    assert "{doctor_specialty}" in recommendation
     assert guided.time_slot_labels == {"AM": "上午", "PM": "下午"}
     assert guided.retry_user_text == "重新查询号源"
 
@@ -138,6 +144,19 @@ def test_prescription_flow_values_are_loaded() -> None:
     }
     assert flow.decisions == {"approve": "APPROVE", "reject": "REJECT"}
     assert flow.message_types["consultation_summary"] == "CONSULTATION_SUMMARY"
+    # 票 60：审核结果站内消息类型（消息由 server-java 写入，server-py 只钉值防漂移）
+    assert flow.message_types["prescription_review_result"] == "PRESCRIPTION_REVIEW_RESULT"
+
+
+def test_online_consultation_follow_up_is_pinned() -> None:
+    # 票 60：随访段由 server-java 消费（COMPLETED 同事务 eager 生成），server-py 不加载该字段，
+    # 直接钉 JSON 原值防双栈漂移
+    data = json.loads((_contracts_dir() / "online-consultation.json").read_text("utf-8"))
+    follow_up = data["follow_up"]
+    assert follow_up["message_type"] == "ONLINE_CONSULTATION_FOLLOW_UP"
+    assert follow_up["title"] == "随访关怀"
+    assert follow_up["content"]
+    assert follow_up["delay_days"] == 3
 
 
 def test_payment_flow_values_are_loaded() -> None:

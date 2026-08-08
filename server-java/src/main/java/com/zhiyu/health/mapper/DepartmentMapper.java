@@ -47,7 +47,7 @@ public interface DepartmentMapper extends BaseMapper<Department> {
      */
     @Select(
             """
-            SELECT d.id AS doctor_id, d.name AS doctor_name, d.title, d.registration_fee,
+            SELECT d.id AS doctor_id, d.name AS doctor_name, d.title, d.specialty, d.registration_fee,
                    h.id AS hospital_id, h.name AS hospital_name,
                    c.id AS campus_id, c.name AS campus_name, c.address AS campus_address,
                    CASE WHEN #{latitude,jdbcType=DOUBLE} IS NULL THEN NULL
@@ -89,6 +89,7 @@ public interface DepartmentMapper extends BaseMapper<Department> {
             long doctorId,
             String doctorName,
             String title,
+            String specialty,
             BigDecimal registrationFee,
             long hospitalId,
             String hospitalName,

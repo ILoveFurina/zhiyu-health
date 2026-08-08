@@ -157,6 +157,17 @@
   line-height: 1.6;
 }
 
+/* 完成态处方出口（票 60）：样式对齐处方页订单入口链接 */
+.prescription-link {
+  margin-top: var(--zy-space-sm);
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 25rpx;
+  text-align: center;
+}
+
 /* ===== 消息流 ===== */
 .thread {
   flex: 1;

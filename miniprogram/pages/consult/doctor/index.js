@@ -15,8 +15,18 @@ const {
 } = require('../../../utils/consultation')
 const { isAsrEnabled, recognizeSpeech } = require('../../../utils/voice')
 const { apiBaseUrl } = require('../../../utils/config')
+const { listPrescriptions } = require('../../../services/patient-care')
+// 别名避免与 utils/consultation 的 STATUSES（问诊单状态）重名
+const { SOURCE_TYPES, STATUSES: PRESCRIPTION_STATUSES } = require('../../../utils/prescription')
 
 const CONSENT_KEY = 'consult_photo_consent_v1'
+
+// 票 60：完成态处方出口文案，按本单处方审核状态分流；找不到本单处方（医生未开方）不展示出口
+const PRESCRIPTION_LINK_TEXTS = {
+  [PRESCRIPTION_STATUSES.pending]: '处方审核中，点击查看',
+  [PRESCRIPTION_STATUSES.approved]: '查看电子处方，去购药 ›',
+  [PRESCRIPTION_STATUSES.rejected]: '处方未通过，查看详情 ›',
+}
 
 const POLL_INTERVAL = 3000
 
@@ -67,6 +77,8 @@ Page({
     // 票 59：医生头像加载失败降级姓氏文字圆
     avatarFailed: false,
     anchorId: '',
+    // 票 60：完成态处方出口文案（空串=未开方/未查到，不渲染出口）
+    prescriptionLink: '',
   },
 
   _timer: null,
@@ -161,9 +173,27 @@ Page({
       isVideo,
       videoElapsed: isVideo ? elapsedText(consultation.method_started_at) : '',
     })
+    // 票 60：完成态拉一次本单处方出口；每次 onShow 重新拉取，审核状态可能已推进
+    if (completed) this.loadPrescriptionLink()
     // 完成/终态后不再轮询（状态与消息均不再变化）
     if (!inProgress) this.stopPolling()
   },
+
+  /** 本单处方出口（票 60）：按 source_type + source_id 匹配本问诊单，状态决定文案。 */
+  loadPrescriptionLink() {
+    listPrescriptions()
+      .then((prescriptions) => {
+        const mine = (prescriptions || []).find((prescription) =>
+          prescription.source_type === SOURCE_TYPES.online_consultation &&
+          String(prescription.source_id) === String(this.data.id))
+        this.setData({
+          prescriptionLink: mine ? PRESCRIPTION_LINK_TEXTS[mine.status] || '' : '',
+        })
+      })
+      .catch(() => {})
+  },
+
+  openPrescription() { my.navigateTo({ url: '/pages/prescriptions/index' }) },
 
   /** 增量拉取消息：after_id 取本地最后一条 id，返回升序直接追加。 */
   loadMessages() {

@@ -1,28 +1,43 @@
 <view class="page">
   <view class="orders-link" onTap="openOrders">查看我的药品订单 ›</view>
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{prescriptions.length === 0}}" class="state">暂无已审核通过的电子处方</view>
+  <view a:elif="{{prescriptions.length === 0}}" class="state">暂无电子处方</view>
   <view a:for="{{prescriptions}}" a:key="id" class="card">
-    <view class="title">电子处方 #{{item.id}}</view>
+    <view class="title-row">
+      <view class="title">电子处方 #{{item.id}}</view>
+      <text class="status-tag {{item.is_approved ? 'status-approved' : item.is_pending ? 'status-pending' : 'status-rejected'}}">{{item.status_label}}</text>
+    </view>
     <view class="meta">{{item.department_name}} · {{item.doctor_name}}医生 · {{item.date}}<text a:if="{{item.source_label}}" class="source-tag">{{item.source_label}}</text></view>
     <view a:for="{{item.items}}" a:for-item="drug" a:key="name" class="drug">
       <view class="drug-name">{{drug.name}} {{drug.specification}}</view>
       <view>{{drug.dosage}} · {{drug.frequency}} · {{drug.duration}}</view>
       <view a:if="{{drug.notes}}">备注：{{drug.notes}}</view>
-      <view class="quantity-row">
+      <view a:if="{{item.is_approved}}" class="quantity-row">
         <text>购买数量</text>
         <input class="quantity" type="number" min="1" value="{{drug.quantity}}"
           data-prescription-id="{{item.id}}" data-medication-id="{{drug.medication_id}}"
           onInput="changeQuantity" />
       </view>
     </view>
-    <view class="interpretation-title">通俗解读</view>
-    <view class="interpretation">{{item.interpretation}}</view>
-    <ai-disclaimer text="{{item.disclaimer}}" />
-    <view class="pharmacy">智愈安心药房 · 下单将立即预扣库存</view>
-    <button class="order" data-id="{{item.id}}" loading="{{orderingId === item.id}}"
-      disabled="{{orderingId === item.id}}" onTap="order">
-      立即购药
-    </button>
+    <!-- 票 60：按审核状态分支。解读/免责声明/购药仅已通过渲染（服务端也只对 APPROVED 下发） -->
+    <block a:if="{{item.is_approved}}">
+      <view class="interpretation-title">通俗解读</view>
+      <view class="interpretation">{{item.interpretation}}</view>
+      <ai-disclaimer text="{{item.disclaimer}}" />
+      <view class="pharmacy">智愈安心药房 · 下单将立即预扣库存</view>
+      <button class="order" data-id="{{item.id}}" loading="{{orderingId === item.id}}"
+        disabled="{{orderingId === item.id}}" onTap="order">
+        立即购药
+      </button>
+    </block>
+    <view a:elif="{{item.is_pending}}" class="pending-hint">处方审核中，审核通过后可在线购药</view>
+    <block a:elif="{{item.is_rejected}}">
+      <view class="reject-reason">驳回原因：{{item.review_reason}}</view>
+      <view class="reject-hint">如需用药，请重新发起在线问诊或预约挂号，由医生重新诊疗开方。</view>
+      <view class="reject-actions">
+        <view class="reject-btn" onTap="goConsult">在线问诊</view>
+        <view class="reject-btn" onTap="goBooking">预约挂号</view>
+      </view>
+    </block>
   </view>
 </view>

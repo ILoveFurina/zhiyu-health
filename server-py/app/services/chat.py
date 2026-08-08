@@ -67,23 +67,37 @@ def _build_slots_summary(payload: dict[str, Any]) -> str:
 
     ok：最早可约取所有 bookable 医生 earliest_bookable 的最小值，doctor_count 为
     bookable 医生数；无 bookable 医生（全部无号）用 empty 模板。
+    票 60：摘要末尾确定性拼接最早可约医生的推荐子句（recommendation 模板），
+    该医生无 specialty（缺失或空串）时整句省略，摘要保持原状。
     """
     guided = _GUIDED
     department = payload.get("standard_department")
     name = department.get("name", "") if isinstance(department, dict) else ""
     doctors = [d for d in payload.get("doctors", []) if isinstance(d, dict)]
     bookable = [d for d in doctors if d.get("bookable")]
-    earliest_pool = [d["earliest_bookable"] for d in bookable if isinstance(d.get("earliest_bookable"), dict)]
+    earliest_pool = [d for d in bookable if isinstance(d.get("earliest_bookable"), dict)]
     if not bookable or not earliest_pool:
         return guided.summary_templates["empty"].format(department=name)
-    earliest = min(earliest_pool, key=lambda e: _earliest_key(guided, e))
+    # doctor_id 做同时间点稳定 tie-break，避免列表顺序决定推荐医生
+    earliest_doctor = min(
+        earliest_pool, key=lambda d: (_earliest_key(guided, d["earliest_bookable"]), d.get("doctor_id") or 0)
+    )
+    earliest = earliest_doctor["earliest_bookable"]
     slot = earliest.get("time_slot", "")
-    return guided.summary_templates["ok"].format(
+    summary = guided.summary_templates["ok"].format(
         department=name,
         earliest_date=earliest.get("date", ""),
         earliest_slot=guided.time_slot_labels.get(slot, slot),
         doctor_count=len(bookable),
     )
+    specialty = earliest_doctor.get("specialty")
+    if specialty:
+        summary += guided.summary_templates["recommendation"].format(
+            doctor_name=earliest_doctor.get("doctor_name", ""),
+            doctor_title=earliest_doctor.get("title", ""),
+            doctor_specialty=specialty,
+        )
+    return summary
 
 
 class AgentChatService:

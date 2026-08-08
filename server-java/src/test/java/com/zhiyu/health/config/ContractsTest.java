@@ -147,8 +147,14 @@ class ContractsTest {
         assertThat(guided.cardEvent()).isEqualTo("department_slots");
         assertThat(guided.cardStatuses()).containsExactly("ok", "failed");
         assertThat(guided.retryRequestField()).isEqualTo("retry_standard_department_id");
-        assertThat(guided.summaryTemplates().keySet()).containsExactlyInAnyOrder("ok", "empty", "failed");
+        assertThat(guided.summaryTemplates().keySet())
+                .containsExactlyInAnyOrder("ok", "empty", "failed", "recommendation");
         assertThat(guided.summaryTemplates().get("ok")).contains("{department}");
+        // 票 60：推荐理由子句由 server-py 拼接到 ok 摘要末尾，占位符钉死
+        assertThat(guided.summaryTemplates().get("recommendation"))
+                .contains("{doctor_name}")
+                .contains("{doctor_title}")
+                .contains("{doctor_specialty}");
         assertThat(guided.timeSlotLabels()).containsEntry("AM", "上午").containsEntry("PM", "下午");
         assertThat(guided.retryUserText()).isEqualTo("重新查询号源");
         // 卡事件名必须与 sse-events 的 card_events/message_kinds 同源一致
@@ -210,6 +216,12 @@ class ContractsTest {
         assertThat(consultation.summaryFieldLabels().keySet())
                 .containsExactlyInAnyOrderElementsOf(consultation.summaryFields());
         assertThat(consultation.summaryEventField()).isEqualTo("preconsultation_summary");
+        // 票 60：随访关怀段钉死——COMPLETED 同事务 eager 生成，visible_at 延迟 delayDays 天可见
+        Contracts.OnlineConsultation.FollowUp followUp = consultation.followUp();
+        assertThat(followUp.messageType()).isEqualTo("ONLINE_CONSULTATION_FOLLOW_UP");
+        assertThat(followUp.title()).isEqualTo("随访关怀");
+        assertThat(followUp.content()).isNotBlank();
+        assertThat(followUp.delayDays()).isEqualTo(3);
         // 预问诊场景值必须同步登记在 chat-defaults scenarios 与 knowledge 默认映射
         assertThat(contracts.chatDefaults().scenarios()).contains(consultation.scenario());
         assertThat(contracts.knowledge().defaultByScenario()).containsKey(consultation.scenario());
@@ -302,7 +314,7 @@ class ContractsTest {
                 .containsEntry("pay", "PAY")
                 .containsEntry("cancel", "CANCEL")
                 .containsEntry("complete", "COMPLETE");
-        assertThat(flow.messageTypes()).containsEntry("order_status", "DRUG_ORDER_STATUS");
+        // 票 60：message_types(DRUG_ORDER_STATUS) 与 created/cancelled 文案从未接线，已从契约删除
         assertThat(flow.messages()).containsEntry("stock_insufficient", "药品库存不足，下单失败");
     }
 

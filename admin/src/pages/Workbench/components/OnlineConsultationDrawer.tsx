@@ -23,10 +23,13 @@ import {
   type ConsultationMessage,
   type ConsultMethod,
 } from '@/services/consultation';
+import { prescriptionStatuses } from '@/contracts/prescription';
 import {
   checkOnlinePrescriptionSafety,
   createOnlinePrescription,
   fetchMedications,
+  fetchOnlineConsultationPrescription,
+  type ConsultationPrescription,
   type Medication,
   type PrescriptionInput,
 } from '@/services/prescription';
@@ -63,6 +66,20 @@ const statusTagColor = (status?: string) => {
   }
 };
 
+// 处方审核状态 Tag 配色，跟随 Ant Design 惯例：待审核金 / 已通过绿 / 已驳回红
+const prescriptionTagColor = (status?: string) => {
+  switch (status) {
+    case prescriptionStatuses.pending:
+      return 'gold';
+    case prescriptionStatuses.approved:
+      return 'green';
+    case prescriptionStatuses.rejected:
+      return 'red';
+    default:
+      return 'default';
+  }
+};
+
 export default function OnlineConsultationDrawer({ consultationId, open, onClose, onChanged }: Props) {
   const { message } = App.useApp();
   const [form] = Form.useForm<{ diagnosis: string; advice: string }>();
@@ -77,11 +94,15 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
   const [medications, setMedications] = useState<Medication[]>([]);
   const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
   const [prescriptionCreated, setPrescriptionCreated] = useState(false);
+  const [prescription, setPrescription] = useState<ConsultationPrescription | null>(null);
   const lastIdRef = useRef(0);
   const medicationsLoadedRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const inProgress = detail?.status === consultationStatuses.in_progress;
+  // 已开方：接口返回有处方，或本地刚提交成功（一问诊一处方）
+  const hasPrescription = prescription != null || prescriptionCreated;
+  const prescriptionRejected = prescription?.status === prescriptionStatuses.rejected;
   // 消息仅对已绑定医生可见（服务端 requireBoundToDoctor）：待接诊单未接受时打开抽屉
   // 若拉消息会 404"问诊单不存在"并被全局 errorHandler 弹窗；接受后 inProgress 翻转触发重拉
   const canViewMessages = detail != null
@@ -94,11 +115,22 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     setMessages([]);
     setDraft('');
     setPrescriptionCreated(false);
+    setPrescription(null);
     form.resetFields();
     lastIdRef.current = 0;
     setLoading(true);
     fetchDetail(consultationId)
-      .then((res) => setDetail(res.consultation))
+      .then((res) => {
+        setDetail(res.consultation);
+        // 处方审核状态随抽屉打开拉取；处方只可能在接诊后产生，待接诊单不拉取，
+        // 避免与消息接口同因（未绑定医生 404 被全局 errorHandler 弹窗）；无处方为正常态
+        const s = res.consultation.status;
+        if (s === consultationStatuses.in_progress || s === consultationStatuses.completed) {
+          fetchOnlineConsultationPrescription(consultationId)
+            .then((r) => setPrescription(r.prescription))
+            .catch(() => {});
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
     // 药品可选列表与问诊无关，只拉一次；用 ref 避免把 medications 写进依赖造成详情重拉
@@ -399,8 +431,24 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
             {inProgress && (
               <>
                 <Divider orientation="left" style={{ margin: 0 }}>开具处方</Divider>
-                {prescriptionCreated ? (
-                  <Alert type="success" showIcon message="电子处方已提交，等待管理员审核；问诊可独立完成，不等待审核结果" />
+                {hasPrescription ? (
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space>
+                      <Typography.Text>处方审核状态：</Typography.Text>
+                      <Tag color={prescriptionTagColor(prescription?.status ?? prescriptionStatuses.pending)}>
+                        {prescription?.status_label ?? '审核中'}
+                      </Tag>
+                    </Space>
+                    {/* 驳回即终态，不提供编辑/重提入口；仅展示驳回原因供医生知悉 */}
+                    {prescriptionRejected && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message="处方已被驳回"
+                        description={prescription?.review_reason || '未填写驳回原因'}
+                      />
+                    )}
+                  </Space>
                 ) : (
                   <PrescriptionForm
                     checkSafety={(ids) => checkOnlinePrescriptionSafety(detail.id, ids)}
@@ -436,6 +484,19 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                 <Descriptions.Item label="诊断结论">{detail.diagnosis}</Descriptions.Item>
                 <Descriptions.Item label="医嘱">{detail.advice}</Descriptions.Item>
                 <Descriptions.Item label="完成时间">{formatDateTime(detail.completed_at)}</Descriptions.Item>
+                {/* 处方审核结果（票 60 A4）：无处方不渲染；驳回附原因 */}
+                {prescription && (
+                  <Descriptions.Item label="处方审核">
+                    <Space direction="vertical" size={4}>
+                      <Tag color={prescriptionTagColor(prescription.status)}>{prescription.status_label}</Tag>
+                      {prescription.status === prescriptionStatuses.rejected && (
+                        <Typography.Text type="danger">
+                          驳回原因：{prescription.review_reason || '未填写驳回原因'}
+                        </Typography.Text>
+                      )}
+                    </Space>
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             )}
           </Space>

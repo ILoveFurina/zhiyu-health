@@ -8,6 +8,7 @@ import {
 } from '@/contracts/prescription';
 
 type PrescriptionStatus = (typeof prescriptionStatusLabels)[keyof typeof prescriptionStatusLabels];
+export type PrescriptionStatusCode = (typeof prescriptionStatuses)[keyof typeof prescriptionStatuses];
 
 export interface Medication {
   id: number;
@@ -91,6 +92,21 @@ export const checkOnlinePrescriptionSafety = (onlineConsultationId: number, medi
   request<SafetyCheckResult>(`/api/b/reception/online-consultations/${onlineConsultationId}/contraindication-check`, {
     method: 'POST', data: { medication_ids: medicationIds },
   });
+
+// 问诊关联处方的审核状态（票 60 A4）：状态码为契约枚举，标签以接口下发 status_label 为准；
+// 无处方时 prescription 为 null，属正常态
+export interface ConsultationPrescription {
+  id: number;
+  status: PrescriptionStatusCode;
+  status_label: string;
+  review_reason: string | null;
+}
+
+export const fetchOnlineConsultationPrescription = (onlineConsultationId: number) =>
+  request<{ prescription: ConsultationPrescription | null }>(
+    // 接诊台命名空间（/api/b/reception/**）：AdminInterceptor 豁免，接诊医生可达
+    `/api/b/reception/online-consultations/${onlineConsultationId}/prescription`,
+  );
 
 export const fetchPendingPrescriptions = () =>
   request<Prescription[]>('/api/b/prescriptions', { params: { status: prescriptionStatuses.pending } });

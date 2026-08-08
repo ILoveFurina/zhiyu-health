@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -224,6 +225,26 @@ class OnlineConsultationControllerTest {
                         .contentType("application/json")
                         .content("{\"diagnosis\":\"急性上呼吸道感染\",\"advice\":\"清淡饮食\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void prescriptionLookupReturnsCardOrNull() throws Exception {
+        // 票 60 接诊抽屉：有处方返回状态/标签/驳回原因，无处方 prescription 为 null（两态 200）
+        when(consultations.prescriptionForConsultation(8L, 21L))
+                .thenReturn(
+                        new OnlineConsultationService.ConsultationPrescriptionView(31L, "REJECTED", "已驳回", "用法用量需调整"));
+        mockMvc.perform(get("/api/b/reception/online-consultations/21/prescription")
+                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prescription.id").value(31))
+                .andExpect(jsonPath("$.prescription.status").value("REJECTED"))
+                .andExpect(jsonPath("$.prescription.status_label").value("已驳回"))
+                .andExpect(jsonPath("$.prescription.review_reason").value("用法用量需调整"));
+        when(consultations.prescriptionForConsultation(8L, 22L)).thenReturn(null);
+        mockMvc.perform(get("/api/b/reception/online-consultations/22/prescription")
+                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prescription").value(nullValue()));
     }
 
     private OnlineConsultationService.DoctorListItem poolItem() {

@@ -26,16 +26,38 @@ class PatientCareControllerTest {
     private PatientCareService service;
 
     @Test
-    void patientReadsOnlyServiceFilteredApprovedPrescriptionsAndMessages() throws Exception {
-        // service 查询层已显式限定 APPROVED：这里钉住出口形状，在线来源处方带 source_type（票 56）。
+    void patientReadsAllStatusPrescriptionsAndMessages() throws Exception {
+        // 票 60：出口含全状态处方，钉住 status/status_label/review_reason/source_id 形状（票 56 的 source_type 保留）。
         String onlineSource =
                 TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation");
-        when(service.approvedPrescriptions(7L))
+        when(service.prescriptions(7L))
                 .thenReturn(List.of(
                         new PatientCareService.PatientPrescriptionView(
-                                31L, "APPOINTMENT", "林知远", "心血管内科", "2026-07-29", "按医嘱服用。", "仅供参考，不替代医生诊断", List.of()),
+                                31L,
+                                "APPOINTMENT",
+                                "APPROVED",
+                                "已通过",
+                                null,
+                                21L,
+                                "林知远",
+                                "心血管内科",
+                                "2026-07-29",
+                                "按医嘱服用。",
+                                "仅供参考，不替代医生诊断",
+                                List.of()),
                         new PatientCareService.PatientPrescriptionView(
-                                32L, onlineSource, "周安宁", "呼吸内科", "2026-07-30", "足疗程服用。", "仅供参考，不替代医生诊断", List.of())));
+                                32L,
+                                onlineSource,
+                                "REJECTED",
+                                "已驳回",
+                                "用法用量需调整",
+                                55L,
+                                "周安宁",
+                                "呼吸内科",
+                                "2026-07-30",
+                                null,
+                                null,
+                                List.of())));
         when(service.messages(7L))
                 .thenReturn(List.of(new PatientCareService.MessageView(
                         41L,
@@ -49,11 +71,17 @@ class PatientCareControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].interpretation").value("按医嘱服用。"))
                 .andExpect(jsonPath("$[0].source_type").value("APPOINTMENT"))
-                .andExpect(jsonPath("$[1].source_type").value(onlineSource));
+                .andExpect(jsonPath("$[0].status").value("APPROVED"))
+                .andExpect(jsonPath("$[0].status_label").value("已通过"))
+                .andExpect(jsonPath("$[0].source_id").value(21))
+                .andExpect(jsonPath("$[1].source_type").value(onlineSource))
+                .andExpect(jsonPath("$[1].status_label").value("已驳回"))
+                .andExpect(jsonPath("$[1].review_reason").value("用法用量需调整"))
+                .andExpect(jsonPath("$[1].source_id").value(55));
         mockMvc.perform(get("/api/c/messages").with(StaffTokens.withPatientSubject("7")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("就诊小结"));
-        verify(service).approvedPrescriptions(7L);
+        verify(service).prescriptions(7L);
         verify(service).messages(7L);
     }
 }

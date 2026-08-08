@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
 import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.MedicationMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.PrescriptionMapper;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,6 +40,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     private final PrescriptionDtoMapper dtoMapper;
     private final MedCheckinService medCheckinService;
     private final ClinicalContextService clinicalContexts;
+    private final InAppMessageMapper inAppMessageMapper;
 
     public List<MedicationView> listMedications(long staffId) {
         requireDoctor(staffId);
@@ -154,18 +158,59 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         } else {
             throw new ApiException(400, "审核决定无效");
         }
-        // 条件更新保证并发审核只有一个决定生效，避免先通过后被另一请求覆盖为驳回。
-        if (prescriptionMapper.review(
-                        id, target, trimToNull(reason), reviewerId, interpretation, disclaimer, status("pending"))
-                != 1) {
-            throw new ApiException(409, "电子处方已审核");
+        // 解读生成是 HTTP 调用，保持在事务外；事务内只做状态推进 + 审核结果站内消息 + 打卡预生成，
+        // 任一失败整体回滚，不留"已审核但患者无感知"的中间态（票 60）。
+        String trimmedReason = trimToNull(reason);
+        String reviewTarget = target;
+        String reviewInterpretation = interpretation;
+        String reviewDisclaimer = disclaimer;
+        return transactionTemplate.execute(tx -> {
+            // 条件更新保证并发审核只有一个决定生效，避免先通过后被另一请求覆盖为驳回。
+            if (prescriptionMapper.review(
+                            id,
+                            reviewTarget,
+                            trimmedReason,
+                            reviewerId,
+                            reviewInterpretation,
+                            reviewDisclaimer,
+                            status("pending"))
+                    != 1) {
+                throw new ApiException(409, "电子处方已审核");
+            }
+            Prescription reviewed = prescriptionMapper.selectDetailedById(id);
+            writeReviewResultMessage(reviewed, reviewTarget);
+            // 审核通过才 eager 预生成服药打卡提醒（ADR-0017）；驳回不生成。
+            // 生成幂等由 UNIQUE(prescription_item_id, due_date) 兜底，重复审核静默吞掉。
+            if (status("approved").equals(reviewTarget)) {
+                medCheckinService.generateForApprovedPrescription(id);
+            }
+            return toView(reviewed);
+        });
+    }
+
+    /**
+     * 审核结果站内消息（票 60）：与审核状态推进同事务，type/title/content 只取 contracts。
+     * 撞 UNIQUE(related_prescription_id, type)（并发/重试越过上方条件更新的极端竞态）幂等吞掉：
+     * 消息已存在即视为投递成功，不冒 500。
+     */
+    private void writeReviewResultMessage(Prescription prescription, String target) {
+        Contracts.PrescriptionFlow.ReviewMessage copy = contracts
+                .prescriptionFlow()
+                .messages()
+                .get(status("approved").equals(target) ? "approved" : "rejected");
+        InAppMessage message = new InAppMessage();
+        message.setPatientId(prescription.getPatientId());
+        message.setType(contracts.prescriptionFlow().messageTypes().get("prescription_review_result"));
+        message.setTitle(copy.title());
+        message.setContent(copy.content());
+        // server-java 出口兜底：免责声明一律经 DisclaimerService 从契约注入，不信任上游。
+        message.setDisclaimer(disclaimers.text());
+        message.setRelatedPrescriptionId(prescription.getId());
+        try {
+            inAppMessageMapper.insert(message);
+        } catch (DuplicateKeyException e) {
+            // 见方法注释：UNIQUE 兜底并发/重试，不冒 500。
         }
-        // 审核通过才 eager 预生成服药打卡提醒（ADR-0017）；驳回不生成。
-        // 生成幂等由 UNIQUE(prescription_item_id, due_date) 兜底，重复审核静默吞掉。
-        if (status("approved").equals(target)) {
-            medCheckinService.generateForApprovedPrescription(id);
-        }
-        return toView(prescriptionMapper.selectDetailedById(id));
     }
 
     private List<ItemView> pairItems(List<CreateItem> inputs, List<Medication> medications) {

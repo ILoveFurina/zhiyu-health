@@ -21,11 +21,12 @@ public class PatientCareService {
     private final HealthProfileService healthProfiles;
     private final ClinicalContextService clinicalContexts;
 
-    public List<PatientPrescriptionView> approvedPrescriptions(long patientId) {
-        // 查询层显式限定 APPROVED，是患者可见性的最后一道确定性边界。
-        String approved = contracts.prescriptionFlow().statuses().get("approved");
+    public List<PatientPrescriptionView> prescriptions(long patientId) {
+        // 患者可见性边界（票 60）：全状态处方对患者可见，确定性边界改为「用药解读只随 APPROVED 出现」——
+        // interpretation/disclaimer 仅审核通过时落库（ck_prescriptions_patient_visibility 约束不动），
+        // 非 APPROVED 天然为 null，本层不再做状态过滤。
         long profileId = healthProfiles.requireActive(patientId).getId();
-        return prescriptionMapper.selectApprovedForProfile(patientId, profileId, approved).stream()
+        return prescriptionMapper.selectForProfile(patientId, profileId).stream()
                 .map(this::toPrescriptionView)
                 .toList();
     }
@@ -47,7 +48,15 @@ public class PatientCareService {
                 : prescription.getScheduleDate().toString();
         // 来源派生统一走临床上下文模块（数据库不落 source_type 列），取值只经契约（票 56）。
         String sourceType = clinicalContexts.sourceTypeOf(prescription);
-        return dtoMapper.toPatientPrescriptionView(prescription, sourceType, date, items);
+        String statusLabel = contracts
+                .prescriptionFlow()
+                .statusLabels()
+                .getOrDefault(prescription.getStatus(), prescription.getStatus());
+        // 来源单号供小程序问诊完成页匹配本单处方：appointment/online_consultation 两外键 XOR 必有一值（票 60）。
+        Long sourceId = prescription.getAppointmentId() != null
+                ? prescription.getAppointmentId()
+                : prescription.getOnlineConsultationId();
+        return dtoMapper.toPatientPrescriptionView(prescription, sourceType, statusLabel, sourceId, date, items);
     }
 
     public record PatientItemView(
@@ -62,6 +71,10 @@ public class PatientCareService {
     public record PatientPrescriptionView(
             Long id,
             String sourceType,
+            String status,
+            String statusLabel,
+            String reviewReason,
+            Long sourceId,
             String doctorName,
             String departmentName,
             String date,

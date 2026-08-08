@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -14,11 +16,13 @@ import static org.mockito.Mockito.when;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.Appointment;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.Medication;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.PrescriptionItem;
 import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.MedicationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.PrescriptionItemMapper;
@@ -34,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -49,6 +54,17 @@ class PrescriptionServiceTest {
     private final AgentClient agentClient = mock(AgentClient.class);
     private final ContraindicationService contraindicationService = mock(ContraindicationService.class);
     private final MedCheckinService medCheckinService = mock(MedCheckinService.class);
+    private final InAppMessageMapper inAppMessageMapper = mock(InAppMessageMapper.class);
+
+    {
+        // 测试替身直接执行事务回调，等价于真实事务模板的行为（review 的状态推进+消息写入在事务内）。
+        // 个别用例会再 stub 覆盖本打桩，再 stub 时 Mockito 会以 null 实参回放旧 answer，故对 null 容错。
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            return callback == null ? null : callback.doInTransaction(mock(TransactionStatus.class));
+        });
+    }
+
     // 临床上下文用真实模块接同一批 mapper mock：线下路径的既有打桩（receptionMapper 等）原样生效。
     private final ClinicalContextService clinicalContexts = new ClinicalContextService(
             staffUserMapper, receptionMapper, onlineConsultationMapper, TestContracts.instance());
@@ -64,12 +80,14 @@ class PrescriptionServiceTest {
             TestContracts.instance(),
             Mappers.getMapper(PrescriptionDtoMapper.class),
             medCheckinService,
-            clinicalContexts);
+            clinicalContexts,
+            inAppMessageMapper);
 
     @Test
     void approvalGeneratesExplanationThenPublishesWithJavaDisclaimer() {
         Prescription pending = prescription(31L, "PENDING");
         Prescription approved = prescription(31L, "APPROVED");
+        approved.setPatientId(12L);
         approved.setInterpretation("按医生给出的频次服用。");
         approved.setDisclaimer("仅供参考，不替代医生诊断");
         PrescriptionItem item = new PrescriptionItem();
@@ -92,6 +110,81 @@ class PrescriptionServiceTest {
         verify(agentClient).explainPrescription(anyList());
         // 审核通过必须触发服药打卡 eager 预生成（ADR-0017）。
         verify(medCheckinService).generateForApprovedPrescription(31L);
+        // 票 60：通过分支同事务写审核结果站内消息，文案只取契约
+        var copy = TestContracts.instance().prescriptionFlow().messages().get("approved");
+        ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(inAppMessageMapper).insert(message.capture());
+        assertEquals(12L, message.getValue().getPatientId());
+        assertEquals(
+                TestContracts.instance().prescriptionFlow().messageTypes().get("prescription_review_result"),
+                message.getValue().getType());
+        assertEquals(copy.title(), message.getValue().getTitle());
+        assertEquals(copy.content(), message.getValue().getContent());
+        assertEquals("仅供参考，不替代医生诊断", message.getValue().getDisclaimer());
+        assertEquals(31L, message.getValue().getRelatedPrescriptionId());
+    }
+
+    @Test
+    void rejectionWritesReviewResultMessageFromContract() {
+        // 票 60：驳回分支同样写审核结果站内消息（取 rejected 文案），但不生成打卡提醒
+        Prescription pending = prescription(31L, "PENDING");
+        Prescription rejected = prescription(31L, "REJECTED");
+        rejected.setPatientId(12L);
+        rejected.setReviewReason("用法不当");
+        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(pending, rejected);
+        when(prescriptionMapper.review(31L, "REJECTED", "用法不当", 1L, null, null, "PENDING"))
+                .thenReturn(1);
+
+        service.review(1L, 31L, "REJECT", "用法不当");
+
+        var copy = TestContracts.instance().prescriptionFlow().messages().get("rejected");
+        ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(inAppMessageMapper).insert(message.capture());
+        assertEquals(copy.title(), message.getValue().getTitle());
+        assertEquals(copy.content(), message.getValue().getContent());
+        assertEquals(31L, message.getValue().getRelatedPrescriptionId());
+        verify(medCheckinService, never()).generateForApprovedPrescription(31L);
+    }
+
+    @Test
+    void duplicateReviewKeeps409AndSkipsMessage() {
+        // 重复审核：既有的 409 语义不动，且不得重复写消息
+        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, "APPROVED"));
+
+        ApiException error = assertThrows(ApiException.class, () -> service.review(1L, 31L, "APPROVE", null));
+
+        assertEquals(409, error.getStatus());
+        verify(inAppMessageMapper, never()).insert(any(InAppMessage.class));
+        // 并发落败：条件更新 0 行同样 409、不写消息、不冒 500
+        when(prescriptionMapper.selectDetailedById(32L)).thenReturn(prescription(32L, "PENDING"));
+        when(itemMapper.selectDetailed(32L)).thenReturn(List.of());
+        when(agentClient.explainPrescription(anyList())).thenReturn(new AgentClient.ClinicalResponse("解读", "不可信文案"));
+        when(prescriptionMapper.review(anyLong(), anyString(), any(), anyLong(), any(), any(), anyString()))
+                .thenReturn(0);
+
+        ApiException conflict = assertThrows(ApiException.class, () -> service.review(1L, 32L, "APPROVE", null));
+
+        assertEquals(409, conflict.getStatus());
+        verify(inAppMessageMapper, never()).insert(any(InAppMessage.class));
+    }
+
+    @Test
+    void reviewMessageUniqueCollisionIsSwallowedAsDelivered() {
+        // 票 60：消息 insert 撞 UNIQUE(related_prescription_id, type)（并发/重试极端竞态）幂等吞掉，
+        // 审核结果照常返回，不冒 500
+        Prescription pending = prescription(31L, "PENDING");
+        Prescription rejected = prescription(31L, "REJECTED");
+        rejected.setPatientId(12L);
+        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(pending, rejected);
+        when(prescriptionMapper.review(31L, "REJECTED", "用法不当", 1L, null, null, "PENDING"))
+                .thenReturn(1);
+        org.mockito.Mockito.doThrow(new DuplicateKeyException("uq_in_app_messages_prescription_type"))
+                .when(inAppMessageMapper)
+                .insert(any(InAppMessage.class));
+
+        PrescriptionService.PrescriptionView result = service.review(1L, 31L, "REJECT", "用法不当");
+
+        assertEquals("已驳回", result.status());
     }
 
     @Test

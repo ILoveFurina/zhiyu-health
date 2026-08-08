@@ -31,6 +31,7 @@ def _slots_payload(*, bookable: bool = True) -> dict[str, Any]:
             "doctor_id": 21,
             "doctor_name": "周安宁",
             "title": "副主任医师",
+            "specialty": "白癜风、银屑病",
             "registration_fee": 25.0,
             "hospital_id": 1,
             "hospital_name": "智愈市人民医院",
@@ -49,6 +50,7 @@ def _slots_payload(*, bookable: bool = True) -> dict[str, Any]:
             "doctor_id": 22,
             "doctor_name": "林知远",
             "title": "主治医师",
+            "specialty": "湿疹、荨麻疹、痤疮",
             "registration_fee": 15.0,
             "hospital_id": 2,
             "hospital_name": "智愈市中医院",
@@ -172,9 +174,13 @@ def test_explicit_booking_triggers_forced_query_with_summary_before_card() -> No
     # Agent 流未被调用（强制查询短路）
     assert harness.agent.calls == []
     # 摘要由代码按 ok 模板拼装：科室 + 最早可约（所有 bookable 医生最小值）+ 有号医生数
+    # 票 60：末尾拼接最早可约医生（林知远）的推荐子句（recommendation 模板）
     summary = events[1]["data"]
     assert summary["role"] == "assistant"
-    assert summary["content"] == "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+    assert summary["content"] == (
+        "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+        "推荐林知远（主治医师），擅长湿疹、荨麻疹、痤疮。"
+    )
     assert summary["disclaimer"] == "仅供参考，不替代医生诊断"
     # 卡片携带 server-java 返回全体字段 + status:ok + 免责声明
     card = events[2]["data"]
@@ -195,6 +201,50 @@ def test_explicit_booking_triggers_forced_query_with_summary_before_card() -> No
         assert request.headers["X-Agent-Callback-Token"] == "shared-secret"
         assert request.url.params["longitude"] == "121.4737"
         assert request.url.params["latitude"] == "31.2304"
+
+
+def test_earliest_doctor_without_specialty_omits_recommendation_clause() -> None:
+    """票 60：最早可约医生无 specialty 字段时整句省略推荐子句，摘要保持旧全文。"""
+    payload = _slots_payload()
+    for doctor in payload["doctors"]:
+        doctor.pop("specialty", None)
+    requests: list[httpx.Request] = []
+    harness = _build_app(
+        _directory_handler(requests, slots_payload=payload),
+        triage_results=[TriageResolution(
+            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
+        )],
+    )
+
+    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
+
+    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
+    assert events[1]["data"]["content"] == "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+
+
+def test_earliest_tie_breaks_by_doctor_id() -> None:
+    """票 60：同一时间点多医生可约，推荐子句取 doctor_id 最小者（与列表顺序无关）。"""
+    payload = _slots_payload()
+    # 把 doctor_id 较大的林知远挪到列表首位并拉到同一最早时间点，
+    # 若按列表顺序取 min 会误推荐林知远，tie-break 必须推荐周安宁
+    doctors = payload["doctors"]
+    doctors.reverse()
+    for doctor in doctors:
+        doctor["earliest_bookable"] = {"date": "2026-08-08", "time_slot": "AM"}
+    requests: list[httpx.Request] = []
+    harness = _build_app(
+        _directory_handler(requests, slots_payload=payload),
+        triage_results=[TriageResolution(
+            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
+        )],
+    )
+
+    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
+
+    assert events[1]["data"]["content"] == (
+        "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+        "推荐周安宁（副主任医师），擅长白癜风、银屑病。"
+    )
 
 
 def test_multi_turn_resolved_triggers_forced_query() -> None:

@@ -73,3 +73,5 @@ zhiyu:
   demo:
     # 演示重置三重保护之一（ADR-0022）：默认关闭，未设置或 false 一律拒绝
     reset-enabled: ${DEMO_RESET_ENABLED:false}
+    # 票 60 演示开关：随访消息立即可见（跳过契约 delay_days 延迟），默认关闭
+    follow-up-visible-immediately: ${DEMO_FOLLOW_UP_VISIBLE_IMMEDIATELY:false}

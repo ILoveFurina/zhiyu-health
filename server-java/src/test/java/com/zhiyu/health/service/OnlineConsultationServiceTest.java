@@ -16,18 +16,23 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.entity.ConsultationRecord;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.PreconsultationDraft;
+import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
 import com.zhiyu.health.mapper.PreconsultationDraftMapper;
+import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestDisclaimers;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -652,6 +658,110 @@ class OnlineConsultationServiceTest {
         assertThat(detail.status()).isEqualTo("COMPLETED");
         verify(f.consultationMapper, never()).complete(anyLong(), anyLong(), anyString(), anyString());
         verify(f.consultationRecordMapper, never()).insert(any(ConsultationRecord.class));
+        // 幂等早返回分支不得重复写随访消息（票 60）
+        verify(f.inAppMessageMapper, never()).insert(any(InAppMessage.class));
+    }
+
+    // ------------------------------------------------------------------
+    // 票 60：随访消息与接诊抽屉处方
+    // ------------------------------------------------------------------
+
+    @Test
+    void completeWritesFollowUpMessageVisibleAfterContractDelay() {
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectDetailedById(21L))
+                .thenReturn(f.consultation("IN_PROGRESS"), f.consultation("COMPLETED"));
+        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
+        when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
+
+        f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
+
+        var followUp = TestContracts.instance().onlineConsultation().followUp();
+        ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(f.inAppMessageMapper).insert(message.capture());
+        assertThat(message.getValue().getPatientId()).isEqualTo(12L);
+        assertThat(message.getValue().getType()).isEqualTo(followUp.messageType());
+        assertThat(message.getValue().getTitle()).isEqualTo(followUp.title());
+        assertThat(message.getValue().getContent()).isEqualTo(followUp.content());
+        assertThat(message.getValue().getDisclaimer()).isEqualTo("仅供参考，不替代医生诊断");
+        assertThat(message.getValue().getRelatedOnlineConsultationId()).isEqualTo(21L);
+        // visible_at = 完成时间 + 契约 delay_days 天（断言窗口而非绝对时钟）
+        assertThat(message.getValue().getVisibleAt())
+                .isBetween(
+                        OffsetDateTime.now().plusDays(followUp.delayDays()).minusMinutes(1),
+                        OffsetDateTime.now().plusDays(followUp.delayDays()).plusMinutes(1));
+    }
+
+    @Test
+    void followUpVisibleImmediatelySwitchSkipsDelay() {
+        // 演示开关置 true：不设 visible_at，走 DB 默认 now() 立即可见
+        Fixture f = new Fixture();
+        ReflectionTestUtils.setField(f.service, "followUpVisibleImmediately", true);
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectDetailedById(21L))
+                .thenReturn(f.consultation("IN_PROGRESS"), f.consultation("COMPLETED"));
+        when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
+        when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
+
+        f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
+
+        ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(f.inAppMessageMapper).insert(message.capture());
+        assertThat(message.getValue().getVisibleAt()).isNull();
+    }
+
+    @Test
+    void prescriptionForConsultationReturnsCardForBoundDoctor() {
+        // 接诊抽屉：绑定医生看到本单处方的状态标签与驳回原因；无处方返回 null 而非 404
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("IN_PROGRESS"));
+        Prescription rejected = new Prescription();
+        rejected.setId(31L);
+        rejected.setOnlineConsultationId(21L);
+        rejected.setStatus("REJECTED");
+        rejected.setReviewReason("用法用量需调整");
+        when(f.prescriptionMapper.selectByOnlineConsultationId(21L)).thenReturn(rejected);
+
+        OnlineConsultationService.ConsultationPrescriptionView view = f.service.prescriptionForConsultation(8L, 21L);
+
+        assertThat(view.id()).isEqualTo(31L);
+        assertThat(view.status()).isEqualTo("REJECTED");
+        assertThat(view.statusLabel())
+                .isEqualTo(TestContracts.instance()
+                        .prescriptionFlow()
+                        .statusLabels()
+                        .get("REJECTED"));
+        assertThat(view.reviewReason()).isEqualTo("用法用量需调整");
+
+        when(f.prescriptionMapper.selectByOnlineConsultationId(21L)).thenReturn(null);
+        assertThat(f.service.prescriptionForConsultation(8L, 21L)).isNull();
+    }
+
+    @Test
+    void prescriptionForConsultationGuardsOwnershipAndAllowsAdmin() {
+        Fixture f = new Fixture();
+        // 他人绑定单对医生 404（与 detail 同一归属边界）
+        f.givenDoctor(8L, 3L);
+        OnlineConsultation otherDoctor = f.consultation("IN_PROGRESS");
+        otherDoctor.setDoctorId(88L);
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(otherDoctor);
+        assertThatThrownBy(() -> f.service.prescriptionForConsultation(8L, 21L))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
+        // 管理员可查任意单
+        StaffUser admin = new StaffUser();
+        admin.setId(1L);
+        admin.setRole(StaffUser.ROLE_ADMIN);
+        when(f.staffUserMapper.selectById(1L)).thenReturn(admin);
+        when(f.prescriptionMapper.selectByOnlineConsultationId(21L)).thenReturn(null);
+        assertThat(f.service.prescriptionForConsultation(1L, 21L)).isNull();
+        // 管理员查不存在的单 404
+        when(f.consultationMapper.selectDetailedById(99L)).thenReturn(null);
+        assertThatThrownBy(() -> f.service.prescriptionForConsultation(1L, 99L))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
     }
 
     // ------------------------------------------------------------------
@@ -665,6 +775,8 @@ class OnlineConsultationServiceTest {
         private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
         private final HealthProfileAllergyMapper allergyMapper = mock(HealthProfileAllergyMapper.class);
         private final ConsultationRecordMapper consultationRecordMapper = mock(ConsultationRecordMapper.class);
+        private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
+        private final InAppMessageMapper inAppMessageMapper = mock(InAppMessageMapper.class);
         private final OnlineConsultationService service;
 
         private Fixture() {
@@ -692,7 +804,10 @@ class OnlineConsultationServiceTest {
                     TestContracts.instance(),
                     Mappers.getMapper(OnlineConsultationDtoMapper.class),
                     minioStorage,
-                    new ObjectMapper());
+                    new ObjectMapper(),
+                    prescriptionMapper,
+                    inAppMessageMapper,
+                    TestDisclaimers.instance());
         }
 
         private final MinioStorageService minioStorage = mock(MinioStorageService.class);

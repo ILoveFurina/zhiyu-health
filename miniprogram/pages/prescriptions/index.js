@@ -1,7 +1,7 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listPrescriptions } = require('../../services/patient-care')
 const { createDrugOrder } = require('../../services/drug-orders')
-const { SOURCE_TYPES, SOURCE_TYPE_LABELS } = require('../../utils/prescription')
+const { SOURCE_TYPES, SOURCE_TYPE_LABELS, STATUSES } = require('../../utils/prescription')
 
 Page({
   data: { loading: true, prescriptions: [], orderingId: null },
@@ -16,6 +16,10 @@ Page({
           source_label: prescription.source_type === SOURCE_TYPES.online_consultation
             ? SOURCE_TYPE_LABELS.ONLINE_CONSULTATION
             : '',
+          // 票 60：列表回全部状态，状态徽标与卡内分支按布尔渲染，axml 不写魔法值
+          is_approved: prescription.status === STATUSES.approved,
+          is_pending: prescription.status === STATUSES.pending,
+          is_rejected: prescription.status === STATUSES.rejected,
           items: prescription.items.map((item) => ({ ...item, quantity: 1 })),
         })),
       }))
@@ -54,4 +58,7 @@ Page({
     this.setData({ prescriptions })
   },
   openOrders() { my.navigateTo({ url: '/pages/drug-orders/index' }) },
+  // 驳回引导出口：与首页在线问诊/预约挂号入口一致
+  goConsult() { my.navigateTo({ url: '/pages/consult/entry/index' }) },
+  goBooking() { my.navigateTo({ url: '/pages/booking/hospitals/index' }) },
 })

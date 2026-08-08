@@ -9,7 +9,9 @@ import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface InAppMessageMapper extends BaseMapper<InAppMessage> {
-    @Select("SELECT * FROM in_app_messages WHERE patient_id = #{patientId} ORDER BY created_at DESC")
+    // 随访等延迟消息 visible_at 在未来，到点才对患者可见（票 60）；即时消息默认 now() 不受影响
+    @Select(
+            "SELECT * FROM in_app_messages WHERE patient_id = #{patientId} AND visible_at <= now() ORDER BY created_at DESC")
     List<InAppMessage> selectForPatient(@Param("patientId") long patientId);
 
     @Select("SELECT * FROM in_app_messages WHERE related_appointment_id = #{appointmentId} AND type = #{type}")

@@ -43,6 +43,9 @@ public class OnlineConsultationController {
 
     public record MessageResponse(OnlineConsultationService.MessageView message) {}
 
+    public record ConsultationPrescriptionResponse(
+            OnlineConsultationService.ConsultationPrescriptionView prescription) {}
+
     /** 科室待接诊池：只看得到映射同标准科室的待接诊单。 */
     @GetMapping("/pool")
     public ConsultationListResponse pool(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
@@ -100,5 +103,12 @@ public class OnlineConsultationController {
             @Valid @RequestBody CompleteInput input,
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
         return new ConsultationResponse(consultations.complete(staffId, id, input.diagnosis(), input.advice()));
+    }
+
+    /** 接诊抽屉按问诊单查处方（票 60）：归属校验在业务层，无处方时 prescription 为 null。 */
+    @GetMapping("/{id}/prescription")
+    public ConsultationPrescriptionResponse prescription(
+            @PathVariable long id, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
+        return new ConsultationPrescriptionResponse(consultations.prescriptionForConsultation(staffId, id));
     }
 }

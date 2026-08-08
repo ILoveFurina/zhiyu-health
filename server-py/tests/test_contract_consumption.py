@@ -95,9 +95,9 @@ def test_guided_registration_consumption_matches_contract() -> None:
     # 重试字段名与契约 retry_request_field 一致
     assert guided.retry_request_field == "retry_standard_department_id"
     assert guided.retry_request_field in AgentChatRequest.model_fields
-    # 卡状态与摘要模板键齐备
+    # 卡状态与摘要模板键齐备（票 60：recommendation 为 ok 摘要的推荐理由子句）
     assert guided.card_statuses == ["ok", "failed"]
-    assert set(guided.summary_templates) == {"ok", "empty", "failed"}
+    assert set(guided.summary_templates) == {"ok", "empty", "failed", "recommendation"}
 
 
 def test_vision_error_codes_in_main_sources_match_contract() -> None:

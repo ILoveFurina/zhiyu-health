@@ -23,6 +23,18 @@
   },
   "_source_types_doc": "处方来源类型（票 56）：处方经 appointment_id 或 online_consultation_id 两个真实外键二选一关联，本枚举仅是派生展示值，数据库不落 source_type 列；线上线下处方共用同一状态机与审核决定。",
   "message_types": {
-    "consultation_summary": "CONSULTATION_SUMMARY"
-  }
+    "consultation_summary": "CONSULTATION_SUMMARY",
+    "prescription_review_result": "PRESCRIPTION_REVIEW_RESULT"
+  },
+  "messages": {
+    "approved": {
+      "title": "处方审核通过",
+      "content": "您的电子处方已审核通过，可前往「我的处方」下单购药。"
+    },
+    "rejected": {
+      "title": "处方审核未通过",
+      "content": "您的处方未通过审核。如需用药，请重新发起在线问诊或预约挂号，由医生重新诊疗开方。"
+    }
+  },
+  "_messages_doc": "处方审核结果站内消息（票 60）：审核完成由 server-java 同事务写入 in_app_messages，type=message_types.prescription_review_result，按审核决定取 approved/rejected 文案；患者向确定性文案、无占位符，重复审核按 (related_prescription_id, type) 唯一约束幂等吞掉。"
 }

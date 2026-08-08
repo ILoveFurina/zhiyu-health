@@ -256,6 +256,8 @@ class PatientMedicalDirectoryServiceTest {
 
         PatientMedicalDirectoryService.DoctorSlotCard card = view.doctors().get(0);
         assertThat(card.campusAddress()).isEqualTo("郑州市金水区健康路 88 号");
+        // 票 60：医生专长从 doctors.specialty 透出到号源卡
+        assertThat(card.specialty()).isEqualTo("擅长心血管疾病诊治");
         // 最早可约取两天中较早者：今天下午
         assertThat(card.earliestBookable().date()).isEqualTo(today.toString());
         assertThat(card.earliestBookable().timeSlot()).isEqualTo("下午");
@@ -303,6 +305,7 @@ class PatientMedicalDirectoryServiceTest {
                 doctorId,
                 "医生" + doctorId,
                 "主任医师",
+                "擅长心血管疾病诊治",
                 new BigDecimal("50.00"),
                 1L,
                 "郑州智愈综合医院",
@@ -322,6 +325,7 @@ class PatientMedicalDirectoryServiceTest {
                 doctorId,
                 "医生" + doctorId,
                 "主任医师",
+                "擅长心血管疾病诊治",
                 new BigDecimal("50.00"),
                 1L,
                 "郑州智愈综合医院",

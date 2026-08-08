@@ -392,9 +392,17 @@ CREATE TABLE IF NOT EXISTS in_app_messages (
     title VARCHAR(100) NOT NULL,
     content TEXT NOT NULL,
     disclaimer VARCHAR(100) NOT NULL,
+    -- 事件来源外键三类（挂号/处方/在线问诊）各配 UNIQUE，同一事件重投幂等吞掉
     related_appointment_id BIGINT REFERENCES appointments(id),
+    related_prescription_id BIGINT REFERENCES prescriptions(id),
+    -- online_consultations 表定义在后，外键由下方幂等 ALTER 补挂
+    related_online_consultation_id BIGINT,
+    -- 延迟可见机制：随访消息 visible_at=完成时间+延迟天数，即时消息默认 now()
+    visible_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_in_app_messages_appointment_type UNIQUE (related_appointment_id, type)
+    CONSTRAINT uq_in_app_messages_appointment_type UNIQUE (related_appointment_id, type),
+    CONSTRAINT uq_in_app_messages_prescription_type UNIQUE (related_prescription_id, type),
+    CONSTRAINT uq_in_app_messages_consultation_type UNIQUE (related_online_consultation_id, type)
 );
 
 -- Agent 调用日志（票 24）：每条工具进度事件一行，tool_start/tool_end 用 tool_call_id 配对。
@@ -575,6 +583,24 @@ CREATE INDEX IF NOT EXISTS idx_online_consultations_pool
     ON online_consultations(standard_department_id, status);
 CREATE INDEX IF NOT EXISTS idx_online_consultations_doctor ON online_consultations(doctor_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_online_consultations_draft ON online_consultations(draft_id, id DESC);
+
+-- 票 60：in_app_messages 三列变更（审核结果消息 related_prescription_id、随访 related_online_consultation_id、
+-- 延迟可见 visible_at）。CREATE TABLE IF NOT EXISTS 对旧库不会补列/约束，以下幂等 ALTER 对齐新旧库
+-- （与下方票 56 同一套路：ADD COLUMN IF NOT EXISTS + DROP CONSTRAINT IF EXISTS + ADD，新建库重放结果一致）。
+-- online_consultations 表定义在 in_app_messages 之后，其外键只能在此后置补挂。
+ALTER TABLE in_app_messages ADD COLUMN IF NOT EXISTS related_prescription_id BIGINT REFERENCES prescriptions(id);
+ALTER TABLE in_app_messages ADD COLUMN IF NOT EXISTS related_online_consultation_id BIGINT;
+ALTER TABLE in_app_messages ADD COLUMN IF NOT EXISTS visible_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE in_app_messages DROP CONSTRAINT IF EXISTS uq_in_app_messages_prescription_type;
+ALTER TABLE in_app_messages
+    ADD CONSTRAINT uq_in_app_messages_prescription_type UNIQUE (related_prescription_id, type);
+ALTER TABLE in_app_messages DROP CONSTRAINT IF EXISTS uq_in_app_messages_consultation_type;
+ALTER TABLE in_app_messages
+    ADD CONSTRAINT uq_in_app_messages_consultation_type UNIQUE (related_online_consultation_id, type);
+ALTER TABLE in_app_messages DROP CONSTRAINT IF EXISTS fk_in_app_messages_online_consultation;
+ALTER TABLE in_app_messages
+    ADD CONSTRAINT fk_in_app_messages_online_consultation
+    FOREIGN KEY (related_online_consultation_id) REFERENCES online_consultations(id);
 
 -- 票 56：处方/接诊记录来源泛化为挂号单或在线问诊二选一（两个真实外键，禁止多态列）。
 -- CREATE TABLE IF NOT EXISTS 对旧库不会补列/约束，以下幂等 ALTER 对齐新旧库
@@ -890,6 +916,9 @@ COMMENT ON COLUMN in_app_messages.title IS '消息标题';
 COMMENT ON COLUMN in_app_messages.content IS '消息正文';
 COMMENT ON COLUMN in_app_messages.disclaimer IS '免责声明（必填，硬约束 1）';
 COMMENT ON COLUMN in_app_messages.related_appointment_id IS '关联预约 ID，外键 appointments(id)';
+COMMENT ON COLUMN in_app_messages.related_prescription_id IS '关联处方 ID，外键 prescriptions(id)，与 type 联合唯一保证审核结果消息幂等';
+COMMENT ON COLUMN in_app_messages.related_online_consultation_id IS '关联在线问诊 ID，外键 online_consultations(id)，与 type 联合唯一保证随访消息幂等';
+COMMENT ON COLUMN in_app_messages.visible_at IS '可见时间：随访等延迟消息为未来时间，即时消息默认 now()';
 COMMENT ON COLUMN in_app_messages.created_at IS '记录创建时间';
 
 -- agent_call_logs Agent 调用日志
