@@ -58,6 +58,12 @@
   margin-top: var(--zy-space-sm);
   color: var(--zy-text-weak);
   font-size: 22rpx;
+  animation: zy-countdown-pulse var(--zy-motion-slow) var(--zy-ease-out) infinite alternate;
+}
+
+@keyframes zy-countdown-pulse {
+  from { opacity: 0.62; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1.02); }
 }
 
 /* ===== 终态 ===== */

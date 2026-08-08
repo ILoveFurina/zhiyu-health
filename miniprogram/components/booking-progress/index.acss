@@ -1,0 +1,45 @@
+/* 医院 → 院区 → 科室轻量步骤指示，复用在线问诊进度条的视觉语言。 */
+.booking-progress {
+  display: flex;
+  padding: var(--zy-space-sm) var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--zy-shadow-card);
+}
+
+.booking-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.booking-track { width: 100%; display: flex; align-items: center; }
+.booking-line { flex: 1; height: 3rpx; background: var(--zy-color-border); }
+.booking-line-done { background: var(--zy-color-primary); }
+.booking-line-hidden { visibility: hidden; }
+
+.booking-dot {
+  width: 34rpx;
+  height: 34rpx;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--zy-color-border);
+  color: var(--zy-text-weak);
+  font-size: 19rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.booking-dot-done,
+.booking-dot-current { background: var(--zy-color-primary); color: #fff; }
+.booking-dot-current { box-shadow: 0 0 0 7rpx var(--zy-color-primary-soft); }
+
+.booking-label {
+  margin-top: var(--zy-space-xs);
+  color: var(--zy-text-weak);
+  font-size: 20rpx;
+}
+
+.booking-label-active { color: var(--zy-color-primary); font-weight: 600; }

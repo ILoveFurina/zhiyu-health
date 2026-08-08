@@ -1,10 +1,13 @@
 <view class="page">
-  <!-- 账号信息头：mock 登录无头像字段，用昵称首字占位圆 -->
+  <!-- 账号信息头：mock 登录无头像字段，用昵称首字占位圆。 -->
   <view class="account">
+    <view class="account-orb account-orb-large"></view>
+    <view class="account-orb account-orb-small"></view>
     <view class="avatar">{{avatarChar}}</view>
     <view class="account-copy">
       <view class="nickname">{{nickname}}</view>
-      <view class="account-sub">智愈健康用户</view>
+      <view class="account-sub">智愈健康用户 · 健康服务已开启</view>
+      <view class="account-status"><text class="account-status-dot"></text>档案安全守护中</view>
     </view>
   </view>
 
@@ -21,7 +24,10 @@
         onTap="open"
       >
         <view class="row-icon zy-ico zy-ico-{{entry.icon}}"></view>
-        <view class="row-label">{{entry.label}}</view>
+        <view class="row-copy">
+          <view class="row-label">{{entry.label}}</view>
+          <view class="row-desc">{{entry.desc}}</view>
+        </view>
         <view class="row-arrow">›</view>
       </view>
     </view>

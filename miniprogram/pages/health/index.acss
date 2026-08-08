@@ -7,6 +7,11 @@
 .form-card { display: flex; flex-direction: column; gap: 18rpx; }
 .section { margin-bottom: 28rpx; }
 .section-title { margin-bottom: 18rpx; font-size: 30rpx; font-weight: 650; color: var(--zy-text-title); }
+.critical-card { border-top: 6rpx solid var(--zy-color-danger); }
+.critical-head { display: flex; align-items: center; justify-content: space-between; }
+.critical-title { margin-bottom: 0; }
+.critical-badge { padding: 4rpx 14rpx; border-radius: 999rpx; background: var(--zy-color-danger-soft); color: var(--zy-color-danger); font-size: 19rpx; }
+.critical-card .safe-note { margin-top: 18rpx; }
 .field { box-sizing: border-box; width: 100%; min-height: 80rpx; padding: 20rpx 22rpx; border: 1rpx solid var(--zy-color-primary-soft); border-radius: var(--zy-radius-sm); background: var(--zy-color-fill); font-size: 26rpx; }
 .picker-field { display: flex; justify-content: space-between; color: var(--zy-text-secondary); }
 .submit { margin-top: var(--zy-space-xs); padding: 22rpx; border-radius: var(--zy-radius-card); background: var(--zy-color-primary); color: #fff; text-align: center; font-weight: 600; }

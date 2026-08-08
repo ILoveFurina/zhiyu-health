@@ -11,24 +11,37 @@
     <view class="quick-link" onTap="openDrugOrders">我的药品订单</view>
     <view class="quick-link" onTap="openMessages">站内消息</view>
   </view>
+  <scroll-view a:if="{{allAppointments.length > 0}}" scroll-x class="filter-scroll" show-scrollbar="{{false}}">
+    <view class="filter-tabs">
+      <view
+        a:for="{{filterTabs}}"
+        a:key="key"
+        class="filter-tab {{item.key === activeFilter ? 'filter-tab-active' : ''}}"
+        data-key="{{item.key}}"
+        onTap="onFilterTap"
+      >{{item.label}}</view>
+    </view>
+  </scroll-view>
   <view a:if="{{loading}}" class="state">正在加载…</view>
   <zy-empty
-    a:elif="{{appointments.length === 0}}"
+    a:elif="{{allAppointments.length === 0}}"
     icon="ticket"
     text="暂无挂号记录"
     ctaText="去挂号"
     onCta="goBooking"
   />
+  <zy-empty a:elif="{{appointments.length === 0}}" icon="ticket" text="当前筛选下暂无挂号记录" />
 
-  <view a:for="{{appointments}}" a:key="appointment_id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
+  <view a:for="{{appointments}}" a:key="appointment_id" class="card {{item.payment_payable ? 'card-unpaid' : ''}} zy-fade-in" style="animation-delay: {{index * 40}}ms">
     <view class="head">
       <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
       <view class="status {{item.isBooked ? 'booked' : ''}} {{item.isInProgress ? 'in-progress' : ''}}">{{item.status}}</view>
     </view>
     <view class="meta">{{item.schedule_date}} {{item.time_slot}}</view>
     <view class="number">就诊序号：{{item.sequence_number}} 号</view>
-    <view a:if="{{item.registration_fee !== undefined}}" class="payment">
-      诊查费 ¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}
+    <view a:if="{{item.registration_fee !== undefined}}" class="payment {{item.payment_payable ? 'payment-unpaid' : ''}}">
+      <text>{{item.payment_payable ? '待支付诊查费' : '诊查费'}}</text>
+      <text>¥{{item.registration_fee}} · {{item.payment_status_label || '收费记录待补建'}}</text>
     </view>
     <view
       a:if="{{item.payment_payable}}"

@@ -35,6 +35,7 @@
 .columns { margin-top: var(--zy-space-sm); flex: 1; display: flex; overflow: hidden; }
 .col-left { width: 200rpx; height: 100%; }
 .cat {
+  position: relative;
   padding: var(--zy-space-sm);
   color: var(--zy-text-secondary);
   font-size: 26rpx;
@@ -47,6 +48,16 @@
   background: #fff;
   color: var(--zy-color-primary);
   font-weight: 700;
+}
+.cat-active::before {
+  content: '';
+  position: absolute;
+  top: 12rpx;
+  bottom: 12rpx;
+  left: 0;
+  width: 6rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
 }
 .col-right { flex: 1; height: 100%; padding-left: var(--zy-space-sm); box-sizing: border-box; }
 .dept {

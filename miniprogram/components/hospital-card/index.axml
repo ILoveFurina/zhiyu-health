@@ -28,5 +28,5 @@
     <view a:if="{{card.hospitals.length === 0}}" class="empty">暂时没有可推荐医院</view>
   </view>
 
-  <ai-disclaimer text="{{card.disclaimer}}" />
+  <ai-disclaimer a:if="{{showDisclaimer}}" text="{{card.disclaimer}}" />
 </view>

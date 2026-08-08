@@ -3,7 +3,7 @@ const { listProfiles, activateProfile } = require('../../services/health-profile
 const { listAppointments } = require('../../services/appointments')
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
-const { hasLocation, isSkipped, markSkipped, chooseLocation, relocate } = require('../../utils/location')
+const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
 
 // 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
 let locationPrompted = false
@@ -86,9 +86,9 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
-    // AI挂号助手主卡（票 49）：当前城市 + 最近 3 家医院 + 真实总数
+    showEntrance: true,
+    // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
     regCityName: '',
-    regHospitals: [],
     regTotal: 0,
   },
 
@@ -126,9 +126,7 @@ Page({
   /** 主卡数据失败不阻塞问候头与宫格，降级为空主卡。 */
   loadRegistrationCard() {
     return loadRegistrationSummary()
-      .then(({ cityName, hospitals, total }) =>
-        this.setData({ regCityName: cityName, regHospitals: hospitals, regTotal: total })
-      )
+      .then(({ cityName, total }) => this.setData({ regCityName: cityName, regTotal: total }))
       .catch(() => {})
   },
 
@@ -142,20 +140,17 @@ Page({
     my.switchTab({ url: '/pages/chat/index' })
   },
 
-  onHospitalTap({ hospitalId, hospitalName }) {
-    my.navigateTo({
-      url: `/pages/booking/campuses/index?hospital_id=${hospitalId}&hospital_name=${encodeURIComponent(hospitalName)}`,
-    })
-  },
-
   onMoreHospitals() {
     my.navigateTo({ url: '/pages/booking/hospitals/index' })
   },
 
-  onRelocate() {
-    relocate().then((picked) => {
-      if (picked) this.loadRegistrationCard()
-    })
+  onReady() {
+    // 首页驻留期间只播放一次；切换 tab 再返回不会重触发。
+    this._entranceTimer = setTimeout(() => this.setData({ showEntrance: false }), 560)
+  },
+
+  onUnload() {
+    clearTimeout(this._entranceTimer)
   },
 
   load() {

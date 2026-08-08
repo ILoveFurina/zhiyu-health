@@ -31,24 +31,12 @@
     <view class="submit" onTap="submitProfile">保存并设为当前档案</view>
   </view>
 
-  <view a:if="{{profiles.length}}" class="section">
-    <view class="section-title">当前服务对象</view>
-    <scroll-view class="profile-strip" scroll-x>
-      <view class="profile-row">
-        <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}} zy-fade-in" style="animation-delay: {{index * 40}}ms" data-id="{{item.id}}" onTap="switchProfile">
-          <view class="avatar">{{item.avatar}}</view>
-          <view>
-            <view class="profile-name">{{item.display_name}}</view>
-            <view class="profile-relation">{{item.relationship}}{{item.active ? ' · 当前' : ''}}</view>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
-
   <!-- 重要健康信息：血型等分类指标最新值 + 过敏史 chips（增删保持现功能） -->
-  <view a:if="{{activeProfile}}" class="card">
-    <view class="section-title">重要健康信息</view>
+  <view a:if="{{activeProfile}}" class="card critical-card">
+    <view class="critical-head">
+      <view class="section-title critical-title">重要健康信息</view>
+      <view class="critical-badge">优先查看</view>
+    </view>
     <view class="safe-note">用于确定性用药禁忌检查；信息不完整时系统不会声称已完成个性化检查。</view>
     <view a:for="{{categorical}}" a:key="metric_code" class="info-row">
       <text>{{item.name_zh}}</text>
@@ -66,6 +54,21 @@
       <input class="allergy-input" placeholder="新增药品或成分" value="{{existingAllergyInput}}" onInput="onExistingAllergyInput" />
       <view class="small-button" onTap="addExistingAllergy">添加</view>
     </view>
+  </view>
+
+  <view a:if="{{profiles.length}}" class="section">
+    <view class="section-title">当前服务对象</view>
+    <scroll-view class="profile-strip" scroll-x show-scrollbar="{{false}}">
+      <view class="profile-row">
+        <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}} zy-fade-in" style="animation-delay: {{index * 40}}ms" data-id="{{item.id}}" onTap="switchProfile">
+          <view class="avatar">{{item.avatar}}</view>
+          <view>
+            <view class="profile-name">{{item.display_name}}</view>
+            <view class="profile-relation">{{item.relationship}}{{item.active ? ' · 当前' : ''}}</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
   </view>
 
   <!-- 健康指标：仅渲染有数据的数值指标；有血型行或指标卡时固定挂免责声明 -->

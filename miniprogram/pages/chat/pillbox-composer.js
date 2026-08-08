@@ -71,6 +71,7 @@ module.exports = {
         newMessages.push({
           id: ++this._msgSeq, role: 'assistant', kind: 'text',
           content: data.hint,
+          entering: true,
         })
       }
       this.setData({
@@ -89,6 +90,7 @@ module.exports = {
       newMessages.push({
         id: ++this._msgSeq, role: 'assistant', kind: 'text',
         content: `还识别到：${drugNames.slice(1).join('、')}，可直接输入药名查看`,
+        entering: true,
       })
     }
     this.setData({

@@ -30,16 +30,22 @@
         class="card finding"
       >
         <view class="finding-head">
-          <view class="priority-label priority-{{item.priorityClass}}">{{item.priorityLabel}}</view>
-          <text class="finding-name">{{item.name}}</text>
-          <text class="finding-value">{{item.value}} {{item.unit}}</text>
-        </view>
-        <view class="finding-ref">
-          参考范围：{{item.reference_range || '—'}}<text a:if="{{item.page}}"> · 第 {{item.page}} 页</text>
+          <view class="finding-identity">
+            <text class="finding-name">{{item.name}}</text>
+            <view class="finding-ref">
+              参考范围：{{item.reference_range || '—'}}<text a:if="{{item.page}}"> · 第 {{item.page}} 页</text>
+            </view>
+          </view>
+          <view class="finding-result">
+            <text class="finding-value">{{item.value}} {{item.unit}}</text>
+            <view class="priority-label priority-{{item.priorityClass}}">{{item.priorityLabel}}</view>
+          </view>
         </view>
         <view a:if="{{item.item_state_label}}" class="state-badge state-{{item.item_state}}">{{item.item_state_label}}</view>
-        <view a:if="{{item.explanation}}" class="finding-text">{{item.explanation}}</view>
-        <view a:if="{{item.action}}" class="finding-action">建议：{{item.action}}</view>
+        <view a:if="{{item.explanation || item.action}}" class="finding-secondary">
+          <view a:if="{{item.explanation}}" class="finding-text">{{item.explanation}}</view>
+          <view a:if="{{item.action}}" class="finding-action">建议：{{item.action}}</view>
+        </view>
         <!-- UNVERIFIED：确认+纠错+排除；CONFIRMED：纠错+排除；按 observation_id 逐个操作 -->
         <view a:if="{{item.hasOps}}" class="obs-ops">
           <view a:for="{{item.obsList}}" a:for-item="obs" a:key="id" class="obs-op-row">

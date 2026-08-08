@@ -13,7 +13,7 @@ const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
 const { loadRegistrationSummary } = require('../../services/registration')
-const { relocate, getCoords } = require('../../utils/location')
+const { getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
 const { defaultSelectedDate } = require('../../utils/department-slots')
 const { createAssistantBubble, createAiBubbleState } = require('../../utils/ai-bubble-state')
@@ -32,6 +32,11 @@ const PROMPTS = [
   '为我推荐 28 天健康减肥食谱计划',
 ]
 
+function conversationTitleFor(content) {
+  const compact = String(content || '').replace(/\s+/g, ' ').trim()
+  return compact ? compact.slice(0, 16) : '智能导诊'
+}
+
 Page({
   data: {
     messages: [], // 文本、红线警告或医生/号源结构化卡片
@@ -43,6 +48,7 @@ Page({
     gearIndex: 0,
     gearLabel: GEARS[0].label,
     conversationId: null,
+    conversationTitle: '智能导诊',
     redFlag: null,
     anchorId: '',
     // 对话记录抽屉
@@ -61,9 +67,8 @@ Page({
     pillboxProgress: '',
     profileLoaded: false,
     currentProfile: null,
-    // AI挂号助手主卡（票 49，空态展示）：与首页同一组件、同一份装配 service
+    // AI挂号助手精简主卡（空态展示）：与首页同一组件、同一份装配 service
     regCityName: '',
-    regHospitals: [],
     regTotal: 0,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
     asrEnabled: isAsrEnabled(),
@@ -76,6 +81,7 @@ Page({
   },
 
   _msgSeq: 0,
+  _cardEnterSeq: 0,
   _recorder: null,
   _audioCtx: null,
 
@@ -115,9 +121,7 @@ Page({
 
   loadRegistrationCard() {
     return loadRegistrationSummary()
-      .then(({ cityName, hospitals, total }) =>
-        this.setData({ regCityName: cityName, regHospitals: hospitals, regTotal: total })
-      )
+      .then(({ cityName, total }) => this.setData({ regCityName: cityName, regTotal: total }))
       .catch(() => {})
   },
 
@@ -130,20 +134,8 @@ Page({
     this.enterTriage()
   },
 
-  onHospitalTap({ hospitalId, hospitalName }) {
-    my.navigateTo({
-      url: `/pages/booking/campuses/index?hospital_id=${hospitalId}&hospital_name=${encodeURIComponent(hospitalName)}`,
-    })
-  },
-
   onMoreHospitals() {
     my.navigateTo({ url: '/pages/booking/hospitals/index' })
-  },
-
-  onRelocate() {
-    relocate().then((picked) => {
-      if (picked) this.loadRegistrationCard()
-    })
   },
 
   // 点击对话中的图片消息全屏预览（ADR-0023 回拉链路）
@@ -154,6 +146,7 @@ Page({
   },
 
   onUnload() {
+    this.clearVoiceTimers()
     if (this._aiBubbleState) this._aiBubbleState.dispose()
     if (this._chatChannel) this._chatChannel.close()
     this.stopTts()
@@ -161,7 +154,13 @@ Page({
 
   onInput(e) {
     const value = e.detail.value
-    this.setData({ inputValue: value, canSend: value.trim().length > 0 && !this.data.sending })
+    if (this.data.voiceHint) this.clearVoiceTimers()
+    this.setData({
+      inputValue: value,
+      canSend: value.trim().length > 0 && !this.data.sending,
+      voiceHint: '',
+      voiceHintError: false,
+    })
   },
 
   cycleGear() {
@@ -180,9 +179,14 @@ Page({
 
   startRound(content, location, options) {
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content }
-    const aiMsg = createAssistantBubble(++this._msgSeq)
+    const aiMsg = { ...createAssistantBubble(++this._msgSeq), entering: true }
+    this._cardEnterSeq = 0
     this.setData({
       messages: [...this.data.messages, userMsg, aiMsg],
+      conversationTitle:
+        this.data.conversationTitle === '智能导诊'
+          ? conversationTitleFor(content)
+          : this.data.conversationTitle,
       inputValue: '',
       canSend: false,
       sending: true,
@@ -228,13 +232,17 @@ Page({
   /** 重置聊天空态：messages/conversationId，供「新对话」与删除当前会话复用（决策 6/13）。 */
   resetChatState() {
     this.stopTts()
+    this.clearVoiceTimers()
+    this._cardEnterSeq = 0
     this.setData({
       messages: [],
       conversationId: null,
+      conversationTitle: '智能导诊',
       inputValue: '',
       canSend: false,
       sending: false,
       redFlag: null,
+      recording: false,
       voiceHint: '',
       voiceHintError: false,
       pendingReport: null,
@@ -294,6 +302,8 @@ Page({
       kind,
       card,
       disclaimer: card.disclaimer,
+      entering: true,
+      enterDelay: (this._cardEnterSeq++ % 4) * 40,
     }
     this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
   },
@@ -434,6 +444,26 @@ Page({
   // 未配置/超时/失败三情况降级文字，不阻塞演示（语音入口在 asrEnabled=false 时根本不渲染）。
   // 监听器只在首次创建 recorder 时注册一次（getRecorderManager 返回单例，
   // 每次 start 重复注册 onStop 会导致 N 次按下后触发 N 个并行识别回调）。
+  clearVoiceTimers() {
+    clearTimeout(this._voiceWatchdog)
+    clearTimeout(this._asrWatchdog)
+    clearTimeout(this._voiceHintTimer)
+  },
+
+  clearVoiceHint() {
+    this.clearVoiceTimers()
+    this.setData({ voiceHint: '', voiceHintError: false })
+  },
+
+  showVoiceError(message) {
+    this.clearVoiceTimers()
+    this.setData({ recording: false, voiceHint: message, voiceHintError: true })
+    // 失败提示是输入框内瞬态 placeholder；定时清除，避免非语音场景残留。
+    this._voiceHintTimer = setTimeout(() => {
+      this.setData({ voiceHint: '', voiceHintError: false })
+    }, 4000)
+  },
+
   ensureRecorder() {
     if (this._recorder) return
     this._recorder = my.getRecorderManager()
@@ -443,11 +473,15 @@ Page({
       // 取消（手指划出）不识别：onVoiceTouchCancel 置位 _voiceCancelled 后 stop
       if (this._voiceCancelled) {
         this._voiceCancelled = false
-        this.setData({ voiceHint: '' })
+        this.clearVoiceHint()
         return
       }
+      this._asrWatchdog = setTimeout(() => {
+        this.showVoiceError('识别超时，请直接打字')
+      }, 15000)
       recognizeSpeech({ filePath: res.tempFilePath })
         .then((result) => {
+          clearTimeout(this._asrWatchdog)
           // 识别结果填输入框，可见可改、不自动发（ASR 可能有错字，对话流入口统一走 startRound）
           this.setData({
             inputValue: result.text || '',
@@ -457,21 +491,21 @@ Page({
           })
         })
         .catch(() => {
-          this.setData({ voiceHint: '语音识别失败，请直接打字', voiceHintError: true })
+          this.showVoiceError('语音识别失败，请直接打字')
         })
     })
     this._recorder.onError(() => {
-      clearTimeout(this._voiceWatchdog)
-      this.setData({ recording: false, voiceHint: '录音失败，请直接打字', voiceHintError: true })
+      this.showVoiceError('录音失败，请直接打字')
     })
   },
 
   onVoiceTouchStart() {
     if (!this.data.asrEnabled || this.data.sending || this.data.recording) return
     this.ensureRecorder()
+    this.clearVoiceTimers()
     this._voiceCancelled = false
     this._recorder.start({ duration: 60000, sampleRate: 16000, numberOfChannels: 1, format: 'wav' })
-    this.setData({ recording: true, voiceHint: '松开发送识别', voiceHintError: false })
+    this.setData({ recording: true, voiceHint: '', voiceHintError: false })
   },
 
   onVoiceTouchEnd() {
@@ -480,7 +514,7 @@ Page({
     // IDE 模拟器不支持录音 API（支付宝官方文档：以真机为准），onStop 可能永不触发；
     // 看门狗兜底避免“识别中”卡死，真机上 onStop 到达即清除本定时器
     this._voiceWatchdog = setTimeout(() => {
-      this.setData({ voiceHint: '当前环境不支持录音，请用真机调试或直接打字', voiceHintError: true })
+      this.showVoiceError('当前环境不支持录音，请用真机调试或直接打字')
     }, 15000)
     if (this._recorder) this._recorder.stop()
   },
@@ -489,8 +523,8 @@ Page({
     // 手指划出输入区取消：停止录音但不识别（与常见按住说话交互一致）
     if (!this.data.recording) return
     this._voiceCancelled = true
-    clearTimeout(this._voiceWatchdog)
-    this.setData({ recording: false, voiceHint: '' })
+    this.clearVoiceHint()
+    this.setData({ recording: false })
     if (this._recorder) this._recorder.stop()
   },
 

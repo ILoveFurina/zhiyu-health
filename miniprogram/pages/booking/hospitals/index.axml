@@ -1,4 +1,5 @@
 <view class="page">
+  <booking-progress current="{{0}}" />
   <view class="header">
     <view class="title">预约挂号</view>
     <view class="subtitle">{{cityName ? cityName + ' · ' : ''}}选择你想就诊的医院</view>
@@ -27,8 +28,10 @@
         <text class="name">{{item.name}}</text>
         <text a:if="{{item.level}}" class="level">{{item.level}}</text>
       </view>
-      <view class="address">最近院区：{{item.campus_name}}</view>
-      <view a:if="{{item.distance_text}}" class="distance">距您约 {{item.distance_text}} km</view>
+      <view class="hospital-focus">
+        <view class="address">最近院区 · {{item.campus_name}}</view>
+        <view a:if="{{item.distance_text}}" class="distance">距您约 {{item.distance_text}} km</view>
+      </view>
     </view>
     <view class="arrow">›</view>
   </view>

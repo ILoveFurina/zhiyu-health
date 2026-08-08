@@ -1,6 +1,14 @@
 <view class="page">
-  <!-- 右上角对话记录入口：自绘按钮，不依赖支付宝平台 option menu（见票 27 决策 9） -->
-  <view class="option-menu-btn" onTap="openDrawer">≡</view>
+  <!-- 页内次级 header：文档流布局，不覆盖消息；抽屉交互保持票 27 的自绘路线。 -->
+  <view class="chat-header">
+    <view class="chat-header-title">{{conversationTitle}}</view>
+    <view class="chat-header-actions">
+      <view class="chat-header-btn" onTap="openDrawer" aria-label="对话记录">
+        <view class="zy-ico zy-ico-file"></view>
+      </view>
+      <view class="chat-header-btn chat-header-new" onTap="startNewConversation" aria-label="新对话">＋</view>
+    </view>
+  </view>
   <scroll-view
     class="thread"
     scroll-y
@@ -39,13 +47,10 @@
       <view class="reg-entry-wrap">
         <registration-card
           cityName="{{regCityName}}"
-          hospitals="{{regHospitals}}"
           total="{{regTotal}}"
           onDepartmentEntry="onDepartmentEntry"
           onGuideEntry="onGuideEntry"
-          onHospitalTap="onHospitalTap"
           onMoreHospitals="onMoreHospitals"
-          onRelocate="onRelocate"
         />
       </view>
     </view>
@@ -66,20 +71,30 @@
         <view class="rf-card-body">{{item.content}}</view>
       </view>
 
-      <doctor-card
-        a:elif="{{item.kind === 'doctor_recommendations' || item.kind === 'doctor_slots'}}"
-        kind="{{item.kind}}"
-        card="{{item.card}}"
-        onSelectDoctor="onDoctorSelected"
-        onSelectSlot="onSlotSelected"
-      />
+      <view a:elif="{{item.kind === 'doctor_recommendations' || item.kind === 'doctor_slots'}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <doctor-card
+            kind="{{item.kind}}"
+            card="{{item.card}}"
+            showDisclaimer="{{false}}"
+            onSelectDoctor="onDoctorSelected"
+            onSelectSlot="onSlotSelected"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
 
-      <hospital-card
-        a:elif="{{item.kind === 'hospital_recommendations'}}"
-        kind="{{item.kind}}"
-        card="{{item.card}}"
-        onSelectHospital="onHospitalSelected"
-      />
+      <view a:elif="{{item.kind === 'hospital_recommendations'}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <hospital-card
+            kind="{{item.kind}}"
+            card="{{item.card}}"
+            showDisclaimer="{{false}}"
+            onSelectHospital="onHospitalSelected"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
 
       <!-- 票 50：智能导诊科室号源卡。失败态为文本 + 重新查询；成功态复用票 49 号源卡组件 -->
       <view a:elif="{{item.kind === 'department_slots'}}">
@@ -89,24 +104,31 @@
           <ai-disclaimer text="{{item.disclaimer}}" />
         </view>
         <block a:else>
-          <department-slots-card
-            standardDepartment="{{item.card.standard_department}}"
-            days="{{item.card.days}}"
-            selectedDate="{{item.card.selectedDate}}"
-            doctors="{{item.card.doctors}}"
-            cardId="{{item.id}}"
-            onSelectDate="onDepartmentSlotsSelectDate"
-            onBook="onDepartmentSlotsBook"
-          />
+          <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+            <department-slots-card
+              standardDepartment="{{item.card.standard_department}}"
+              days="{{item.card.days}}"
+              selectedDate="{{item.card.selectedDate}}"
+              doctors="{{item.card.doctors}}"
+              cardId="{{item.id}}"
+              onSelectDate="onDepartmentSlotsSelectDate"
+              onBook="onDepartmentSlotsBook"
+            />
+          </view>
           <ai-disclaimer text="{{item.disclaimer}}" />
         </block>
       </view>
 
-      <appointment-card
-        a:elif="{{item.kind === 'appointment' || item.kind === 'appointments'}}"
-        kind="{{item.kind}}"
-        card="{{item.card}}"
-      />
+      <view a:elif="{{item.kind === 'appointment' || item.kind === 'appointments'}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <appointment-card
+            kind="{{item.kind}}"
+            card="{{item.card}}"
+            showDisclaimer="{{false}}"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.summary_disclaimer || item.card.disclaimer || item.disclaimer}}" />
+      </view>
 
       <!-- 票 65：ambiguous 科室选择卡。点选科室经 retry 直查通道出号源卡，可重复点 -->
       <view a:elif="{{item.kind === 'department_options'}}" class="dep-options-card" id="msg-{{item.id}}">
@@ -192,7 +214,7 @@
         </view>
       </view>
 
-      <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
+      <view a:else class="bubble ai ai-{{item.emotion || 'calm'}} {{item.entering ? 'zy-ai-enter' : ''}}" id="msg-{{item.id}}">
         <view
           a:if="{{item.thinkingText || item.deepThoughtBadge}}"
           class="ai-thinking {{item.thinkingExpanded ? 'ai-thinking-expanded' : ''}}"
@@ -336,36 +358,26 @@
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingPillbox">发送并识别</view>
   </view>
 
-  <!-- 免责声明常驻细条（双保险之二） -->
-  <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
-
   <!-- 功能入口气泡栏（D4）：常驻输入框上方，唯一功能入口；+ 按钮已拆除 -->
-  <view class="bubble-bar">
-    <view
-      a:for="{{bubbles}}"
-      a:key="key"
-      class="bubble-chip {{sending ? 'bubble-chip-disabled' : ''}}"
-      data-action="{{item.action}}"
-      onTap="onBubbleTap"
-    >
-      <view class="bubble-icon zy-ico zy-ico-{{item.icon}}"></view>
-      <view class="bubble-label">{{item.label}}</view>
+  <scroll-view scroll-x class="bubble-bar" show-scrollbar="{{false}}">
+    <view class="bubble-row">
+      <view
+        a:for="{{bubbles}}"
+        a:key="key"
+        class="bubble-chip {{sending ? 'bubble-chip-disabled' : ''}}"
+        data-action="{{item.action}}"
+        onTap="onBubbleTap"
+      >
+        <view class="bubble-icon zy-ico zy-ico-{{item.icon}}"></view>
+        <view class="bubble-label">{{item.label}}</view>
+      </view>
     </view>
-  </view>
+  </scroll-view>
 
   <!-- 输入栏（双行结构） -->
   <view class="composer">
-    <!-- 票 45：语音输入提示条（录音中/识别中/失败），瞬态，不进 messages 数组。
-         绝对定位浮于输入栏上方：提示条出现不得引起布局位移——在流内插入会把按钮推离
-         手指触点，本次手势 touchend 丢失（真机实测按住退化成点按两次） -->
-    <view a:if="{{voiceHint}}" class="tool-progress voice-hint-float {{voiceHintError ? 'tool-progress-error' : ''}}">
-      <view a:if="{{!voiceHintError && recording}}" class="tool-progress-spinner" />
-      <text>{{voiceHint}}</text>
-    </view>
     <view class="c-row1">
-      <!-- 票 45：按住说话（asrEnabled=false 时不渲染，降级纯文字输入）。
-           双保险防 touchend 丢失：①提示条改绝对定位浮层（主因：流内插入把按钮推离触点）；
-           ②触摸事件挂本静态外壳（按钮本体类名/内容随手势重绘不影响触摸序列） -->
+      <!-- 触摸事件继续挂在属性不变的静态外壳；录音反馈只改变内部按钮，不移动热区。 -->
       <view
         a:if="{{asrEnabled}}"
         class="voice-btn-touch"
@@ -374,12 +386,13 @@
         onTouchCancel="onVoiceTouchCancel"
       ><view class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"><text a:if="{{recording}}">松开</text><view a:else class="zy-ico zy-ico-mic"></view></view></view>
       <input
-        class="c-input"
+        class="c-input {{voiceHintError ? 'c-input-voice-error' : ''}}"
         value="{{inputValue}}"
         onInput="onInput"
         onConfirm="send"
         confirm-type="send"
-        placeholder="{{asrEnabled ? '发消息或按住话筒说话…' : '发消息…'}}"
+        placeholder="{{voiceHint || (asrEnabled ? '发消息或按住话筒说话…' : '发消息…')}}"
+        placeholder-class="{{voiceHintError ? 'c-input-placeholder-error' : 'c-input-placeholder'}}"
         disabled="{{sending}}"
       />
     </view>
@@ -411,11 +424,6 @@
       <view class="drawer-entry" onTap="openHealthProfiles">
         <view>健康档案</view><view>›</view>
       </view>
-      <!-- 顶部常驻「新对话」入口（非数据项，见决策 6） -->
-      <view class="new-chat" onTap="startNewConversation">
-        <view class="new-chat-ico">＋</view>
-        <view class="new-chat-text">新对话</view>
-      </view>
       <scroll-view class="drawer-list" scroll-y>
         <view a:if="{{drawerLoading}}" class="drawer-state">正在加载…</view>
         <zy-empty a:elif="{{conversations.length === 0}}" icon="consult" text="暂无对话记录" />
@@ -424,6 +432,7 @@
           a:key="id"
           class="conv-item {{item.id === conversationId ? 'conv-item-current' : ''}}"
           data-id="{{item.id}}"
+          data-title="{{item.title}}"
           onTap="selectConversation"
           onLongPress="onConversationLongPress"
         >

@@ -18,42 +18,7 @@
     </view>
   </view>
 
-  <!-- AI挂号助手主卡（票 49）：科室挂号/智能导诊入口 + 最近 3 家平台医院 -->
-  <view class="section">
-    <registration-card
-      cityName="{{regCityName}}"
-      hospitals="{{regHospitals}}"
-      total="{{regTotal}}"
-      onDepartmentEntry="onDepartmentEntry"
-      onGuideEntry="onGuideEntry"
-      onHospitalTap="onHospitalTap"
-      onMoreHospitals="onMoreHospitals"
-      onRelocate="onRelocate"
-    />
-  </view>
-
-  <!-- 功能宫格：就医服务 / 健康管理两组 -->
-  <view a:for="{{grids}}" a:key="title" class="section">
-    <view class="section-title">{{item.title}}</view>
-    <view class="card grid grid-{{item.columns}}">
-      <view
-        a:for="{{item.items}}"
-        a:for-item="entry"
-        a:key="key"
-        class="grid-item"
-        data-key="{{entry.key}}"
-        data-action="{{entry.action}}"
-        data-url="{{entry.url}}"
-        onTap="onGridTap"
-      >
-        <view class="grid-icon zy-ico zy-ico-{{entry.icon}}"></view>
-        <view class="grid-label">{{entry.label}}</view>
-        <view a:if="{{entry.desc}}" class="grid-desc">{{entry.desc}}</view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 待办横卡：即将就诊的挂号单 + 待支付药品订单；无待办时整区不渲染 -->
+  <!-- 待办横卡：时效内容优先；无待办时整区不渲染 -->
   <view a:if="{{todos.length > 0}}" class="section">
     <view class="section-title">待办事项</view>
     <scroll-view scroll-x class="todo-scroll" show-scrollbar="{{false}}">
@@ -72,6 +37,43 @@
         </view>
       </view>
     </scroll-view>
+  </view>
+
+  <!-- AI挂号助手精简主卡：保留双入口，医院目录下沉为一行轻入口 -->
+  <view class="section {{showEntrance ? 'zy-home-enter' : ''}}">
+    <registration-card
+      cityName="{{regCityName}}"
+      total="{{regTotal}}"
+      onDepartmentEntry="onDepartmentEntry"
+      onGuideEntry="onGuideEntry"
+      onMoreHospitals="onMoreHospitals"
+    />
+  </view>
+
+  <!-- 功能宫格：就医服务 / 健康管理两组 -->
+  <view
+    a:for="{{grids}}"
+    a:key="title"
+    class="section {{showEntrance ? 'zy-home-enter' : ''}}"
+    style="animation-delay: {{(index + 1) * 50}}ms"
+  >
+    <view class="section-title">{{item.title}}</view>
+    <view class="card grid grid-{{item.columns}}">
+      <view
+        a:for="{{item.items}}"
+        a:for-item="entry"
+        a:key="key"
+        class="grid-item"
+        data-key="{{entry.key}}"
+        data-action="{{entry.action}}"
+        data-url="{{entry.url}}"
+        onTap="onGridTap"
+      >
+        <view class="grid-icon zy-ico zy-ico-{{entry.icon}}"></view>
+        <view class="grid-label">{{entry.label}}</view>
+        <view a:if="{{entry.desc}}" class="grid-desc">{{entry.desc}}</view>
+      </view>
+    </view>
   </view>
 
   <!-- 健康档案切换弹层 -->

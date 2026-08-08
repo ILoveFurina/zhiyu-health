@@ -1,23 +1,5 @@
 /* 对话记录抽屉样式（票 27 决策 6/9）；从 index.acss 拆出以保持单文件职责与行数约束 */
 
-/* ===== 右上角对话记录入口（决策 9：自绘按钮，不用平台 option menu） ===== */
-.option-menu-btn {
-  position: absolute;
-  top: var(--zy-space-sm);
-  right: var(--zy-space-md);
-  z-index: 20;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: var(--zy-shadow-card);
-  color: var(--zy-color-primary);
-  font-size: 36rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* ===== 对话记录抽屉 ===== */
 .drawer-mask {
   position: fixed;
@@ -59,41 +41,6 @@
   font-size: 40rpx;
   color: var(--zy-text-weak);
   padding: 0 8rpx;
-}
-
-.new-chat {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  margin: 20rpx var(--zy-space-md) var(--zy-space-xs);
-  padding: 22rpx var(--zy-space-md);
-  background: #fff;
-  border-radius: var(--zy-radius-card);
-  border: 1rpx solid var(--zy-color-primary);
-  color: var(--zy-color-primary);
-  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
-}
-
-.new-chat:active {
-  transform: scale(0.98);
-}
-
-.new-chat-ico {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: var(--zy-radius-sm);
-  background: var(--zy-color-primary);
-  color: #fff;
-  font-size: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-
-.new-chat-text {
-  font-size: 28rpx;
-  font-weight: 600;
 }
 
 .drawer-list {

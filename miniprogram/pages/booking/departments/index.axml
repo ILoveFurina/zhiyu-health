@@ -1,4 +1,5 @@
 <view class="page">
+  <booking-progress current="{{2}}" />
   <view class="header">
     <view class="subtitle">{{hospitalName}} · 选择就诊科室</view>
   </view>
@@ -15,12 +16,14 @@
     data-name="{{item.name}}"
     onTap="openDoctors"
   >
+    <view class="department-mark">科</view>
     <view class="card-main">
       <view class="name-row">
         <text class="name">{{item.name}}</text>
         <text a:if="{{item.category_name}}" class="category">{{item.category_name}}</text>
       </view>
       <view a:if="{{item.floor || item.location}}" class="meta">
+        <text class="meta-label">门诊位置</text>
         {{item.floor}}{{item.floor && item.location ? ' · ' : ''}}{{item.location}}
       </view>
     </view>

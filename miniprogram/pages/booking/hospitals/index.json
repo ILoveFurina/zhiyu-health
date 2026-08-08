@@ -2,6 +2,7 @@
   "defaultTitle": "选择医院",
   "titleBarColor": "#e9f6f2",
   "usingComponents": {
+    "booking-progress": "/components/booking-progress/index",
     "zy-empty": "/components/zy-empty/index"
   }
 }
