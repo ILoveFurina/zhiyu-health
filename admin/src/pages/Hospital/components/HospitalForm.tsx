@@ -1,4 +1,4 @@
-import { ModalForm, ProFormText } from '@ant-design/pro-components';
+import { ModalForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
 import { Form } from 'antd';
 import { createHospital, updateHospital, type Hospital } from '@/services/organization';
 
@@ -38,7 +38,15 @@ export default function HospitalForm({ open, record, onOpenChange, onSuccess }: 
       }}
     >
       <ProFormText name="name" label="医院名称" rules={[{ required: true, message: '请输入医院名称' }]} />
-      <ProFormText name="level" label="等级" rules={[{ required: true, message: '请输入等级' }]} />
+      <ProFormSelect
+        name="level"
+        label="等级"
+        options={[
+          { label: '三甲', value: '三甲' },
+          { label: '三乙', value: '三乙' },
+        ]}
+        rules={[{ required: true, message: '请选择等级' }]}
+      />
     </ModalForm>
   );
 }
