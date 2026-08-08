@@ -1,4 +1,4 @@
-import { Alert, Button, Descriptions, Divider, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Collapse, Descriptions, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
 import type { AppointmentDetail } from '@/services/reception';
 import type { Medication, PrescriptionInput } from '@/services/prescription';
 import { prescriptionStatusLabels } from '@/contracts/prescription';
@@ -50,26 +50,37 @@ export default function ConsultationDrawer(props: Props) {
                 )}
               </Descriptions.Item>
             </Descriptions>
-            <Alert
-              type="info"
-              showIcon
-              message="AI 病情摘要"
-              description={
-                <Space direction="vertical">
-                  <Typography.Paragraph style={{ margin: 0 }}>
-                    {appointment.condition_summary || '患者本次挂号暂无病情摘要。'}
-                  </Typography.Paragraph>
-                  <Typography.Text strong type="warning">{appointment.summary_disclaimer}</Typography.Text>
-                </Space>
-              }
-            />
-            <Divider orientation="left">开具电子处方</Divider>
-            {prescriptionCreated ? (
-              <Alert type="success" showIcon message="电子处方已提交，等待管理员审核" />
-            ) : (
-              <PrescriptionForm appointmentId={appointment.id} medications={medications}
-                submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
+            {/* 直接挂号（票 41 目录入口）不产生病情摘要，无摘要时不渲染该区块 */}
+            {appointment.condition_summary && (
+              <Alert
+                type="info"
+                showIcon
+                message="AI 病情摘要"
+                description={
+                  <Space direction="vertical">
+                    <Typography.Paragraph style={{ margin: 0 }}>
+                      {appointment.condition_summary}
+                    </Typography.Paragraph>
+                    <Typography.Text strong type="warning">{appointment.summary_disclaimer}</Typography.Text>
+                  </Space>
+                }
+              />
             )}
+            {/* 处方默认折叠：线下接诊主动作是完成接诊；已有处方或刚提交时展开以便查看状态 */}
+            <Collapse
+              ghost
+              defaultActiveKey={appointment.prescription_status || prescriptionCreated ? ['prescription'] : []}
+              items={[{
+                key: 'prescription',
+                label: '开具电子处方',
+                children: prescriptionCreated ? (
+                  <Alert type="success" showIcon message="电子处方已提交，等待管理员审核" />
+                ) : (
+                  <PrescriptionForm appointmentId={appointment.id} medications={medications}
+                    submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
+                ),
+              }]}
+            />
             {completed ? (
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>
