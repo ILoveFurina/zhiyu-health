@@ -1,4 +1,4 @@
-"""票 55 预问诊场景（preconsultation）测试：HTTP seam + fake 替换 LLM/摘要判定器。
+﻿"""票 55 预问诊场景（preconsultation）测试：HTTP seam + fake 替换 LLM/摘要判定器。
 
 覆盖：
 - 场景被 AgentChatRequest 接受（契约 scenarios），非法场景仍 422（回归）
@@ -36,11 +36,12 @@ from langchain_core.outputs import ChatResult
 
 from app.agent.preconsult import StructuredPreconsultJudge
 from app.agent.runner import AgentContext, LangGraphAgentRunner
-from app.main import create_app
+from app.testing import create_test_app
 from app.schemas.preconsult import PreconsultationSummary
 from app.services.chat import AgentChatService
 from app.services.directory import CallbackDepartmentDirectory
-from app.tools.business import BusinessCallbackClient, build_business_tools
+from app.tools.business import build_business_tools
+from app.tools.callback import BusinessCallbackClient
 
 _DEPARTMENTS = [
     {"id": 5, "name": "皮肤科", "category": "皮肤"},
@@ -78,7 +79,7 @@ def _build_harness_app(
     """FakeAgentRunner + fake 摘要判定器的轻量装配（不触真实目录与 LLM）。"""
     fake_agent = FakeAgentRunner()
     fake_preconsult = preconsult or FakePreconsultJudge()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -192,7 +193,7 @@ _BUSINESS_TOOLS = {"recommend_doctors", "get_doctor_slots", "create_appointment"
 
 
 def _build_tool_isolation_app(runner: LangGraphAgentRunner) -> TestClient:
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,

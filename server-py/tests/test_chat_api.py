@@ -1,4 +1,4 @@
-"""Agent 对话 SSE（HTTP seam，fake Agent 替换 LLM）。
+﻿"""Agent 对话 SSE（HTTP seam，fake Agent 替换 LLM）。
 
 覆盖：SSE 事件序列、免责声明注入、消息历史透传、推理档位映射（auto 不外传）。
 """
@@ -19,8 +19,9 @@ from langchain_core.outputs import ChatResult
 from langchain_core.tools import BaseTool
 
 from app.agent.runner import LangGraphAgentRunner
-from app.main import create_app
-from app.tools.business import BusinessCallbackClient, build_business_tools
+from app.testing import create_test_app
+from app.tools.business import build_business_tools
+from app.tools.callback import BusinessCallbackClient
 
 
 def _post_chat(client, payload: dict) -> list[dict]:
@@ -48,7 +49,7 @@ def _post_chat(client, payload: dict) -> list[dict]:
 def _build_app(agent_runner) -> tuple[TestClient, FakeEmotionJudge]:
     """装配测试 app 并注入 fake emotion judge，避免命中真实方舟调用。"""
     fake_emotion = FakeEmotionJudge()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=agent_runner,
         agent_auth_secret=TEST_AGENT_SECRET,

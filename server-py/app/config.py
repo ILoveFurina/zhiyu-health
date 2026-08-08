@@ -1,4 +1,4 @@
-from functools import lru_cache
+﻿from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -42,8 +42,8 @@ class Settings(WebSettings):
     database_url: str = ""
     # 向量维度路径 B：DDL 写死 vector(2048)，此处为默认值，启动期校验与契约/DDL 一致
     knowledge_embedding_dimension: int = 2048
-    # 火山语音 ASR（票 45，录音文件识别极速版）；两套鉴权二选一：新版控制台单 api_key，
-    # 旧版控制台 app_id + access_token。全空则回落 Fake 固定文本（票 58，ADR-0029）
+    # 火山语音 ASR（录音文件识别极速版）；两套鉴权二选一：新版控制台单 api_key，
+    # 旧版控制台 app_id + access_token。全空则回落 Fake 固定文本（ADR-0029）
     volc_asr_app_id: str = ""
     volc_asr_access_token: str = ""
     volc_asr_api_key: str = ""

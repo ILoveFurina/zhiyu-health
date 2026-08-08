@@ -1,4 +1,4 @@
-"""视觉输入校验与规范化。"""
+﻿"""视觉输入校验与规范化。"""
 
 import re
 from dataclasses import dataclass
@@ -50,7 +50,7 @@ def _input_error(code: str) -> VisionInputError:
 
 
 def parse_optional_health_profile(raw: str | None) -> HealthProfilePayload | None:
-    """可选健康档案解析（票 46）：无档案是合法业务状态，契约上只用"字段未传"表达；
+    """可选健康档案解析（）：无档案是合法业务状态，契约上只用"字段未传"表达；
     历史调用方曾把空档案序列化为字面 "null" 发出，兼容视为未提供。
     其余畸形/不完整 JSON 契约化为 VISION_PROFILE_INVALID，不得泄漏为裸 500。"""
     if raw is None or raw.strip() == "null":

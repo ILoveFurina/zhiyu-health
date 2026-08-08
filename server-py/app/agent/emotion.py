@@ -1,4 +1,4 @@
-"""情绪反馈判断器（票 44，ADR-0019）。
+﻿"""情绪反馈判断器（ADR-0019）。
 
 主回复 token 流完成后、message 事件发出前，发起一次非流式 LLM 调用判断用户消息
 情绪（calm/anxious/fearful），response_format=json_object + pydantic 校验 + 2 次重试，

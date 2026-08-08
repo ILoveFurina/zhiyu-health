@@ -1,4 +1,4 @@
-"""Agent 对话接口（供 server-java 经 SSE 调用，ADR-0009 统一入口链路）。
+﻿"""Agent 对话接口（供 server-java 经 SSE 调用，ADR-0009 统一入口链路）。
 
 端侧不直连本接口：请求一律由 server-java 鉴权/审计后转发，token 逐跳透传。
 """
@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from app.api.deps import AgentCallbackAuth
 from app.api.sse import SseStreamContext, log_sse_stream
 from app.schemas.chat import AgentChatRequest
-from app.agent.runner import HealthProfileContext
+from app.agent.types import HealthProfileContext
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -42,7 +42,7 @@ async def chat(
     )
 
     return StreamingResponse(
-        # 生命周期日志集中在 SSE 出口（票 33：断流时必须能定位流走到哪、在哪断）
+        # 生命周期日志集中在 SSE 出口（断流时必须能定位流走到哪、在哪断）
         log_sse_stream(
             events,
             context=SseStreamContext(

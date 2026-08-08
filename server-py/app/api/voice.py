@@ -1,4 +1,4 @@
-"""语音双向内部接口（票 45，ADR-0020）：供 server-java 转发调用的 ASR/TTS seam。
+﻿"""语音双向内部接口（ADR-0020）：供 server-java 转发调用的 ASR/TTS seam。
 
 端侧不直连本接口：请求一律由 server-java 鉴权/审计后转发，识别文字/合成音频逐跳透传。
 ASR/TTS 不在 LangGraph 循环内，不进 agent_call_logs trace，仅 server-java 入口审计。

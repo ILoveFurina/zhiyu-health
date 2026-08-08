@@ -1,9 +1,9 @@
-"""处方解读与就诊小结 HTTP seam；fake 替换真实方舟模型。"""
+﻿"""处方解读与就诊小结 HTTP seam；fake 替换真实方舟模型。"""
 
 from conftest import TEST_AGENT_SECRET, StubHealthService
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.testing import create_test_app
 
 
 class FakeClinicalGenerator:
@@ -22,7 +22,7 @@ class FakeClinicalGenerator:
 
 def test_prescription_explanation_uses_structured_medication_facts() -> None:
     fake = FakeClinicalGenerator()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         clinical_generator=fake,
@@ -55,7 +55,7 @@ def test_prescription_explanation_uses_structured_medication_facts() -> None:
 
 def test_consultation_summary_receives_only_doctor_diagnosis_and_advice() -> None:
     fake = FakeClinicalGenerator()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         clinical_generator=fake,
@@ -74,7 +74,7 @@ def test_consultation_summary_receives_only_doctor_diagnosis_and_advice() -> Non
 
 
 def test_clinical_generation_requires_server_java_callback_token() -> None:
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         clinical_generator=FakeClinicalGenerator(),

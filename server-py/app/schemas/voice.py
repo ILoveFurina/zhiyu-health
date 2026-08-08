@@ -1,4 +1,4 @@
-"""语音双向（票 45）的内部 HTTP 契约：ASR 文字回执与 TTS 请求体。
+﻿"""语音双向（）的内部 HTTP 契约：ASR 文字回执与 TTS 请求体。
 
 ASR/TTS 不进 agent_call_logs trace（ADR-0020），响应不落库、不记原文。
 """

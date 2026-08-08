@@ -1,4 +1,4 @@
-"""测试基座：fake Agent 替换 LLM。
+﻿"""测试基座：fake Agent 替换 LLM。
 
 seam 纪律：主 seam 为 FastAPI HTTP API 层；LLM 以 FakeAgentRunner 替换，
 断言它对消息历史与推理档位的接收情况。
@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.agent.runner import AgentContext, AgentOutput
-from app.main import create_app
+from app.testing import create_test_app
 from app.schemas.emotion import EmotionResult
 from app.schemas.preconsult import PreconsultationSummary
 from app.schemas.triage import TriageResolution
@@ -158,7 +158,7 @@ def harness() -> Iterator[SimpleNamespace]:
     fake_emotion = FakeEmotionJudge()
     fake_triage = FakeTriageJudge()
     fake_preconsult = FakePreconsultJudge()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,

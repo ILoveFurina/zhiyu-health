@@ -1,6 +1,7 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 
-from app.main import app, create_app
+from app.main import app
+from app.testing import create_test_app
 
 
 class StubHealthService:
@@ -15,7 +16,7 @@ class StubHealthService:
 
 
 def test_health_reports_knowledge_storage_dependencies() -> None:
-    with TestClient(create_app(health_service=StubHealthService())) as client:
+    with TestClient(create_test_app(health_service=StubHealthService())) as client:
         response = client.get("/api/health")
 
     assert response.status_code == 200

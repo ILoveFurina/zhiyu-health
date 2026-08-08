@@ -1,4 +1,4 @@
-"""语音双向 HTTP seam（票 45，ADR-0020）：fake ASR/TTS 替换真实火山调用。
+﻿"""语音双向 HTTP seam（票 45，ADR-0020）：fake ASR/TTS 替换真实火山调用。
 
 覆盖正常/超时/未配置/失败四类路径；断言不依赖真实密钥，骨架阶段可先行。
 """
@@ -6,7 +6,7 @@
 from conftest import TEST_AGENT_SECRET, StubHealthService
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.testing import create_test_app
 from app.services.voice import VoiceError, VoiceService
 
 _HEADERS = {"X-Agent-Callback-Token": TEST_AGENT_SECRET}
@@ -60,7 +60,7 @@ def _app_with(asr: object | None = None, tts: object | None = None) -> TestClien
         service.inject_asr(asr)  # type: ignore[arg-type]
     if tts is not None:
         service.inject_tts(tts)  # type: ignore[arg-type]
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         voice_service=service,

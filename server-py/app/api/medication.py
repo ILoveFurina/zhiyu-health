@@ -1,4 +1,4 @@
-"""server-java 调用的通用药品说明书流接口（票 51，ADR-0028）。
+﻿"""server-java 调用的通用药品说明书流接口（ADR-0028）。
 
 端侧不直连本接口：请求一律由 server-java 鉴权/审计后转发，token 逐跳透传。
 事件序列固定为 token×N → done（事件名取自 contracts/medication-knowledge.json），

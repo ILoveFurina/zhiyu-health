@@ -1,4 +1,4 @@
-"""server-java 调用的内部视觉分析接口（scenario 驱动，票 15 泛化）。"""
+﻿"""server-java 调用的 scenario 驱动视觉分析接口。"""
 
 from dataclasses import replace
 from typing import Annotated
@@ -19,7 +19,7 @@ from app.schemas.vision import VisionResponse
 router = APIRouter(prefix="/agent/vision", tags=["agent-vision"])
 
 # 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片，饮食拒非饮食照片，
-# 舌苔拒非舌苔照片（票 15/16/17），药盒拒非药盒照片（票 14）。未登记的场景无 scope 概念时
+# 舌苔拒非舌苔照片（），药盒拒非药盒照片（）。未登记的场景无 scope 概念时
 # 不会进此映射，VisionScopeError 仍兜底为 report 码。
 _SCOPE_ERROR_CODES = {
     "REPORT": "VISION_REPORT_SCOPE_UNSUPPORTED",

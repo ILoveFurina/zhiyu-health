@@ -1,4 +1,4 @@
-"""票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
+﻿"""票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
 
 覆盖：明确科室直查、多轮 resolved 收敛直查（票 62）、resolved 同科室已出卡
 去重（票 62）、ambiguous 退回 Agent 流、摘要先于卡片、查询失败出 failed 卡、
@@ -15,10 +15,10 @@ import httpx
 from conftest import TEST_AGENT_SECRET, FakeAgentRunner, FakeEmotionJudge, FakeTriageJudge, StubHealthService
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.testing import create_test_app
 from app.schemas.triage import TriageResolution
 from app.services.directory import CallbackDepartmentDirectory
-from app.tools.business import BusinessCallbackClient
+from app.tools.callback import BusinessCallbackClient
 
 _DEPARTMENTS = [
     {"id": 5, "name": "皮肤科", "category": "皮肤"},
@@ -111,7 +111,7 @@ def _build_app(
         transport=httpx.MockTransport(handler),
         callback_secret="shared-secret",
     )
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=fake_agent,
         agent_auth_secret=TEST_AGENT_SECRET,

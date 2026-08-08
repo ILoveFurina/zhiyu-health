@@ -1,4 +1,4 @@
-"""知识图谱增强（ADR-0013）：TestClient + fake 图遍历替身。
+﻿"""知识图谱增强（ADR-0013）：TestClient + fake 图遍历替身。
 
 覆盖：graph 态先遍历后生成、none 态不遍历、空召回降级走裸 LLM、
 knowledge 元事件状态正确、graph 与 rag 互斥不注入对方工具、投影接口。
@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from langchain_core.tools import BaseTool
 
 from app.agent.runner import LangGraphAgentRunner
-from app.main import create_app
+from app.testing import create_test_app
 from app.tools.graph import GraphNeighbor
 
 
@@ -87,7 +87,7 @@ def _build_app(
 ) -> TestClient:
     """构造注入 graph_traverser 的测试 app（不注入 rag 检索器，确保互斥）。"""
     runner = LangGraphAgentRunner(lambda effort: fake, graph_traverser=graph_traverser)
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -229,7 +229,7 @@ def test_graph_and_rag_are_mutually_exclusive() -> None:
     runner = LangGraphAgentRunner(
         lambda effort: fake, knowledge_retriever=retriever, graph_traverser=traverser
     )
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -308,7 +308,7 @@ class _FakeProjector:
 
 
 def _build_app_with_projector(projector: object | None) -> TestClient:
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         graph_projector=projector,

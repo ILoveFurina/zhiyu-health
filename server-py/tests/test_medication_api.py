@@ -1,4 +1,4 @@
-"""通用药品说明书流 HTTP seam（票 51，ADR-0028）；fake 替换真实方舟模型。"""
+﻿"""通用药品说明书流 HTTP seam（票 51，ADR-0028）；fake 替换真实方舟模型。"""
 
 import json
 from collections.abc import AsyncIterator
@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.agent.medication import build_medication_system_prompt
 from app.core.contracts import get_contracts
-from app.main import create_app
+from app.testing import create_test_app
 
 
 class FakeMedicationStreamer:
@@ -57,7 +57,7 @@ def test_knowledge_streams_tokens_then_done_with_disclaimer() -> None:
             "具体用法遵医嘱。",
         ]
     )
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         medication_streamer=fake,
@@ -84,7 +84,7 @@ def test_unknown_drug_wording_passes_through() -> None:
     # 不认识的药：模型按 prompt 约束输出契约 unknown_drug 话术，原样透传
     wording = get_contracts().medication_knowledge.messages["unknown_drug"]
     fake = FakeMedicationStreamer([wording])
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         medication_streamer=fake,
@@ -124,7 +124,7 @@ def test_system_prompt_enforces_generic_knowledge_boundaries() -> None:
 
 
 def test_blank_drug_name_is_422() -> None:
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         medication_streamer=FakeMedicationStreamer(["x"]),
@@ -141,7 +141,7 @@ def test_blank_drug_name_is_422() -> None:
 
 
 def test_knowledge_requires_server_java_callback_token() -> None:
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_auth_secret=TEST_AGENT_SECRET,
         medication_streamer=FakeMedicationStreamer(["x"]),

@@ -1,4 +1,4 @@
-"""知识增强 RAG（ADR-0010）：TestClient + fake embedding/检索替身。
+﻿"""知识增强 RAG（ADR-0010）：TestClient + fake embedding/检索替身。
 
 覆盖：rag 态先检索后生成、none 态不检索、空召回/失败降级走裸 LLM、
 knowledge 元事件状态正确、召回块格式「标题·科室」正文、免责声明注入边界。
@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from langchain_core.tools import BaseTool
 
 from app.agent.runner import LangGraphAgentRunner
-from app.main import create_app
+from app.testing import create_test_app
 from app.tools.knowledge import KnowledgeChunk, KnowledgeRetriever
 
 
@@ -86,7 +86,7 @@ def _build_app(
     rag_available: bool = True,
 ) -> TestClient:
     runner = LangGraphAgentRunner(lambda effort: fake, knowledge_retriever=retriever)
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=runner,
         agent_auth_secret=TEST_AGENT_SECRET,

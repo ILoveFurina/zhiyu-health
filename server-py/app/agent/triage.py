@@ -1,11 +1,11 @@
-"""标准科室解析判定器（票 50；票 65 扩展 ambiguous 候选科室输出）。
+﻿"""标准科室解析判定器（扩展 ambiguous 候选科室输出）。
 
 对话 meta 之后、Agent 流之前，编排层拉取候选标准科室并发起一次非流式 LLM
 调用，判定用户意图是否已收敛到单一标准科室（explicit_booking/resolved/
 ambiguous/none）。response_format=json_object + pydantic 校验 + 2 次重试，
 复用 agent/emotion.py 已验证的结构化输出范式。失败/超时/越界科室 ID 一律
 降级 none（不触发强制号源查询），不阻塞正常 Agent 流。
-票 65：ambiguous 时 judge 额外输出 candidate_department_ids 作为科室选择卡
+ambiguous 时 judge 额外输出 candidate_department_ids 作为科室选择卡
 数据源——取自候选列表、越界丢弃、保序去重、截断到契约 options_max_candidates。
 """
 

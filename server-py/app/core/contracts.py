@@ -1,4 +1,4 @@
-"""跨栈契约基座：仓库根 contracts/ 是 server-java 与 server-py 共享常量的单一事实源。
+﻿"""跨栈契约基座：仓库根 contracts/ 是 server-java 与 server-py 共享常量的单一事实源。
 
 懒加载 + 进程内缓存；契约缺失或损坏属部署错误，首次访问即抛 RuntimeError，
 不静默降级。消费接线在后续阶段进行，当前只暴露 get_contracts() 供读取。
@@ -19,7 +19,7 @@ _DEFAULT_DIR = Path(__file__).resolve().parents[3] / "contracts"
 class DisclaimerContract(BaseModel):
     """免责声明标注：一切 AI 产出必须携带（硬约束 1）。
 
-    text 为通用文案，所有 AI 产出一律挂载；tcm_text 为中医专属文案（ADR-0024，票 17），
+    text 为通用文案，所有 AI 产出一律挂载；tcm_text 为中医专属文案（ADR-0024），
     舌诊卡片叠加通用 + 中医两条，其他 AI 产出仍只取通用。
     """
 
@@ -44,7 +44,7 @@ class SseEventsContract(BaseModel):
 
 
 class MedicationKnowledgeContract(BaseModel):
-    """C 端通用药品说明书流（票 51，ADR-0028）：SSE 事件名与统一话术。
+    """C 端通用药品说明书流（ADR-0028）：SSE 事件名与统一话术。
 
     server-py 经 SSE 流式输出 LLM 通用药品知识（token×N → done）；consult_professional
     为流尾统一话术，unknown_drug 为未识别药名话术；免责声明复用 disclaimer.json。
@@ -131,7 +131,7 @@ class KnowledgeContract(BaseModel):
 
 
 class EmotionContract(BaseModel):
-    """情绪反馈（票 44，ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。
+    """情绪反馈（ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。
 
     emotion 挂 message 事件下发（_carried_by=message），枚举、默认值与安抚语
     在此契约单一事实源；calm 无安抚语（映射缺省即无），anxious/fearful 各一条。
@@ -145,7 +145,7 @@ class EmotionContract(BaseModel):
 
 
 class VoiceContract(BaseModel):
-    """语音双向（票 45，ADR-0020）：ASR/TTS 开关、格式占位、超时与降级提示。
+    """语音双向（ADR-0020）：ASR/TTS 开关、格式占位、超时与降级提示。
 
     结构一次性钉死：火山语音开通前 enabled=false、格式字段留 null（骨架+fake 阶段）；
     开通后只填值不改结构。ASR/TTS 不进 agent_call_logs trace，仅 server-java 入口
@@ -165,11 +165,11 @@ class VoiceContract(BaseModel):
 
 
 class GuidedRegistrationContract(BaseModel):
-    """智能导诊标准科室与科室号源卡（票 50）：解析结果、卡状态、确定性摘要模板。
+    """智能导诊标准科室与科室号源卡（）：解析结果、卡状态、确定性摘要模板。
 
     触发与摘要拼装由编排代码（services 层）保证，不依赖 LLM 自主调工具；
     resolution_statuses 前两态（explicit_booking/resolved）触发强制号源查询。
-    票 65：ambiguous 时编排层追加科室选择卡（options_card_event），候选上限
+    ambiguous 时编排层追加科室选择卡（options_card_event），候选上限
     options_max_candidates；options_select_user_text 为端侧点选直查的用户文案模板。
     """
 
@@ -186,7 +186,7 @@ class GuidedRegistrationContract(BaseModel):
 
 
 class OnlineConsultationContract(BaseModel):
-    """在线问诊主闭环（票 55）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
+    """在线问诊主闭环（）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
 
     server-py 只消费这三项（场景判定、摘要结构钉值、message 事件挂载字段名）；
     状态机、进度步骤、接诊方式与文案由 server-java 与端侧消费，按既有契约模型
@@ -199,7 +199,7 @@ class OnlineConsultationContract(BaseModel):
 
 
 class HealthObservationsContract(BaseModel):
-    """报告驱动健康观测白名单（票 61，ADR-0031）：九项指标、值类型与状态枚举。
+    """报告驱动健康观测白名单（ADR-0031）：九项指标、值类型与状态枚举。
 
     确定性映射与业务写入全在 server-java；server-py 登记本契约只为保证文件损坏时
     fail-fast 且结构双栈同步。按既有契约模型约定忽略 _doc/_note 等说明性字段

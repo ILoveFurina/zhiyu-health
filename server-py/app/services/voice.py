@@ -1,10 +1,10 @@
-"""语音双向客户端 seam（票 45，ADR-0020）：ASR 识别与 TTS 合成的可替换适配层。
+﻿"""语音双向客户端 seam（ADR-0020）：ASR 识别与 TTS 合成的可替换适配层。
 
 与 vision interpreter 同构：定义 Protocol（AsrClient/TtsClient），契约 enabled=false 时
 Disabled 占位抛 VOICE_UNCONFIGURED；enabled=true 时按运行时凭据选 Volc 实现或回落 Fake
-固定文本（票 58，ADR-0029）。ASR 用火山录音文件识别极速版（HTTP JSON 一次请求同步返回）；
+固定文本（ADR-0029）。ASR 用火山录音文件识别极速版（HTTP JSON 一次请求同步返回）；
 VolcTtsClient 仍为开通后补全的占位。ASR/TTS 不在 LangGraph 循环内，不进 agent_call_logs
-trace；音频全程内存流转不持久化（对齐票 12 视觉管道"原始文件处理完即清理"先例）。
+trace；音频全程内存流转不持久化（对齐视觉管道"原始文件处理完即清理"先例）。
 
 未配置/超时/失败三情况一律抛 VoiceError（携带稳定错误码），调用方降级为文字，不阻塞演示。
 """
@@ -24,7 +24,7 @@ from app.core.lazy import LazyDelegate
 
 logger = logging.getLogger("app.services.voice")
 
-# 火山录音文件识别极速版：endpoint 属 server-py 内部实现细节，不进契约（票 45 决策）
+# 火山录音文件识别极速版：endpoint 属 server-py 内部实现细节，不进契约（决策）
 _VOLC_ASR_FLASH_URL = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash"
 
 
@@ -84,7 +84,7 @@ class _DisabledTtsClient:
 
 
 class VolcAsrClient:
-    """火山录音文件识别极速版适配（票 45）：wav base64 内联上送，一次请求同步返回 result.text。
+    """火山录音文件识别极速版适配（）：wav base64 内联上送，一次请求同步返回 result.text。
 
     成功与否看响应头 X-Api-Status-Code 而非 body（20000000 成功；20000003 静音、45000002
     空音频），失败排障依赖 X-Tt-Logid。日志只记状态码与 logid，绝不记音频与识别文字原文
@@ -162,7 +162,7 @@ class VolcTtsClient:
 def _volcano_voice_key_ready(settings: Settings) -> bool:
     """火山语音凭据就绪判定：新版控制台单 api_key，或旧版 app_id + access_token 齐备。
 
-    未就绪时契约 enabled=true 回落 Fake 固定文本（票 58，ADR-0029），演示链路完整。
+    未就绪时契约 enabled=true 回落 Fake 固定文本（ADR-0029），演示链路完整。
     """
     return bool(settings.volc_asr_api_key) or bool(
         settings.volc_asr_app_id and settings.volc_asr_access_token
@@ -174,7 +174,7 @@ class VoiceService:
 
     enabled=false 时返回 Disabled 占位（调用即抛 VOICE_UNCONFIGURED），让 server-java
     出口走降级文案；enabled=true 且凭据就绪后返回 Volc 实现，凭据未就绪回落 Fake
-    （票 58，ADR-0029：Fake 返回固定识别文本，不依赖真实密钥）。测试经 inject_*
+    （ADR-0029：Fake 返回固定识别文本，不依赖真实密钥）。测试经 inject_*
     注入 Fake 实例并钉死凭据判定，不触碰 settings。
     """
 
