@@ -12,7 +12,7 @@ Status: accepted（部分取代 ADR-0001）
 
 保留 Python Agent 层，业务承载移交 Java，两服务平铺：
 
-- `server-java/`：Spring Boot + MyBatis-Plus 单体。唯一对外入口与唯一业务写入方：鉴权/会话/审计/限流、B 端全部 API 与 C 端业务 API、规则引擎（红线症状、用药禁忌——硬规则 2 的归属端）、号源防超卖（Redis 原子 DECR + PG 事务对账，硬规则 4）。schema 管理为 `schema.sql` + 幂等 seed（启动执行），开发期 drop + recreate + seed，不做隐式迁移——沿用原约定的精神，替换工具形态。
+- `server-java/`：Spring Boot + MyBatis-Plus 单体。唯一对外入口与唯一业务写入方：鉴权/会话/审计/限流、B 端全部 API 与 C 端业务 API、规则引擎（红线症状、用药禁忌——硬规则 2 的归属端）、号源防超卖（Redis 原子 DECR + PG 事务对账，硬规则 4）。schema 管理为 `schema.sql` + 幂等 seed（由 `scripts/reset_zhiyu.py` 显式 drop + recreate + seed，server-java 启动不执行任何 DDL/seed，`spring.sql.init.mode=never`——曾因启动重放 schema.sql 内的 DROP 误删 departments/department_categories 的人工新增数据，见 AGENTS.md 硬约束 6），不做隐式迁移——沿用原约定的精神，替换工具形态。
 - `server-py/`：现有 `server/` 更名瘦身。保留 LangChain + LangGraph（ADR-0005）、火山方舟 LLM/语音链路（ADR-0004）与知识检索（Neo4j、pgvector 直连只读）；FastAPI 从业务单体退化为 Agent 编排的 HTTP 壳；业务工具改为薄壳 HTTP 回调 server-java，无业务写入权。
 - 对话链路：统一 server-java 入口——鉴权/审计后 SSE 流式调 server-py，token 逐跳透传回小程序。审计日志（脱敏摘要，硬规则 6）只在入口落一处。
 - 明确不引入 Spring Cloud、Dubbo、注册中心、网关中间件：两周 demo 体量，双服务直连。

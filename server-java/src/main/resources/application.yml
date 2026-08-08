@@ -22,15 +22,13 @@ spring:
     password: ${POSTGRES_PASSWORD:}
   sql:
     init:
-      # schema.sql + 幂等 seed.sql 启动执行（开发期 drop+recreate+seed 约定）
-      # spring.sql.init 默认只读 classpath:schema.sql 与 classpath:data.sql，
-      # 这里显式指定 data-locations，让 seed.sql 保持语义化文件名
-      # seed-knowledge.sql 含向量回填，由离线 embedding 工具产出且不入库；
-      # optional: 容忍其缺失，避免阻断未产出向量时的启动
-      # encoding: Windows 平台默认 GBK，须显式 UTF-8 否则 seed.sql 中文（科室/药品/排班时段）乱码
-      mode: always
-      encoding: UTF-8
-      data-locations: optional:classpath:seed-knowledge.sql,classpath:seed.sql
+      # 启动不再执行任何 DDL/seed：schema 演进统一走 scripts/reset_zhiyu.py（drop+recreate+seed）显式重建，
+      # 见 AGENTS.md「运行拓扑」。此前 mode: always 每次启动重放 schema.sql，其中票 49 遗留的
+      # DROP TABLE IF EXISTS departments / department_categories 会无条件清空这两张表，导致 B 端后台
+      # 人工新增的部门/科室分类每次重启即丢（误删人工业务数据）。
+      # 若未来重新启用启动建表，必须先移除 schema.sql 全部破坏性语句（DROP TABLE/DROP COLUMN/结构 hack），
+      # 并恢复 encoding: UTF-8 与 data-locations: optional:classpath:seed-knowledge.sql,classpath:seed.sql。
+      mode: never
   data:
     redis:
       host: ${REDIS_HOST:localhost}

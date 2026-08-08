@@ -1,11 +1,11 @@
 -- 幂等 seed：仅组织演示数据（虚构），ON CONFLICT DO NOTHING + 显式 id
--- 由 spring.sql.init.data-locations 在启动时执行
+-- 由 scripts/reset_zhiyu.py 重建时执行，或 DemoResetService 重置复用同一脚本
 
 -- 票 49：3 家郑州虚构医院为 B 端正式业务数据（不建演示副本）；医院只存名称与等级。
 INSERT INTO hospitals (id, name, level) VALUES
-    (1, '郑州智愈综合医院', '三级甲等'),
-    (2, '郑州智愈儿童医院', '三级甲等'),
-    (3, '郑州智愈中心医院', '三级乙等')
+    (1, '郑州智愈综合医院', '三甲'),
+    (2, '郑州智愈儿童医院', '三甲'),
+    (3, '郑州智愈中心医院', '三乙')
 ON CONFLICT (id) DO NOTHING;
 
 -- 院区：服务城市由本表动态聚合（当前 seed 只覆盖郑州市 410100），
