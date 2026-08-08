@@ -43,6 +43,7 @@ public class Contracts {
     private final DoctorPhotoLimits doctorPhotoLimits;
     private final ConsultationPhotoLimits consultationPhotoLimits;
     private final HealthObservations healthObservations;
+    private final ScheduleRequestFlow scheduleRequestFlow;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -77,6 +78,7 @@ public class Contracts {
         this.consultationPhotoLimits =
                 read(mapper, dir, "consultation-photo-limits.json", ConsultationPhotoLimits.class);
         this.healthObservations = read(mapper, dir, "health-observations.json", HealthObservations.class);
+        this.scheduleRequestFlow = read(mapper, dir, "schedule-request-flow.json", ScheduleRequestFlow.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -130,6 +132,11 @@ public class Contracts {
     /** 报告驱动健康观测（票 61，ADR-0031）：九项白名单指标、血压组合项拆分、来源/核验/沉淀状态与文案。 */
     public HealthObservations healthObservations() {
         return healthObservations;
+    }
+
+    /** 医生排班申请审核流：状态机/决定/时段/可排天数上限/号源上限。 */
+    public ScheduleRequestFlow scheduleRequestFlow() {
+        return scheduleRequestFlow;
     }
 
     public ChatDefaults chatDefaults() {
@@ -788,5 +795,31 @@ public class Contracts {
                 unitAliases = Map.copyOf(unitAliases);
             }
         }
+    }
+
+    /** 医生排班申请审核流：状态机/决定/操作类型/时段窗口/可排天数上限/号源上限，双栈共享单一事实源。 */
+    public record ScheduleRequestFlow(
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            Map<String, String> decisions,
+            Map<String, String> actions,
+            Map<String, String> actionLabels,
+            Map<String, String> timeSlots,
+            Map<String, TimeSlotWindow> timeSlotWindows,
+            int maxDaysAhead,
+            int maxTotalSlots,
+            int reviewReasonMaxLength) {
+        public ScheduleRequestFlow {
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            decisions = Map.copyOf(decisions);
+            actions = Map.copyOf(actions);
+            actionLabels = Map.copyOf(actionLabels);
+            timeSlots = Map.copyOf(timeSlots);
+            timeSlotWindows = Map.copyOf(timeSlotWindows);
+        }
+
+        /** 排班时段窗口（挂号截止校验的单一事实源）：上午 09:00-11:30，下午 14:00-18:00。 */
+        public record TimeSlotWindow(String start, String end) {}
     }
 }
