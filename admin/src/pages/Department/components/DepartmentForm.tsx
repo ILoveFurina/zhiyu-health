@@ -67,11 +67,28 @@ export default function DepartmentForm({ open, record, onOpenChange, onSuccess }
     }
   }, [selectedCampusId, categoryOptions, form]);
 
-  const standardOptions = useMemo(
-    () =>
-      standardDepartments.map((s) => ({ label: `${s.category}-${s.name}`, value: s.id })),
-    [standardDepartments],
-  );
+  // 标准科室下拉：按所选分类的科类名联动过滤（分类 name 已收敛为标准科类名，如"内科"）
+  const selectedCategoryId = Form.useWatch('category_id', form);
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategoryId) return undefined;
+    return categories.find((c) => c.id === selectedCategoryId)?.name;
+  }, [categories, selectedCategoryId]);
+
+  const standardOptions = useMemo(() => {
+    const matched = standardDepartments.filter((s) =>
+      selectedCategoryName ? s.category === selectedCategoryName : true,
+    );
+    return matched.map((s) => ({ label: `${s.category}-${s.name}`, value: s.id }));
+  }, [standardDepartments, selectedCategoryName]);
+
+  // 分类切换后，若当前标准科室已不属于新分类，清空以免提交错配的标准科室
+  useEffect(() => {
+    if (!selectedCategoryId) return;
+    const currentStd = form.getFieldValue('standard_department_id');
+    if (currentStd != null && !standardOptions.some((o) => o.value === currentStd)) {
+      form.setFieldValue('standard_department_id', undefined);
+    }
+  }, [selectedCategoryId, standardOptions, form]);
 
   return (
     <ModalForm<Omit<Department, 'id'>>
@@ -117,6 +134,8 @@ export default function DepartmentForm({ open, record, onOpenChange, onSuccess }
         label="标准科室"
         options={standardOptions}
         rules={[{ required: true, message: '请选择标准科室' }]}
+        placeholder={selectedCategoryId ? '请选择标准科室' : '请先选择科室分类'}
+        disabled={!selectedCategoryId}
       />
       <ProFormText name="name" label="科室名称" rules={[{ required: true, message: '请输入科室名称' }]} />
       <ProFormText name="floor" label="楼层" rules={[{ required: true, message: '请输入楼层' }]} />
