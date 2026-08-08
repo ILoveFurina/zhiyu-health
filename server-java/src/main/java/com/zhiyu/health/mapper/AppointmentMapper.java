@@ -11,10 +11,13 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface AppointmentMapper extends BaseMapper<Appointment> {
 
+    // 幂等判重只看有效挂号：已取消的记录允许重挂（与 uq_appointments_profile_schedule_active
+    // 部分唯一索引同口径），DB 唯一索引兜底并发下的重复有效挂号。
     @Select(
             """
             SELECT * FROM appointments
             WHERE patient_id = #{patientId} AND health_profile_id = #{profileId} AND schedule_id = #{scheduleId}
+              AND status <> 'CANCELLED'
             """)
     Appointment selectForProfileAndSchedule(
             @Param("patientId") long patientId,
