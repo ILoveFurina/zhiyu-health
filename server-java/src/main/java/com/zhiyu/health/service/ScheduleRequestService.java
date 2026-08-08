@@ -59,6 +59,9 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
                             maxDate,
                             maxSlots,
                             validSlots);
+                    // 查重：同医生同日同时段已有活跃排班或待审核的新增申请则拒绝，防止重复排班。
+                    checkDuplicateCreate(
+                            doctorId, item.scheduleDate(), item.timeSlot().getValue());
                     ScheduleRequest req = newRequest(doctorId, staffId);
                     req.setScheduleDate(item.scheduleDate());
                     req.setTimeSlot(item.timeSlot());
@@ -79,8 +82,19 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
     public ScheduleRequest submitChange(long staffId, long targetScheduleId, String actionName, Integer newTotalSlots) {
         long doctorId = requireDoctor(staffId);
         Schedule target = scheduleMapper.selectById(targetScheduleId);
-        if (target == null || !Boolean.TRUE.equals(target.getIsActive())) {
+        if (target == null) {
+            throw new ApiException(404, "排班不存在");
+        }
+        String actionValue = action(actionName);
+        if (actionValue == null) {
+            throw new ApiException(400, "操作类型无效");
+        }
+        // DISABLE 只能对可出诊排班发起；ENABLE 只能对已停诊排班发起（互为逆操作）。
+        if (action("disable").equals(actionValue) && !Boolean.TRUE.equals(target.getIsActive())) {
             throw new ApiException(404, "排班不存在或已停用");
+        }
+        if (action("enable").equals(actionValue) && Boolean.TRUE.equals(target.getIsActive())) {
+            throw new ApiException(400, "排班已处于可出诊状态，无需恢复");
         }
         if (!target.getDoctorId().equals(doctorId)) {
             // 只能调整自己的排班，防止越权操作他人排班。
@@ -88,10 +102,6 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
         }
         if (!target.getScheduleDate().isAfter(LocalDate.now())) {
             throw new ApiException(400, "只能调整未来日期的排班");
-        }
-        String actionValue = action(actionName);
-        if (actionValue == null) {
-            throw new ApiException(400, "操作类型无效");
         }
         int maxSlots = contracts.scheduleRequestFlow().maxTotalSlots();
         ScheduleRequest req = newRequest(doctorId, staffId);
@@ -105,7 +115,7 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
             }
             req.setTotalSlots(newTotalSlots);
         } else {
-            // DISABLE：号源数沿用原排班，仅作记录用
+            // DISABLE / ENABLE：号源数沿用原排班，仅作记录用
             req.setTotalSlots(target.getTotalSlots());
         }
         baseMapper.insert(req);
@@ -176,7 +186,8 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
      * 审核通过时按 action 类型执行实际排班操作，返回关联的 schedule_id。
      * CREATE 复用 createSchedule（含 SlotAccounting 双写初始化）；
      * MODIFY 复用 updateSchedule（容量调整 + Redis 计数对账）；
-     * DISABLE 复用 disableSchedule（仅更 is_active，不触碰 remaining_slots）。
+     * DISABLE 复用 disableSchedule（仅更 is_active，不触碰 remaining_slots）；
+     * ENABLE 复用 enableSchedule（恢复 is_active=true，号源保持冻结值）。
      */
     private Long applyApprovedAction(ScheduleRequest request) {
         if (action("create").equals(request.getAction())) {
@@ -191,6 +202,10 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
         }
         if (action("disable").equals(request.getAction())) {
             scheduleService.disableSchedule(request.getTargetScheduleId());
+            return request.getTargetScheduleId();
+        }
+        if (action("enable").equals(request.getAction())) {
+            scheduleService.enableSchedule(request.getTargetScheduleId());
             return request.getTargetScheduleId();
         }
         throw new ApiException(400, "操作类型无效");
@@ -216,6 +231,19 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
         }
         if (totalSlots == null || totalSlots < 1 || totalSlots > maxSlots) {
             throw new ApiException(400, "号源数量必须在 1-" + maxSlots + " 之间");
+        }
+    }
+
+    /**
+     * 排班申请查重：同医生同日同时段已有活跃排班或待审核的新增申请则拒绝。
+     * 避免 CREATE 审核通过后落出重复排班行，也避免重复提交待审核申请。
+     */
+    private void checkDuplicateCreate(long doctorId, LocalDate scheduleDate, String timeSlotValue) {
+        if (scheduleMapper.countActiveByDoctorDateSlot(doctorId, scheduleDate, timeSlotValue) > 0) {
+            throw new ApiException(400, "该日期该时段已有排班，不可重复申请");
+        }
+        if (baseMapper.countPendingCreateByDoctorDateSlot(doctorId, scheduleDate, timeSlotValue) > 0) {
+            throw new ApiException(400, "该日期该时段已有待审核的排班申请");
         }
     }
 

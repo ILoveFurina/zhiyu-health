@@ -83,6 +83,17 @@ public class ScheduleService extends ServiceImpl<ScheduleMapper, Schedule> {
         return schedule;
     }
 
+    /** 恢复出诊：与 disableSchedule 互为逆操作，号源 remaining_slots 保持原值不变（停诊期间冻结）。 */
+    public Schedule enableSchedule(long scheduleId) {
+        Schedule schedule = getById(scheduleId);
+        if (schedule == null) {
+            throw new ApiException(404, "排班不存在");
+        }
+        baseMapper.enable(scheduleId);
+        schedule.setIsActive(true);
+        return schedule;
+    }
+
     public boolean tryDecrementSlot(long scheduleId) {
         // 预扣失败（售罄）或 PG 对账失败均由 SlotAccounting 回补 Redis；PG 写入在事务内执行。
         return slotAccounting.tryDeduct(

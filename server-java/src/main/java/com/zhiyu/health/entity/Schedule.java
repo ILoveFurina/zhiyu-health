@@ -27,4 +27,8 @@ public class Schedule {
 
     @TableField(exist = false)
     private BigDecimal registrationFee;
+
+    /** 联查投影：该排班是否存在待审核的 DISABLE/ENABLE 申请（排班表页面展示"待审核"状态用）。 */
+    @TableField(exist = false)
+    private String pendingAction;
 }

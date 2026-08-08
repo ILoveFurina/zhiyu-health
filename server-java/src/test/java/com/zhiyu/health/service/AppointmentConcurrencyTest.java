@@ -13,6 +13,7 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.mapper.ScheduleRequestMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -34,6 +35,7 @@ class AppointmentConcurrencyTest {
     void concurrentPatientsCompetingForLastSlotProduceExactlyOneAppointment() throws Exception {
         AppointmentMapper appointments = mock(AppointmentMapper.class);
         ScheduleMapper schedules = mock(ScheduleMapper.class);
+        ScheduleRequestMapper scheduleRequests = mock(ScheduleRequestMapper.class);
         InAppMessageMapper messages = mock(InAppMessageMapper.class);
         InMemorySlotCounter redis = new InMemorySlotCounter();
         AtomicInteger pgRemaining = new AtomicInteger(1);
@@ -53,6 +55,7 @@ class AppointmentConcurrencyTest {
                         "门诊楼 1 层导诊台",
                         "身份证或医保卡",
                         "建议提前 30 分钟到达"));
+        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
@@ -77,6 +80,7 @@ class AppointmentConcurrencyTest {
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                scheduleRequests,
                 messages,
                 new SlotAccounting(redis),
                 serializedTransaction(),

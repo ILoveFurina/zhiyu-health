@@ -501,14 +501,15 @@ class ContractsTest {
                 .containsEntry("REJECTED", "已驳回");
         assertThat(flow.decisions())
                 .containsExactlyInAnyOrderEntriesOf(Map.of("approve", "APPROVE", "reject", "REJECT"));
-        // 操作类型：CREATE 新增 / MODIFY 调整号源 / DISABLE 停诊
+        // 操作类型：CREATE 新增 / MODIFY 调整号源 / DISABLE 停诊 / ENABLE 恢复出诊
         assertThat(flow.actions())
                 .containsExactlyInAnyOrderEntriesOf(
-                        Map.of("create", "CREATE", "modify", "MODIFY", "disable", "DISABLE"));
+                        Map.of("create", "CREATE", "modify", "MODIFY", "disable", "DISABLE", "enable", "ENABLE"));
         assertThat(flow.actionLabels())
                 .containsEntry("CREATE", "新增排班")
                 .containsEntry("MODIFY", "调整号源")
-                .containsEntry("DISABLE", "停诊");
+                .containsEntry("DISABLE", "停诊")
+                .containsEntry("ENABLE", "恢复出诊");
         // 时段去掉晚上，只保留上午/下午
         assertThat(flow.timeSlots())
                 .hasSize(2)

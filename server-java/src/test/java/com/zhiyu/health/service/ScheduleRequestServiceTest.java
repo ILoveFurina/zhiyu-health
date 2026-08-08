@@ -54,6 +54,10 @@ class ScheduleRequestServiceTest {
     void submitCreatesRequestsForValidItems() {
         StaffUser doctor = staffUser(10L, 5L);
         when(staffUserMapper.selectById(10L)).thenReturn(doctor);
+        when(scheduleMapper.countActiveByDoctorDateSlot(eq(5L), any(LocalDate.class), any(String.class)))
+                .thenReturn(0);
+        when(scheduleRequestMapper.countPendingCreateByDoctorDateSlot(eq(5L), any(LocalDate.class), any(String.class)))
+                .thenReturn(0);
         LocalDate today = LocalDate.now();
         List<ScheduleRequestService.ScheduleRequestItem> items = List.of(
                 new ScheduleRequestService.ScheduleRequestItem(today, TimeSlot.MORNING, 10),
@@ -341,6 +345,86 @@ class ScheduleRequestServiceTest {
         service.review(20L, 1L, "APPROVE", null);
 
         verify(scheduleService).disableSchedule(50L);
+    }
+
+    @Test
+    void submitChangeEnableCreatesRequestForDisabledSchedule() {
+        when(staffUserMapper.selectById(10L)).thenReturn(staffUser(10L, 5L));
+        Schedule target = new Schedule();
+        target.setId(50L);
+        target.setDoctorId(5L);
+        target.setScheduleDate(LocalDate.now().plusDays(2));
+        target.setTimeSlot(TimeSlot.MORNING);
+        target.setTotalSlots(10);
+        target.setIsActive(false);
+        when(scheduleMapper.selectById(50L)).thenReturn(target);
+
+        ScheduleRequest result = service.submitChange(10L, 50L, "enable", null);
+
+        assertThat(result.getAction()).isEqualTo("ENABLE");
+        assertThat(result.getTargetScheduleId()).isEqualTo(50L);
+        assertThat(result.getTotalSlots()).isEqualTo(10);
+        assertThat(result.getStatus()).isEqualTo("PENDING");
+        verify(scheduleRequestMapper).insert(any(ScheduleRequest.class));
+    }
+
+    @Test
+    void submitChangeEnableRejectsActiveSchedule() {
+        when(staffUserMapper.selectById(10L)).thenReturn(staffUser(10L, 5L));
+        Schedule target = new Schedule();
+        target.setId(50L);
+        target.setDoctorId(5L);
+        target.setScheduleDate(LocalDate.now().plusDays(2));
+        target.setIsActive(true);
+        when(scheduleMapper.selectById(50L)).thenReturn(target);
+
+        assertThatThrownBy(() -> service.submitChange(10L, 50L, "enable", null))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("排班已处于可出诊状态，无需恢复");
+    }
+
+    @Test
+    void reviewApproveEnableCallsEnableSchedule() {
+        ScheduleRequest enableReq = request(1L, "PENDING");
+        enableReq.setAction("ENABLE");
+        enableReq.setTargetScheduleId(50L);
+        when(scheduleRequestMapper.selectDetailedById(1L)).thenReturn(enableReq, enableReq);
+        when(scheduleRequestMapper.review(eq(1L), eq("APPROVED"), any(), eq(20L), eq(50L), eq("PENDING")))
+                .thenReturn(1);
+
+        service.review(20L, 1L, "APPROVE", null);
+
+        verify(scheduleService).enableSchedule(50L);
+    }
+
+    @Test
+    void submitRejectsDuplicateActiveSchedule() {
+        when(staffUserMapper.selectById(10L)).thenReturn(staffUser(10L, 5L));
+        when(scheduleMapper.countActiveByDoctorDateSlot(eq(5L), any(LocalDate.class), eq("上午")))
+                .thenReturn(1);
+
+        assertThatThrownBy(() -> service.submit(
+                        10L,
+                        5L,
+                        List.of(new ScheduleRequestService.ScheduleRequestItem(LocalDate.now(), TimeSlot.MORNING, 10))))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("该日期该时段已有排班，不可重复申请");
+    }
+
+    @Test
+    void submitRejectsDuplicatePendingRequest() {
+        when(staffUserMapper.selectById(10L)).thenReturn(staffUser(10L, 5L));
+        when(scheduleMapper.countActiveByDoctorDateSlot(eq(5L), any(LocalDate.class), eq("上午")))
+                .thenReturn(0);
+        when(scheduleRequestMapper.countPendingCreateByDoctorDateSlot(eq(5L), any(LocalDate.class), eq("上午")))
+                .thenReturn(1);
+
+        assertThatThrownBy(() -> service.submit(
+                        10L,
+                        5L,
+                        List.of(new ScheduleRequestService.ScheduleRequestItem(LocalDate.now(), TimeSlot.MORNING, 10))))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("该日期该时段已有待审核的排班申请");
     }
 
     @Test

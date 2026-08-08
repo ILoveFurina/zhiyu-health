@@ -26,7 +26,7 @@ const ROUTE_GROUPS: Record<string, [string, string]> = {
   '/standard-departments': ['组织管理', '标准科室目录'],
   '/departments': ['组织管理', '科室管理'],
   '/doctors': ['组织管理', '医生管理'],
-  '/schedule-review': ['组织管理', '排班审核'],
+  '/schedule-review': ['业务管理', '排班审核'],
   '/prescriptions': ['业务管理', '电子处方审核'],
   '/medications': ['业务管理', '药品管理'],
   '/drug-orders': ['业务管理', '药品订单管理'],
@@ -138,8 +138,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       return [mk('业务管理', ['/workbench', '/schedule-table', '/schedule-request'])];
     }
     return [
-      mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review']),
-      mk('业务管理', ['/prescriptions', '/medications', '/drug-orders', '/payments']),
+      mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors']),
+      mk('业务管理', ['/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments']),
       mk('智能与日志', ['/knowledge-graph', '/agent-trace', '/demo']),
     ];
   },
