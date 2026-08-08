@@ -74,8 +74,9 @@ public class AppointmentService {
                     if (scheduleRequestMapper.countPendingDisableBySchedule(scheduleId) > 0) {
                         throw new ApiException(409, "该排班正在停诊审核中，暂不可挂号");
                     }
-                    Appointment existing =
-                            appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
+                    String cancelledStatus = contracts.appointmentFlow().status("cancelled");
+                    Appointment existing = appointmentMapper.selectForProfileAndSchedule(
+                            patientId, profileId, scheduleId, cancelledStatus);
                     if (existing != null) {
                         if (duplicatePolicy == DuplicatePolicy.REJECT) {
                             throw new ApiException(409, "请勿重复挂号");
@@ -94,7 +95,7 @@ public class AppointmentService {
                     appointment.setScheduleId(scheduleId);
                     appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
                     appointment.setRegistrationFee(schedule.getRegistrationFee());
-                    appointment.setStatus(Appointment.STATUS_BOOKED);
+                    appointment.setStatus(contracts.appointmentFlow().status("booked"));
                     appointmentMapper.insert(appointment);
                     writeAppointmentCareMessage(patientId, scheduleId, appointment.getId());
                     return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
@@ -198,13 +199,16 @@ public class AppointmentService {
             if (appointment == null) {
                 throw new ApiException(404, "挂号单不存在");
             }
-            if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
+            Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+            String cancelledStatus = flow.status("cancelled");
+            if (cancelledStatus.equals(appointment.getStatus())) {
                 return appointment.getId();
             }
-            if (!Appointment.STATUS_BOOKED.equals(appointment.getStatus())) {
+            Contracts.AppointmentFlow.Transition cancel = flow.transitions().get("cancel");
+            if (!cancel.allows(appointment.getStatus())) {
                 throw new ApiException(409, "当前状态不可取消");
             }
-            if (appointmentMapper.markCancelled(appointmentId) != 1
+            if (appointmentMapper.markCancelled(appointmentId, cancel.from().get(0), cancel.to()) != 1
                     || scheduleMapper.incrementRemainingSlots(appointment.getScheduleId()) != 1) {
                 throw new IllegalStateException("取消挂号的 PostgreSQL 回补失败");
             }
@@ -231,7 +235,10 @@ public class AppointmentService {
                 ? null
                 : contracts.paymentFlow().statusLabels().get(paymentStatus);
         return appointmentDtos.toView(
-                appointment, Appointment.displayStatus(appointment.getStatus()), paymentStatusLabel);
+                appointment,
+                appointment.getStatus(),
+                contracts.appointmentFlow().statusLabel(appointment.getStatus()),
+                paymentStatusLabel);
     }
 
     public boolean isPaymentPayable(String paymentStatus) {
@@ -247,11 +254,15 @@ public class AppointmentService {
             String scheduleDate,
             String timeSlot,
             Integer sequenceNumber,
+            String statusCode,
             String status,
             BigDecimal registrationFee,
             String paymentStatus,
             String paymentStatusLabel,
             String conditionSummary,
+            String hospitalName,
+            String campusName,
+            String campusAddress,
             String createdAt) {}
 
     private record CreatedAppointment(Long id, BigDecimal registrationFee) {}

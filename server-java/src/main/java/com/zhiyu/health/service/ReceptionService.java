@@ -1,5 +1,7 @@
 package com.zhiyu.health.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
@@ -15,6 +17,7 @@ import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class ReceptionService {
     private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
+    private final ObjectMapper objectMapper;
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
@@ -40,9 +44,13 @@ public class ReceptionService {
         List<ScheduleView> schedules = receptionMapper.selectSchedules(doctorId, today).stream()
                 .map(this::toScheduleView)
                 .toList();
-        List<AppointmentView> appointments = receptionMapper.selectAppointments(doctorId, today).stream()
-                .map(this::toAppointmentView)
-                .toList();
+        List<AppointmentView> appointments =
+                receptionMapper
+                        .selectAppointments(
+                                doctorId, today, contracts.appointmentFlow().status("cancelled"))
+                        .stream()
+                        .map(this::toAppointmentView)
+                        .toList();
         return new ReceptionDashboard(today.toString(), schedules, appointments);
     }
 
@@ -70,10 +78,13 @@ public class ReceptionService {
         if (preview == null) {
             throw new ApiException(404, "挂号单不存在");
         }
-        if (Appointment.STATUS_VISITED.equals(preview.getStatus())) {
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        String visitedStatus = flow.status("visited");
+        if (visitedStatus.equals(preview.getStatus())) {
             return detail(staffId, appointmentId);
         }
-        if (!Appointment.STATUS_BOOKED.equals(preview.getStatus())) {
+        Contracts.AppointmentFlow.Transition complete = flow.transitions().get("complete");
+        if (!complete.allows(preview.getStatus())) {
             throw new ApiException(409, "当前状态不可接诊");
         }
         // 模型调用放在事务外，且只传医生填写的两项内容，避免带入病情摘要或其他患者原文。
@@ -84,10 +95,10 @@ public class ReceptionService {
             if (appointment == null) {
                 throw new ApiException(404, "挂号单不存在");
             }
-            if (Appointment.STATUS_VISITED.equals(appointment.getStatus())) {
+            if (visitedStatus.equals(appointment.getStatus())) {
                 return;
             }
-            if (!Appointment.STATUS_BOOKED.equals(appointment.getStatus())) {
+            if (!complete.allows(appointment.getStatus())) {
                 throw new ApiException(409, "当前状态不可接诊");
             }
             ConsultationRecord record = new ConsultationRecord();
@@ -105,11 +116,83 @@ public class ReceptionService {
             message.setDisclaimer(disclaimers.text());
             message.setRelatedAppointmentId(appointmentId);
             messageMapper.insert(message);
-            if (receptionMapper.markVisited(appointmentId) != 1) {
+            if (receptionMapper.markVisited(
+                            appointmentId,
+                            complete.from().get(0),
+                            complete.from().get(1),
+                            complete.to())
+                    != 1) {
                 throw new IllegalStateException("接诊状态流转失败");
             }
         });
         return detail(staffId, appointmentId);
+    }
+
+    /** 医生叫号：仅本人排班下的已约挂号可推进，状态与站内通知同事务提交。 */
+    public AppointmentDetail call(long staffId, long appointmentId) {
+        long doctorId = requireDoctor(staffId);
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        String inProgressStatus = flow.status("in_progress");
+        Appointment preview = receptionMapper.selectAppointment(appointmentId, doctorId);
+        if (preview == null) {
+            throw new ApiException(404, "挂号单不存在");
+        }
+        if (inProgressStatus.equals(preview.getStatus())) {
+            return detail(staffId, appointmentId);
+        }
+        Contracts.AppointmentFlow.Transition call = flow.transitions().get("call");
+        if (!call.allows(preview.getStatus())) {
+            throw new ApiException(409, "当前状态不可叫号");
+        }
+        transactionTemplate.executeWithoutResult(status -> {
+            // 行锁串行化重复叫号；状态推进与通知写入同事务，任一失败都不留下半完成结果。
+            Appointment appointment = receptionMapper.selectAppointmentForUpdate(appointmentId, doctorId);
+            if (appointment == null) {
+                throw new ApiException(404, "挂号单不存在");
+            }
+            if (inProgressStatus.equals(appointment.getStatus())) {
+                return;
+            }
+            if (!call.allows(appointment.getStatus())) {
+                throw new ApiException(409, "当前状态不可叫号");
+            }
+            writeCalledNotice(appointment);
+            if (receptionMapper.markInProgress(appointmentId, call.from().get(0), call.to()) != 1) {
+                throw new IllegalStateException("叫号状态流转失败");
+            }
+        });
+        return detail(staffId, appointmentId);
+    }
+
+    private void writeCalledNotice(Appointment appointment) {
+        Contracts.AppointmentFlow.CalledNotice notice =
+                contracts.appointmentFlow().calledNotice();
+        var content = new LinkedHashMap<String, Object>();
+        content.put("greeting", notice.greeting());
+        content.put("room", appointment.getRoom());
+        content.put("sequence_number", appointment.getSequenceNumber());
+        content.put(
+                "schedule_date",
+                appointment.getScheduleDate() == null
+                        ? null
+                        : appointment.getScheduleDate().toString());
+        content.put(
+                "time_slot",
+                appointment.getTimeSlot() == null
+                        ? null
+                        : appointment.getTimeSlot().getValue());
+        InAppMessage message = new InAppMessage();
+        message.setPatientId(appointment.getPatientId());
+        message.setType(notice.messageType());
+        message.setTitle(notice.title());
+        try {
+            message.setContent(objectMapper.writeValueAsString(content));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("叫号通知 content 序列化失败", exception);
+        }
+        message.setDisclaimer(disclaimers.text());
+        message.setRelatedAppointmentId(appointment.getId());
+        messageMapper.insert(message);
     }
 
     private long requireDoctor(long staffId) {
@@ -138,7 +221,8 @@ public class ReceptionService {
                 appointment.getScheduleId(),
                 appointment.getPatientNickname(),
                 appointment.getSequenceNumber(),
-                Appointment.displayStatus(appointment.getStatus()),
+                appointment.getStatus(),
+                contracts.appointmentFlow().statusLabel(appointment.getStatus()),
                 prescriptionStatus,
                 appointment.getScheduleDate() == null
                         ? null
@@ -160,6 +244,7 @@ public class ReceptionService {
             Long scheduleId,
             String patientNickname,
             Integer sequenceNumber,
+            String statusCode,
             String status,
             String prescriptionStatus,
             String scheduleDate,

@@ -91,11 +91,15 @@ class AppointmentToolControllerTest {
                 "2026-07-29",
                 "上午",
                 1,
+                "BOOKED",
                 "已约",
                 new BigDecimal("30.00"),
                 "UNPAID",
                 "待支付",
                 "主诉胸闷两天",
+                null,
+                null,
+                null,
                 "2026-07-28T10:00:00+08:00");
     }
 
@@ -109,10 +113,14 @@ class AppointmentToolControllerTest {
                 "2026-07-29",
                 "上午",
                 1,
+                "BOOKED",
                 "已约",
                 new BigDecimal("30.00"),
                 "UNPAID",
                 "待支付",
+                null,
+                null,
+                null,
                 null,
                 "2026-07-28T10:00:00+08:00");
     }

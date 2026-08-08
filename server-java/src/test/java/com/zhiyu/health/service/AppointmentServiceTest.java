@@ -104,7 +104,8 @@ class AppointmentServiceTest {
     @Test
     void directDuplicateReturnsConflictWithoutDeductingAgain() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(appointment(21L, "BOOKED"));
         slotCounter.initialize(9L, 2);
 
         assertThatThrownBy(() -> service().createDirect(12L, 9L))
@@ -131,7 +132,8 @@ class AppointmentServiceTest {
     void duplicateReturnsExistingAppointmentWithoutDeductingAgain() {
         Appointment existing = appointment(21L, "BOOKED");
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(existing);
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(existing);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
         slotCounter.initialize(9L, 2);
 
@@ -189,7 +191,8 @@ class AppointmentServiceTest {
         // 票 43 幂等：重复挂号走 RETURN_EXISTING 早返回分支，不触达关怀消息写入
         Appointment existing = appointment(21L, "BOOKED");
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(existing);
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(existing);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
         slotCounter.initialize(9L, 2);
 
@@ -202,7 +205,8 @@ class AppointmentServiceTest {
     void directDuplicateRejectsBeforeWritingCareMessage() {
         // 票 43 幂等：B 端直接挂号重复走 REJECT 抛 409，不触达关怀消息写入
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(appointment(21L, "BOOKED"));
         slotCounter.initialize(9L, 2);
 
         assertThatThrownBy(() -> service().createDirect(12L, 9L))
@@ -214,7 +218,8 @@ class AppointmentServiceTest {
     @Test
     void duplicateWithSummaryReturnsExistingResultWithoutRewritingFromNewConversation() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 2));
-        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(appointment(21L, "BOOKED"));
+        when(appointmentMapper.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(appointment(21L, "BOOKED"));
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
 
         AppointmentService.AppointmentView result = service().createWithSummary(12L, 99L, 9L, "新会话摘要");
@@ -315,7 +320,7 @@ class AppointmentServiceTest {
         Appointment booked = appointment(21L, "BOOKED");
         Appointment cancelled = appointment(21L, "CANCELLED");
         when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked, cancelled);
-        when(appointmentMapper.markCancelled(21L)).thenReturn(1);
+        when(appointmentMapper.markCancelled(21L, "BOOKED", "CANCELLED")).thenReturn(1);
         when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
         slotCounter.initialize(9L, 2);
@@ -325,8 +330,20 @@ class AppointmentServiceTest {
         service.cancel(12L, 21L);
 
         assertThat(slotCounter.values.get(9L)).hasValue(3);
-        verify(appointmentMapper).markCancelled(21L);
+        verify(appointmentMapper).markCancelled(21L, "BOOKED", "CANCELLED");
         verify(scheduleMapper).incrementRemainingSlots(9L);
+    }
+
+    @Test
+    void inProgressAppointmentCannotBeCancelled() {
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(appointment(21L, "IN_PROGRESS"));
+
+        assertThatThrownBy(() -> service().cancel(12L, 21L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("当前状态不可取消");
+
+        verify(appointmentMapper, never()).markCancelled(anyLong(), any(), any());
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
     }
 
     @Test

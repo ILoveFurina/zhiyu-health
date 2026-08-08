@@ -7,7 +7,6 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,20 +14,6 @@ import lombok.Setter;
 @Setter
 @TableName("appointments")
 public class Appointment {
-
-    public static final String STATUS_BOOKED = "BOOKED";
-    public static final String STATUS_CANCELLED = "CANCELLED";
-    public static final String STATUS_VISITED = "VISITED";
-
-    private static final Map<String, String> STATUS_DISPLAY = Map.of(
-            STATUS_BOOKED, "已约",
-            STATUS_CANCELLED, "已取消",
-            STATUS_VISITED, "已接诊");
-
-    /** 状态码 → 中文展示；未知值按已约兜底（对齐 Python 原件 switch 默认分支）。 */
-    public static String displayStatus(String status) {
-        return STATUS_DISPLAY.getOrDefault(status, STATUS_DISPLAY.get(STATUS_BOOKED));
-    }
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -64,4 +49,16 @@ public class Appointment {
 
     @TableField(exist = false)
     private String paymentStatus;
+
+    @TableField(exist = false)
+    private String room;
+
+    @TableField(exist = false)
+    private String hospitalName;
+
+    @TableField(exist = false)
+    private String campusName;
+
+    @TableField(exist = false)
+    private String campusAddress;
 }

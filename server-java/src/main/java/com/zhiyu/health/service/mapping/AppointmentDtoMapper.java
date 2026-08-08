@@ -20,13 +20,18 @@ public interface AppointmentDtoMapper {
     @Mapping(target = "scheduleDate", source = "appointment.scheduleDate", qualifiedByName = "dateText")
     @Mapping(target = "timeSlot", source = "appointment.timeSlot", qualifiedByName = "timeSlotText")
     @Mapping(target = "sequenceNumber", source = "appointment.sequenceNumber")
+    @Mapping(target = "statusCode", source = "statusCode")
     @Mapping(target = "status", source = "statusLabel")
     @Mapping(target = "registrationFee", source = "appointment.registrationFee")
     @Mapping(target = "paymentStatus", source = "appointment.paymentStatus")
     @Mapping(target = "paymentStatusLabel", source = "paymentStatusLabel")
     @Mapping(target = "conditionSummary", source = "appointment.conditionSummary")
+    @Mapping(target = "hospitalName", source = "appointment.hospitalName")
+    @Mapping(target = "campusName", source = "appointment.campusName")
+    @Mapping(target = "campusAddress", source = "appointment.campusAddress")
     @Mapping(target = "createdAt", source = "appointment.createdAt", qualifiedByName = "dateTimeText")
-    AppointmentService.AppointmentView toView(Appointment appointment, String statusLabel, String paymentStatusLabel);
+    AppointmentService.AppointmentView toView(
+            Appointment appointment, String statusCode, String statusLabel, String paymentStatusLabel);
 
     @Named("dateText")
     default String dateText(LocalDate value) {

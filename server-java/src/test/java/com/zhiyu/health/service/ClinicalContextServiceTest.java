@@ -66,7 +66,7 @@ class ClinicalContextServiceTest {
                 });
 
         Appointment cancelled = appointment();
-        cancelled.setStatus(Appointment.STATUS_CANCELLED);
+        cancelled.setStatus("CANCELLED");
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(cancelled);
         assertThatThrownBy(() -> service.requirePrescribableFromAppointment(8L, 21L))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
@@ -176,7 +176,7 @@ class ClinicalContextServiceTest {
         appointment.setId(21L);
         appointment.setPatientId(12L);
         appointment.setHealthProfileId(3L);
-        appointment.setStatus(Appointment.STATUS_BOOKED);
+        appointment.setStatus("BOOKED");
         appointment.setCreatedAt(OffsetDateTime.parse("2026-08-01T09:00:00+08:00"));
         return appointment;
     }

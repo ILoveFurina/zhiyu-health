@@ -3,6 +3,7 @@ import type { AppointmentDetail } from '@/services/reception';
 import type { Medication, PrescriptionInput } from '@/services/prescription';
 import { prescriptionStatusLabels } from '@/contracts/prescription';
 import PrescriptionForm from './PrescriptionForm';
+import { appointmentStatuses } from '@/contracts/appointment';
 
 // 处方状态 Tag 配色：待审核金 / 已通过绿 / 已驳回红（与列表/处方审核页一致）
 const PRESCRIPTION_COLORS: Record<string, string> = {
@@ -28,7 +29,7 @@ export default function ConsultationDrawer(props: Props) {
   const { open, loading, submitting, detail, onClose, onSubmit, medications,
     prescriptionSubmitting, prescriptionCreated, onPrescribe } = props;
   const appointment = detail?.appointment;
-  const completed = appointment?.status === '已接诊';
+  const completed = appointment?.status_code === appointmentStatuses.visited;
 
   return (
     <Drawer title="接诊详情" width={560} open={open} onClose={onClose} destroyOnHidden>
@@ -46,7 +47,10 @@ export default function ConsultationDrawer(props: Props) {
                       ?? appointment.prescription_status}
                   </Tag>
                 ) : (
-                  <Tag color={completed ? 'green' : 'blue'}>{appointment.status}</Tag>
+                  <Tag color={completed ? 'green'
+                    : appointment.status_code === appointmentStatuses.in_progress ? 'orange' : 'blue'}>
+                    {appointment.status}
+                  </Tag>
                 )}
               </Descriptions.Item>
             </Descriptions>

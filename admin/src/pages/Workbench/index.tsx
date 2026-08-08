@@ -3,6 +3,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { App, Button, Tabs } from 'antd';
 import {
   completeAppointment,
+  callAppointment,
   fetchAppointmentDetail,
   fetchReceptionDashboard,
   type AppointmentDetail,
@@ -74,6 +75,12 @@ export default function WorkbenchPage() {
     }
   };
 
+  const call = async (id: number) => {
+    await callAppointment(id);
+    await loadDashboard();
+    message.success('叫号通知已发送');
+  };
+
   return (
     <PageContainer header={{ title: null }}>
       <PageHead
@@ -94,7 +101,7 @@ export default function WorkbenchPage() {
                 </div>
                 <ScheduleOverview schedules={dashboard?.schedules ?? []} />
                 <div style={{ height: 16 }} />
-                <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} />
+                <ReceptionQueue appointments={dashboard?.appointments ?? []} onOpen={openAppointment} onCall={call} />
               </>
             ),
           },

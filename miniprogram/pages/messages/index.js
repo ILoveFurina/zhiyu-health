@@ -1,5 +1,6 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listMessages, listMedCheckins, checkMedCheckin } = require('../../services/patient-care')
+const { MESSAGE_TYPES } = require('../../utils/appointment')
 
 Page({
   data: { loading: true, messages: [], reminders: [], skelItems: [1, 2, 3, 4] },
@@ -9,9 +10,12 @@ Page({
       .then(([messages, reminders]) => {
         // 就诊指引卡（票 43）：appointment_care 的 content 是结构化 JSON，解析后挂到 item.care 供卡片渲染。
         const decorated = messages.map((item) => {
-          if (item.type !== 'appointment_care') return item
+          if (item.type !== 'appointment_care' && item.type !== MESSAGE_TYPES.called) return item
           try {
-            return { ...item, care: JSON.parse(item.content) }
+            const content = JSON.parse(item.content)
+            return item.type === MESSAGE_TYPES.called
+              ? { ...item, call: content, isCallNotice: true }
+              : { ...item, care: content }
           } catch (e) {
             return item
           }

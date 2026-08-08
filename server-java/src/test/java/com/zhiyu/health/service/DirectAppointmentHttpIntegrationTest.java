@@ -127,7 +127,8 @@ class DirectAppointmentHttpIntegrationTest {
         when(schedules.selectByIdForUpdate(9L)).thenReturn(schedule(2));
         Appointment existing = new Appointment();
         existing.setId(21L);
-        when(appointments.selectForProfileAndSchedule(12L, 31L, 9L)).thenReturn(existing);
+        when(appointments.selectForProfileAndSchedule(12L, 31L, 9L, "CANCELLED"))
+                .thenReturn(existing);
         slots.initialize(9L, 2);
 
         mvc.perform(post("/api/c/appointments")
@@ -184,7 +185,7 @@ class DirectAppointmentHttpIntegrationTest {
         appointment.setScheduleDate(LocalDate.parse("2026-08-03"));
         appointment.setTimeSlot(TimeSlot.MORNING);
         appointment.setSequenceNumber(1);
-        appointment.setStatus(Appointment.STATUS_BOOKED);
+        appointment.setStatus("BOOKED");
         appointment.setRegistrationFee(new BigDecimal("30.00"));
         appointment.setCreatedAt(OffsetDateTime.parse("2026-08-02T10:00:00+08:00"));
         return appointment;

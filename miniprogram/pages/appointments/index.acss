@@ -51,6 +51,11 @@
   color: var(--zy-color-primary);
 }
 
+.status.in-progress {
+  color: var(--zy-color-warning);
+  font-weight: 600;
+}
+
 .meta,
 .number,
 .payment,
@@ -69,6 +74,23 @@
 .summary {
   color: var(--zy-text-title);
 }
+
+.voucher {
+  position: relative;
+  margin-top: 22rpx;
+  padding: 22rpx;
+  overflow: hidden;
+  border: 1rpx solid var(--zy-color-border);
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-primary-soft);
+}
+
+.voucher-title { display: flex; align-items: center; color: var(--zy-text-title); font-size: 25rpx; font-weight: 650; }
+.voucher-icon { margin-right: 8rpx; color: var(--zy-color-primary); }
+.voucher-number { position: absolute; top: 18rpx; right: 22rpx; color: var(--zy-color-primary); font-size: 34rpx; font-weight: 750; }
+.voucher-row { display: flex; gap: 18rpx; margin-top: 13rpx; color: var(--zy-text-title); font-size: 23rpx; line-height: 1.5; }
+.voucher-row text:first-child { flex: 0 0 58rpx; color: var(--zy-text-weak); }
+.voucher-row text:last-child { flex: 1; text-align: right; }
 
 .cancel,
 .pay {

@@ -1,0 +1,41 @@
+{
+  "_doc": "线下挂号状态机与叫号通知（票 71）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像。",
+  "statuses": {
+    "booked": "BOOKED",
+    "in_progress": "IN_PROGRESS",
+    "cancelled": "CANCELLED",
+    "visited": "VISITED"
+  },
+  "status_labels": {
+    "BOOKED": "已约",
+    "IN_PROGRESS": "就诊中",
+    "CANCELLED": "已取消",
+    "VISITED": "已接诊"
+  },
+  "transitions": {
+    "call": {
+      "from": ["BOOKED"],
+      "to": "IN_PROGRESS"
+    },
+    "complete": {
+      "from": ["BOOKED", "IN_PROGRESS"],
+      "to": "VISITED"
+    },
+    "cancel": {
+      "from": ["BOOKED"],
+      "to": "CANCELLED"
+    }
+  },
+  "called_notice": {
+    "message_type": "appointment_called",
+    "title": "请到诊室就诊",
+    "greeting": "已叫到您的就诊序号，请尽快前往诊室",
+    "content_schema": [
+      "greeting",
+      "room",
+      "sequence_number",
+      "schedule_date",
+      "time_slot"
+    ]
+  }
+}

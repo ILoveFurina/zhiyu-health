@@ -1,10 +1,12 @@
-import { Button, Card, Table, Tag, type TableColumnsType } from 'antd';
+import { Button, Card, Space, Table, Tag, type TableColumnsType } from 'antd';
 import type { ReceptionAppointment } from '@/services/reception';
 import { prescriptionStatusLabels } from '@/contracts/prescription';
+import { appointmentStatuses } from '@/contracts/appointment';
 
 interface Props {
   appointments: ReceptionAppointment[];
   onOpen: (id: number) => void;
+  onCall: (id: number) => Promise<void>;
 }
 
 // 处方状态 Tag 配色：待审核金 / 已通过绿 / 已驳回红（与处方审核页一致）
@@ -14,7 +16,7 @@ const PRESCRIPTION_COLORS: Record<string, string> = {
   REJECTED: 'red',
 };
 
-export default function ReceptionQueue({ appointments, onOpen }: Props) {
+export default function ReceptionQueue({ appointments, onOpen, onCall }: Props) {
   const columns: TableColumnsType<ReceptionAppointment> = [
     { title: '序号', dataIndex: 'sequence_number', width: 80, render: (value) => `${value} 号` },
     { title: '患者', dataIndex: 'patient_nickname' },
@@ -31,15 +33,25 @@ export default function ReceptionQueue({ appointments, onOpen }: Props) {
             </Tag>
           );
         }
-        return <Tag color={row.status === '已接诊' ? 'green' : 'blue'}>{row.status}</Tag>;
+        const color = row.status_code === appointmentStatuses.visited
+          ? 'green'
+          : row.status_code === appointmentStatuses.in_progress ? 'orange' : 'blue';
+        return <Tag color={color}>{row.status}</Tag>;
       },
     },
     {
-      title: '操作', width: 110,
+      title: '操作', width: 170,
       render: (_, row) => {
         // 已开方（有处方）不再提供"接诊"入口，避免对审核中医嘱重复接诊
-        const viewOnly = row.prescription_status != null || row.status === '已接诊';
-        return <Button type="link" onClick={() => onOpen(row.id)}>{viewOnly ? '查看' : '接诊'}</Button>;
+        const viewOnly = row.prescription_status != null || row.status_code === appointmentStatuses.visited;
+        return (
+          <Space size={0}>
+            {row.status_code === appointmentStatuses.booked && (
+              <Button type="link" onClick={() => onCall(row.id)}>叫号</Button>
+            )}
+            <Button type="link" onClick={() => onOpen(row.id)}>{viewOnly ? '查看' : '接诊'}</Button>
+          </Space>
+        );
       },
     },
   ];

@@ -298,7 +298,7 @@ class PrescriptionServiceTest {
     void checkSafetyRejectsCancelledAppointment() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         Appointment cancelled = appointment(12L);
-        cancelled.setStatus(Appointment.STATUS_CANCELLED);
+        cancelled.setStatus("CANCELLED");
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(cancelled);
 
         ApiException error = assertThrows(
@@ -512,7 +512,7 @@ class PrescriptionServiceTest {
         appointment.setId(21L);
         appointment.setPatientId(patientId);
         appointment.setDoctorId(5L);
-        appointment.setStatus(Appointment.STATUS_BOOKED);
+        appointment.setStatus("BOOKED");
         return appointment;
     }
 

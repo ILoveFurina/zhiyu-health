@@ -43,4 +43,10 @@ public class ReceptionController {
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
         return receptionService.complete(staffId, id, input.diagnosis(), input.advice());
     }
+
+    @PostMapping("/appointments/{id}/call")
+    public ReceptionService.AppointmentDetail call(
+            @PathVariable long id, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
+        return receptionService.call(staffId, id);
+    }
 }

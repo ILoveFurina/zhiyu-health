@@ -39,7 +39,7 @@ public class ClinicalContextService {
         if (appointment == null) {
             throw new ApiException(404, "挂号单不存在");
         }
-        if (Appointment.STATUS_CANCELLED.equals(appointment.getStatus())) {
+        if (contracts.appointmentFlow().status("cancelled").equals(appointment.getStatus())) {
             throw new ApiException(409, "已取消挂号不可开方");
         }
         return new ClinicalContext(
