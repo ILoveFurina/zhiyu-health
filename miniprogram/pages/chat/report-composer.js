@@ -97,7 +97,7 @@ module.exports = {
       : { id: ++this._msgSeq, role: 'user', kind: 'image', content: `报告图片 ${index + 1}`, url: item.path }))
     const waiting = {
       id: ++this._msgSeq, role: 'assistant', kind: 'text',
-      content: '报告解读中，请稍候…', disclaimer: '', streaming: true,
+      content: '报告解读中，请稍候…', disclaimer: '', streaming: true, entering: true,
     }
     this.setData({ messages: [...userMessages, waiting], sending: true, anchorId: 'thread-bottom' })
     ensureLogin()

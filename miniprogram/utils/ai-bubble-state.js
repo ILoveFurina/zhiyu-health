@@ -35,6 +35,7 @@ function createAssistantBubble(id) {
     id,
     role: 'assistant',
     kind: 'text',
+    entering: true,
     content: '',
     disclaimer: '',
     emotion: 'calm',
