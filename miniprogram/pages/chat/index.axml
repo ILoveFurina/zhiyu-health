@@ -353,23 +353,26 @@
     </view>
   </view>
 
-  <!-- 票 45：语音输入提示条（录音中/识别中/失败），瞬态，不进 messages 数组 -->
-  <view a:if="{{voiceHint}}" class="tool-progress {{voiceHintError ? 'tool-progress-error' : ''}}">
-    <view a:if="{{!voiceHintError && recording}}" class="tool-progress-spinner" />
-    <text>{{voiceHint}}</text>
-  </view>
-
   <!-- 输入栏（双行结构） -->
   <view class="composer">
+    <!-- 票 45：语音输入提示条（录音中/识别中/失败），瞬态，不进 messages 数组。
+         绝对定位浮于输入栏上方：提示条出现不得引起布局位移——在流内插入会把按钮推离
+         手指触点，本次手势 touchend 丢失（真机实测按住退化成点按两次） -->
+    <view a:if="{{voiceHint}}" class="tool-progress voice-hint-float {{voiceHintError ? 'tool-progress-error' : ''}}">
+      <view a:if="{{!voiceHintError && recording}}" class="tool-progress-spinner" />
+      <text>{{voiceHint}}</text>
+    </view>
     <view class="c-row1">
-      <!-- 票 45：按住说话（asrEnabled=false 时不渲染，降级纯文字输入） -->
+      <!-- 票 45：按住说话（asrEnabled=false 时不渲染，降级纯文字输入）。
+           双保险防 touchend 丢失：①提示条改绝对定位浮层（主因：流内插入把按钮推离触点）；
+           ②触摸事件挂本静态外壳（按钮本体类名/内容随手势重绘不影响触摸序列） -->
       <view
         a:if="{{asrEnabled}}"
-        class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"
+        class="voice-btn-touch"
         onTouchStart="onVoiceTouchStart"
         onTouchEnd="onVoiceTouchEnd"
         onTouchCancel="onVoiceTouchCancel"
-      ><text a:if="{{recording}}">松开</text><view a:else class="zy-ico zy-ico-mic"></view></view>
+      ><view class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"><text a:if="{{recording}}">松开</text><view a:else class="zy-ico zy-ico-mic"></view></view></view>
       <input
         class="c-input"
         value="{{inputValue}}"

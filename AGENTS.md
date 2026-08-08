@@ -82,6 +82,8 @@ uv run python scripts/verify_zhiyu.py
 - server-py/services 仅承载知识检索/RAG；涉及业务写入的多步骤流程由 server-java service 原子化或显式编排，并向 Agent 暴露单一业务能力接口。
 - Umi 运行时插件错误可能只在浏览器中出现，因此前端构建成功不代表验收通过。
 - 支付宝开发者工具会把 `my.connectSocket` 的自定义 header 值包一层字面双引号（`my.request` 不受影响），server-java `AuthFilter` 已兼容剥离；本地 WSS 套件（8443 覆盖配置 + 自签证书）与排障方法见 `docs/engineering-notes/wss-and-windows-service-pitfalls.md`。
+- 支付宝开发者工具模拟器不支持 `my.getRecorderManager`（官方文档：以真机调试结果为准）：`stop()` 后 `onStop` 不触发，语音输入会停在“识别中…”；端侧已加 15s 看门狗兜底提示，语音链路验收必须真机调试（录音 <1s 同样不触发 `onStop`，走 `onError` error:7）。
+- 真机“按住说话”三层坑（票 45 已修，勿回退）：①瞬态提示条必须绝对定位，流内插入会把按钮推离触点导致 `touchend` 丢失；②触摸事件挂在属性不变的静态外壳上，按钮本体随手势重绘不影响触摸序列；③真机原生 `input` 命中框与可视位置有小偏移，会截获相邻按钮中心的触摸（表现为“角落可按、中心不可按”），触摸热区用 `padding + 负 margin` 放大抵消。`my.uploadFile` 会弹容器原生“正在上传”大黑框，须传 `hideLoading: true`。
 - Windows 上单进程 uvicorn 默认 ProactorEventLoop，psycopg 异步拒绝运行；`--reload` 的重生在后台环境可能静默卡死。server-py 必须用 `uv run python scripts/run-server-py.py` 启动（强制 SelectorEventLoop；admin dev 端口固定 5173，避免抢占 server-py 的 8000）。
 
 ## 7. Agent skills

@@ -1,7 +1,7 @@
 {
-  "_doc": "语音双向（票 45，ADR-0020）：ASR 输入与 TTS 播报的跨栈开关、格式占位与降级提示。本文件是双栈共享常量的单一事实源，结构一次性钉死：asr_enabled=true 为票 58 点亮（Fake 阶段，识别文字回填输入框；火山语音开通后只填 asr_format 值不改结构）；tts_enabled 保持 false（问诊与对话均不播报）。ASR/TTS 不进 agent_call_logs trace，仅 server-java 入口审计记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）。",
+  "_doc": "语音双向（票 45，ADR-0020）：ASR 输入与 TTS 播报的跨栈开关、格式与降级提示。本文件是双栈共享常量的单一事实源，结构一次性钉死：asr_enabled=true 自票 58 点亮（识别文字回填输入框；火山凭据未配置时 server-py 回落 Fake 固定文本，ADR-0029）；asr_format 已钉为 wav（端侧 my.getRecorderManager 录音 wav 16k 单声道，火山录音文件识别极速版直收）；tts_enabled 保持 false（问诊与对话均不播报）。ASR/TTS 不进 agent_call_logs trace，仅 server-java 入口审计记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）。",
   "asr_enabled": true,
-  "asr_format": null,
+  "asr_format": "wav",
   "asr_timeout_ms": 10000,
   "asr_max_duration_ms": 60000,
   "tts_enabled": false,

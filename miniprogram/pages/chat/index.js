@@ -438,6 +438,7 @@ Page({
     if (this._recorder) return
     this._recorder = my.getRecorderManager()
     this._recorder.onStop((res) => {
+      clearTimeout(this._voiceWatchdog)
       this.setData({ recording: false, voiceHint: '识别中…', voiceHintError: false })
       // 取消（手指划出）不识别：onVoiceTouchCancel 置位 _voiceCancelled 后 stop
       if (this._voiceCancelled) {
@@ -460,6 +461,7 @@ Page({
         })
     })
     this._recorder.onError(() => {
+      clearTimeout(this._voiceWatchdog)
       this.setData({ recording: false, voiceHint: '录音失败，请直接打字', voiceHintError: true })
     })
   },
@@ -475,6 +477,11 @@ Page({
   onVoiceTouchEnd() {
     if (!this.data.recording) return
     this.setData({ recording: false, voiceHint: '识别中…', voiceHintError: false })
+    // IDE 模拟器不支持录音 API（支付宝官方文档：以真机为准），onStop 可能永不触发；
+    // 看门狗兜底避免“识别中”卡死，真机上 onStop 到达即清除本定时器
+    this._voiceWatchdog = setTimeout(() => {
+      this.setData({ voiceHint: '当前环境不支持录音，请用真机调试或直接打字', voiceHintError: true })
+    }, 15000)
     if (this._recorder) this._recorder.stop()
   },
 
@@ -482,6 +489,7 @@ Page({
     // 手指划出输入区取消：停止录音但不识别（与常见按住说话交互一致）
     if (!this.data.recording) return
     this._voiceCancelled = true
+    clearTimeout(this._voiceWatchdog)
     this.setData({ recording: false, voiceHint: '' })
     if (this._recorder) this._recorder.stop()
   },

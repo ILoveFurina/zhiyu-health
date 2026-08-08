@@ -246,6 +246,11 @@
 
 /* ===== 语音提示条（票 58）：录音/识别中的瞬态反馈 ===== */
 .voice-hint {
+  /* 绝对定位浮于输入栏正上方：出现/消失不推位布局（真机按住说话手势保活） */
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,6 +283,7 @@
 
 /* ===== 输入栏与只读条 ===== */
 .composer {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14rpx;
@@ -311,6 +317,18 @@
 
 .photo-btn-disabled {
   opacity: 0.45;
+}
+
+/* 静态触摸外壳：布局上顶替 voice-btn 的 flex 子项位置，属性不随手势变化（保住 touchend）。
+   padding+负 margin 扩大命中热区但不占布局：真机原生 input 命中框小偏移会截获按钮中心
+   的触摸（实测"右下角可按、中心不可按"，见 chat 页同款注释），放大热区抵消偏移 */
+.voice-btn-touch {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  margin: -24rpx;
 }
 
 /* 按住说话（语音输入，票 58）：录音中转圆形高亮 */
