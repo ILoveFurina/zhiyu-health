@@ -29,7 +29,24 @@ function request({ url, method = 'GET', data, timeout = 30000 }) {
               reject(err)
             }
           },
-          fail: () => reject(new Error('无法连接服务器')),
+          fail: (res) => {
+            // 支付宝 my.request 对 HTTP >= 400 也走 fail（error:19，响应体在 res.data，
+            // 见支付宝官方文档错误码表）——fail 不等于断网。取出后端 ApiException 的
+            // detail（如"请勿重复挂号"），与 success 分支非 2xx 路径同口径；
+            // 真正的网络/跨域失败 res.data 为空，detail 落空由页面兜底文案承接。
+            const err = new Error((res && res.errorMessage) || '无法连接服务器')
+            let body = res && res.data
+            if (typeof body === 'string') {
+              try {
+                body = JSON.parse(body)
+              } catch (_) {
+                body = null
+              }
+            }
+            const detail = body && body.detail
+            err.detail = typeof detail === 'string' ? detail : (detail && detail.message) || ''
+            reject(err)
+          },
         })
       })
     })
