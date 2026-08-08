@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -113,7 +112,7 @@ class PrescriptionServiceTest {
         // 票 60：通过分支同事务写审核结果站内消息，文案只取契约
         var copy = TestContracts.instance().prescriptionFlow().messages().get("approved");
         ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
-        verify(inAppMessageMapper).insert(message.capture());
+        verify(inAppMessageMapper).insertIgnoreConflict(message.capture());
         assertEquals(12L, message.getValue().getPatientId());
         assertEquals(
                 TestContracts.instance().prescriptionFlow().messageTypes().get("prescription_review_result"),
@@ -139,7 +138,7 @@ class PrescriptionServiceTest {
 
         var copy = TestContracts.instance().prescriptionFlow().messages().get("rejected");
         ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
-        verify(inAppMessageMapper).insert(message.capture());
+        verify(inAppMessageMapper).insertIgnoreConflict(message.capture());
         assertEquals(copy.title(), message.getValue().getTitle());
         assertEquals(copy.content(), message.getValue().getContent());
         assertEquals(31L, message.getValue().getRelatedPrescriptionId());
@@ -154,7 +153,7 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(ApiException.class, () -> service.review(1L, 31L, "APPROVE", null));
 
         assertEquals(409, error.getStatus());
-        verify(inAppMessageMapper, never()).insert(any(InAppMessage.class));
+        verify(inAppMessageMapper, never()).insertIgnoreConflict(any(InAppMessage.class));
         // 并发落败：条件更新 0 行同样 409、不写消息、不冒 500
         when(prescriptionMapper.selectDetailedById(32L)).thenReturn(prescription(32L, "PENDING"));
         when(itemMapper.selectDetailed(32L)).thenReturn(List.of());
@@ -165,22 +164,20 @@ class PrescriptionServiceTest {
         ApiException conflict = assertThrows(ApiException.class, () -> service.review(1L, 32L, "APPROVE", null));
 
         assertEquals(409, conflict.getStatus());
-        verify(inAppMessageMapper, never()).insert(any(InAppMessage.class));
+        verify(inAppMessageMapper, never()).insertIgnoreConflict(any(InAppMessage.class));
     }
 
     @Test
     void reviewMessageUniqueCollisionIsSwallowedAsDelivered() {
-        // 票 60：消息 insert 撞 UNIQUE(related_prescription_id, type)（并发/重试极端竞态）幂等吞掉，
-        // 审核结果照常返回，不冒 500
+        // 票 60：消息撞 UNIQUE(related_prescription_id, type)（并发/重试极端竞态）由 ON CONFLICT DO NOTHING
+        // 在数据库层幂等吞掉（返回 0 行、事务不受损），审核结果照常返回，不冒 500
         Prescription pending = prescription(31L, "PENDING");
         Prescription rejected = prescription(31L, "REJECTED");
         rejected.setPatientId(12L);
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(pending, rejected);
         when(prescriptionMapper.review(31L, "REJECTED", "用法不当", 1L, null, null, "PENDING"))
                 .thenReturn(1);
-        org.mockito.Mockito.doThrow(new DuplicateKeyException("uq_in_app_messages_prescription_type"))
-                .when(inAppMessageMapper)
-                .insert(any(InAppMessage.class));
+        when(inAppMessageMapper.insertIgnoreConflict(any(InAppMessage.class))).thenReturn(0);
 
         PrescriptionService.PrescriptionView result = service.review(1L, 31L, "REJECT", "用法不当");
 

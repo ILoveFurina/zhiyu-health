@@ -659,7 +659,7 @@ class OnlineConsultationServiceTest {
         verify(f.consultationMapper, never()).complete(anyLong(), anyLong(), anyString(), anyString());
         verify(f.consultationRecordMapper, never()).insert(any(ConsultationRecord.class));
         // 幂等早返回分支不得重复写随访消息（票 60）
-        verify(f.inAppMessageMapper, never()).insert(any(InAppMessage.class));
+        verify(f.inAppMessageMapper, never()).insertIgnoreConflict(any(InAppMessage.class));
     }
 
     // ------------------------------------------------------------------
@@ -679,7 +679,7 @@ class OnlineConsultationServiceTest {
 
         var followUp = TestContracts.instance().onlineConsultation().followUp();
         ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
-        verify(f.inAppMessageMapper).insert(message.capture());
+        verify(f.inAppMessageMapper).insertIgnoreConflict(message.capture());
         assertThat(message.getValue().getPatientId()).isEqualTo(12L);
         assertThat(message.getValue().getType()).isEqualTo(followUp.messageType());
         assertThat(message.getValue().getTitle()).isEqualTo(followUp.title());
@@ -695,7 +695,7 @@ class OnlineConsultationServiceTest {
 
     @Test
     void followUpVisibleImmediatelySwitchSkipsDelay() {
-        // 演示开关置 true：不设 visible_at，走 DB 默认 now() 立即可见
+        // 演示开关置 true：不设 visible_at，INSERT 走 COALESCE 取 now() 立即可见
         Fixture f = new Fixture();
         ReflectionTestUtils.setField(f.service, "followUpVisibleImmediately", true);
         f.givenDoctor(8L, 3L);
@@ -707,7 +707,7 @@ class OnlineConsultationServiceTest {
         f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
 
         ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
-        verify(f.inAppMessageMapper).insert(message.capture());
+        verify(f.inAppMessageMapper).insertIgnoreConflict(message.capture());
         assertThat(message.getValue().getVisibleAt()).isNull();
     }
 

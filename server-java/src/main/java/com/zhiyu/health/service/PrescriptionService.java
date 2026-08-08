@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -190,8 +189,8 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
 
     /**
      * 审核结果站内消息（票 60）：与审核状态推进同事务，type/title/content 只取 contracts。
-     * 撞 UNIQUE(related_prescription_id, type)（并发/重试越过上方条件更新的极端竞态）幂等吞掉：
-     * 消息已存在即视为投递成功，不冒 500。
+     * 撞 UNIQUE(related_prescription_id, type)（并发/重试越过上方条件更新的极端竞态）由
+     * ON CONFLICT DO NOTHING 在数据库层幂等吞掉——消息已存在即视为投递成功，事务不受损、不冒 500。
      */
     private void writeReviewResultMessage(Prescription prescription, String target) {
         Contracts.PrescriptionFlow.ReviewMessage copy = contracts
@@ -206,11 +205,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         // server-java 出口兜底：免责声明一律经 DisclaimerService 从契约注入，不信任上游。
         message.setDisclaimer(disclaimers.text());
         message.setRelatedPrescriptionId(prescription.getId());
-        try {
-            inAppMessageMapper.insert(message);
-        } catch (DuplicateKeyException e) {
-            // 见方法注释：UNIQUE 兜底并发/重试，不冒 500。
-        }
+        inAppMessageMapper.insertIgnoreConflict(message);
     }
 
     private List<ItemView> pairItems(List<CreateItem> inputs, List<Medication> medications) {

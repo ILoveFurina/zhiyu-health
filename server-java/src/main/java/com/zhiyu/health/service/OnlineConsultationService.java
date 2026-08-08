@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -374,8 +373,9 @@ public class OnlineConsultationService {
     /**
      * 随访关怀站内消息（票 60）：与问诊完成同事务 eager 写入，type/title/content 只取 contracts；
      * visible_at = 完成时间 + 契约 delay_days 天，患者消息列表由 visible_at <= now() 延迟可见（B2）；
-     * 演示开关 follow-up-visible-immediately 置 true 时不设 visible_at，走 DB 默认 now() 立即可见。
-     * 撞 UNIQUE(related_online_consultation_id, type)（重试/并发越过 complete 幂等早返回）静默吞掉，不冒 500。
+     * 演示开关 follow-up-visible-immediately 置 true 时不设 visible_at，走 COALESCE 取 now() 立即可见。
+     * 撞 UNIQUE(related_online_consultation_id, type)（重试/并发越过 complete 幂等早返回）由
+     * ON CONFLICT DO NOTHING 在数据库层幂等吞掉，事务不受损、不冒 500。
      */
     private void writeFollowUpMessage(OnlineConsultation consultation) {
         Contracts.OnlineConsultation.FollowUp followUp =
@@ -391,11 +391,7 @@ public class OnlineConsultationService {
         if (!followUpVisibleImmediately) {
             message.setVisibleAt(OffsetDateTime.now().plusDays(followUp.delayDays()));
         }
-        try {
-            inAppMessageMapper.insert(message);
-        } catch (DuplicateKeyException e) {
-            // 见方法注释：UNIQUE 兜底并发/重试，不冒 500。
-        }
+        inAppMessageMapper.insertIgnoreConflict(message);
     }
 
     // ------------------------------------------------------------------
