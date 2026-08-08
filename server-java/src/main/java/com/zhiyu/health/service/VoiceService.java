@@ -36,14 +36,23 @@ public class VoiceService {
     /** 语音识别：录音 multipart -> 识别文字。失败抛 ApiException（携稳定码 + 降级文案）。 */
     public AsrResult recognize(MultipartFile audio, Long patientId) {
         Contracts.Voice voice = contracts.voice();
+        long startedAt = System.currentTimeMillis();
         try {
             String text = agentClient.recognizeSpeech(audio);
-            // 审计只记结果码 + 识别文字长度 + 患者标识，不记原文（硬约束 5）
+            // 审计只记结果码 + 识别文字长度 + 耗时 + 患者标识，不记原文（硬约束 5）
+            // elapsedMs 用于区分慢在上传/转发还是慢在火山推理（对照 server-py 侧耗时日志）
             auditLog.info(
-                    "voice type=asr param=audio result=success patientId={} textLen={}", patientId, text.length());
+                    "voice type=asr param=audio result=success patientId={} textLen={} elapsedMs={}",
+                    patientId,
+                    text.length(),
+                    System.currentTimeMillis() - startedAt);
             return new AsrResult(text);
         } catch (VoiceAgentException e) {
-            auditLog.info("voice type=asr param=audio result=fail patientId={} code={}", patientId, e.code());
+            auditLog.info(
+                    "voice type=asr param=audio result=fail patientId={} code={} elapsedMs={}",
+                    patientId,
+                    e.code(),
+                    System.currentTimeMillis() - startedAt);
             throw new ApiException(e.status(), e.code(), voice.degradeHint());
         }
     }

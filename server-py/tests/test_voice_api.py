@@ -53,6 +53,9 @@ class _TimeoutTts:
 
 def _app_with(asr: object | None = None, tts: object | None = None) -> TestClient:
     service = VoiceService()
+    # 凭据判定钉死为未就绪：未注入 client 的用例走 Fake 回落，
+    # 不随本机 .env 是否已填火山凭据而漂移
+    service.inject_key_ready(lambda: False)
     if asr is not None:
         service.inject_asr(asr)  # type: ignore[arg-type]
     if tts is not None:

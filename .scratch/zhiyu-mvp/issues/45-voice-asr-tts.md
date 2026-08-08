@@ -4,7 +4,7 @@
 
 **Blocked by:** 31 - 对话主干双栈化；40 - 对话 TTFT 与 WebSocket
 
-**Status:** ready-for-agent（火山语音服务开通前置；骨架+fake 阶段已落地，见下方实施备注）
+**Status:** done（2026-08-08 真机验收通过：火山凭据 VOLC_ASR_API_KEY 已配置，真机按住说话识别真实语音链路打通；TTS 按契约决策保持关闭）
 
 - [x] 新建 `contracts/voice.json`：完整骨架带占位（asr_enabled/asr_format null/asr_timeout_ms=10000/asr_max_duration_ms=60000/tts_enabled/tts_format null/tts_timeout_ms=15000/tts_voice null/error_codes/degrade_hint）
 - [x] server-py `app/services/voice.py`：`AsrClient`/`TtsClient` 接口 + `FakeAsrClient`/`FakeTtsClient`；开通后加 `VolcAsrClient`/`VolcTtsClient`，按 `contracts/voice.json` 的 enabled + 环境密钥选实例
@@ -13,9 +13,20 @@
 - [x] 端侧 `pages/chat/`：按住说话（`my.getRecorderManager`，识别结果填输入框可见可改不自动发）+ AI 气泡播放/停止（`my.createInnerAudioContext`）
 - [x] 审计：server-java 入口记调用类型+参数类型+结果码/长度，不记音频与识别/合成文字原文（硬约束 5）；ASR/TTS 不进 `agent_call_logs` trace（见 ADR-0020）
 - [x] 降级：契约开关（`asr_enabled`/`tts_enabled`）控制 UI 入口显示 + 运行时密钥检测兜底；未配置/超时/失败三情况降级文字，不阻塞演示
-- [x] 测试：fake 覆盖正常/超时/未配置/失败；火山语音开通后真实 smoke（待开通）
+- [x] 测试：fake 覆盖正常/超时/未配置/失败；火山开通后真实 smoke（2026-08-08 真机验收通过）
 
 ## Comments
+
+### 2026-08-08 - 火山 ASR 极速版接入（待用户凭据 + 真实 smoke）
+
+- **端侧开关修复**：`utils/voice.js` 的 `ASR_ENABLED` 本地镜像未跟上票 58 契约点亮（仍为 false），导致对话页与在线问诊页按住说话按钮被隐藏；已对齐契约置 true，按钮回归（Fake 回落链路即可用）。TTS 按契约保持 false。
+- **server-py 真实接入**：`VolcAsrClient` 落地——火山录音文件识别极速版 `POST /api/v3/auc/bigmodel/recognize/flash`，wav base64 内联、一次请求同步返回 `result.text`；成功判定读响应头 `X-Api-Status-Code`（20000000 成功；20000003/45000002 静音空音频 → VOICE_AUDIO_INVALID；其余 → VOICE_MODEL_FAILED），日志只记状态码与 X-Tt-Logid。新旧控制台两套鉴权头均支持（`X-Api-Key` 单头 / `X-Api-App-Key`+`X-Api-Access-Key`）。
+- **凭据配置**：`Settings` 新增 `volc_asr_app_id` / `volc_asr_access_token` / `volc_asr_api_key` / `volc_asr_resource_id`（默认 `volc.bigasr.auc_turbo`），`.env.example` 同步占位；`_volcano_voice_key_ready` 改为真实判定，未配置仍回落 Fake（ADR-0029）。
+- **契约**：`asr_format` 钉为 `wav`（端侧录音 wav 16k 单声道，极速版直收），双栈契约测试同步。
+- **测试**：新增 `test_voice_volc.py`（MockTransport 覆盖两套鉴权头/payload/静音/失败/空白/超时/凭据判定/实例选择）；`test_voice_api.py` 经 `inject_key_ready` 钉死凭据判定，不随本机 .env 漂移。server-py 202 passed + ruff + mypy 全绿；server-java ContractsConsistencyTest + spotless 全绿。
+- **IDE 模拟器坑（2026-08-08 实测定位）**：支付宝开发者工具模拟器不支持 `my.getRecorderManager`（[官方文档](https://opendocs.alipay.com/mini/api/recordermanager/start)："以真机调试结果为准"），`stop()` 后 `onStop` 不触发，端侧停在"识别中…"；两个语音页面已加 15s 看门狗兜底提示"当前环境不支持录音，请用真机调试或直接打字"（AGENTS.md Gotchas 已同步）。同期 curl 全链路（mock-login → `POST /api/c/asr` → 火山极速版）实测 3.3s 正常返回，后端链路无问题。
+- **真机 UX 三修复（2026-08-08）**：①"按住"退化成"点两下"——真根因是按下瞬间 `voiceHint` 提示条在流内插入，把输入栏连同按钮**推离手指触点**，本次手势 `touchend` 丢失（第二轮修复；第一轮的"静态外壳"仅防按钮本体随手势重绘，救不了布局位移，保留为双保险）。提示条改绝对定位浮层（`.voice-hint-float` / consult `.voice-hint`，`bottom: 100%`，composer `position: relative`），出现/消失零位移。②屏幕中间"正在上传"大黑框是支付宝容器给 `my.uploadFile` 的原生 HUD，`uploadFile` 加 `hideLoading: true` 隐藏（已验证生效）。③耗时观测：server-java `voice-audit` 与 server-py `volc asr ok` 日志补 `elapsedMs/elapsed_ms`；实测 5s 音频全链路 1.6s（含火山推理），此前感知的"慢"主要来自交互 bug 导致的重复操作。
+- **真机验收通过（2026-08-08，票置 done）**：用户真机调试确认按住说话→识别文字回填全链路可用。收尾定位的最后一个坑：按钮**中心不可按、右下角可按**——真机原生 `input` 同层渲染的命中框与可视位置存在小偏移，截获了按钮中心的触摸；触摸外壳 `.voice-btn-touch` 用 `padding: 24rpx; margin: -24rpx` 放大命中热区（不占布局）抵消偏移。三层根因与修复已记入 AGENTS.md Gotchas，诊断期埋的 `[voice]` console.log 已清除。
 
 ### 2026-08-04 - 骨架+fake 阶段落地
 

@@ -80,14 +80,13 @@
       <view id="thread-bottom" class="thread-tail"></view>
     </scroll-view>
 
-    <!-- 语音提示条（票 58）：录音/识别中的瞬态反馈，不进消息流 -->
-    <view a:if="{{voiceHint}}" class="voice-hint {{voiceHintError ? 'voice-hint-error' : ''}}">
-      <view a:if="{{!voiceHintError && recording}}" class="voice-hint-spinner" />
-      <text>{{voiceHint}}</text>
-    </view>
-
     <!-- 输入栏：IN_PROGRESS 且医生已发起接诊方式后可用；COMPLETED 只读 -->
     <view a:if="{{inProgress && methodInitiated}}" class="composer">
+      <!-- 语音提示条（票 58）：绝对定位浮层，出现不得推位移交流（同 chat 页，保住按住手势） -->
+      <view a:if="{{voiceHint}}" class="voice-hint {{voiceHintError ? 'voice-hint-error' : ''}}">
+        <view a:if="{{!voiceHintError && recording}}" class="voice-hint-spinner" />
+        <text>{{voiceHint}}</text>
+      </view>
       <view
         class="photo-btn {{sendingImage ? 'photo-btn-disabled' : ''}}"
         onTap="onChooseImage"
@@ -103,12 +102,16 @@
       />
       <view
         a:if="{{asrEnabled}}"
-        class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}"
+        class="voice-btn-touch"
         onTouchStart="onVoiceTouchStart"
         onTouchEnd="onVoiceTouchEnd"
         onTouchCancel="onVoiceTouchCancel"
       >
-        <view class="zy-ico zy-ico-mic"></view>
+        <!-- 同 chat 页双保险：提示条已改绝对定位浮层（主因是流内插入推位移），
+             触摸事件再挂本静态外壳，避免按钮本体随手势重绘影响触摸序列 -->
+        <view class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}">
+          <view class="zy-ico zy-ico-mic"></view>
+        </view>
       </view>
       <view class="send-btn {{canSend && !sending ? '' : 'send-disabled'}}" onTap="send">发送</view>
     </view>

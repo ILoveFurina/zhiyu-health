@@ -56,6 +56,9 @@ function recognizeSpeech({ filePath }) {
       filePath,
       fileName: 'audio',
       fileType: 'audio',
+      // 隐藏支付宝容器原生“正在上传”大黑框 HUD（hideLoading 为容器参数，不识别的版本会忽略）；
+      // 端侧自绘 voiceHint 提示条代替
+      hideLoading: true,
       headers: { Authorization: `Bearer ${getToken()}` },
       timeout: 30000,
       success: (res) => {

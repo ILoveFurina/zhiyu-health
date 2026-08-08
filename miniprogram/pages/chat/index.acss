@@ -278,6 +278,7 @@
 
 /* ===== 输入栏 ===== */
 .composer {
+  position: relative;
   background: #fff;
   border-top: 1rpx solid var(--zy-color-border);
   padding: var(--zy-space-sm) 20rpx var(--zy-space-md);
@@ -354,6 +355,15 @@
   color: var(--zy-text-secondary);
 }
 
+/* 语音提示条浮层：绝对定位于输入栏正上方，出现/消失不影响布局（保住按住说话手势） */
+.voice-hint-float {
+  position: absolute;
+  bottom: 100%;
+  left: 24rpx;
+  right: 24rpx;
+  margin: 0 0 12rpx;
+}
+
 .tool-progress-spinner {
   width: 24rpx;
   height: 24rpx;
@@ -376,6 +386,18 @@
 
 /* ===== 票 45：语音双向 UI ===== */
 /* 按住说话按钮：输入框左侧话筒，长按录音、松开识别（asrEnabled=false 时不渲染） */
+/* 静态触摸外壳：布局上顶替 voice-btn 的 flex 子项位置，属性不随手势变化（保住 touchend）。
+   padding+负 margin 扩大命中热区但不占布局：真机原生 input 同层渲染的命中框存在小偏移，
+   按钮中心会被旁侧 input 的无形命中层截获（实测"右下角可按、中心不可按"），放大热区抵消偏移 */
+.voice-btn-touch {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  margin: -24rpx;
+}
+
 .voice-btn {
   flex: 0 0 auto;
   width: 72rpx;

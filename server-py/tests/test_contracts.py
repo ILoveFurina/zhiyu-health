@@ -215,12 +215,12 @@ def test_emotion_contract_values_are_loaded() -> None:
 
 
 def test_voice_contract_skeleton_is_loaded() -> None:
-    # 票 45 骨架 + 票 58（ADR-0029）：asr_enabled 已点亮为 true（Fake 阶段），
-    # tts_enabled 保持 false；格式字段仍留 null，开通后只填值不改结构
+    # 票 45 骨架 + 票 58（ADR-0029）：asr_enabled 已点亮为 true，asr_format 钉为 wav
+    # （端侧录音 wav 16k 单声道，火山极速版直收）；tts_enabled 保持 false，格式字段留 null
     voice = get_contracts().voice
     assert voice.asr_enabled is True
     assert voice.tts_enabled is False
-    assert voice.asr_format is None
+    assert voice.asr_format == "wav"
     assert voice.tts_format is None
     assert voice.tts_voice is None
     # 超时/最大时长占位值钉死（开通后可按火山产品形态调整）
