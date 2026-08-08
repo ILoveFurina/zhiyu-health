@@ -24,7 +24,10 @@ import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.transaction.TransactionStatus;
@@ -42,6 +45,11 @@ class AppointmentServiceTest {
     private final PaymentService payments = mock(PaymentService.class);
     private final AppointmentDtoMapper appointmentDtos = Mappers.getMapper(AppointmentDtoMapper.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    // 时段截止判断：默认固定到上午 10:00（上午未结束），现有用例不设 date/timeSlot 不受影响，
+    // 设了上午时段的用例也不会被误判截止；已过时段用例用 12:00 的 guard 单独构造。
+    private final SlotWindowGuard slotWindowGuard = new SlotWindowGuard(
+            TestContracts.instance(),
+            Clock.fixed(Instant.parse("2026-07-28T10:00:00+08:00"), ZoneId.of("Asia/Shanghai")));
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -295,7 +303,8 @@ class AppointmentServiceTest {
                 TestContracts.instance(),
                 appointmentDtos,
                 TestDisclaimers.instance(),
-                objectMapper);
+                objectMapper,
+                slotWindowGuard);
 
         assertThatThrownBy(() -> service.create(12L, 7L, 9L)).isInstanceOf(IllegalStateException.class);
         assertThat(slotCounter.values.get(9L)).hasValue(1);
@@ -333,7 +342,31 @@ class AppointmentServiceTest {
         verify(payments, never()).createUnpaid(anyLong(), any());
     }
 
+    @Test
+    void closedTimeWindowAppointmentReturnsConflictWithoutDeducting() {
+        // 时段截止校验：当天上午已过 11:30（Clock 固定 12:00），有号源也不可挂号，且不扣减 Redis
+        Schedule morningSchedule = schedule(3, 3);
+        morningSchedule.setScheduleDate(LocalDate.of(2026, 8, 8));
+        morningSchedule.setTimeSlot(com.zhiyu.health.entity.TimeSlot.MORNING);
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(morningSchedule);
+        slotCounter.initialize(9L, 3);
+        SlotWindowGuard closedGuard = new SlotWindowGuard(
+                TestContracts.instance(),
+                Clock.fixed(Instant.parse("2026-08-08T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")));
+
+        assertThatThrownBy(() -> serviceWithGuard(closedGuard).createDirect(12L, 9L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("该出诊时段已结束，不可再挂号");
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+        verify(scheduleMapper, never()).decrementRemainingSlots(9L);
+        verify(payments, never()).createUnpaid(anyLong(), any());
+    }
+
     private AppointmentService service() {
+        return serviceWithGuard(slotWindowGuard);
+    }
+
+    private AppointmentService serviceWithGuard(SlotWindowGuard guard) {
         // 关怀消息上下文：默认提供一份联查结果，覆盖正常挂号路径
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
         // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
@@ -355,7 +388,8 @@ class AppointmentServiceTest {
                 TestContracts.instance(),
                 appointmentDtos,
                 TestDisclaimers.instance(),
-                objectMapper);
+                objectMapper,
+                guard);
     }
 
     /** 票 49：CareContext 的地址/楼层/材料/注意事项由 SQL 联查院区（hospital_campuses）提供，此处桩值即院区静态值。 */

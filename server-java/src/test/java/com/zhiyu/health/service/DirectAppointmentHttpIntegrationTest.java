@@ -72,7 +72,8 @@ class DirectAppointmentHttpIntegrationTest {
                 TestContracts.instance(),
                 Mappers.getMapper(AppointmentDtoMapper.class),
                 TestDisclaimers.instance(),
-                new ObjectMapper());
+                new ObjectMapper(),
+                new SlotWindowGuard(TestContracts.instance(), java.time.Clock.systemDefaultZone()));
         mvc = standaloneSetup(new AppointmentController(
                         service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .setControllerAdvice(new ApiExceptionHandler())

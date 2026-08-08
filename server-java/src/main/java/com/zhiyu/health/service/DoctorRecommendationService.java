@@ -22,9 +22,12 @@ public class DoctorRecommendationService {
     private final DoctorMapper doctorMapper;
     private final ScheduleMapper scheduleMapper;
     private final DoctorRecommendationDtoMapper recommendationDtos;
+    private final SlotWindowGuard slotWindowGuard;
 
     public List<DoctorRecommendation> recommendDoctors(String departmentName) {
-        List<Schedule> schedules = scheduleMapper.selectAvailableByDepartment(departmentName, LocalDate.now());
+        List<Schedule> schedules = scheduleMapper.selectAvailableByDepartment(departmentName, LocalDate.now()).stream()
+                .filter(schedule -> !slotWindowGuard.isClosed(schedule))
+                .toList();
         if (schedules.isEmpty()) {
             return List.of();
         }
@@ -43,6 +46,7 @@ public class DoctorRecommendationService {
 
     public List<DoctorSlot> getDoctorSlots(long doctorId) {
         return scheduleMapper.selectAvailableByDoctor(doctorId, LocalDate.now()).stream()
+                .filter(schedule -> !slotWindowGuard.isClosed(schedule))
                 .map(recommendationDtos::toSlot)
                 .toList();
     }
