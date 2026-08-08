@@ -120,12 +120,15 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         return toView(created, pairItems(items, medications));
     }
 
-    public List<PrescriptionView> listForReview(String status) {
-        String normalized = status == null || status.isBlank() ? status("pending") : status;
-        if (!contracts.prescriptionFlow().statuses().containsValue(normalized)) {
-            throw new ApiException(400, "审核状态无效");
+    public List<PrescriptionView> listForReview(String status, String keyword) {
+        String normalizedStatus = trimToNull(status);
+        // 非空 status 须命中契约枚举；空 status 表示全部状态，不再默认归一化为 pending。
+        if (normalizedStatus != null) {
+            if (!contracts.prescriptionFlow().statuses().containsValue(normalizedStatus)) {
+                throw new ApiException(400, "审核状态无效");
+            }
         }
-        return prescriptionMapper.selectForReview(normalized).stream()
+        return prescriptionMapper.selectForReview(normalizedStatus, trimToNull(keyword)).stream()
                 .map(this::toView)
                 .toList();
     }

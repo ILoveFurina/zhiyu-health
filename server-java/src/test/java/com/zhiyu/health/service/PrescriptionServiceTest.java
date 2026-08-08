@@ -83,6 +83,35 @@ class PrescriptionServiceTest {
             inAppMessageMapper);
 
     @Test
+    void listForReviewPassesStatusAndKeywordToMapper() {
+        // status=null 表示全部状态，keyword 透传（trim 后非空）；非空 status 命中契约枚举放行。
+        Prescription pending = prescription(31L, "PENDING");
+        pending.setPatientId(12L);
+        when(prescriptionMapper.selectForReview(null, "林")).thenReturn(List.of(pending));
+        when(prescriptionMapper.selectForReview("PENDING", null)).thenReturn(List.of(pending));
+
+        List<PrescriptionService.PrescriptionView> all = service.listForReview(null, " 林 ");
+        List<PrescriptionService.PrescriptionView> pendingOnly = service.listForReview("PENDING", "  ");
+
+        assertEquals(1, all.size());
+        assertEquals(1, pendingOnly.size());
+        // keyword 经 trim+blank 归一：纯空白归为 null，非空白 trim 后透传
+        verify(prescriptionMapper).selectForReview(null, "林");
+        verify(prescriptionMapper).selectForReview("PENDING", null);
+    }
+
+    @Test
+    void listForReviewRejectsUnknownStatus() {
+        // 非空 status 必须命中契约枚举；空 status 表示全部，不校验。
+        ApiException unknown = assertThrows(ApiException.class, () -> service.listForReview("UNKNOWN", null));
+        assertEquals(400, unknown.getStatus());
+
+        // 空白 status 等价于全部，不抛 400
+        service.listForReview("  ", null);
+        verify(prescriptionMapper).selectForReview(null, null);
+    }
+
+    @Test
     void approvalGeneratesExplanationThenPublishesWithJavaDisclaimer() {
         Prescription pending = prescription(31L, "PENDING");
         Prescription approved = prescription(31L, "APPROVED");

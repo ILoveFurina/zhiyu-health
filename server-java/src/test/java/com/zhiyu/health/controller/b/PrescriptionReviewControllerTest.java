@@ -44,12 +44,17 @@ class PrescriptionReviewControllerTest {
                 "上呼吸道感染",
                 "清淡饮食",
                 List.of());
-        when(service.listForReview("PENDING")).thenReturn(List.of(approved));
+        when(service.listForReview("PENDING", null)).thenReturn(List.of(approved));
         when(service.review(1L, 31L, "APPROVE", null)).thenReturn(approved);
 
         mockMvc.perform(get("/api/b/prescriptions?status=PENDING")
                         .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk());
+        // 全状态 + 关键词透传到 service
+        when(service.listForReview(null, "林")).thenReturn(List.of(approved));
+        mockMvc.perform(get("/api/b/prescriptions?keyword=林").with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isOk());
+        verify(service).listForReview(null, "林");
         mockMvc.perform(post("/api/b/prescriptions/31/review")
                         .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN))
                         .contentType("application/json")

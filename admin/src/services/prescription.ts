@@ -108,8 +108,11 @@ export const fetchOnlineConsultationPrescription = (onlineConsultationId: number
     `/api/b/reception/online-consultations/${onlineConsultationId}/prescription`,
   );
 
-export const fetchPendingPrescriptions = () =>
-  request<Prescription[]>('/api/b/prescriptions', { params: { status: prescriptionStatuses.pending } });
+// status 省略表示全部状态；keyword 模糊匹配医生姓名 / 患者昵称 / 处方号
+export const fetchPrescriptions = (status?: string, keyword?: string) =>
+  request<Prescription[]>('/api/b/prescriptions', {
+    params: { status, keyword },
+  });
 
 export type ReviewDecision = typeof prescriptionDecisions.approve | typeof prescriptionDecisions.reject;
 

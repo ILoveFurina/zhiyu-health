@@ -51,8 +51,25 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             """)
     Prescription selectForPatient(@Param("id") long id, @Param("patientId") long patientId);
 
-    @Select(DETAIL_COLUMNS + " WHERE pr.status = #{status} ORDER BY pr.created_at DESC")
-    List<Prescription> selectForReview(@Param("status") String status);
+    // 全状态列表（票：电子处方审核页优化）：status 为空表示全部状态，keyword 同时模糊匹配
+    // 医生姓名 / 患者昵称 / 处方号，沿用 <script> + <where> + <if> 动态 SQL 惯例。
+    @Select(
+            """
+            <script>
+            """ + DETAIL_COLUMNS
+                    + """
+            <where>
+              <if test='status != null and status != ""'>AND pr.status = #{status}</if>
+              <if test='keyword != null and keyword != ""'>
+                AND (d.name ILIKE CONCAT('%', #{keyword}, '%')
+                  OR hp.display_name ILIKE CONCAT('%', #{keyword}, '%')
+                  OR CAST(pr.id AS TEXT) ILIKE CONCAT('%', #{keyword}, '%'))
+              </if>
+            </where>
+            ORDER BY pr.created_at DESC
+            </script>
+            """)
+    List<Prescription> selectForReview(@Param("status") String status, @Param("keyword") String keyword);
 
     // 票 60：患者处方列表泛化为全状态（不再按 status 过滤）；可见性边界上移到
     // 「用药解读只随 APPROVED 落库」，由 PatientCareService 注释说明。
