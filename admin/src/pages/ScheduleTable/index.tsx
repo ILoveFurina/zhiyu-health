@@ -72,6 +72,28 @@ export default function ScheduleTablePage() {
     }
   };
 
+  const onEnable = async (row: Schedule) => {
+    setSubmitting(true);
+    try {
+      await submitScheduleChange(row.id, 'enable');
+      message.success('已提交恢复出诊申请，等待管理员审核');
+      await load();
+    } catch {
+      // 错误由全局 errorHandler 弹出
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 判断排班时段是否已过：当天且当前时间超过时段结束时间（与 server-java isSlotWindowClosed 一致）
+  const isSlotExpired = (row: Schedule) => {
+    const window = scheduleRequestTimeSlotWindows[row.time_slot as keyof typeof scheduleRequestTimeSlotWindows];
+    if (!window) return false;
+    const d = dayjs(row.schedule_date);
+    if (!d.isSame(dayjs(), 'day')) return false;
+    return dayjs().isAfter(dayjs().hour(Number(window.end.split(':')[0])).minute(Number(window.end.split(':')[1])).second(0));
+  };
+
   const columns: TableColumnsType<Schedule> = [
     {
       title: '日期',
@@ -125,18 +147,47 @@ export default function ScheduleTablePage() {
     },
     {
       title: '状态',
-      dataIndex: 'is_active',
-      width: 90,
-      render: (v: boolean) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? '出诊中' : '已停诊'}</Tag>
-      ),
+      width: 110,
+      render: (_, row) => {
+        if (row.pending_action === 'DISABLE') {
+          return <Tag color="gold">待审核（停诊）</Tag>;
+        }
+        if (row.pending_action === 'ENABLE') {
+          return <Tag color="gold">待审核（接诊）</Tag>;
+        }
+        if (!row.is_active) {
+          return <Tag color="default">已停诊</Tag>;
+        }
+        if (isSlotExpired(row)) {
+          return <Tag color="default">停诊</Tag>;
+        }
+        return <Tag color="green">可出诊</Tag>;
+      },
     },
     {
       title: '操作',
-      width: 180,
+      width: 200,
       render: (_, row) => {
+        if (row.pending_action) {
+          return <Typography.Text type="secondary">审核中</Typography.Text>;
+        }
         if (!row.is_active) {
-          return <Typography.Text type="secondary">已停诊</Typography.Text>;
+          return (
+            <Popconfirm
+              title="确认恢复出诊？"
+              description="恢复出诊申请需管理员审核通过后生效"
+              onConfirm={() => onEnable(row)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button type="link" size="small">
+                接诊
+              </Button>
+            </Popconfirm>
+          );
+        }
+        if (isSlotExpired(row)) {
+          return <Typography.Text type="secondary">时段已过</Typography.Text>;
         }
         return (
           <Space>

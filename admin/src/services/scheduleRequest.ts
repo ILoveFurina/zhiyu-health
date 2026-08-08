@@ -48,6 +48,8 @@ export interface Schedule {
   total_slots: number;
   remaining_slots: number;
   is_active: boolean;
+  // 联查投影：该排班是否存在待审核的 DISABLE/ENABLE 申请（null 表示无待审核申请）
+  pending_action?: string | null;
 }
 
 // 医生提交排班申请（reception 命名空间，AdminInterceptor 豁免，医生可达）
