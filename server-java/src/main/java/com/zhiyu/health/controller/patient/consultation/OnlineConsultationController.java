@@ -3,6 +3,7 @@ package com.zhiyu.health.controller.patient.consultation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.service.consultation.OnlineConsultationService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,13 +35,13 @@ public class OnlineConsultationController {
 
     public record MessageInput(@NotBlank @Size(max = 2000) String content) {}
 
-    public record ConsultationResponse(OnlineConsultationService.ConsultationDetail consultation) {}
+    public record ConsultationResponse(OnlineConsultationViews.ConsultationDetail consultation) {}
 
-    public record ConsultationListResponse(List<OnlineConsultationService.ConsultationListItem> consultations) {}
+    public record ConsultationListResponse(List<OnlineConsultationViews.ConsultationListItem> consultations) {}
 
-    public record MessageListResponse(List<OnlineConsultationService.MessageView> messages) {}
+    public record MessageListResponse(List<OnlineConsultationViews.MessageView> messages) {}
 
-    public record MessageResponse(OnlineConsultationService.MessageView message) {}
+    public record MessageResponse(OnlineConsultationViews.MessageView message) {}
 
     /** 确认摘要并建单（幂等）：重复确认返回同一问诊单。 */
     @PostMapping

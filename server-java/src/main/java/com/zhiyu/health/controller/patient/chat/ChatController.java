@@ -3,7 +3,7 @@ package com.zhiyu.health.controller.patient.chat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.AuthFilter;
-import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatService;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -55,10 +55,10 @@ public class ChatController {
             throw new ApiException(400, "content 与 medication_name 必须且只能携带其一");
         }
         if (hasMedication) {
-            return chatService.medication(new ChatRoundService.MedicationCommand(
+            return chatService.medication(new ChatRoundModels.MedicationCommand(
                     patientId, request.requestId(), request.conversationId(), request.medicationName()));
         }
-        return chatService.chat(new ChatRoundService.Command(
+        return chatService.chat(new ChatRoundModels.Command(
                 patientId,
                 request.requestId(),
                 request.conversationId(),

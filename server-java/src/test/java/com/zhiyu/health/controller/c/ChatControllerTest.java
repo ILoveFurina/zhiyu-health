@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.controller.patient.chat.ChatController;
-import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatService;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-/** 保留的 HTTP SSE 适配器：request_id 必填且只负责装配 ChatRoundService.Command。 */
+/** 保留的 HTTP SSE 适配器：request_id 必填且只负责装配 ChatRoundModels.Command。 */
 class ChatControllerTest {
 
     @Test
@@ -52,7 +52,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-34", null, "你好", "quick", null, null, null, null, null, null));
         emitter.complete();
     }
@@ -76,7 +76,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-pre", null, "我咳嗽三天了", null, null, null, null, null, null, 5L));
         emitter.complete();
     }
@@ -101,7 +101,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null));
         emitter.complete();
     }
@@ -124,7 +124,7 @@ class ChatControllerTest {
                                 """))
                 .andExpect(request().asyncStarted());
 
-        verify(service).medication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+        verify(service).medication(new ChatRoundModels.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
         verify(service, org.mockito.Mockito.never()).chat(any());
         emitter.complete();
     }

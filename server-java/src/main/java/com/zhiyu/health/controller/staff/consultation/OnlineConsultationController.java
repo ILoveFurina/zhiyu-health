@@ -2,6 +2,7 @@ package com.zhiyu.health.controller.staff.consultation;
 
 import com.zhiyu.health.config.AuthFilter;
 import com.zhiyu.health.service.consultation.OnlineConsultationService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -35,16 +36,15 @@ public class OnlineConsultationController {
 
     public record MessageInput(@NotBlank @Size(max = 2000) String content) {}
 
-    public record ConsultationListResponse(List<OnlineConsultationService.DoctorListItem> consultations) {}
+    public record ConsultationListResponse(List<OnlineConsultationViews.DoctorListItem> consultations) {}
 
-    public record ConsultationResponse(OnlineConsultationService.DoctorConsultationDetail consultation) {}
+    public record ConsultationResponse(OnlineConsultationViews.DoctorConsultationDetail consultation) {}
 
-    public record MessageListResponse(List<OnlineConsultationService.MessageView> messages) {}
+    public record MessageListResponse(List<OnlineConsultationViews.MessageView> messages) {}
 
-    public record MessageResponse(OnlineConsultationService.MessageView message) {}
+    public record MessageResponse(OnlineConsultationViews.MessageView message) {}
 
-    public record ConsultationPrescriptionResponse(
-            OnlineConsultationService.ConsultationPrescriptionView prescription) {}
+    public record ConsultationPrescriptionResponse(OnlineConsultationViews.ConsultationPrescriptionView prescription) {}
 
     /** 科室待接诊池：只看得到映射同标准科室的待接诊单。 */
     @GetMapping("/pool")

@@ -13,6 +13,7 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.controller.staff.consultation.OnlineConsultationController;
 import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.service.consultation.OnlineConsultationService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews;
 import com.zhiyu.health.support.StaffTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -173,10 +174,10 @@ class OnlineConsultationControllerTest {
     @Test
     void messagesFlowBothDirections() throws Exception {
         when(consultations.listMessagesForDoctor(8L, 21L, 0L))
-                .thenReturn(List.of(new OnlineConsultationService.MessageView(
+                .thenReturn(List.of(new OnlineConsultationViews.MessageView(
                         41L, "PATIENT", "text", "医生你好", "2026-08-07T10:04:00+08:00")));
         when(consultations.sendMessageForDoctor(8L, 21L, "你好，请补充体温"))
-                .thenReturn(new OnlineConsultationService.MessageView(
+                .thenReturn(new OnlineConsultationViews.MessageView(
                         42L, "DOCTOR", "text", "你好，请补充体温", "2026-08-07T10:05:00+08:00"));
 
         mockMvc.perform(get("/api/b/reception/online-consultations/21/messages")
@@ -233,7 +234,7 @@ class OnlineConsultationControllerTest {
         // 票 60 接诊抽屉：有处方返回状态/标签/驳回原因，无处方 prescription 为 null（两态 200）
         when(consultations.prescriptionForConsultation(8L, 21L))
                 .thenReturn(
-                        new OnlineConsultationService.ConsultationPrescriptionView(31L, "REJECTED", "已驳回", "用法用量需调整"));
+                        new OnlineConsultationViews.ConsultationPrescriptionView(31L, "REJECTED", "已驳回", "用法用量需调整"));
         mockMvc.perform(get("/api/b/reception/online-consultations/21/prescription")
                         .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isOk())
@@ -248,8 +249,8 @@ class OnlineConsultationControllerTest {
                 .andExpect(jsonPath("$.prescription").value(nullValue()));
     }
 
-    private OnlineConsultationService.DoctorListItem poolItem() {
-        return new OnlineConsultationService.DoctorListItem(
+    private OnlineConsultationViews.DoctorListItem poolItem() {
+        return new OnlineConsultationViews.DoctorListItem(
                 21L,
                 "WAITING_DOCTOR",
                 "等待医生接诊",
@@ -257,7 +258,7 @@ class OnlineConsultationControllerTest {
                 "呼吸内科",
                 summary(),
                 "仅供参考，不替代医生诊断",
-                new OnlineConsultationService.PatientRef("小愈"),
+                new OnlineConsultationViews.PatientRef("小愈"),
                 profile(),
                 null,
                 null,
@@ -267,10 +268,10 @@ class OnlineConsultationControllerTest {
                 "2026-08-07T10:10:00+08:00");
     }
 
-    private OnlineConsultationService.DoctorConsultationDetail detail(String status) {
+    private OnlineConsultationViews.DoctorConsultationDetail detail(String status) {
         boolean inProgress = "IN_PROGRESS".equals(status);
         boolean completed = "COMPLETED".equals(status);
-        return new OnlineConsultationService.DoctorConsultationDetail(
+        return new OnlineConsultationViews.DoctorConsultationDetail(
                 21L,
                 status,
                 completed ? "问诊已完成" : (inProgress ? "医生问诊中" : "等待医生接诊"),
@@ -278,7 +279,7 @@ class OnlineConsultationControllerTest {
                 "呼吸内科",
                 summary(),
                 "仅供参考，不替代医生诊断",
-                new OnlineConsultationService.PatientRef("小愈"),
+                new OnlineConsultationViews.PatientRef("小愈"),
                 profile(),
                 inProgress || completed ? "VIDEO" : null,
                 inProgress || completed ? "视频问诊" : null,
@@ -292,11 +293,11 @@ class OnlineConsultationControllerTest {
                 "2026-08-07T10:10:00+08:00");
     }
 
-    private OnlineConsultationService.ConsultationSummaryView summary() {
-        return new OnlineConsultationService.ConsultationSummaryView("咳嗽三天", "干咳无痰", "无");
+    private OnlineConsultationViews.ConsultationSummaryView summary() {
+        return new OnlineConsultationViews.ConsultationSummaryView("咳嗽三天", "干咳无痰", "无");
     }
 
-    private OnlineConsultationService.ProfileRef profile() {
-        return new OnlineConsultationService.ProfileRef("小愈本人", "女", "1990-01-01", "本人", List.of("青霉素"));
+    private OnlineConsultationViews.ProfileRef profile() {
+        return new OnlineConsultationViews.ProfileRef("小愈本人", "女", "1990-01-01", "本人", List.of("青霉素"));
     }
 }

@@ -103,22 +103,7 @@ public class PillBoxPhotoService {
     }
 
     private void validate(List<MultipartFile> files) {
-        Contracts.UploadLimits limits = contracts.uploadLimits();
-        if (files.size() < limits.minFiles() || files.size() > limits.maxFiles()) {
-            throw new ApiException(422, "请上传 1-5 张药盒照片");
-        }
-        long total = 0;
-        for (MultipartFile file : files) {
-            total += file.getSize();
-            if (file.isEmpty()
-                    || file.getSize() > limits.maxFileBytes()
-                    || !PhotoFileTypes.isAllowedImage(file, limits.imageTypes())) {
-                throw new ApiException(422, "仅支持规定大小的 JPEG 或 PNG 药盒照片");
-            }
-        }
-        if (total > limits.maxTotalBytes()) {
-            throw new ApiException(422, "药盒照片总量不能超过 20MB");
-        }
+        new PhotoUploadValidator(contracts).validate(files, "药盒");
     }
 
     /**

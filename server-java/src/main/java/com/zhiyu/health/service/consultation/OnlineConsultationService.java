@@ -1,8 +1,6 @@
 package com.zhiyu.health.service.consultation;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.chat.PreconsultationDraft;
@@ -22,11 +20,17 @@ import com.zhiyu.health.mapper.health.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.common.DisclaimerService;
 import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.ConsultationDetail;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.ConsultationListItem;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.ConsultationPrescriptionView;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.DoctorConsultationDetail;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.DoctorListItem;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.DoctorView;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.MessageView;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews.ProfileRef;
 import com.zhiyu.health.service.consultation.mapping.OnlineConsultationDtoMapper;
-import com.zhiyu.health.service.vision.PhotoFileTypes;
 import java.time.OffsetDateTime;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,13 +46,11 @@ import org.springframework.web.multipart.MultipartFile;
  * 不进 Agent 会话、审计原文与 Agent trace（硬约束 5）。
  */
 @Service
-@RequiredArgsConstructor
 public class OnlineConsultationService {
 
     private static final Logger log = LoggerFactory.getLogger(OnlineConsultationService.class);
 
     private final OnlineConsultationMapper consultationMapper;
-    private final OnlineConsultationMessageMapper messageMapper;
     private final PreconsultationDraftMapper draftMapper;
     private final StaffUserMapper staffUserMapper;
     private final HealthProfileAllergyMapper allergyMapper;
@@ -56,11 +58,40 @@ public class OnlineConsultationService {
     private final TransactionTemplate transactionTemplate;
     private final Contracts contracts;
     private final OnlineConsultationDtoMapper dtoMapper;
-    private final MinioStorageService minioStorage;
-    private final ObjectMapper objectMapper;
+    private final OnlineConsultationMessaging messaging;
     private final PrescriptionMapper prescriptionMapper;
     private final InAppMessageMapper inAppMessageMapper;
     private final DisclaimerService disclaimers;
+
+    public OnlineConsultationService(
+            OnlineConsultationMapper consultationMapper,
+            OnlineConsultationMessageMapper messageMapper,
+            PreconsultationDraftMapper draftMapper,
+            StaffUserMapper staffUserMapper,
+            HealthProfileAllergyMapper allergyMapper,
+            ConsultationRecordMapper consultationRecordMapper,
+            TransactionTemplate transactionTemplate,
+            Contracts contracts,
+            OnlineConsultationDtoMapper dtoMapper,
+            MinioStorageService minioStorage,
+            ObjectMapper objectMapper,
+            PrescriptionMapper prescriptionMapper,
+            InAppMessageMapper inAppMessageMapper,
+            DisclaimerService disclaimers) {
+        this.consultationMapper = consultationMapper;
+        this.draftMapper = draftMapper;
+        this.staffUserMapper = staffUserMapper;
+        this.allergyMapper = allergyMapper;
+        this.consultationRecordMapper = consultationRecordMapper;
+        this.transactionTemplate = transactionTemplate;
+        this.contracts = contracts;
+        this.dtoMapper = dtoMapper;
+        this.messaging =
+                new OnlineConsultationMessaging(messageMapper, dtoMapper, contracts, minioStorage, objectMapper);
+        this.prescriptionMapper = prescriptionMapper;
+        this.inAppMessageMapper = inAppMessageMapper;
+        this.disclaimers = disclaimers;
+    }
 
     // 演示开关（票 60，与 zhiyu.demo.reset-enabled 同一模式）：随访消息立即可见，
     // 跳过契约 delay_days 延迟；默认关闭，仅演示环境显式置 true。
@@ -195,16 +226,14 @@ public class OnlineConsultationService {
     /** 医患消息增量轮询：仅绑定患者可读；COMPLETED 后只读（任何状态都可拉取历史）。 */
     public List<MessageView> listMessagesForPatient(long patientId, long id, long afterId) {
         requireOwnedByPatient(id, patientId);
-        return messageMapper.selectAfterId(id, afterId).stream()
-                .map(dtoMapper::toMessageView)
-                .toList();
+        return messaging.list(id, afterId);
     }
 
     public MessageView sendMessageForPatient(long patientId, long id, String content) {
         OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
         requireInProgress(consultation);
         requireMethodInitiated(consultation);
-        return appendMessage(id, senderType("patient"), OnlineConsultationMessage.KIND_TEXT, content);
+        return messaging.append(id, senderType("patient"), OnlineConsultationMessage.KIND_TEXT, content);
     }
 
     // ------------------------------------------------------------------
@@ -265,7 +294,7 @@ public class OnlineConsultationService {
             if (consultationMapper.accept(id, doctorId, waiting(), inProgress()) != 1) {
                 throw new ApiException(409, text("accept_conflict"));
             }
-            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("doctor_accepted"));
+            messaging.append(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("doctor_accepted"));
             logDecision("accept", id, doctorId);
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
@@ -294,7 +323,8 @@ public class OnlineConsultationService {
                 }
                 throw new ApiException(409, text("method_already_set"));
             }
-            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, systemTextForMethod(method));
+            messaging.append(
+                    id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, systemTextForMethod(method));
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
     }
@@ -302,9 +332,7 @@ public class OnlineConsultationService {
     public List<MessageView> listMessagesForDoctor(long staffId, long id, long afterId) {
         long doctorId = requireDoctor(staffId);
         requireBoundToDoctor(id, doctorId);
-        return messageMapper.selectAfterId(id, afterId).stream()
-                .map(dtoMapper::toMessageView)
-                .toList();
+        return messaging.list(id, afterId);
     }
 
     public MessageView sendMessageForDoctor(long staffId, long id, String content) {
@@ -312,7 +340,7 @@ public class OnlineConsultationService {
         OnlineConsultation consultation = requireBoundToDoctor(id, doctorId);
         requireInProgress(consultation);
         requireMethodInitiated(consultation);
-        return appendMessage(id, senderType("doctor"), OnlineConsultationMessage.KIND_TEXT, content);
+        return messaging.append(id, senderType("doctor"), OnlineConsultationMessage.KIND_TEXT, content);
     }
 
     /**
@@ -339,7 +367,7 @@ public class OnlineConsultationService {
             record.setAdvice(advice.trim());
             consultationRecordMapper.insert(record);
             writeFollowUpMessage(consultation);
-            appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("consult_completed"));
+            messaging.append(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("consult_completed"));
             logDecision("complete", id, doctorId);
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
@@ -477,16 +505,6 @@ public class OnlineConsultationService {
         return consultationMapper.selectActiveByProfile(healthProfileId, waiting(), inProgress());
     }
 
-    private MessageView appendMessage(long consultationId, String senderType, String kind, String content) {
-        OnlineConsultationMessage message = new OnlineConsultationMessage();
-        message.setConsultationId(consultationId);
-        message.setSenderType(senderType);
-        message.setKind(kind);
-        message.setContent(content);
-        messageMapper.insert(message);
-        return dtoMapper.toMessageView(message);
-    }
-
     /**
      * 患者发送问诊图片（票 58，ADR-0029）：图片是消息本体，MinIO 写入失败即发送失败（抛错不降级），
      * 与医生头像的可选旁路语义不同。content 存 {"object_key","media_type"} JSON，与 messages 表
@@ -496,24 +514,7 @@ public class OnlineConsultationService {
         OnlineConsultation consultation = requireOwnedByPatient(id, patientId);
         requireInProgress(consultation);
         requireMethodInitiated(consultation);
-        Contracts.ConsultationPhotoLimits limits = contracts.consultationPhotoLimits();
-        if (file == null || file.isEmpty()) {
-            throw new ApiException(400, "请选择图片");
-        }
-        if (file.getSize() > limits.maxBytes()) {
-            throw new ApiException(400, "图片不能超过 " + (limits.maxBytes() / 1024 / 1024) + "MB");
-        }
-        // 支付宝 my.uploadFile 不可靠设置 Content-Type（常为 octet-stream），必须回退 magic bytes
-        // 校验真实格式，否则合法 JPEG/PNG 被误拒（与 4 个 PhotoService 一致，ADR-0029）。
-        if (!PhotoFileTypes.isAllowedImage(file, limits.allowedTypes())) {
-            throw new ApiException(400, "图片仅支持 JPEG/PNG 格式");
-        }
-        // media_type 同样不可信客户端声明，用 magic bytes 探测真实类型落库。
-        String mediaType = PhotoFileTypes.detectMediaType(file);
-        String objectKey = minioStorage.storePhoto(file).orElseThrow(() -> new ApiException(503, "图片发送失败，请稍后重试"));
-        ObjectNode content =
-                objectMapper.createObjectNode().put("object_key", objectKey).put("media_type", mediaType);
-        return appendMessage(id, senderType("patient"), OnlineConsultationMessage.KIND_IMAGE, content.toString());
+        return messaging.sendImage(id, senderType("patient"), file);
     }
 
     private ConsultationDetail detailView(OnlineConsultation consultation) {
@@ -628,118 +629,4 @@ public class OnlineConsultationService {
     private String text(String key) {
         return contracts.onlineConsultation().texts().get(key);
     }
-
-    // ------------------------------------------------------------------
-    // 视图记录（接口形状；状态标签/文案一律来自契约，时间统一 ISO 字符串）
-    // ------------------------------------------------------------------
-
-    /** 问诊单上的病情摘要快照（建单时自草稿整体拷贝）。 */
-    public record ConsultationSummaryView(
-            @JsonProperty("chief_complaint") String chiefComplaint,
-            @JsonProperty("present_illness") String presentIllness,
-            @JsonProperty("allergy_history") String allergyHistory) {}
-
-    /** C 端可信医生身份：接受后轮询获得，不信任请求体携带的任何医生信息。
-     *  photo_url 为 /api/c/photos 代理相对 URL（票 59，映射在 DTO mapper）。 */
-    public record DoctorView(
-            String name,
-            String title,
-            @JsonProperty("photo_url") String photoUrl,
-            @JsonProperty("hospital_name") String hospitalName,
-            @JsonProperty("department_name") String departmentName) {}
-
-    public record ConsultationListItem(
-            Long id,
-            String status,
-            @JsonProperty("status_label") String statusLabel,
-            @JsonProperty("health_profile_id") Long healthProfileId,
-            @JsonProperty("standard_department_name") String standardDepartmentName,
-            @JsonProperty("consult_method") String consultMethod,
-            @JsonProperty("created_at") String createdAt,
-            @JsonProperty("expires_at") String expiresAt) {}
-
-    public record ConsultationDetail(
-            Long id,
-            String status,
-            @JsonProperty("status_label") String statusLabel,
-            @JsonProperty("progress_step") String progressStep,
-            @JsonProperty("standard_department_id") Long standardDepartmentId,
-            @JsonProperty("standard_department_name") String standardDepartmentName,
-            ConsultationSummaryView summary,
-            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
-            @JsonProperty("consult_method") String consultMethod,
-            @JsonProperty("consult_method_label") String consultMethodLabel,
-            @JsonProperty("method_started_at") String methodStartedAt,
-            DoctorView doctor,
-            String diagnosis,
-            String advice,
-            @JsonProperty("expires_at") String expiresAt,
-            @JsonProperty("accepted_at") String acceptedAt,
-            @JsonProperty("completed_at") String completedAt,
-            @JsonProperty("cancelled_at") String cancelledAt,
-            @JsonProperty("created_at") String createdAt,
-            @JsonProperty("terminal_hint") String terminalHint) {}
-
-    public record PatientRef(String nickname) {}
-
-    /** 接诊抽屉处方卡片（票 60）：状态标签来自 prescription-flow 契约，驳回原因原样带出。 */
-    public record ConsultationPrescriptionView(
-            Long id,
-            String status,
-            @JsonProperty("status_label") String statusLabel,
-            @JsonProperty("review_reason") String reviewReason) {}
-
-    /** 医生接受前可见的锁定档案信息：判断是否适合接诊的最小集合。 */
-    public record ProfileRef(
-            @JsonProperty("display_name") String displayName,
-            String gender,
-            @JsonProperty("birth_date") String birthDate,
-            String relationship,
-            List<String> allergies) {}
-
-    /** B 端列表项（科室池与本人记录同形；科室池行的方式/接受/完成时间为 null）。 */
-    public record DoctorListItem(
-            Long id,
-            String status,
-            @JsonProperty("status_label") String statusLabel,
-            @JsonProperty("standard_department_id") Long standardDepartmentId,
-            @JsonProperty("standard_department_name") String standardDepartmentName,
-            ConsultationSummaryView summary,
-            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
-            PatientRef patient,
-            @JsonProperty("health_profile") ProfileRef healthProfile,
-            @JsonProperty("consult_method") String consultMethod,
-            @JsonProperty("consult_method_label") String consultMethodLabel,
-            @JsonProperty("accepted_at") String acceptedAt,
-            @JsonProperty("completed_at") String completedAt,
-            @JsonProperty("created_at") String createdAt,
-            @JsonProperty("expires_at") String expiresAt) {}
-
-    public record DoctorConsultationDetail(
-            Long id,
-            String status,
-            @JsonProperty("status_label") String statusLabel,
-            @JsonProperty("standard_department_id") Long standardDepartmentId,
-            @JsonProperty("standard_department_name") String standardDepartmentName,
-            ConsultationSummaryView summary,
-            @JsonProperty("summary_disclaimer") String summaryDisclaimer,
-            PatientRef patient,
-            @JsonProperty("health_profile") ProfileRef healthProfile,
-            @JsonProperty("consult_method") String consultMethod,
-            @JsonProperty("consult_method_label") String consultMethodLabel,
-            @JsonProperty("method_started_at") String methodStartedAt,
-            String diagnosis,
-            String advice,
-            @JsonProperty("accepted_at") String acceptedAt,
-            @JsonProperty("completed_at") String completedAt,
-            @JsonProperty("cancelled_at") String cancelledAt,
-            @JsonProperty("created_at") String createdAt,
-            @JsonProperty("expires_at") String expiresAt) {}
-
-    public record MessageView(
-            Long id,
-            @JsonProperty("sender_type") String senderType,
-            String kind,
-            String content,
-            @JsonProperty("created_at") String createdAt) {}
 }

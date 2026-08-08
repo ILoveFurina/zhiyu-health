@@ -15,6 +15,7 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.entity.chat.ChatRound;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
 import com.zhiyu.health.service.chat.AgentCallLogService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatRoundPersistence;
 import com.zhiyu.health.service.chat.ChatRoundService;
 import com.zhiyu.health.service.chat.PreconsultationService;
@@ -41,7 +42,7 @@ class MedicationRoundServiceTest {
         ChatRound round = fixture.round();
         when(fixture.persistence.find(12L, "req-med-1")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-med-1", null, "阿莫西林胶囊")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-1"));
+        ChatRoundModels.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-1"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"text\":\"【用途】\"}").event("token").build());
@@ -53,15 +54,15 @@ class MedicationRoundServiceTest {
         fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
         fixture.upstream.tryEmitComplete();
 
-        List<ChatRoundService.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
+        List<ChatRoundModels.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
         List<String> events =
-                observed.stream().map(ChatRoundService.Event::event).toList();
+                observed.stream().map(ChatRoundModels.Event::event).toList();
         // meta → token×3 → 流尾 consult 话术 token → message → done
         assertThat(events).containsExactly("meta", "token", "token", "token", "token", "message", "done");
         // 流尾双话术：免责声明（server-py 注入透传）+ consult_professional（java 出口兜底追加）
-        ChatRoundService.Event consultToken = observed.get(4);
+        ChatRoundModels.Event consultToken = observed.get(4);
         assertThat(consultToken.data().path("text").asText()).contains("具体是否适用请咨询医生或药师");
-        ChatRoundService.Event message = observed.get(5);
+        ChatRoundModels.Event message = observed.get(5);
         String content = message.data().path("content").asText();
         assertThat(content).contains("【用途】").contains("仅供参考，不替代医生诊断");
         assertThat(content).endsWith("具体是否适用请咨询医生或药师");
@@ -82,16 +83,16 @@ class MedicationRoundServiceTest {
         when(fixture.persistence.find(12L, "req-med-2")).thenReturn(null);
         when(fixture.persistence.create(eq(12L), eq("req-med-2"), org.mockito.ArgumentMatchers.isNull(), anyString()))
                 .thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-2"));
+        ChatRoundModels.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-2"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"text\":\"【用途】退热。\"}").event("token").build());
         fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
         fixture.upstream.tryEmitComplete();
 
-        List<ChatRoundService.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
+        List<ChatRoundModels.Event> observed = handle.events().collectList().block(Duration.ofSeconds(1));
         // meta → token → 兜底免责 token → consult token → message → done
-        assertThat(observed.stream().map(ChatRoundService.Event::event).toList())
+        assertThat(observed.stream().map(ChatRoundModels.Event::event).toList())
                 .containsExactly("meta", "token", "token", "token", "message", "done");
         String content = observed.get(4).data().path("content").asText();
         assertThat(content).contains("【用途】退热。");
@@ -107,8 +108,8 @@ class MedicationRoundServiceTest {
         when(fixture.persistence.create(eq(12L), eq("req-med-dup"), org.mockito.ArgumentMatchers.isNull(), anyString()))
                 .thenReturn(round);
 
-        ChatRoundService.Handle first = fixture.service.acceptMedication(fixture.command("req-med-dup"));
-        ChatRoundService.Handle duplicate = fixture.service.acceptMedication(fixture.command("req-med-dup"));
+        ChatRoundModels.Handle first = fixture.service.acceptMedication(fixture.command("req-med-dup"));
+        ChatRoundModels.Handle duplicate = fixture.service.acceptMedication(fixture.command("req-med-dup"));
 
         assertThat(duplicate.conversationId()).isEqualTo(first.conversationId());
         verify(fixture.agentClient).medicationKnowledge(anyString());
@@ -122,13 +123,13 @@ class MedicationRoundServiceTest {
         when(fixture.persistence.create(
                         eq(12L), eq("req-med-fail"), org.mockito.ArgumentMatchers.isNull(), anyString()))
                 .thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-fail"));
+        ChatRoundModels.Handle handle = fixture.service.acceptMedication(fixture.command("req-med-fail"));
 
         AtomicReference<Throwable> failure = new AtomicReference<>();
         handle.events().subscribe(event -> {}, failure::set);
         fixture.upstream.tryEmitError(new IllegalStateException("connection reset"));
 
-        assertThat(failure.get()).isInstanceOf(ChatRoundService.RoundFailedException.class);
+        assertThat(failure.get()).isInstanceOf(ChatRoundModels.RoundFailedException.class);
         verify(fixture.persistence).markFailed(34L, "AGENT_FAILED");
         verify(fixture.persistence, never()).markCompleted(any());
     }
@@ -137,7 +138,7 @@ class MedicationRoundServiceTest {
     void blankDrugNameIsRejected() {
         Fixture fixture = new Fixture();
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> fixture.service.acceptMedication(
-                        new ChatRoundService.MedicationCommand(12L, "req-med-blank", null, "  ")))
+                        new ChatRoundModels.MedicationCommand(12L, "req-med-blank", null, "  ")))
                 .isInstanceOf(com.zhiyu.health.config.ApiException.class);
     }
 
@@ -181,8 +182,8 @@ class MedicationRoundServiceTest {
             return round;
         }
 
-        private ChatRoundService.MedicationCommand command(String requestId) {
-            return new ChatRoundService.MedicationCommand(12L, requestId, null, "阿莫西林胶囊");
+        private ChatRoundModels.MedicationCommand command(String requestId) {
+            return new ChatRoundModels.MedicationCommand(12L, requestId, null, "阿莫西林胶囊");
         }
     }
 }

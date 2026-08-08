@@ -17,6 +17,7 @@ import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.controller.patient.consultation.OnlineConsultationController;
 import com.zhiyu.health.service.consultation.OnlineConsultationService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -100,7 +101,7 @@ class OnlineConsultationControllerTest {
     void listReturnsMine() throws Exception {
         OnlineConsultationService service = mock(OnlineConsultationService.class);
         when(service.listMine(12L))
-                .thenReturn(List.of(new OnlineConsultationService.ConsultationListItem(
+                .thenReturn(List.of(new OnlineConsultationViews.ConsultationListItem(
                         21L,
                         "WAITING_DOCTOR",
                         "等待医生接诊",
@@ -263,15 +264,15 @@ class OnlineConsultationControllerTest {
                 .build();
     }
 
-    private OnlineConsultationService.MessageView message(Long id, String senderType, String content) {
-        return new OnlineConsultationService.MessageView(id, senderType, "text", content, "2026-08-07T10:06:00+08:00");
+    private OnlineConsultationViews.MessageView message(Long id, String senderType, String content) {
+        return new OnlineConsultationViews.MessageView(id, senderType, "text", content, "2026-08-07T10:06:00+08:00");
     }
 
-    private OnlineConsultationService.ConsultationDetail detail(String status) {
-        OnlineConsultationService.ConsultationSummaryView summary =
-                new OnlineConsultationService.ConsultationSummaryView("咳嗽三天", "干咳无痰", "无");
+    private OnlineConsultationViews.ConsultationDetail detail(String status) {
+        OnlineConsultationViews.ConsultationSummaryView summary =
+                new OnlineConsultationViews.ConsultationSummaryView("咳嗽三天", "干咳无痰", "无");
         boolean cancelled = "CANCELLED".equals(status);
-        return new OnlineConsultationService.ConsultationDetail(
+        return new OnlineConsultationViews.ConsultationDetail(
                 21L,
                 status,
                 cancelled ? "已取消" : "等待医生接诊",
@@ -294,7 +295,7 @@ class OnlineConsultationControllerTest {
                 cancelled ? "问诊已取消。可复用原病情摘要重新提交，无需重复预问诊。" : null);
     }
 
-    private OnlineConsultationService.MessageView imageMessage(Long id, String content) {
-        return new OnlineConsultationService.MessageView(id, "PATIENT", "image", content, "2026-08-07T10:06:00+08:00");
+    private OnlineConsultationViews.MessageView imageMessage(Long id, String content) {
+        return new OnlineConsultationViews.MessageView(id, "PATIENT", "image", content, "2026-08-07T10:06:00+08:00");
     }
 }

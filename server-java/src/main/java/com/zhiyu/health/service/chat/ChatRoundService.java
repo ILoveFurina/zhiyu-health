@@ -12,6 +12,11 @@ import com.zhiyu.health.entity.chat.Message;
 import com.zhiyu.health.entity.chat.PreconsultationDraft;
 import com.zhiyu.health.rule.RedFlagHit;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
+import com.zhiyu.health.service.chat.ChatRoundModels.Command;
+import com.zhiyu.health.service.chat.ChatRoundModels.Event;
+import com.zhiyu.health.service.chat.ChatRoundModels.Handle;
+import com.zhiyu.health.service.chat.ChatRoundModels.MedicationCommand;
+import com.zhiyu.health.service.chat.ChatRoundModels.RoundFailedException;
 import com.zhiyu.health.service.health.HealthProfileService;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,7 +34,6 @@ import reactor.core.publisher.Sinks;
 
 /** 对话轮次主干：幂等接受、规则前置、独立运行、持久化与实时观察。 */
 @Service
-@RequiredArgsConstructor
 public class ChatRoundService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatRoundService.class);
@@ -50,6 +53,29 @@ public class ChatRoundService {
     // 票 55：预问诊草稿绑定（归属/状态校验、会话回填、摘要快照），普通对话轮次不触达
     private final PreconsultationService preconsultationService;
     private final Map<Long, RunningRound> running = new ConcurrentHashMap<>();
+    private final MedicationKnowledgeRelay medicationRelay;
+
+    public ChatRoundService(
+            AgentClient agentClient,
+            ChatRoundPersistence persistence,
+            RedFlagRuleEngine redFlagRules,
+            ObjectMapper objectMapper,
+            Contracts contracts,
+            HealthProfileService healthProfiles,
+            AgentCallLogService agentCallLogs,
+            StringRedisTemplate redis,
+            PreconsultationService preconsultationService) {
+        this.agentClient = agentClient;
+        this.persistence = persistence;
+        this.redFlagRules = redFlagRules;
+        this.objectMapper = objectMapper;
+        this.contracts = contracts;
+        this.healthProfiles = healthProfiles;
+        this.agentCallLogs = agentCallLogs;
+        this.redis = redis;
+        this.preconsultationService = preconsultationService;
+        this.medicationRelay = new MedicationKnowledgeRelay(agentClient, persistence, objectMapper, contracts);
+    }
 
     /** 同一进程内串行化首次接受，配合数据库唯一约束封住重复消息与重复 Agent 调用。 */
     public synchronized Handle accept(Command command) {
@@ -173,7 +199,7 @@ public class ChatRoundService {
      * 幂等与观察语义复用对话轮次（票 33/40 relay 机制）。
      */
     public synchronized Handle acceptMedication(MedicationCommand command) {
-        validateMedication(command);
+        medicationRelay.validate(command);
         ChatRound existing = persistence.find(command.patientId(), command.requestId());
         if (existing != null) {
             return observeExisting(existing);
@@ -182,107 +208,8 @@ public class ChatRoundService {
                 command.patientId(), command.requestId(), command.conversationId(), command.drugName());
         RunningRound runtime = new RunningRound(round);
         running.put(round.getId(), runtime);
-        runMedication(runtime, command);
+        medicationRelay.start(runtime, command);
         return runtime.handle();
-    }
-
-    private void runMedication(RunningRound runtime, MedicationCommand command) {
-        ChatRound round = runtime.round;
-        persistence.markRunning(round.getId());
-        // 入口审计（硬约束 5）：只记脱敏药名（首字 + 长度），不记药名原文
-        log.info(
-                "medication round accepted roundId={} requestId={} drug={}",
-                round.getId(),
-                round.getRequestId(),
-                maskForAudit(command.drugName()));
-        runtime.emit(contracts.sseEvents().metaEvent(), baseData(round));
-        agentClient
-                .medicationKnowledge(command.drugName())
-                .subscribe(event -> forwardMedication(runtime, event), error -> fail(runtime, error), () -> {
-                    if (!runtime.sawDone.get()) {
-                        fail(runtime, new IllegalStateException("Agent 流未发送 done 即结束"));
-                    }
-                });
-    }
-
-    /** token 透传 + 流尾组装 message；medication 流契约只有 token/done，其余事件忽略。 */
-    private void forwardMedication(RunningRound runtime, ServerSentEvent<String> incoming) {
-        if (runtime.terminal.get()) {
-            return;
-        }
-        try {
-            runtime.recordUpstream(incoming.event());
-            JsonNode raw = parseData(incoming.data());
-            Contracts.MedicationKnowledge contract = contracts.medicationKnowledge();
-            if (contract.tokenEvent().equals(incoming.event())) {
-                String text = raw.path("text").asText("");
-                runtime.medicationText.append(text);
-                emitMedicationToken(runtime, text);
-            } else if (contract.doneEvent().equals(incoming.event())) {
-                finishMedication(runtime);
-            }
-        } catch (RuntimeException | JsonProcessingException error) {
-            fail(runtime, error);
-        }
-    }
-
-    /**
-     * 流尾出口兜底（硬约束 1）：免责声明缺失时补齐，consult_professional 一律追加；
-     * 双话术先以 token 下发（直播气泡可见），随后整段落 KIND_TEXT 并 emit message/done。
-     */
-    private void finishMedication(RunningRound runtime) {
-        ChatRound round = runtime.round;
-        Contracts.MedicationKnowledge contract = contracts.medicationKnowledge();
-        StringBuilder content = new StringBuilder(runtime.medicationText.toString());
-        String disclaimer = contracts.disclaimer().text();
-        if (!content.toString().contains(disclaimer)) {
-            String tail = "\n\n" + disclaimer;
-            content.append(tail);
-            emitMedicationToken(runtime, tail);
-        }
-        String consult = "\n" + contract.consultProfessional();
-        content.append(consult);
-        emitMedicationToken(runtime, consult);
-
-        ObjectNode messageData =
-                objectMapper.createObjectNode().put("role", "assistant").put("content", content.toString());
-        JsonNode persisted =
-                persistence.persistEvent(round, contracts.sseEvents().messageEvent(), messageData);
-        runtime.emit(contracts.sseEvents().messageEvent(), persisted);
-        runtime.sawDone.set(true);
-        persistence.markCompleted(round.getId());
-        JsonNode doneData =
-                persistence.persistEvent(round, contracts.sseEvents().doneEvent(), objectMapper.createObjectNode());
-        runtime.emit(contracts.sseEvents().doneEvent(), doneData);
-        runtime.finish();
-    }
-
-    private void emitMedicationToken(RunningRound runtime, String text) {
-        runtime.emit(
-                contracts.medicationKnowledge().tokenEvent(),
-                objectMapper
-                        .createObjectNode()
-                        .put("request_id", runtime.round.getRequestId())
-                        .put("text", text));
-    }
-
-    /** 审计脱敏：只保留首字与长度（硬约束 5，药名属患者健康相关原文）。 */
-    private String maskForAudit(String drugName) {
-        String trimmed = drugName.trim();
-        return trimmed.charAt(0) + "***（len=" + trimmed.length() + "）";
-    }
-
-    private void validateMedication(MedicationCommand command) {
-        if (command.requestId() == null
-                || command.requestId().isBlank()
-                || command.requestId().length() > 64) {
-            throw new ApiException(400, "request_id 必须为 1 到 64 个字符");
-        }
-        if (command.drugName() == null
-                || command.drugName().isBlank()
-                || command.drugName().length() > 100) {
-            throw new ApiException(400, "medication_name 必须为 1 到 100 个字符");
-        }
     }
 
     private void runAgent(RunningRound runtime, Command command, PreconsultationDraft preconsultDraft) {
@@ -464,38 +391,7 @@ public class ChatRoundService {
         return (global == null || global.isBlank()) ? null : global;
     }
 
-    public record Command(
-            Long patientId,
-            String requestId,
-            Long conversationId,
-            String content,
-            String effort,
-            String scenario,
-            String knowledgeSource,
-            Double longitude,
-            Double latitude,
-            Long retryStandardDepartmentId,
-            // 票 55：预问诊草稿标识；非空时服务端校验归属/状态并强制 preconsultation 场景
-            Long preconsultationDraftId) {}
-
-    /** 药品说明书流轮次命令（票 51）：无 effort/scenario/档案/定位，只有药名。 */
-    public record MedicationCommand(Long patientId, String requestId, Long conversationId, String drugName) {}
-
-    public record Event(String event, JsonNode data) {}
-
-    public record Handle(String requestId, Long conversationId, String status, Flux<Event> events) {}
-
-    public static class RoundFailedException extends RuntimeException {
-        public RoundFailedException(String message) {
-            super(message);
-        }
-
-        public RoundFailedException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    private final class RunningRound {
+    private final class RunningRound implements MedicationKnowledgeRelay.Runtime {
         private final ChatRound round;
         private final Sinks.Many<Event> sink = Sinks.many().replay().all();
         private final long acceptedNanos = System.nanoTime();
@@ -504,8 +400,6 @@ public class ChatRoundService {
         private final AtomicInteger events = new AtomicInteger();
         private final AtomicBoolean terminal = new AtomicBoolean();
         private final AtomicBoolean sawDone = new AtomicBoolean();
-        // 药品说明书流（票 51）：server-py 只产 token/done，本端逐 token 累积，流尾组装 message
-        private final StringBuilder medicationText = new StringBuilder();
 
         private RunningRound(ChatRound round) {
             this.round = round;
@@ -519,7 +413,18 @@ public class ChatRoundService {
                     sink.asFlux());
         }
 
-        private void recordUpstream(String eventName) {
+        @Override
+        public ChatRound round() {
+            return round;
+        }
+
+        @Override
+        public boolean terminal() {
+            return terminal.get();
+        }
+
+        @Override
+        public void recordUpstream(String eventName) {
             long now = System.nanoTime();
             if (firstEventNanos.compareAndSet(0, now)) {
                 log.info("chat round first-event roundId={} elapsedMs={}", round.getId(), elapsedMs(now));
@@ -529,7 +434,8 @@ public class ChatRoundService {
             }
         }
 
-        private void emit(String eventName, JsonNode data) {
+        @Override
+        public void emit(String eventName, JsonNode data) {
             events.incrementAndGet();
             sink.tryEmitNext(new Event(eventName, data));
         }
@@ -539,7 +445,8 @@ public class ChatRoundService {
             finish();
         }
 
-        private void finish() {
+        @Override
+        public void finish() {
             if (!terminal.compareAndSet(false, true)) {
                 return;
             }
@@ -548,6 +455,11 @@ public class ChatRoundService {
             agentCallLogs.clearRound(round.getId());
             sink.tryEmitComplete();
             log.info("chat round complete roundId={} events={} costMs={}", round.getId(), events.get(), elapsedMs());
+        }
+
+        @Override
+        public void fail(Throwable error) {
+            ChatRoundService.this.fail(this, error);
         }
 
         private long elapsedMs() {

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.config.ChatWebSocketHandshakeInterceptor;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatRoundService;
 import java.io.IOException;
 import java.util.Map;
@@ -79,10 +80,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 // 契约：medication_name 与 text 互斥且必居其一（票 51，与 HTTP 通道同一 XOR 规则）
                 throw new IllegalArgumentException("content 与 medication_name 必须且只能携带其一");
             }
-            ChatRoundService.Handle handle = hasMedication
-                    ? rounds.acceptMedication(new ChatRoundService.MedicationCommand(
+            ChatRoundModels.Handle handle = hasMedication
+                    ? rounds.acceptMedication(new ChatRoundModels.MedicationCommand(
                             patientId, envelope.requestId(), data.conversationId(), data.medicationName()))
-                    : rounds.accept(new ChatRoundService.Command(
+                    : rounds.accept(new ChatRoundModels.Command(
                             patientId,
                             envelope.requestId(),
                             data.conversationId(),
@@ -127,7 +128,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void sendAccepted(WebSocketSession session, ChatRoundService.Handle handle) {
+    private void sendAccepted(WebSocketSession session, ChatRoundModels.Handle handle) {
         ObjectNode data = objectMapper
                 .createObjectNode()
                 .put("conversation_id", handle.conversationId())
@@ -137,7 +138,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 new OutgoingEnvelope(contracts.chatRealtime().acceptedEnvelope(), handle.requestId(), null, data));
     }
 
-    private void sendEvent(WebSocketSession session, String requestId, ChatRoundService.Event event) {
+    private void sendEvent(WebSocketSession session, String requestId, ChatRoundModels.Event event) {
         send(
                 session,
                 new OutgoingEnvelope(contracts.chatRealtime().eventEnvelope(), requestId, event.event(), event.data()));
