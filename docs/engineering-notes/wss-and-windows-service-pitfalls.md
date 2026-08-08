@@ -79,6 +79,6 @@ uvicorn.run('app.main:app', app_dir='server-py', host='0.0.0.0', port=8000)
 
 - 普通 HTTP/HTTPS 请求头原样透传，登录、鉴权接口、SSE 对话流全部正常；
 - 但 **WebSocket 升级请求由 cpolar 的 Go 客户端代为发起**（User-Agent 被改写为 `Go-http-client/1.1`、`Sec-WebSocket-Key` 重新生成），`Authorization` 等自定义头全部丢失，握手必然 401"未认证或令牌无效"。本地直连同一 token 握手 101，可据此区分是隧道行为而非服务端问题。
-- 结论：cpolar 隧道下小程序对话实时通道不可用，依赖 `chat-stream.js` 的 SSE 降级（功能完整，非流式逐 token 体验）。需要隧道下完整 WS 时换 TCP 级透传的工具（如 ngrok），不要试图在 cpolar 配置里找开关。
+- 结论：cpolar 隧道下小程序对话 WS 实时通道不可用，只能走 `chat-stream.js` 的 SSE 降级。SSE 降级是整段响应一次性到达（`my.request` 不支持增量读取），端侧已改为按节奏重放 token/thinking 事件恢复逐字体感（诊断与修复全程见 `docs/engineering-notes/sse-fallback-streaming-replay.md`）；需要隧道下真流式时换 TCP 级透传的工具（如 ngrok），不要试图在 cpolar 配置里找开关。
 - 真机侧报错特征：`my.connectSocket` 报 `error: 8 / Invalid Sec-WebSocket-Accept response.`——握手响应没有合法的 accept（隧道剥离 `Authorization` 后 server-java 返回 401，无 accept 头），看到这个错误串即可认定是隧道剥头而非证书/域名问题（2026-08-08 实测复现：同 token 直连 101、经隧道 401）。
 - cpolar 免费版域名每次重启随机变化，换域名后只需改 `miniprogram/utils/config.js` 顶部的 `TUNNEL_API_BASE_URL`（该改动仅限本地，勿提交）。模拟器/真机的地址选择由 config.js 的 localhost 探活机制自动完成——devtools 会把 platform/brand 伪装成 iPhone，`getSystemInfo` 无法区分，不要再用它做环境判断。

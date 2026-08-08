@@ -1,6 +1,11 @@
 const { apiBaseUrl } = require('./config')
 const { ensureLogin, getToken } = require('./auth')
 
+// SSE 降级整段响应一次性到达，token/thinking 按节奏重放以恢复逐字体感：
+// token 对齐实测 LLM 自然流速（约 20ms/片），thinking 增量更小故节奏加快，避免拖长思考区。
+const SSE_REPLAY_TOKEN_TICK_MS = 20
+const SSE_REPLAY_THINKING_TICK_MS = 8
+
 function websocketUrl() {
   return `${apiBaseUrl.replace(/^http/, 'ws')}/c/chat/ws`
 }
@@ -106,7 +111,9 @@ function createChatChannel() {
     if (!current || current.fallbackStarted) return
     current.fallbackStarted = true
     if (current.handlers.onFallback) current.handlers.onFallback()
-    streamSse(current)
+    // isAlive 闭包钉住本轮对象：done/error/页面卸载置空 current 后，重放即停
+    const round = current
+    streamSse(round, () => current === round)
   }
 
   function failCurrent(error) {
@@ -155,7 +162,28 @@ function requestData(params) {
   }
 }
 
-function streamSse(params) {
+// SSE 降级是整段响应（my.request 不支持增量读取），一次性同步派发全部事件会让
+// 气泡从等待态直接跳到全文（失去流式体感）。改为按序重放：token/thinking 逐片
+// 定时下发，其余事件即时下发；isAlive 为假（轮次 done/error/页面卸载）即停，
+// 避免迟到 token 覆盖错误/完成终态。
+function replaySseEvents(events, handlers, isAlive) {
+  let index = 0
+  const step = () => {
+    if (!isAlive()) return
+    while (index < events.length) {
+      const { event, data } = events[index++]
+      if (event === 'token' || event === 'thinking') {
+        dispatchEvent(event, data, handlers)
+        setTimeout(step, event === 'token' ? SSE_REPLAY_TOKEN_TICK_MS : SSE_REPLAY_THINKING_TICK_MS)
+        return
+      }
+      dispatchEvent(event, data, handlers)
+    }
+  }
+  step()
+}
+
+function streamSse(params, isAlive) {
   // 降级路径同样等登录就绪，保证 Authorization 带有效 token
   ensureLogin().then(() => {
     my.request({
@@ -175,9 +203,7 @@ function streamSse(params) {
           return
         }
         try {
-          parseSse(String(res.data || '')).forEach(({ event, data }) =>
-            dispatchEvent(event, data, params.handlers)
-          )
+          replaySseEvents(parseSse(String(res.data || '')), params.handlers, isAlive)
         } catch (err) {
           params.handlers.onError(err)
         }
