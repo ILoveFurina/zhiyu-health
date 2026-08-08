@@ -44,6 +44,16 @@
           <view a:for="{{item.care.precautions}}" a:for-item="p" a:key="*this" class="care-list-item">· {{p}}</view>
         </view>
       </block>
+      <block a:elif="{{item.isCallNotice && item.call}}">
+        <view class="call-banner">
+          <view class="call-greeting">{{item.call.greeting}}</view>
+          <view class="call-number">{{item.call.sequence_number}} 号</view>
+        </view>
+        <view class="call-details">
+          <view><text>诊室</text>{{item.call.room}}</view>
+          <view><text>时段</text>{{item.call.schedule_date}} {{item.call.time_slot}}</view>
+        </view>
+      </block>
       <view a:else class="content">{{item.content}}</view>
       <ai-disclaimer text="{{item.disclaimer}}" />
     </view>

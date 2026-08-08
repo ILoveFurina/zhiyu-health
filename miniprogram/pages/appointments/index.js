@@ -1,6 +1,7 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listAppointments, cancelAppointment, payAppointment } = require('../../services/appointments')
 const { currentProfile } = require('../../services/health-profiles')
+const { decorateAppointment } = require('../../utils/appointment')
 
 Page({
   data: {
@@ -17,7 +18,10 @@ Page({
     this.setData({ loading: true })
     Promise.all([listAppointments(), currentProfile()])
       .then(([appointments, profileResult]) =>
-        this.setData({ appointments, currentProfile: profileResult.profile })
+        this.setData({
+          appointments: appointments.map(decorateAppointment),
+          currentProfile: profileResult.profile,
+        })
       )
       .catch(() => my.showToast({ content: '挂号记录加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))

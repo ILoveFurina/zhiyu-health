@@ -360,6 +360,26 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void appointmentStatusesAndCalledNoticeMatchSchema() throws Exception {
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Matcher matcher = Pattern.compile("CONSTRAINT ck_appointments_status CHECK \\(status IN \\(([^)]*)\\)\\)")
+                .matcher(schema);
+        assertThat(matcher.find())
+                .as("schema.sql 必须存在 ck_appointments_status 约束")
+                .isTrue();
+        String allowed = matcher.group(1);
+        for (String status : contracts.appointmentFlow().statuses().values()) {
+            assertThat(allowed).as("挂号状态契约值 %s 必须被数据库 CHECK 接受", status).contains("'" + status + "'");
+        }
+        assertThat(contracts.appointmentFlow().calledNotice().messageType().length())
+                .isLessThanOrEqualTo(40);
+        assertThat(schema).contains("uq_in_app_messages_appointment_type");
+    }
+
+    @Test
     void onlineConsultationTimelineTypeIsLoaded() {
         // 票 56：COMPLETED 在线问诊进入健康档案时间线，条目类型与 med-checkin 同一契约约定
         assertThat(contracts.onlineConsultation().timelineTypes())

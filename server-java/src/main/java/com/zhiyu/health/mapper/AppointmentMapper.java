@@ -17,12 +17,13 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             """
             SELECT * FROM appointments
             WHERE patient_id = #{patientId} AND health_profile_id = #{profileId} AND schedule_id = #{scheduleId}
-              AND status <> 'CANCELLED'
+              AND status <> #{cancelledStatus}
             """)
     Appointment selectForProfileAndSchedule(
             @Param("patientId") long patientId,
             @Param("profileId") long profileId,
-            @Param("scheduleId") long scheduleId);
+            @Param("scheduleId") long scheduleId,
+            @Param("cancelledStatus") String cancelledStatus);
 
     @Select(
             """
@@ -40,10 +41,13 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
 
     @Update(
             """
-            UPDATE appointments SET status = 'CANCELLED', cancelled_at = now()
-            WHERE id = #{appointmentId} AND status = 'BOOKED'
+            UPDATE appointments SET status = #{cancelledStatus}, cancelled_at = now()
+            WHERE id = #{appointmentId} AND status = #{bookedStatus}
             """)
-    int markCancelled(@Param("appointmentId") long appointmentId);
+    int markCancelled(
+            @Param("appointmentId") long appointmentId,
+            @Param("bookedStatus") String bookedStatus,
+            @Param("cancelledStatus") String cancelledStatus);
 
     @Update(
             """
@@ -64,11 +68,14 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
-                   s.schedule_date, s.time_slot, p.status AS payment_status
+                   s.schedule_date, s.time_slot, p.status AS payment_status,
+                   h.name AS hospital_name, c.name AS campus_name, c.address AS campus_address
             FROM appointments a
             JOIN schedules s ON s.id = a.schedule_id
             JOIN doctors d ON d.id = s.doctor_id
             JOIN departments dep ON dep.id = d.department_id
+            JOIN hospital_campuses c ON c.id = dep.campus_id
+            JOIN hospitals h ON h.id = c.hospital_id
             LEFT JOIN payments p ON p.appointment_id = a.id
             WHERE a.id = #{appointmentId}
             """)
@@ -77,11 +84,14 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
-                   s.schedule_date, s.time_slot, p.status AS payment_status
+                   s.schedule_date, s.time_slot, p.status AS payment_status,
+                   h.name AS hospital_name, c.name AS campus_name, c.address AS campus_address
             FROM appointments a
             JOIN schedules s ON s.id = a.schedule_id
             JOIN doctors d ON d.id = s.doctor_id
             JOIN departments dep ON dep.id = d.department_id
+            JOIN hospital_campuses c ON c.id = dep.campus_id
+            JOIN hospitals h ON h.id = c.hospital_id
             LEFT JOIN payments p ON p.appointment_id = a.id
             WHERE a.patient_id = #{patientId} AND a.health_profile_id = #{profileId}
             ORDER BY s.schedule_date DESC, a.id DESC

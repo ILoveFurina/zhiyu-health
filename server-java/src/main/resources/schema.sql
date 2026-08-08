@@ -333,7 +333,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     cancelled_at TIMESTAMPTZ,
     CONSTRAINT uq_appointments_schedule_sequence UNIQUE (schedule_id, sequence_number),
-    CONSTRAINT ck_appointments_status CHECK (status IN ('BOOKED', 'CANCELLED', 'VISITED'))
+    CONSTRAINT ck_appointments_status CHECK (status IN ('BOOKED', 'IN_PROGRESS', 'CANCELLED', 'VISITED'))
 );
 
 -- 判重唯一性只约束有效挂号：已取消（CANCELLED）不占用 (profile, schedule) 唯一位，

@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { AppointmentStatusCode } from '@/contracts/appointment';
 
 export interface ReceptionSchedule {
   id: number;
@@ -13,7 +14,8 @@ export interface ReceptionAppointment {
   schedule_id: number;
   patient_nickname: string;
   sequence_number: number;
-  status: '已约' | '已接诊';
+  status_code: AppointmentStatusCode;
+  status: string;
   /** 关联电子处方状态（PENDING/APPROVED/REJECTED），未开方为 null */
   prescription_status: string | null;
   schedule_date: string;
@@ -48,4 +50,8 @@ export function completeAppointment(id: number, data: { diagnosis: string; advic
     method: 'POST',
     data,
   });
+}
+
+export function callAppointment(id: number) {
+  return request<AppointmentDetail>(`/api/b/reception/appointments/${id}/call`, { method: 'POST' });
 }

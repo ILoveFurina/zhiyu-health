@@ -471,6 +471,34 @@ class ContractsTest {
     }
 
     @Test
+    void appointmentFlowContractIsLoaded() {
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        assertThat(flow.statuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "booked", "BOOKED",
+                        "in_progress", "IN_PROGRESS",
+                        "cancelled", "CANCELLED",
+                        "visited", "VISITED"));
+        assertThat(flow.statusLabels())
+                .containsEntry("BOOKED", "已约")
+                .containsEntry("IN_PROGRESS", "就诊中")
+                .containsEntry("CANCELLED", "已取消")
+                .containsEntry("VISITED", "已接诊");
+        assertThat(flow.transitions().get("call").from()).containsExactly("BOOKED");
+        assertThat(flow.transitions().get("call").to()).isEqualTo("IN_PROGRESS");
+        assertThat(flow.transitions().get("complete").from()).containsExactly("BOOKED", "IN_PROGRESS");
+        assertThat(flow.transitions().get("complete").to()).isEqualTo("VISITED");
+        assertThat(flow.transitions().get("cancel").from()).containsExactly("BOOKED");
+        assertThat(flow.transitions().get("cancel").to()).isEqualTo("CANCELLED");
+        Contracts.AppointmentFlow.CalledNotice notice = flow.calledNotice();
+        assertThat(notice.messageType()).isEqualTo("appointment_called");
+        assertThat(notice.title()).isEqualTo("请到诊室就诊");
+        assertThat(notice.greeting()).contains("就诊序号");
+        assertThat(notice.contentSchema())
+                .containsExactly("greeting", "room", "sequence_number", "schedule_date", "time_slot");
+    }
+
+    @Test
     void emotionContractIsLoaded() {
         // 票 44：三档情绪标注 + 默认值 + 安抚语映射来自契约单一事实源
         Contracts.Emotion emotion = contracts.emotion();

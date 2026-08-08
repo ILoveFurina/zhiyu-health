@@ -14,9 +14,11 @@ public interface AppointmentCardMapper {
     @Mapping(target = "summaryDisclaimer", source = "summaryDisclaimer")
     AppointmentCardBase toBase(AppointmentService.AppointmentView value, String summaryDisclaimer);
 
-    @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "appointmentId", source = "value.id")
+    @Mapping(target = "summaryDisclaimer", source = "summaryDisclaimer")
+    @Mapping(target = "createdAt", source = "value.createdAt")
     AppointmentController.AppointmentOut toPatientOut(
-            AppointmentCardBase base, String createdAt, boolean paymentPayable);
+            AppointmentService.AppointmentView value, String summaryDisclaimer, boolean paymentPayable);
 
     @Mapping(target = "summarySent", source = "summarySent")
     @Mapping(target = "notice", source = "notice")

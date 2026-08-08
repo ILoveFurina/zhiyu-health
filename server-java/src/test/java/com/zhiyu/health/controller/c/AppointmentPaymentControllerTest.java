@@ -163,7 +163,7 @@ class AppointmentPaymentControllerTest {
         appointment.setScheduleDate(LocalDate.parse("2026-07-29"));
         appointment.setTimeSlot(TimeSlot.MORNING);
         appointment.setSequenceNumber(1);
-        appointment.setStatus(Appointment.STATUS_BOOKED);
+        appointment.setStatus("BOOKED");
         appointment.setRegistrationFee(new BigDecimal("30.00"));
         appointment.setPaymentStatus(paymentStatus);
         appointment.setConditionSummary("主诉胸闷两天");

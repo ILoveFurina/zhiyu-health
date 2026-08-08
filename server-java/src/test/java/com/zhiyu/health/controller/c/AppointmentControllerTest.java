@@ -38,11 +38,15 @@ class AppointmentControllerTest {
         mvc.perform(get("/api/c/appointments").requestAttr("authSubject", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].doctor_name").value("周安宁"))
+                .andExpect(jsonPath("$[0].status_code").value("BOOKED"))
                 .andExpect(jsonPath("$[0].registration_fee").value(30.00))
                 .andExpect(jsonPath("$[0].payment_status").value("UNPAID"))
                 .andExpect(jsonPath("$[0].payment_status_label").value("待支付"))
                 .andExpect(jsonPath("$[0].payment_payable").value(true))
                 .andExpect(jsonPath("$[0].condition_summary").value("主诉胸闷两天"))
+                .andExpect(jsonPath("$[0].hospital_name").value("智愈第一医院"))
+                .andExpect(jsonPath("$[0].campus_name").value("主院区"))
+                .andExpect(jsonPath("$[0].campus_address").value("郑州市金水区健康路 88 号"))
                 .andExpect(jsonPath("$[0].summary_disclaimer").value("仅供参考，不替代医生诊断"));
 
         mvc.perform(post("/api/c/appointments/21/cancel").requestAttr("authSubject", "12"))
@@ -95,11 +99,15 @@ class AppointmentControllerTest {
                 "2026-07-29",
                 "上午",
                 1,
+                "已取消".equals(status) ? "CANCELLED" : "BOOKED",
                 status,
                 new BigDecimal("30.00"),
                 "UNPAID",
                 "待支付",
                 "主诉胸闷两天",
+                "智愈第一医院",
+                "主院区",
+                "郑州市金水区健康路 88 号",
                 "2026-07-28T10:00:00+08:00");
     }
 }

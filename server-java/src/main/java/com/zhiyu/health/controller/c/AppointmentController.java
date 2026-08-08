@@ -2,7 +2,6 @@ package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.config.AuthFilter;
-import com.zhiyu.health.controller.AppointmentCardBase;
 import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
 import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.DisclaimerService;
@@ -51,9 +50,10 @@ public class AppointmentController {
     }
 
     private AppointmentOut toOut(AppointmentService.AppointmentView value) {
-        AppointmentCardBase base = appointmentCards.toBase(value, disclaimers.mountIfPresent(value.conditionSummary()));
         return appointmentCards.toPatientOut(
-                base, value.createdAt(), appointmentService.isPaymentPayable(value.paymentStatus()));
+                value,
+                disclaimers.mountIfPresent(value.conditionSummary()),
+                appointmentService.isPaymentPayable(value.paymentStatus()));
     }
 
     public record AppointmentOut(
@@ -65,6 +65,7 @@ public class AppointmentController {
             @JsonProperty("schedule_date") String scheduleDate,
             @JsonProperty("time_slot") String timeSlot,
             @JsonProperty("sequence_number") Integer sequenceNumber,
+            @JsonProperty("status_code") String statusCode,
             String status,
             @JsonProperty("registration_fee") BigDecimal registrationFee,
             @JsonProperty("payment_status") String paymentStatus,
@@ -72,6 +73,9 @@ public class AppointmentController {
             @JsonProperty("payment_payable") boolean paymentPayable,
             @JsonProperty("condition_summary") String conditionSummary,
             @JsonProperty("summary_disclaimer") String summaryDisclaimer,
+            @JsonProperty("hospital_name") String hospitalName,
+            @JsonProperty("campus_name") String campusName,
+            @JsonProperty("campus_address") String campusAddress,
             @JsonProperty("created_at") String createdAt) {}
 
     public record CreateAppointmentRequest(@JsonProperty("schedule_id") @NotNull @Positive Long scheduleId) {}

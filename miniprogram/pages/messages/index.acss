@@ -18,6 +18,11 @@
 .care-block { margin-top: 16rpx; }
 .care-block-title { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; margin-bottom: 6rpx; }
 .care-list-item { color: var(--zy-text-title); font-size: 25rpx; line-height: 1.7; }
+.call-banner { display: flex; align-items: center; margin-top: 18rpx; padding: 20rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-primary-soft); }
+.call-greeting { flex: 1; color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; line-height: 1.5; }
+.call-number { margin-left: 16rpx; color: var(--zy-color-primary); font-size: 40rpx; font-weight: 750; white-space: nowrap; }
+.call-details { margin-top: 14rpx; color: var(--zy-text-title); font-size: 25rpx; line-height: 1.8; }
+.call-details text { display: inline-block; width: 82rpx; color: var(--zy-text-weak); }
 /* 骨架屏（票 66）：左 72rpx 圆 + 右两行，形态对齐消息卡 */
 .skel-row { display: flex; align-items: center; }
 .skel-lines { flex: 1; margin-left: var(--zy-space-md); }

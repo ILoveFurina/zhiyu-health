@@ -91,8 +91,34 @@ class ReceptionControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void doctorCallsAppointment() throws Exception {
+        ReceptionService.AppointmentView appointment = new ReceptionService.AppointmentView(
+                21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断");
+        ReceptionService.AppointmentDetail detail =
+                new ReceptionService.AppointmentDetail(appointment, null, null, null);
+        when(receptionService.call(8L, 21L)).thenReturn(detail);
+
+        mockMvc.perform(post("/api/b/reception/appointments/21/call")
+                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appointment.status_code").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.appointment.status").value("就诊中"));
+        verify(receptionService).call(8L, 21L);
+    }
+
     private ReceptionService.AppointmentView appointment(String status, String prescriptionStatus) {
         return new ReceptionService.AppointmentView(
-                21L, 3L, "小愈", 2, status, prescriptionStatus, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断");
+                21L,
+                3L,
+                "小愈",
+                2,
+                "已接诊".equals(status) ? "VISITED" : "BOOKED",
+                status,
+                prescriptionStatus,
+                "2026-07-28",
+                "上午",
+                "咳嗽两天",
+                "仅供参考，不替代医生诊断");
     }
 }

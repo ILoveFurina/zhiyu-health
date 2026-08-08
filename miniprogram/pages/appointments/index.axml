@@ -23,7 +23,7 @@
   <view a:for="{{appointments}}" a:key="appointment_id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
     <view class="head">
       <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
-      <view class="status {{item.status === '已约' ? 'booked' : ''}}">{{item.status}}</view>
+      <view class="status {{item.isBooked ? 'booked' : ''}} {{item.isInProgress ? 'in-progress' : ''}}">{{item.status}}</view>
     </view>
     <view class="meta">{{item.schedule_date}} {{item.time_slot}}</view>
     <view class="number">就诊序号：{{item.sequence_number}} 号</view>
@@ -38,8 +38,16 @@
     >模拟支付</view>
     <view a:if="{{item.condition_summary}}" class="summary">病情摘要：{{item.condition_summary}}</view>
     <ai-disclaimer a:if="{{item.summary_disclaimer}}" text="{{item.summary_disclaimer}}" />
+    <view a:if="{{item.hasVoucher}}" class="voucher">
+      <view class="voucher-title"><text class="zy-ico-ticket voucher-icon"></text>挂号凭证</view>
+      <view class="voucher-number">{{item.sequence_number}} 号</view>
+      <view class="voucher-row"><text>医生</text><text>{{item.department_name}} · {{item.doctor_name}}医生</text></view>
+      <view class="voucher-row"><text>时段</text><text>{{item.schedule_date}} {{item.time_slot}}</text></view>
+      <view class="voucher-row"><text>院区</text><text>{{item.hospital_name}} · {{item.campus_name}}</text></view>
+      <view class="voucher-row"><text>地址</text><text>{{item.campus_address}}</text></view>
+    </view>
     <view
-      a:if="{{item.status === '已约'}}"
+      a:if="{{item.isBooked}}"
       class="cancel"
       data-id="{{item.appointment_id}}"
       onTap="cancel"

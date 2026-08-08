@@ -36,6 +36,7 @@ public class Contracts {
     private final MedCheckinFlow medCheckinFlow;
     private final DemoArsenal demoArsenal;
     private final AppointmentCare appointmentCare;
+    private final AppointmentFlow appointmentFlow;
     private final Emotion emotion;
     private final Voice voice;
     private final GuidedRegistration guidedRegistration;
@@ -70,6 +71,7 @@ public class Contracts {
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
         this.demoArsenal = read(mapper, dir, "demo-arsenal.json", DemoArsenal.class);
         this.appointmentCare = read(mapper, dir, "appointment-care.json", AppointmentCare.class);
+        this.appointmentFlow = read(mapper, dir, "appointment-flow.json", AppointmentFlow.class);
         this.emotion = read(mapper, dir, "emotion.json", Emotion.class);
         this.voice = read(mapper, dir, "voice.json", Voice.class);
         this.guidedRegistration = read(mapper, dir, "guided-registration.json", GuidedRegistration.class);
@@ -182,6 +184,11 @@ public class Contracts {
 
     public AppointmentCare appointmentCare() {
         return appointmentCare;
+    }
+
+    /** 线下挂号（票 71）：状态码/中文标签、允许迁移与叫号消息。 */
+    public AppointmentFlow appointmentFlow() {
+        return appointmentFlow;
     }
 
     /** 情绪反馈（票 44，ADR-0019）：三档情绪标注 + 默认值 + 安抚语映射。 */
@@ -540,6 +547,43 @@ public class Contracts {
     public record AppointmentCare(String messageType, String title, List<String> contentSchema) {
         public AppointmentCare {
             contentSchema = List.copyOf(contentSchema);
+        }
+    }
+
+    /** 线下挂号状态机与叫号通知（票 71）。 */
+    public record AppointmentFlow(
+            Map<String, String> statuses,
+            Map<String, String> statusLabels,
+            Map<String, Transition> transitions,
+            CalledNotice calledNotice) {
+        public AppointmentFlow {
+            statuses = Map.copyOf(statuses);
+            statusLabels = Map.copyOf(statusLabels);
+            transitions = Map.copyOf(transitions);
+        }
+
+        public String status(String key) {
+            return statuses.get(key);
+        }
+
+        public String statusLabel(String status) {
+            return statusLabels.getOrDefault(status, status);
+        }
+
+        public record Transition(List<String> from, String to) {
+            public Transition {
+                from = List.copyOf(from);
+            }
+
+            public boolean allows(String status) {
+                return from.contains(status);
+            }
+        }
+
+        public record CalledNotice(String messageType, String title, String greeting, List<String> contentSchema) {
+            public CalledNotice {
+                contentSchema = List.copyOf(contentSchema);
+            }
         }
     }
 
