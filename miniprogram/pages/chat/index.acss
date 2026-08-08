@@ -464,3 +464,32 @@
   color: var(--zy-color-primary);
   font-size: 24rpx;
 }
+
+/* 票 65：ambiguous 科室选择卡，视觉与引导卡同族 */
+.dep-options-card {
+  margin: var(--zy-space-sm) 0;
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+
+.dep-options-hint {
+  font-size: 26rpx;
+  color: var(--zy-text-title);
+}
+
+.dep-options-chips {
+  margin-top: var(--zy-space-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zy-space-sm);
+}
+
+.dep-option-chip {
+  padding: 10rpx 26rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-primary);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+}

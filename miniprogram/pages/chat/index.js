@@ -229,6 +229,7 @@ Page({
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
         onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
         onDepartmentSlots: (data) => this.onDepartmentSlots(data),
+        onDepartmentOptions: (data) => this.appendCard('department_options', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
@@ -358,6 +359,24 @@ Page({
           '重新查询号源',
           { longitude: coords.lng, latitude: coords.lat },
           { retryStandardDepartmentId: departmentId }
+        )
+      })
+      .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
+  },
+
+  /** 票 65 科室选择卡点选：携带所选科室 id 走 retry 直查通道出号源卡（可重复点，只读幂等）。 */
+  onDepartmentOptionTap(e) {
+    if (this.data.sending) return
+    const { id, name } = e.currentTarget.dataset
+    if (!id) return
+    ensureLogin()
+      .then(() => {
+        const coords = getCoords()
+        this.startRound(
+          // 镜像 contracts/guided-registration.json options_select_user_text（端侧无法读契约 JSON）
+          `我选择${name || ''}`,
+          { longitude: coords.lng, latitude: coords.lat },
+          { retryStandardDepartmentId: id }
         )
       })
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))

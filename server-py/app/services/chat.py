@@ -19,6 +19,9 @@ server-java 只读号源——请求携带 retry_standard_department_id 时直�
 未命中（含纯症状收敛 resolved，走 LLM 工具流）或目录不可用时退回正常
 Agent 流。摘要措辞由代码按契约模板拼装，
 LLM 不参与医院、医生、排班、余号等事实的生成。
+票 65：judge 判 ambiguous 且产出候选科室时，Agent 文字流照常，编排层在
+message 事件后追加 department_options 科室选择卡（候选 id 来自 judge、
+名称按 id 从候选目录确定性查出），不短路、不查号源。
 
 票 55 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
 跳过强制号源查询；runner 按场景隔离业务工具并选专用提示词；每个成功轮次后
@@ -211,22 +214,25 @@ class AgentChatService:
         scenario: Scenario,
         longitude: float | None,
         latitude: float | None,
-    ) -> int | None:
-        """票 50：决定是否强制查询科室号源，返回标准科室 ID 或 None。
+    ) -> tuple[int | None, list[dict[str, Any]]]:
+        """票 50：决定是否强制查询科室号源；票 65：同时带出 ambiguous 选择卡候选。
 
-        重试字段非空 = 复用已确定科室直查（跳过目录拉取、解析与 Agent 流）；
-        目录不可用/无候选/解析未收敛/ID 越界均返回 None，退回正常 Agent 流。
-        预问诊场景（票 55）直接短路：预问诊不进挂号闭环，不直查号源、不出科室号源卡。
+        返回 (强制查询科室 ID 或 None, 选择卡科室列表)。重试字段非空 = 复用已确定
+        科室直查（跳过目录拉取、解析与 Agent 流）；目录不可用/无候选/解析未收敛/
+        ID 越界均返回 (None, [])，退回正常 Agent 流。预问诊场景（票 55）直接短路：
+        预问诊不进挂号闭环，不直查号源、不出科室号源卡与选择卡。
         票 62：resolved 命中同一已出卡科室时去重返回 None（见 _department_already_summarized）。
+        票 65：ambiguous 且 judge 候选非空时返回候选 [{id, name}]（名称按 id 从
+        候选目录确定性查出，不让 LLM 生成），供编排层在选择卡事件中下发。
         """
         if self._directory is None or scenario == _ONLINE.scenario:
-            return None
+            return None, []
         if retry_standard_department_id is not None:
-            return retry_standard_department_id
+            return retry_standard_department_id, []
         candidates = await self._directory.list_departments(longitude, latitude)
         if not isinstance(candidates, list) or not candidates:
             # 目录查询失败（错误文本）或无候选：跳过解析走正常 Agent 流
-            return None
+            return None, []
         resolution = await self._triage_judge.judge(messages, candidates)
         candidate_ids = {c["id"] for c in candidates}
         department_id = resolution.standard_department_id
@@ -235,14 +241,25 @@ class AgentChatService:
             or department_id is None
             or department_id not in candidate_ids
         ):
-            return None
+            if (
+                resolution.status == _GUIDED.resolution_statuses[2]  # ambiguous
+                and resolution.candidate_department_ids
+            ):
+                names = {c["id"]: c.get("name", "") for c in candidates}
+                options = [
+                    {"id": dept_id, "name": names[dept_id]}
+                    for dept_id in resolution.candidate_department_ids
+                    if dept_id in names
+                ]
+                return None, options
+            return None, []
         # 票 62：resolved（resolution_statuses 第二态）命中同一已出卡科室时去重，
         # 避免收敛后每句闲聊都重复推号源卡；explicit_booking 仍可重复直查
         if resolution.status == _GUIDED.resolution_statuses[1] and _department_already_summarized(
             messages, department_id, candidates
         ):
-            return None
-        return department_id
+            return None, []
+        return department_id, []
 
     async def _preconsult_summary(
         self,
@@ -375,7 +392,7 @@ class AgentChatService:
 
         # 票 50：编排层强制号源查询（不依赖 LLM 自主调工具）；命中即短路 Agent 流
         # （预问诊场景在 _resolve_forced_department 内短路，不进挂号闭环）。
-        forced_id = await self._resolve_forced_department(
+        forced_id, department_options = await self._resolve_forced_department(
             messages, retry_standard_department_id, scenario, longitude, latitude
         )
         if forced_id is not None:
@@ -421,6 +438,16 @@ class AgentChatService:
         # 调用（timeout 15s × 2 次校验重试）延迟 done 导致客户端输入框长时间锁死。
         message_data = await self._message_event_data(messages, parts, effort)
         yield {"event": EVENT_MESSAGE, "data": message_data}
+        # 票 65：ambiguous 且候选非空时，文字回复后追加科室选择卡（点选经
+        # retry_standard_department_id 直查号源）；卡片数据已由编排层确定性组装。
+        if department_options:
+            yield {
+                "event": _GUIDED.options_card_event,
+                "data": {
+                    "standard_departments": department_options,
+                    "disclaimer": self._disclaimer,
+                },
+            }
         yield {"event": EVENT_DONE, "data": {}}
         # 预问诊场景：done 已发出（客户端输入框解锁），后台异步整理摘要并回调 server-java。
         # fire-and-forget：不 await，task 内全 try/except 吞异常（摘要降级语义）。

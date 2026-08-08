@@ -25,7 +25,7 @@ class ContractsTest {
         assertThat(events.streamEvents()).containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
-        assertThat(events.cardEvents()).hasSize(6);
+        assertThat(events.cardEvents()).hasSize(7);
         // 票 50：find_hospitals 工具移除，department_slots 卡由编排代码确定性产出、不经 LLM 工具调用
         assertThat(events.toolToEvent())
                 .hasSize(4)
@@ -35,7 +35,7 @@ class ContractsTest {
                 .containsEntry("get_appointment", "appointments")
                 .doesNotContainKey("find_hospitals");
         assertThat(events.messageKinds())
-                .hasSize(14)
+                .hasSize(15)
                 .contains(
                         "text",
                         "report_interpretation",
@@ -43,15 +43,17 @@ class ContractsTest {
                         "image",
                         "diet_analysis",
                         "tongue_analysis",
-                        "department_slots")
+                        "department_slots",
+                        "department_options")
                 // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
                 // 说明书走流式文本，禁忌仅留 B 端开方链路
                 .doesNotContain("medication_info", "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(10);
+        assertThat(events.aiCardKinds()).hasSize(11);
         assertThat(events.eventToKind())
-                .hasSize(7)
+                .hasSize(8)
                 .containsEntry("hospital_recommendations", "hospital_recommendations")
-                .containsEntry("department_slots", "department_slots");
+                .containsEntry("department_slots", "department_slots")
+                .containsEntry("department_options", "department_options");
     }
 
     @Test
@@ -157,6 +159,12 @@ class ContractsTest {
                 .contains("{doctor_specialty}");
         assertThat(guided.timeSlotLabels()).containsEntry("AM", "上午").containsEntry("PM", "下午");
         assertThat(guided.retryUserText()).isEqualTo("重新查询号源");
+        // 票 65：ambiguous 科室选择卡事件、候选上限与点选直查文案模板钉死
+        assertThat(guided.optionsCardEvent()).isEqualTo("department_options");
+        assertThat(guided.optionsMaxCandidates()).isEqualTo(3);
+        assertThat(guided.optionsSelectUserText()).contains("{department}");
+        assertThat(contracts.sseEvents().cardEvents()).contains(guided.optionsCardEvent());
+        assertThat(contracts.sseEvents().messageKinds()).contains(guided.optionsCardEvent());
         // 卡事件名必须与 sse-events 的 card_events/message_kinds 同源一致
         assertThat(contracts.sseEvents().cardEvents()).contains(guided.cardEvent());
         assertThat(contracts.sseEvents().messageKinds()).contains(guided.cardEvent());

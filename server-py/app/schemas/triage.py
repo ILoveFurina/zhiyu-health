@@ -1,9 +1,9 @@
-"""标准科室解析结构化输出契约（票 50）。
+"""标准科室解析结构化输出契约（票 50；票 65 扩展候选科室列表）。
 
 编排层在 Agent 流之前发起一次非流式 LLM 调用，判定对话是否已收敛到单一
-标准科室，产出 TriageResolution(status, standard_department_id, rationale)；
-rationale 仅调试用不下发。status 取值限定为契约四态
-（contracts/guided-registration.json 的 resolution_statuses），
+标准科室，产出 TriageResolution(status, standard_department_id,
+candidate_department_ids, rationale)；rationale 仅调试用不下发。status 取值
+限定为契约四态（contracts/guided-registration.json 的 resolution_statuses），
 由 tests/test_contract_consumption.py 钉死一致性。
 """
 
@@ -18,13 +18,17 @@ class TriageResolution(BaseModel):
     explicit_booking=用户明确表达"科室+挂号"意图；resolved=多轮导诊收敛到
     单一明确标准科室；ambiguous=仍有多个可能科室；none=无科室线索。
     standard_department_id 仅前两态携带，且必须落在候选集内（越界由判定器
-    降级 none）。失败/超时降级 none，不阻塞正常 Agent 流。
+    降级 none）。票 65：ambiguous 时携带 candidate_department_ids（候选科室
+    选择卡的数据源，同样必须落在候选集内，越界丢弃、去重、截断到契约
+    options_max_candidates），其余三态归一化为空列表。失败/超时降级 none，
+    不阻塞正常 Agent 流。
     """
 
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["explicit_booking", "resolved", "ambiguous", "none"]
     standard_department_id: int | None = None
+    candidate_department_ids: list[int] = Field(default_factory=list)
     rationale: str = Field(min_length=1)
 
     @classmethod

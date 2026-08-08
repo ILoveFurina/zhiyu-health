@@ -173,6 +173,16 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
+      // 票 65：科室选择卡回放——无需加工，disclaimer 同样优先取卡片 JSON 内字段
+      if (m.kind === 'department_options') {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
+      }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }
     return {

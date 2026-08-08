@@ -601,10 +601,14 @@ public class Contracts {
      * 智能导诊标准科室与科室号源卡（票 50）：标准科室解析结果、科室号源卡事件状态、
      * 确定性摘要模板与失败/重试文案。编排代码（非 LLM）保证查询触发与摘要拼装；
      * 业务侧暂不消费模板，当前主要供测试钉值与双端一致性。
+     * 票 65：ambiguous 科室选择卡事件、候选上限与点选直查文案模板。
      */
     public record GuidedRegistration(
             List<String> resolutionStatuses,
             String cardEvent,
+            String optionsCardEvent,
+            int optionsMaxCandidates,
+            String optionsSelectUserText,
             List<String> cardStatuses,
             String retryRequestField,
             Map<String, String> summaryTemplates,

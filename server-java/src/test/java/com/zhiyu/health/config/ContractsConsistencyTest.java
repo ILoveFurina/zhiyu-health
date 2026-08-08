@@ -56,7 +56,8 @@ class ContractsConsistencyTest {
                         "image",
                         "diet_analysis",
                         "tongue_analysis",
-                        "department_slots");
+                        "department_slots",
+                        "department_options");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -98,6 +99,8 @@ class ContractsConsistencyTest {
         assertThat(Message.isAiCardKind("red_flag")).isFalse();
         // 票 50：department_slots 是编排代码确定性产出的 AI 卡片
         assertThat(Message.isAiCardKind("department_slots")).isTrue();
+        // 票 65：department_options 科室选择卡同样由编排代码产出，属于 ai_card_kinds
+        assertThat(Message.isAiCardKind("department_options")).isTrue();
     }
 
     @Test
@@ -163,6 +166,7 @@ class ContractsConsistencyTest {
                         "diet_analysis",
                         "tongue_analysis",
                         "department_slots",
+                        "department_options",
                         "report_upload",
                         "image");
     }

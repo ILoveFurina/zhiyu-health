@@ -323,7 +323,8 @@ def test_explicit_booking_requeries_even_after_summary() -> None:
 
 
 def test_ambiguous_falls_back_to_agent_flow_without_slots_callback() -> None:
-    """仍有多个可能科室（ambiguous）：走正常 Agent 流，不查号源。"""
+    """仍有多个可能科室（ambiguous）但 judge 未给候选：走正常 Agent 流，
+    不查号源、不出选择卡（候选为空时选择卡没有可点项，只留文字追问）。"""
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
@@ -334,6 +335,36 @@ def test_ambiguous_falls_back_to_agent_flow_without_slots_callback() -> None:
 
     assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
     assert len(harness.agent.calls) == 1
+    # 只拉了候选目录，未触发号源回调
+    assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
+
+
+def test_ambiguous_with_candidates_yields_options_card_after_message() -> None:
+    """票 65：ambiguous 且 judge 产出候选科室——Agent 文字流照常，message 事件后
+    追加 department_options 选择卡（id 来自 judge、name 按 id 从目录确定性查出），
+    不查号源、不短路 Agent 流。"""
+    requests: list[httpx.Request] = []
+    harness = _build_app(
+        _directory_handler(requests),
+        triage_results=[TriageResolution(
+            status="ambiguous",
+            candidate_department_ids=[8, 5],
+            rationale="呼吸内科或皮肤科",
+        )],
+    )
+
+    events = _run(harness, {"messages": [{"role": "user", "content": "我头痛发热，该挂什么科"}]})
+
+    assert [e["event"] for e in events] == [
+        "meta", "token", "token", "token", "message", "department_options", "done",
+    ]
+    assert len(harness.agent.calls) == 1
+    card = events[5]["data"]
+    assert card["standard_departments"] == [
+        {"id": 8, "name": "呼吸内科"},
+        {"id": 5, "name": "皮肤科"},
+    ]
+    assert card["disclaimer"] == "仅供参考，不替代医生诊断"
     # 只拉了候选目录，未触发号源回调
     assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
 

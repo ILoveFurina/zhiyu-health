@@ -12,6 +12,8 @@ const CARD_KINDS = [
   'tongue_analysis',
   // 票 50：智能导诊科室明确后下发的跨医院 14 天号源卡（含 failed 状态）
   'department_slots',
+  // 票 65：ambiguous 多科室候选时下发的科室选择卡（点选直查号源，可重复点）
+  'department_options',
 ]
 
 function isCardKind(kind) {

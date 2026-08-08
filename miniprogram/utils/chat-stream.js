@@ -210,6 +210,7 @@ function dispatchEvent(event, data, handlers) {
   else if (event === 'doctor_slots') handlers.onDoctorSlots(data)
   else if (event === 'hospital_recommendations') handlers.onHospitalRecommendations(data)
   else if (event === 'department_slots') handlers.onDepartmentSlots(data)
+  else if (event === 'department_options') handlers.onDepartmentOptions(data)
   else if (event === 'appointment') handlers.onAppointment(data)
   else if (event === 'appointments') handlers.onAppointments(data)
   else if (event === 'red_flag') handlers.onRedFlag(data)

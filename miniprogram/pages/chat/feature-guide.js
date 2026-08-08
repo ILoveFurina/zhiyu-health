@@ -44,6 +44,8 @@ const featureGuideMethods = {
   },
 
   enterTriage() {
+    // 票 65 去重：引导卡全程只保留一张（CONTEXT.md「插入一张」词条），重复入口
+    // （气泡连点/首页交棒/空态）把旧卡上移到对话底部，保证始终在当前视线内。
     const message = {
       id: ++this._msgSeq,
       role: 'assistant',
@@ -52,7 +54,8 @@ const featureGuideMethods = {
       guide: TRIAGE_GUIDE,
       disclaimer: '',
     }
-    this.setData({ messages: [...this.data.messages, message], anchorId: 'thread-bottom' })
+    const messages = this.data.messages.filter((m) => m.kind !== 'feature_guide')
+    this.setData({ messages: [...messages, message], anchorId: 'thread-bottom' })
   },
 
   /**

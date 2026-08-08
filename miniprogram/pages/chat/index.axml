@@ -105,6 +105,23 @@
         card="{{item.card}}"
       />
 
+      <!-- 票 65：ambiguous 科室选择卡。点选科室经 retry 直查通道出号源卡，可重复点 -->
+      <view a:elif="{{item.kind === 'department_options'}}" class="dep-options-card" id="msg-{{item.id}}">
+        <view class="dep-options-hint">这几个科室都可能，点一个直接查号源：</view>
+        <view class="dep-options-chips">
+          <view
+            a:for="{{item.card.standard_departments}}"
+            a:for-item="dept"
+            a:key="id"
+            class="dep-option-chip"
+            data-id="{{dept.id}}"
+            data-name="{{dept.name}}"
+            onTap="onDepartmentOptionTap"
+          >{{dept.name}}</view>
+        </view>
+        <ai-disclaimer text="{{item.disclaimer}}" />
+      </view>
+
       <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
         <view class="report-card-title">报告解读</view>
         <view class="report-summary">{{item.card.summary}}</view>

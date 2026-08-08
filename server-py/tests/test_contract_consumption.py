@@ -99,6 +99,15 @@ def test_guided_registration_consumption_matches_contract() -> None:
     # 卡状态与摘要模板键齐备（票 60：recommendation 为 ok 摘要的推荐理由子句）
     assert guided.card_statuses == ["ok", "failed"]
     assert set(guided.summary_templates) == {"ok", "empty", "failed", "recommendation"}
+    # 票 65：ambiguous 科室选择卡事件已进 card_events/message_kinds/ai_card_kinds/event_to_kind，
+    # 候选上限与点选文案模板从契约取值（judge 归一化截断、端侧镜像文案）
+    assert guided.options_card_event == "department_options"
+    assert guided.options_card_event in sse.card_events
+    assert guided.options_card_event in sse.message_kinds
+    assert guided.options_card_event in sse.ai_card_kinds
+    assert sse.event_to_kind[guided.options_card_event] == guided.options_card_event
+    assert guided.options_max_candidates == 3
+    assert "{department}" in guided.options_select_user_text
 
 
 def test_vision_error_codes_in_main_sources_match_contract() -> None:

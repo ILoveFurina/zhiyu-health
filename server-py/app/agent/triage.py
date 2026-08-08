@@ -1,10 +1,12 @@
-"""标准科室解析判定器（票 50）。
+"""标准科室解析判定器（票 50；票 65 扩展 ambiguous 候选科室输出）。
 
 对话 meta 之后、Agent 流之前，编排层拉取候选标准科室并发起一次非流式 LLM
 调用，判定用户意图是否已收敛到单一标准科室（explicit_booking/resolved/
 ambiguous/none）。response_format=json_object + pydantic 校验 + 2 次重试，
 复用 agent/emotion.py 已验证的结构化输出范式。失败/超时/越界科室 ID 一律
 降级 none（不触发强制号源查询），不阻塞正常 Agent 流。
+票 65：ambiguous 时 judge 额外输出 candidate_department_ids 作为科室选择卡
+数据源——取自候选列表、越界丢弃、保序去重、截断到契约 options_max_candidates。
 """
 
 import json
@@ -14,9 +16,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 
 from app.config import Settings, get_settings
+from app.core.contracts import get_contracts
 from app.core.lazy import LazyDelegate
 from app.core.llm import build_chat_model
 from app.schemas.triage import TriageResolution
+
+# 选择卡候选上限：唯一事实源是 contracts/guided-registration.json
+_MAX_OPTIONS = get_contracts().guided_registration.options_max_candidates
 
 # 科室解析用 system prompt：四态枚举 + 候选集约束 + 输出 JSON 约束，不做诊断或用药决策。
 _SYSTEM_PROMPT = (
@@ -28,8 +34,12 @@ _SYSTEM_PROMPT = (
     "- none：对话中没有可用的科室线索\n"
     "standard_department_id 必须取自候选列表的 id，不得编造；仅当 status 为 "
     "explicit_booking 或 resolved 时给出，其余输出 null。\n"
+    "candidate_department_ids 仅当 status 为 ambiguous 时给出：从候选列表挑出"
+    f"最可能的科室 id，按可能性从高到低排序，至多 {_MAX_OPTIONS} 个，不得编造；"
+    "其余 status 输出 []。\n"
     "仅输出 JSON：{\"status\": \"<explicit_booking|resolved|ambiguous|none>\", "
-    "\"standard_department_id\": <int|null>, \"rationale\": \"<简短中文理由>\"}。"
+    "\"standard_department_id\": <int|null>, \"candidate_department_ids\": [<int>...], "
+    "\"rationale\": \"<简短中文理由>\"}。"
     "不输出其他内容，不做诊断或用药建议。"
 )
 
@@ -61,14 +71,30 @@ def _build_prompt(messages: list[dict[str, str]], candidates: list[dict[str, Any
 
 
 def _normalize(resolution: TriageResolution, candidate_ids: set[int]) -> TriageResolution:
-    """科室 ID 越界保护：模型臆造的 ID 不得触发强制查询，降级 none。
+    """科室 ID 越界保护：模型臆造的 ID 不得触发强制查询或进选择卡，降级/剔除。
 
-    ambiguous/none 不携带科室 ID（归一化为 None），避免下游误用。
+    explicit_booking/resolved 的 standard_department_id 越界降级 none；ambiguous
+    的 candidate_department_ids 过滤到候选集内（保序去重、截断到契约上限），
+    其余三态不携带候选列表（归一化为空），避免下游误用。
     """
     if resolution.status in ("explicit_booking", "resolved"):
         if resolution.standard_department_id in candidate_ids:
-            return resolution
+            return TriageResolution(
+                status=resolution.status,
+                standard_department_id=resolution.standard_department_id,
+                rationale=resolution.rationale,
+            )
         return TriageResolution.none_default()
+    if resolution.status == "ambiguous":
+        seen: list[int] = []
+        for department_id in resolution.candidate_department_ids:
+            if department_id in candidate_ids and department_id not in seen:
+                seen.append(department_id)
+        return TriageResolution(
+            status="ambiguous",
+            candidate_department_ids=seen[:_MAX_OPTIONS],
+            rationale=resolution.rationale,
+        )
     return TriageResolution(status=resolution.status, rationale=resolution.rationale)
 
 

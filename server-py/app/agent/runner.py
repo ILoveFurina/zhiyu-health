@@ -65,7 +65,7 @@ class AgentContext:
 # 与 contracts/sse-events.json 的一致性由 tests/test_contract_consumption.py 钉死。
 CardEvent = Literal[
     "doctor_recommendations", "doctor_slots", "hospital_recommendations",
-    "appointment", "appointments", "department_slots",
+    "appointment", "appointments", "department_slots", "department_options",
 ]
 
 # 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。

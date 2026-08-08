@@ -8,7 +8,8 @@
     "hospital_recommendations",
     "appointment",
     "appointments",
-    "department_slots"
+    "department_slots",
+    "department_options"
   ],
   "_trace_events_doc": "工具进度事件（票 24）：无序、可穿插，与有序的 stream_events 并列。两态对齐 LangGraph 工具调用的发起/返回时刻，不插值、不造中间心跳。trace 事件名集合必须与 card_events/ai_card_kinds 严格不相交且不得与 done 重名，由 ContractsConsistencyTest 钉死。tool_end 的 data 可选携带 tool_output_summary（server-py 对工具返回体脱敏+截断后的摘要，仅 B 端 trace 展示用，非本契约白名单字段，不落患者敏感原文）。",
   "trace_events": ["tool_start", "tool_end"],
@@ -22,6 +23,7 @@
     "get_appointment": "appointments"
   },
   "_department_slots_doc": "department_slots 卡（票50）由编排代码确定性产出，不经 LLM 工具调用，故不在 tool_to_event 中。",
+  "_department_options_doc": "department_options 科室选择卡（票65）由编排代码在 triage judge 判 ambiguous 且有候选时确定性产出（候选 id 列表来自 judge 结构化输出、名称取候选目录），不经 LLM 工具调用，故不在 tool_to_event 中。",
   "message_kinds": [
     "text",
     "doctor_recommendations",
@@ -36,7 +38,8 @@
     "image",
     "diet_analysis",
     "tongue_analysis",
-    "department_slots"
+    "department_slots",
+    "department_options"
   ],
   "ai_card_kinds": [
     "doctor_recommendations",
@@ -48,7 +51,8 @@
     "skin_analysis",
     "diet_analysis",
     "tongue_analysis",
-    "department_slots"
+    "department_slots",
+    "department_options"
   ],
   "event_to_kind": {
     "doctor_recommendations": "doctor_recommendations",
@@ -57,6 +61,7 @@
     "appointment": "appointment",
     "appointments": "appointments",
     "report_interpretation": "report_interpretation",
-    "department_slots": "department_slots"
+    "department_slots": "department_slots",
+    "department_options": "department_options"
   }
 }
