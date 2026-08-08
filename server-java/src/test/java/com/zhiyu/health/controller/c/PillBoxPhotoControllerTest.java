@@ -10,8 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import com.zhiyu.health.service.PillBoxPhotoService;
-import com.zhiyu.health.service.PillBoxPhotoService.PillBoxPhotoView;
+import com.zhiyu.health.controller.patient.vision.PillBoxPhotoController;
+import com.zhiyu.health.service.vision.PillBoxPhotoService;
+import com.zhiyu.health.service.vision.PillBoxPhotoService.PillBoxPhotoView;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -27,7 +28,8 @@ class PillBoxPhotoControllerTest {
         PillBoxPhotoService pillBoxService = mock(PillBoxPhotoService.class);
         when(pillBoxService.analyze(eq(12L), isNull(), eq("pill-001"), org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(new PillBoxPhotoView("pill-001", 7L, true, List.of("阿莫西林胶囊", "阿莫西林"), null));
-        MockMvc mvc = standaloneSetup(new PillBoxPhotoController(pillBoxService)).build();
+        MockMvc mvc =
+                standaloneSetup(new PillBoxPhotoController(pillBoxService)).build();
         MockMultipartFile image = new MockMultipartFile("files", "box.jpg", "image/jpeg", new byte[] {1, 2, 3});
 
         mvc.perform(multipart("/api/c/pill-box-photos")
@@ -51,9 +53,9 @@ class PillBoxPhotoControllerTest {
         // vision 未识别药名：recognized=false 且携带引导文案
         PillBoxPhotoService pillBoxService = mock(PillBoxPhotoService.class);
         when(pillBoxService.analyze(eq(12L), isNull(), eq("pill-nf"), org.mockito.ArgumentMatchers.anyList()))
-                .thenReturn(new PillBoxPhotoView(
-                        "pill-nf", 7L, false, List.of(), "未能识别药盒上的药名，请重拍清晰的药盒照片或直接输入药名。"));
-        MockMvc mvc = standaloneSetup(new PillBoxPhotoController(pillBoxService)).build();
+                .thenReturn(new PillBoxPhotoView("pill-nf", 7L, false, List.of(), "未能识别药盒上的药名，请重拍清晰的药盒照片或直接输入药名。"));
+        MockMvc mvc =
+                standaloneSetup(new PillBoxPhotoController(pillBoxService)).build();
         MockMultipartFile image = new MockMultipartFile("files", "box.jpg", "image/jpeg", new byte[] {1, 2, 3});
 
         mvc.perform(multipart("/api/c/pill-box-photos")

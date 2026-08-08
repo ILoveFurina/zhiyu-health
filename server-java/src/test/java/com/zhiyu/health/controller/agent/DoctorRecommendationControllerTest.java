@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
-import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.service.DoctorRecommendationService;
+import com.zhiyu.health.entity.scheduling.TimeSlot;
+import com.zhiyu.health.service.organization.DoctorRecommendationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

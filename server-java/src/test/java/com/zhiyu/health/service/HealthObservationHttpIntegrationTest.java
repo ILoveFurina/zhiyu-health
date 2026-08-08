@@ -12,10 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.controller.c.HealthObservationController;
-import com.zhiyu.health.entity.HealthObservation;
-import com.zhiyu.health.mapper.HealthObservationMapper;
-import com.zhiyu.health.service.mapping.HealthObservationDtoMapper;
+import com.zhiyu.health.controller.patient.health.HealthObservationController;
+import com.zhiyu.health.entity.health.HealthObservation;
+import com.zhiyu.health.mapper.health.HealthObservationMapper;
+import com.zhiyu.health.service.health.HealthObservationService;
+import com.zhiyu.health.service.health.mapping.HealthObservationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
@@ -37,7 +38,8 @@ class HealthObservationHttpIntegrationTest {
             Mappers.getMapper(HealthObservationDtoMapper.class));
     private final MockMvc mvc = standaloneSetup(new HealthObservationController(
                     service,
-                    Mappers.getMapper(com.zhiyu.health.controller.c.mapping.HealthObservationInputMapper.class)))
+                    Mappers.getMapper(
+                            com.zhiyu.health.controller.patient.health.mapping.HealthObservationInputMapper.class)))
             .setControllerAdvice(new ApiExceptionHandler())
             // standalone MockMvc 默认转换器不带 JavaTimeModule，与生产 Spring Boot 出口对齐为 ISO 文本
             .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()

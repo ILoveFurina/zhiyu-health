@@ -12,8 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.service.MinioStorageService;
-import com.zhiyu.health.service.MinioStorageService.PhotoContent;
+import com.zhiyu.health.controller.patient.vision.PhotoController;
+import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.common.MinioStorageService.PhotoContent;
 import java.io.ByteArrayInputStream;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

@@ -1,0 +1,33 @@
+package com.zhiyu.health.service.health.mapping;
+
+import com.zhiyu.health.entity.health.HealthProfile;
+import com.zhiyu.health.entity.health.HealthProfileAllergy;
+import com.zhiyu.health.entity.health.HealthTimelineEntry;
+import com.zhiyu.health.service.health.HealthProfileService;
+import java.time.OffsetDateTime;
+import java.util.List;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+@Mapper(componentModel = "spring")
+public interface HealthProfileDtoMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "active", constant = "true")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    HealthProfile toEntity(HealthProfileService.CreateCommand command);
+
+    HealthProfileService.ProfileView toView(HealthProfile profile, List<String> allergies);
+
+    @Mapping(target = "id", ignore = true)
+    HealthProfileAllergy toAllergy(long healthProfileId, String allergen);
+
+    HealthProfileService.TimelineView toTimelineView(HealthTimelineEntry entry);
+
+    HealthProfileService.AgentProfileContext toAgentContext(HealthProfileService.ProfileView profile);
+
+    default String map(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
+}

@@ -10,8 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.OnlineConsultationService;
+import com.zhiyu.health.controller.staff.consultation.OnlineConsultationController;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.service.consultation.OnlineConsultationService;
 import com.zhiyu.health.support.StaffTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;

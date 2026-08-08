@@ -1,4 +1,4 @@
-package com.zhiyu.health.controller.c;
+package com.zhiyu.health.controller.patient.chat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ChatWebSocketHandshakeInterceptor;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.service.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatRoundService;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;

@@ -9,10 +9,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Doctor;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.mapper.DoctorMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.entity.organization.Doctor;
+import com.zhiyu.health.entity.scheduling.Schedule;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
+import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
+import com.zhiyu.health.service.scheduling.ScheduleService;
+import com.zhiyu.health.service.scheduling.SlotAccounting;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;

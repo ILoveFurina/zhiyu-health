@@ -5,11 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
-import com.zhiyu.health.entity.ConsultationRecord;
-import com.zhiyu.health.entity.Prescription;
-import com.zhiyu.health.mapper.ConsultationRecordMapper;
-import com.zhiyu.health.mapper.MedicationMapper;
-import com.zhiyu.health.mapper.PrescriptionMapper;
+import com.zhiyu.health.entity.consultation.ConsultationRecord;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
+import com.zhiyu.health.mapper.prescription.MedicationMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;

@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.service.PatientMedicalDirectoryService;
-import com.zhiyu.health.service.PatientMedicalDirectoryService.Coordinates;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService.Coordinates;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package com.zhiyu.health.controller.agent;
 
-import com.zhiyu.health.service.HospitalRecommendationService;
+import com.zhiyu.health.service.organization.HospitalRecommendationService;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

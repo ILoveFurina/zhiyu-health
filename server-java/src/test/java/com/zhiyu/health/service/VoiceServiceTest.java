@@ -12,6 +12,7 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.agentclient.AgentClient.VoiceAgentException;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.service.chat.VoiceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;

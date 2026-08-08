@@ -8,8 +8,8 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
-import com.zhiyu.health.service.SlotAccounting;
-import com.zhiyu.health.service.SlotCounter;
+import com.zhiyu.health.service.scheduling.SlotAccounting;
+import com.zhiyu.health.service.scheduling.SlotCounter;
 import org.neo4j.driver.Driver;
 import org.springframework.data.redis.core.RedisTemplate;
 

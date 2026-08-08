@@ -8,10 +8,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.MedicationInputMapperImpl;
-import com.zhiyu.health.entity.Medication;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.MedicationAdminService;
+import com.zhiyu.health.controller.staff.prescription.MedicationController;
+import com.zhiyu.health.controller.staff.prescription.mapping.MedicationInputMapperImpl;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.prescription.Medication;
+import com.zhiyu.health.service.prescription.MedicationAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import java.math.BigDecimal;
 import java.util.List;

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.service.HealthProfileService;
+import com.zhiyu.health.service.health.HealthProfileService;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;

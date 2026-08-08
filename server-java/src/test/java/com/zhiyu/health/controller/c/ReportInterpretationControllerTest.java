@@ -14,8 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.service.ReportInterpretationService;
-import com.zhiyu.health.service.ReportUploadStagingService;
+import com.zhiyu.health.controller.patient.health.ReportInterpretationController;
+import com.zhiyu.health.service.health.ReportInterpretationService;
+import com.zhiyu.health.service.health.ReportUploadStagingService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;

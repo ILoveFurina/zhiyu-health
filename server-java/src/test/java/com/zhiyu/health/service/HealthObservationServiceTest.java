@@ -12,9 +12,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.HealthObservation;
-import com.zhiyu.health.mapper.HealthObservationMapper;
-import com.zhiyu.health.service.mapping.HealthObservationDtoMapper;
+import com.zhiyu.health.entity.health.HealthObservation;
+import com.zhiyu.health.mapper.health.HealthObservationMapper;
+import com.zhiyu.health.service.health.HealthObservationService;
+import com.zhiyu.health.service.health.mapping.HealthObservationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;

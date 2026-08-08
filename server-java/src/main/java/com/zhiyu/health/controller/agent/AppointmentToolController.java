@@ -1,10 +1,10 @@
 package com.zhiyu.health.controller.agent;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.zhiyu.health.controller.AppointmentCardBase;
-import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
-import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.DisclaimerService;
+import com.zhiyu.health.controller.patient.appointment.AppointmentCardBase;
+import com.zhiyu.health.controller.patient.appointment.mapping.AppointmentCardMapper;
+import com.zhiyu.health.service.appointment.AppointmentService;
+import com.zhiyu.health.service.common.DisclaimerService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

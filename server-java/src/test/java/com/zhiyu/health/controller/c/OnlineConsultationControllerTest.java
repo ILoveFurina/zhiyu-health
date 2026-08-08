@@ -15,7 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.service.OnlineConsultationService;
+import com.zhiyu.health.controller.patient.consultation.OnlineConsultationController;
+import com.zhiyu.health.service.consultation.OnlineConsultationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;

@@ -1,6 +1,6 @@
 package com.zhiyu.health.config;
 
-import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.entity.common.StaffUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.HandlerInterceptor;

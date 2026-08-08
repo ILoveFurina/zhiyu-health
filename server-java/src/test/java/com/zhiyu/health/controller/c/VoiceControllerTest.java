@@ -13,7 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.service.VoiceService;
+import com.zhiyu.health.controller.patient.chat.VoiceController;
+import com.zhiyu.health.service.chat.VoiceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;

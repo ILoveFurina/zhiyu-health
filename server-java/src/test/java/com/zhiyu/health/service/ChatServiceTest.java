@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.controller.c.ChatController;
+import com.zhiyu.health.controller.patient.chat.ChatController;
+import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatService;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.converter.StringHttpMessageConverter;

@@ -12,11 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.ScheduleInputMapperImpl;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.service.ScheduleService;
+import com.zhiyu.health.controller.staff.scheduling.ScheduleController;
+import com.zhiyu.health.controller.staff.scheduling.mapping.ScheduleInputMapperImpl;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.scheduling.Schedule;
+import com.zhiyu.health.entity.scheduling.TimeSlot;
+import com.zhiyu.health.service.scheduling.ScheduleService;
 import com.zhiyu.health.support.StaffTokens;
 import java.time.LocalDate;
 import java.util.List;

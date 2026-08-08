@@ -14,9 +14,14 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.ChatRound;
-import com.zhiyu.health.entity.PreconsultationDraft;
+import com.zhiyu.health.entity.chat.ChatRound;
+import com.zhiyu.health.entity.chat.PreconsultationDraft;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
+import com.zhiyu.health.service.chat.AgentCallLogService;
+import com.zhiyu.health.service.chat.ChatRoundPersistence;
+import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.PreconsultationService;
+import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -165,7 +170,7 @@ class ChatRoundPreconsultationTest {
         ChatRound round = fixture.round("ACCEPTED", 77L);
         when(fixture.persistence.find(12L, "req-red")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-red", 77L, "我突然昏迷了")).thenReturn(round);
-        com.zhiyu.health.entity.Message warning = new com.zhiyu.health.entity.Message();
+        com.zhiyu.health.entity.chat.Message warning = new com.zhiyu.health.entity.chat.Message();
         warning.setId(41L);
         when(fixture.persistence.completeRedFlag(eq(round), anyString())).thenReturn(warning);
 
