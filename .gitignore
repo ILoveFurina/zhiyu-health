@@ -62,3 +62,12 @@ miniprogram_npm/
 .scratch/recordings/
 # GUI 测试截图（调试产物，不入库）
 admin/gui-test-screenshots/
+# 已完成票的验收/诊断一次性产物（t60/perf-vision/diag 脚本与输出、playwright 日志；需要复验时按票文档重建）
+.playwright-mcp/
+.scratch/diag-*.png
+.scratch/diag-db-startup-reset.py
+.scratch/exec-*.png
+.scratch/perf-vision-*
+.scratch/t60-*.cjs
+.scratch/t66-playbook.md
+.scratch/verify-report-picker.cjs
