@@ -61,6 +61,11 @@ public class AppointmentService {
                     if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
                         throw new ApiException(404, "排班不存在或已停用");
                     }
+                    // 时段截止校验：排班当天当前时间已超过出诊时段结束时间则不可再挂号。
+                    // 时段窗口（上午 11:30 / 下午 18:00）从契约 time_slot_windows 读取，双栈共享单一事实源。
+                    if (isSlotWindowClosed(schedule)) {
+                        throw new ApiException(409, "该出诊时段已结束，不可再挂号");
+                    }
                     Appointment existing =
                             appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
                     if (existing != null) {
@@ -246,5 +251,29 @@ public class AppointmentService {
     private enum DuplicatePolicy {
         RETURN_EXISTING,
         REJECT
+    }
+
+    /**
+     * 判断排班时段是否已截止挂号：仅当排班日期是今天且当前时间已超过时段结束时间时返回 true。
+     * 时段窗口从契约 time_slot_windows 读取（上午 09:00-11:30，下午 14:00-18:00）；
+     * 未来日期不截断，历史日期由 is_active + schedule_date >= today 兜底。
+     */
+    private boolean isSlotWindowClosed(Schedule schedule) {
+        if (schedule.getScheduleDate() == null || schedule.getTimeSlot() == null) {
+            return false;
+        }
+        if (!schedule.getScheduleDate().equals(java.time.LocalDate.now())) {
+            return false;
+        }
+        Contracts.ScheduleRequestFlow.TimeSlotWindow window = contracts
+                .scheduleRequestFlow()
+                .timeSlotWindows()
+                .get(schedule.getTimeSlot().getValue());
+        if (window == null) {
+            return false;
+        }
+        java.time.LocalTime now = java.time.LocalTime.now();
+        java.time.LocalTime endTime = java.time.LocalTime.parse(window.end());
+        return now.isAfter(endTime);
     }
 }
