@@ -10,15 +10,16 @@
 
 **Status:** claimed
 
-- [ ] server-java `ReportInterpretationService.interpret()`：`persistence.start()` 后注入 `MinioStorageService`，对过滤掉 PDF 的 files 调 `persistPhotosAndMessages(conversationId, imageFiles)`；保留 `report_upload` 消息不动
-- [ ] server-java service 级单测：interpret 成功后断言会话消息含 `KIND_IMAGE` + object_key（MinIO fake），PDF 不落 image 消息
-- [ ] miniprogram `report-composer.js` `finishReport`：逐文件推 `kind:'image'` + `url: item.path`（PDF 维持文本），结果卡不变
-- [ ] miniprogram `report-composer.js` `consumeReportEntry`：同样推 image 消息（`entry.items` 本地路径）+ waiting → 结果卡
-- [ ] miniprogram `drawer.js` 回放：`report_upload` 不再渲染"已上传报告"文本（image 消息已承担回显）；image 回放逻辑已有
-- [ ] 文案三处"原件不保存"改"原图留存于历史会话供回看"：`utils/report-picker.js:9`、`pages/chat/index.axml:217`、`pages/report/index.axml:8`
-- [ ] 前端浏览器实测：报告（相机/相册多图）→ 即时见图 → 重进会话见图；PDF 走文本无图
-- [ ] 票单置 done 前：README 依赖图 T63 节点加 `[x]`、README 依赖连线
+- [x] server-java `ReportInterpretationService.interpret()`：`persistence.start()` 后注入 `MinioStorageService`，对过滤掉 PDF 的 files 调 `persistPhotosAndMessages(conversationId, imageFiles)`；保留 `report_upload` 消息不动
+- [x] server-java service 级单测：interpret 成功后断言会话消息含 `KIND_IMAGE` + object_key（MinIO fake），PDF 不落 image 消息
+- [x] miniprogram `report-composer.js` `finishReport`：逐文件推 `kind:'image'` + `url: item.path`（PDF 维持文本），结果卡不变
+- [x] miniprogram `report-composer.js` `consumeReportEntry`：同样推 image 消息（`entry.items` 本地路径）+ waiting → 结果卡
+- [x] miniprogram `drawer.js` 回放：`report_upload` 不再渲染"已上传报告"文本（image 消息已承担回显）；image 回放逻辑已有
+- [x] 文案三处"原件不保存"改"原图留存于历史会话供回看"：`utils/report-picker.js:9`、`pages/chat/index.axml:217`、`pages/report/index.axml:8`
+- [ ] 前端开发者工具实测：报告（相机/相册多图）→ 即时见图 → 重进会话见图；PDF 走文本无图
+- [ ] 票单置 done 前：README 依赖图 T63 节点加 `[x]`（节点与连线已随立项加入，置 done 时补标记）
 
 ## Comments
 
-- 施工记录：本票由排查结论 + 用户方向 A 决策立项（见会话）。回显粒度逐张推 image 气泡（全量 5 图），PDF 维持文本。报告详情页展示原图不做（记录不存 object_key，"查看原会话"已能看图），如需要另起票。工作区现有 t62 未提交遗留，本票提交时不得带入。
+- 施工记录：本票由排查结论 + 用户方向 A 决策立项（见会话）。回显粒度逐张推 image 气泡（全量 5 图），PDF 维持文本。报告详情页展示原图不做（记录不存 object_key，"查看原会话"已能看图），如需要另起票。
+- 施工记录（t63-report-image-echo 分支，提交 ae78e20）：后端在 `persistence.start()` 之后、模型网络调用之前落 MinIO + image 消息（分析失败图片仍留存）；报告模块 15 项测试绿 + spotless 绿。工作区 t60 遗留（auth.js / business.py / report-picker.js 的 choosePdf 健壮性 hunk / 60 票）未提交未带入；report-picker.js 仅暂存了 consent 文案 hunk。README T63 节点与依赖连线已在票 62 提交（4dfe22b）中顺带入库，置 done 时只补 `[x]`。
