@@ -179,7 +179,7 @@ public class DemoResetService {
 
     /** 重灌幂等 seed.sql（含 schedules 动态日期段）。ON CONFLICT DO NOTHING 在空表上正常插入。 */
     private void reseed() {
-        // classpath:seed.sql 由 spring.sql.init 在启动期执行，重置复用同一脚本保证一致
+        // classpath:seed.sql 由 scripts/reset_zhiyu.py 重建时执行；重置复用同一脚本保证一致
         org.springframework.core.io.ClassPathResource seed =
                 new org.springframework.core.io.ClassPathResource("seed.sql");
         try (java.sql.Connection con = jdbc.getDataSource().getConnection()) {

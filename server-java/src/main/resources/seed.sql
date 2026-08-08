@@ -1,5 +1,5 @@
 -- 幂等 seed：仅组织演示数据（虚构），ON CONFLICT DO NOTHING + 显式 id
--- 由 spring.sql.init.data-locations 在启动时执行
+-- 由 scripts/reset_zhiyu.py 重建时执行，或 DemoResetService 重置复用同一脚本
 
 -- 票 49：3 家郑州虚构医院为 B 端正式业务数据（不建演示副本）；医院只存名称与等级。
 INSERT INTO hospitals (id, name, level) VALUES

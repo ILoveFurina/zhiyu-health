@@ -23,14 +23,10 @@ spring:
     password: ${POSTGRES_PASSWORD:}
   sql:
     init:
-      # schema.sql + 幂等 seed.sql 启动执行（开发期 drop+recreate+seed 约定）
-      # spring.sql.init 默认只读 classpath:schema.sql 与 classpath:data.sql，
-      # 这里显式指定 data-locations，让 seed.sql 保持语义化文件名
-      # seed-knowledge.sql 含向量回填，缺失时 optional: 容忍不阻断启动
-      # encoding: Windows 平台默认 GBK，须显式 UTF-8 否则 seed.sql 中文乱码
-      mode: always
-      encoding: UTF-8
-      data-locations: optional:classpath:seed-knowledge.sql,classpath:seed.sql
+      # 与 main 同步：启动不执行任何 DDL/seed（原因见 main 的 spring.sql.init 注释——
+      # 曾因 mode: always 每次启动清空 departments/department_categories，误删人工业务数据）。
+      # 测试无 @SpringBootTest 全上下文，此处配置实际不触发，保持与 main 一致防漂移。
+      mode: never
   data:
     redis:
       host: ${REDIS_HOST:localhost}
