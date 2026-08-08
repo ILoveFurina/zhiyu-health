@@ -76,7 +76,7 @@ export default function DepartmentCategoryPage() {
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
-        pagination={false}
+        pagination={{ defaultPageSize: 10, pageSizeOptions: [10, 20, 50, 100] }}
         search={false}
         headerTitle={
           <span className="zy-searchbar">
