@@ -127,6 +127,9 @@ def test_rag_retrieves_before_generation_and_emits_ok_event() -> None:
     assert kinds == ["meta", "tool_end", "knowledge", "token", "message", "done"]
     assert events[1]["data"]["tool_name"] == "search_knowledge"
     assert events[1]["data"]["result"] == "success"
+    # tool_end 携带脱敏响应摘要（硬约束 5）：query/chunks 等敏感原文被遮蔽
+    summary = events[1]["data"]["tool_output_summary"]
+    assert "[已脱敏]" in summary and "胸闷气短" not in summary
     knowledge = events[2]
     assert knowledge["data"] == {"source": "rag", "status": "ok", "count": 1}
     # 最终文本引用了检索内容

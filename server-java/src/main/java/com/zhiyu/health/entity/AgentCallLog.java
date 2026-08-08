@@ -33,6 +33,7 @@ public class AgentCallLog {
     private String result;
     private Integer durationMs;
     private String errorCode;
+    private String toolOutputSummary;
     private Integer seq;
     private OffsetDateTime createdAt;
 
@@ -49,6 +50,21 @@ public class AgentCallLog {
             Integer durationMs,
             String errorCode,
             Integer seq) {
+        this(roundId, conversationId, patientId, toolCallId, toolName, phase, result, durationMs, errorCode, null, seq);
+    }
+
+    public AgentCallLog(
+            Long roundId,
+            Long conversationId,
+            Long patientId,
+            String toolCallId,
+            String toolName,
+            String phase,
+            String result,
+            Integer durationMs,
+            String errorCode,
+            String toolOutputSummary,
+            Integer seq) {
         this.roundId = roundId;
         this.conversationId = conversationId;
         this.patientId = patientId;
@@ -58,6 +74,7 @@ public class AgentCallLog {
         this.result = result;
         this.durationMs = durationMs;
         this.errorCode = errorCode;
+        this.toolOutputSummary = toolOutputSummary;
         this.seq = seq;
     }
 }

@@ -229,20 +229,68 @@ def _parse_tool_payload(message: ToolMessage) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+# 含患者健康原文、需在 B 端 trace 摘要中遮蔽的字段名（硬约束 5：不记录患者敏感原文）。
+# name 不遮蔽：医生/科室/医院名属半敏感业务数据，非患者身份原文。
+_MASK_SENSITIVE_KEYS = frozenset({
+    "query",             # search_knowledge：用户输入原话（含症状/健康原文）
+    "chunks",            # search_knowledge：知识分块正文（可能回显用户症状）
+    "entities",          # traverse_graph：用户提供的症状/疾病名
+    "summary",           # traverse_graph：自然语言摘要（回显实体名）
+    "condition_summary", # create_appointment/get_appointment：病情摘要（患者健康原文）
+})
+_MASK_PLACEHOLDER = "[已脱敏]"
+_TRACE_SUMMARY_MAX_LEN = 2000
+
+
+def _mask_tool_output(payload: Any) -> Any:
+    """递归遮蔽含患者健康原文的敏感字段值，返回可安全落库的结构。
+
+    仅遮蔽 _MASK_SENSITIVE_KEYS 命中的字段值（整棵子树替换为占位符），
+    其余业务结构（医生名/科室/号源/时间/状态等）原样保留，便于 B 端调试。
+    """
+    if isinstance(payload, dict):
+        return {
+            k: (_MASK_PLACEHOLDER if k in _MASK_SENSITIVE_KEYS else _mask_tool_output(v))
+            for k, v in payload.items()
+        }
+    if isinstance(payload, list):
+        return [_mask_tool_output(v) for v in payload]
+    return payload
+
+
+def _tool_output_summary(message: ToolMessage) -> str | None:
+    """由工具返回体生成脱敏摘要字符串（仅 tool_end；无法解析或非 dict 返回 None）。
+
+    递归遮蔽敏感字段后序列化并截断长度，保证不落患者敏感原文（硬约束 5）。
+    """
+    payload = _parse_tool_payload(message)
+    if payload is None:
+        return None
+    masked = _mask_tool_output(payload)
+    text = json.dumps(masked, ensure_ascii=False)
+    return text if len(text) <= _TRACE_SUMMARY_MAX_LEN else text[:_TRACE_SUMMARY_MAX_LEN] + "..."
+
+
 def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
-    """tool_end 负载：tool_call_id 配对键 + 工具名 + 结果枚举。
+    """tool_end 负载：tool_call_id 配对键 + 工具名 + 结果枚举 + 脱敏响应摘要。
 
     结果判定（与 _tool_output 的投影逻辑对齐，但不重复投影卡片/知识）：
     - skipped：工具被静默降级（知识工具空召回），对用户不可见，与"降级"词条一致。
     - error：工具内容无法解析为结构化结果（非 JSON / 非 dict）。
     - success：工具返回可投影的结构化结果（卡片或非空知识召回）。
     duration_ms 不在此计算--server-py 不背时钟，由 server-java 按 start->end 墙钟算。
+    tool_output_summary 为可选的脱敏摘要（仅 B 端 trace 展示用，非契约白名单字段），
+    无法解析或非 dict 返回体不携带。
     """
-    return {
+    data: dict[str, Any] = {
         "tool_call_id": message.tool_call_id,
         "tool_name": message.name,
         "result": _classify_tool_result(message),
     }
+    summary = _tool_output_summary(message)
+    if summary is not None:
+        data["tool_output_summary"] = summary
+    return data
 
 
 def _classify_tool_result(message: ToolMessage) -> TraceResult:

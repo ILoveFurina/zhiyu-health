@@ -27,12 +27,13 @@ public class AgentCallLogController {
 
     private final AgentCallLogService service;
 
-    /** 有 trace 的会话摘要列表（导航用）。 */
+    /** 有 trace 的会话摘要列表（导航用）；可选按患者昵称模糊筛选。 */
     @GetMapping("/conversations")
     public List<AgentCallLogService.ConversationView> conversations(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_ROLE) String role) {
+            @RequestAttribute(AuthFilter.ATTR_AUTH_ROLE) String role,
+            @RequestParam(name = "patient", required = false) String patientKeyword) {
         requireAdmin(role);
-        return service.listConversations();
+        return service.listConversations(patientKeyword);
     }
 
     /** 指定会话的扁平事件列表（按 round_id + seq 还原顺序）。不存在的会话返回空列表。 */

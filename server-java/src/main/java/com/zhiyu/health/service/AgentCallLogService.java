@@ -66,6 +66,8 @@ public class AgentCallLogService {
         String result = sse.isTraceResult(text(data, "result")) ? text(data, "result") : null;
         // error_code 只存契约白名单码；非白名单统一记 TOOL_ERROR_UNKNOWN（ADR-0017）
         String errorCode = "error".equals(result) ? contracts.sseEvents().traceErrorCodeUnknown() : null;
+        // 脱敏响应摘要（server-py 已遮蔽敏感原文，硬约束 5）；缺失时落 null
+        String summary = text(data, "tool_output_summary");
         mapper.insert(new AgentCallLog(
                 roundState.roundId(),
                 roundState.conversationId(),
@@ -76,6 +78,7 @@ public class AgentCallLogService {
                 result,
                 durationMs,
                 errorCode,
+                summary,
                 seq));
     }
 
@@ -86,9 +89,18 @@ public class AgentCallLogService {
 
     /** B 端：有 trace 的会话摘要列表（按最近活跃倒序）。 */
     public List<ConversationView> listConversations() {
-        return mapper.selectConversationSummaries().stream()
+        return listConversations(null);
+    }
+
+    /** B 端：有 trace 的会话摘要列表，可按患者昵称模糊筛选（null/空则不筛）。 */
+    public List<ConversationView> listConversations(String patientKeyword) {
+        return mapper.selectConversationSummaries(patientKeyword).stream()
                 .map(s -> new ConversationView(
-                        s.conversationId(), s.patientId(), s.conversationTitle(), s.lastActiveAt()))
+                        s.conversationId(),
+                        s.patientId(),
+                        s.conversationTitle(),
+                        s.patientNickname(),
+                        s.lastActiveAt()))
                 .toList();
     }
 
@@ -111,9 +123,13 @@ public class AgentCallLogService {
     /** 轮次身份上下文：由 ChatRoundService 在 forward 时传入。 */
     public record ChatRoundState(Long roundId, Long conversationId, Long patientId) {}
 
-    /** 会话摘要（B 端列表视图）：会话 id + 标题 + 患者 id + 最近活跃时间。 */
+    /** 会话摘要（B 端列表视图）：会话 id + 标题 + 患者 id + 患者昵称 + 最近活跃时间。 */
     public record ConversationView(
-            Long conversationId, Long patientId, String conversationTitle, java.time.OffsetDateTime lastActiveAt) {}
+            Long conversationId,
+            Long patientId,
+            String conversationTitle,
+            String patientNickname,
+            java.time.OffsetDateTime lastActiveAt) {}
 
     /** 每轮 trace 状态：seq 计数 + tool_call_id->开始纳秒配对。 */
     private static final class RoundTraceState {

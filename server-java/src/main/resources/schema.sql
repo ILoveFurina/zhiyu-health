@@ -475,6 +475,9 @@ CREATE TABLE IF NOT EXISTS agent_call_logs (
     duration_ms INT,
     -- 只存契约白名单码；非白名单统一记 TOOL_ERROR_UNKNOWN
     error_code VARCHAR(50),
+    -- 脱敏后的工具响应摘要（server-py 对返回体遮蔽敏感原文后截断，仅 tool_end 有值）。
+    -- 无患者敏感原文（硬约束 5），仅供 B 端 trace 展示用，非契约白名单字段。
+    tool_output_summary TEXT,
     -- 同一轮内的事件序号，B 端按 round_id + seq 还原顺序
     seq INT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

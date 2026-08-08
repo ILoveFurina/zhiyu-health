@@ -126,6 +126,9 @@ def test_graph_traverses_before_generation_and_emits_ok_event() -> None:
     assert kinds == ["meta", "tool_end", "knowledge", "token", "message", "done"]
     assert events[1]["data"]["tool_name"] == "traverse_graph"
     assert events[1]["data"]["result"] == "success"
+    # tool_end 携带脱敏响应摘要（硬约束 5）：entities/summary 等敏感原文被遮蔽
+    summary = events[1]["data"]["tool_output_summary"]
+    assert "[已脱敏]" in summary and "胸闷气短" not in summary
     knowledge = events[2]
     assert knowledge["data"] == {"source": "graph", "status": "ok", "count": 2}
     # 最终文本引用了图谱检索内容

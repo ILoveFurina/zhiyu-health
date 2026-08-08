@@ -47,15 +47,28 @@ class AgentCallLogControllerTest {
 
     @Test
     void adminListsConversationsWithTrace() throws Exception {
-        when(service.listConversations())
+        when(service.listConversations(null))
                 .thenReturn(List.of(new AgentCallLogService.ConversationView(
-                        7L, 12L, "我头疼两天了", OffsetDateTime.parse("2026-08-03T10:00:00Z"))));
+                        7L, 12L, "我头疼两天了", "小明", OffsetDateTime.parse("2026-08-03T10:00:00Z"))));
         mockMvc.perform(get("/api/b/agent-call-logs/conversations")
                         .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].conversation_id").value(7))
                 .andExpect(jsonPath("$[0].conversation_title").value("我头疼两天了"))
-                .andExpect(jsonPath("$[0].patient_id").value(12));
+                .andExpect(jsonPath("$[0].patient_id").value(12))
+                .andExpect(jsonPath("$[0].patient_nickname").value("小明"));
+    }
+
+    @Test
+    void adminFiltersConversationsByPatientNickname() throws Exception {
+        when(service.listConversations("小明"))
+                .thenReturn(List.of(new AgentCallLogService.ConversationView(
+                        7L, 12L, "我头疼两天了", "小明", OffsetDateTime.parse("2026-08-03T10:00:00Z"))));
+        mockMvc.perform(get("/api/b/agent-call-logs/conversations")
+                        .param("patient", "小明")
+                        .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].patient_nickname").value("小明"));
     }
 
     @Test

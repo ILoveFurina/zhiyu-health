@@ -5,6 +5,7 @@ export interface ConversationTraceView {
   conversation_id: number;
   patient_id: number;
   conversation_title: string;
+  patient_nickname: string;
   last_active_at: string;
 }
 
@@ -20,13 +21,16 @@ export interface AgentCallLogView {
   result: 'success' | 'error' | 'skipped' | null;
   duration_ms: number | null;
   error_code: string | null;
+  tool_output_summary: string | null;
   seq: number;
   created_at: string;
 }
 
-/** 获取有 trace 的会话摘要列表。 */
-export function fetchTraceConversations() {
-  return request<ConversationTraceView[]>('/api/b/agent-call-logs/conversations');
+/** 获取有 trace 的会话摘要列表（可选按患者昵称模糊筛选）。 */
+export function fetchTraceConversations(patient?: string) {
+  return request<ConversationTraceView[]>('/api/b/agent-call-logs/conversations', {
+    params: patient ? { patient } : undefined,
+  });
 }
 
 /** 获取指定会话的扁平事件列表（按 round_id + seq 还原顺序）。 */
