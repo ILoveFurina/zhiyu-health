@@ -64,3 +64,4 @@ schema 与验收：
   - 云演示库已按合并后 schema 重建并 verify 通过（注意：并行会话也在一起 reset 该库，验收期间被覆盖过一次，演示前如有异样重跑 reset_zhiyu.py 即可）。
   - 待人工：小程序支付宝开发者工具走查（处方页三态、问诊完成页出口、消息页随访卡、号源卡擅长行）——自动实测无法覆盖，走查无问题后可将票置 done 并给 README T60 加 [x]。
   - 新发现问题（建议单独开票）：server-py httpx 默认 trust_env 拾取 Windows 系统代理，导致 server-py→server-java 业务回调被塞进本机代理 502（预问诊科室恒 null、导诊工具全失败）；建议业务回调客户端显式 trust_env=False 或启动脚本设 NO_PROXY。
+  - 已修复：`BusinessCallbackClient`（server-py/app/tools/business.py）构造 AsyncClient 时显式 `trust_env=False`，单点覆盖全部业务回调与科室目录通道；本机复现证实默认值会从注册表拾取系统代理（`127.0.0.1:7892`）而显式关闭后零代理挂载；新增 `tests/test_business_client.py` 回归断言（MockTransport 不触网，既有测试测不出该回归），37 项相关测试全绿。
