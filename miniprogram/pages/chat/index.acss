@@ -40,7 +40,7 @@
   width: 176rpx;
   height: 176rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e8f5f2, #d0ede8);
+  background: linear-gradient(135deg, var(--zy-color-primary-soft), var(--zy-color-primary-soft));
   color: var(--zy-color-primary);
   font-size: 76rpx;
   display: flex;
@@ -79,13 +79,18 @@
   display: flex;
   align-items: center;
   gap: var(--zy-space-sm);
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.topic:active {
+  transform: scale(0.98);
 }
 
 .topic .hash {
   width: 40rpx;
   height: 40rpx;
-  border-radius: 12rpx;
+  border-radius: var(--zy-radius-sm);
   background: var(--zy-color-primary);
   color: #fff;
   font-size: 24rpx;
@@ -123,11 +128,12 @@
   word-break: break-all;
 }
 
+/* 票 66：自己发言气泡按手册例外收编为主色底 + 白字 */
 .bubble.user {
   margin-left: auto;
-  background: #95deae;
-  color: var(--zy-text-title);
-  border-bottom-right-radius: 8rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  border-bottom-right-radius: var(--zy-radius-sm);
   width: fit-content;
 }
 
@@ -140,11 +146,14 @@
 .image-msg {
   width: 240rpx;
   height: 240rpx;
-  border-radius: 16rpx;
+  border-radius: var(--zy-radius-sm);
   display: block;
 }
 
 .image-msg-label {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   font-size: 26rpx;
 }
 
@@ -152,8 +161,8 @@
   margin-right: auto;
   background: #fff;
   color: var(--zy-text-title);
-  border-bottom-left-radius: 8rpx;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
+  border-bottom-left-radius: var(--zy-radius-sm);
+  box-shadow: var(--zy-shadow-card);
   width: fit-content;
 }
 
@@ -166,17 +175,22 @@
   color: #fff;
   font-size: 26rpx;
   width: fit-content;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.depslots-retry:active {
+  transform: scale(0.98);
 }
 
 /* 票 44：情绪反馈气泡配色--calm 白泡（默认）、anxious 暖橙、fearful 暖红 */
 .bubble.ai-anxious {
-  background: #fff4e6;
-  border-left: 4rpx solid #ff8c00;
+  background: var(--zy-color-warning-soft);
+  border-left: 4rpx solid var(--zy-color-warning);
 }
 
 .bubble.ai-fearful {
-  background: #fff0f0;
-  border-left: 4rpx solid #e64545;
+  background: var(--zy-color-danger-soft);
+  border-left: 4rpx solid var(--zy-color-danger);
 }
 
 /* 安抚语：附 AI 气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注 */
@@ -241,7 +255,7 @@
   margin: var(--zy-space-sm) 0;
   padding: 20rpx var(--zy-space-md);
   border-radius: var(--zy-radius-card);
-  background: #e64545;
+  background: var(--zy-color-danger);
   color: #fff;
 }
 
@@ -268,7 +282,7 @@
 /* ===== 输入栏 ===== */
 .composer {
   background: #fff;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid var(--zy-color-border);
   padding: var(--zy-space-sm) 20rpx var(--zy-space-md);
 }
 
@@ -280,8 +294,8 @@
 
 .c-input {
   flex: 1;
-  background: #f2f3f5;
-  border-radius: 36rpx;
+  background: var(--zy-color-fill);
+  border-radius: var(--zy-radius-lg);
   padding: 18rpx 28rpx;
   font-size: 28rpx;
 }
@@ -294,12 +308,17 @@
 }
 
 .cpill {
-  border: 1rpx solid #e0e0e0;
-  border-radius: 28rpx;
+  border: 1rpx solid var(--zy-color-border);
+  border-radius: var(--zy-radius-lg);
   padding: 10rpx 22rpx;
   font-size: 24rpx;
   color: var(--zy-text-title);
   background: #fff;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.cpill:active {
+  transform: scale(0.98);
 }
 
 .cpill.gear {
@@ -311,9 +330,14 @@
   margin-left: auto;
   background: var(--zy-color-primary);
   color: #fff;
-  border-radius: 32rpx;
+  border-radius: var(--zy-radius-lg);
   padding: 12rpx 36rpx;
   font-size: 26rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.send-btn:active {
+  transform: scale(0.98);
 }
 
 .send-btn.send-disabled {
@@ -328,9 +352,9 @@
   padding: 14rpx 28rpx;
   margin: 0 24rpx 12rpx;
   background: #f0f5ff;
-  border-radius: 12rpx;
+  border-radius: var(--zy-radius-sm);
   font-size: 24rpx;
-  color: #595959;
+  color: var(--zy-text-secondary);
 }
 
 .tool-progress-spinner {
@@ -339,18 +363,18 @@
   border: 4rpx solid #d6e4ff;
   border-top-color: var(--zy-color-primary);
   border-radius: 50%;
-  animation: tool-spin 0.8s linear infinite;
+  animation: zy-tool-spin 0.8s linear infinite;
 }
 
-@keyframes tool-spin {
+@keyframes zy-tool-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
 .tool-progress-error {
-  background: #fff2f0;
-  color: #cf1322;
+  background: var(--zy-color-danger-soft);
+  color: var(--zy-color-danger);
 }
 
 /* ===== 票 45：语音双向 UI ===== */
@@ -369,7 +393,7 @@
 }
 
 .voice-btn-active {
-  background: #e64545;
+  background: var(--zy-color-danger);
   transform: scale(1.08);
 }
 
@@ -382,10 +406,15 @@
   margin-top: 12rpx;
   align-self: flex-start;
   padding: 8rpx 22rpx;
-  border-radius: 24rpx;
+  border-radius: var(--zy-radius-card);
   background: #f0f5ff;
   color: var(--zy-color-primary);
   font-size: 22rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.tts-btn:active {
+  transform: scale(0.98);
 }
 
 .tts-btn-loading {
@@ -403,7 +432,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .guide-head {
@@ -439,8 +468,8 @@
 .guide-steps {
   margin-top: var(--zy-space-sm);
   padding: var(--zy-space-xs) var(--zy-space-sm);
-  border-radius: 16rpx;
-  background: #f4f7f6;
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-fill);
   display: flex;
   justify-content: space-between;
 }
@@ -463,6 +492,11 @@
   border: 1rpx solid var(--zy-color-primary);
   color: var(--zy-color-primary);
   font-size: 24rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.guide-chip:active {
+  transform: scale(0.98);
 }
 
 /* 票 65：ambiguous 科室选择卡，视觉与引导卡同族 */
@@ -471,7 +505,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .dep-options-hint {
@@ -492,4 +526,9 @@
   border: 1rpx solid var(--zy-color-primary);
   color: var(--zy-color-primary);
   font-size: 24rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.dep-option-chip:active {
+  transform: scale(0.98);
 }

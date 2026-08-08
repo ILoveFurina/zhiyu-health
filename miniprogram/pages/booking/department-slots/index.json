@@ -2,6 +2,7 @@
   "defaultTitle": "科室号源",
   "titleBarColor": "#e9f6f2",
   "usingComponents": {
-    "department-slots-card": "/components/department-slots-card/index"
+    "department-slots-card": "/components/department-slots-card/index",
+    "zy-empty": "/components/zy-empty/index"
   }
 }

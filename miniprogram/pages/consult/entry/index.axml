@@ -4,7 +4,7 @@
   <!-- 无当前健康档案：与首页/AI 页同一建档引导卡模式 -->
   <view a:elif="{{needProfile}}" class="guide-wrap">
     <view class="profile-guide" onTap="startHealthProfile">
-      <view class="profile-guide-icon">♡</view>
+      <view class="profile-guide-icon zy-ico zy-ico-heart"></view>
       <view class="profile-guide-copy">
         <view class="profile-guide-title">建立健康档案</view>
         <view class="profile-guide-text">{{profileRequiredText}}</view>

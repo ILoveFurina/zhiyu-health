@@ -10,7 +10,7 @@
     scroll-with-animation
   >
     <view a:if="{{messages.length === 0}}" class="empty">
-      <view class="mascot">✚</view>
+      <view class="mascot zy-ico zy-ico-plus"></view>
       <view class="greet">开始 AI 预问诊</view>
       <view class="greet-sub">描述你的症状、持续时间和用药情况，小愈会整理病情摘要供医生接诊</view>
     </view>

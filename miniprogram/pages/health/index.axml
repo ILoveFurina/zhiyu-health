@@ -35,7 +35,7 @@
     <view class="section-title">当前服务对象</view>
     <scroll-view class="profile-strip" scroll-x>
       <view class="profile-row">
-        <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}}" data-id="{{item.id}}" onTap="switchProfile">
+        <view a:for="{{profiles}}" a:key="id" class="profile-pill {{item.active ? 'profile-pill-active' : ''}} zy-fade-in" style="animation-delay: {{index * 40}}ms" data-id="{{item.id}}" onTap="switchProfile">
           <view class="avatar">{{item.avatar}}</view>
           <view>
             <view class="profile-name">{{item.display_name}}</view>
@@ -71,7 +71,7 @@
   <!-- 健康指标：仅渲染有数据的数值指标；有血型行或指标卡时固定挂免责声明 -->
   <view a:if="{{activeProfile && (metrics.length || categorical.length)}}" class="section">
     <view a:if="{{metrics.length}}" class="section-title">健康指标</view>
-    <view a:for="{{metrics}}" a:key="metric_code" class="card metric-card" data-code="{{item.metric_code}}" data-index="{{index}}" onTap="toggleMetric">
+    <view a:for="{{metrics}}" a:key="metric_code" class="card metric-card zy-fade-in" style="animation-delay: {{index * 40}}ms" data-code="{{item.metric_code}}" data-index="{{index}}" onTap="toggleMetric">
       <view class="metric-head">
         <text class="metric-name">{{item.name_zh}}</text>
         <text a:if="{{item.latest.verification_label}}" class="verify-badge">{{item.latest.verification_label}}</text>
@@ -116,7 +116,7 @@
   <view a:if="{{activeProfile && overviewLoaded}}" class="card">
     <view class="section-title">最近报告</view>
     <view a:if="{{recentReports.length === 0}}" class="empty-inline">暂无报告</view>
-    <view a:for="{{recentReports}}" a:key="id" class="report-item" data-id="{{item.id}}" onTap="openReportDetail">
+    <view a:for="{{recentReports}}" a:key="id" class="report-item zy-fade-in" style="animation-delay: {{index * 40}}ms" data-id="{{item.id}}" onTap="openReportDetail">
       <view class="report-item-head">
         <text class="report-name">{{item.file_name}}</text>
         <text class="report-date">{{item.dateLabel}}</text>
@@ -130,8 +130,8 @@
 
   <view a:if="{{activeProfile}}" class="section">
     <view class="section-title">健康时间线</view>
-    <view a:if="{{timeline.length === 0}}" class="card state">暂无挂号、处方或报告解读记录</view>
-    <view a:for="{{timeline}}" a:key="record_id" class="timeline-item">
+    <zy-empty a:if="{{timeline.length === 0}}" icon="heart" text="暂无挂号、处方或报告解读记录" />
+    <view a:for="{{timeline}}" a:key="record_id" class="timeline-item zy-fade-in" style="animation-delay: {{index * 40}}ms">
       <view class="timeline-dot"></view>
       <view class="timeline-card">
         <view class="timeline-type">{{item.title}}</view>

@@ -1,14 +1,15 @@
-.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: #f3f7f6; }
-.state { padding-top: 180rpx; text-align: center; color: var(--zy-text-weak); }
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: var(--zy-color-fill); }
 .section-title { margin: 12rpx 4rpx 16rpx; color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; }
-.card { margin-bottom: 20rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,.06); }
-.card.reminder { border-left: 8rpx solid #4caf93; }
+.card { margin-bottom: 20rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: var(--zy-shadow-card); transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
+.card:active { transform: scale(0.98); }
+.card.reminder { border-left: 8rpx solid var(--zy-color-primary); }
 .head { display: flex; align-items: center; }
 .title { flex: 1; color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
 .time { color: var(--zy-text-weak); font-size: 20rpx; }
 .content { margin-top: 18rpx; color: var(--zy-text-title); font-size: 26rpx; line-height: 1.75; }
 .reminder-action { margin-top: 20rpx; display: flex; justify-content: flex-end; }
-.checkin-btn { background: #4caf93; color: #fff; font-size: 26rpx; padding: 0 36rpx; height: 64rpx; line-height: 64rpx; border-radius: 32rpx; border: none; }
+.checkin-btn { background: var(--zy-color-primary); color: #fff; font-size: 26rpx; padding: 0 36rpx; height: 64rpx; line-height: 64rpx; border-radius: var(--zy-radius-lg); border: none; transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
+.checkin-btn:active { transform: scale(0.98); }
 /* 就诊指引卡（票 43）：结构化卡片样式 */
 .care-greeting { margin-top: 16rpx; color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
 .care-row { display: flex; margin-top: 12rpx; font-size: 26rpx; line-height: 1.6; }
@@ -17,3 +18,7 @@
 .care-block { margin-top: 16rpx; }
 .care-block-title { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; margin-bottom: 6rpx; }
 .care-list-item { color: var(--zy-text-title); font-size: 25rpx; line-height: 1.7; }
+/* 骨架屏（票 66）：左 72rpx 圆 + 右两行，形态对齐消息卡 */
+.skel-row { display: flex; align-items: center; }
+.skel-lines { flex: 1; margin-left: var(--zy-space-md); }
+.skel-line-gap { margin-top: var(--zy-space-sm); }

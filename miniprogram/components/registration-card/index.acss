@@ -3,7 +3,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .reg-title { color: var(--zy-text-title); font-size: 34rpx; font-weight: 700; }
@@ -12,23 +12,27 @@
 .reg-entry {
   flex: 1;
   padding: var(--zy-space-sm);
-  border-radius: 16rpx;
+  border-radius: var(--zy-radius-sm);
   background: var(--zy-color-primary-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--zy-space-xs);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.reg-entry:active { transform: scale(0.98); }
 .reg-entry-icon { color: var(--zy-color-primary); font-size: 32rpx; }
 .reg-entry-label { color: var(--zy-color-primary); font-size: 28rpx; font-weight: 600; }
 
 .reg-hospitals { margin-top: var(--zy-space-sm); }
 .reg-hospital {
   padding: var(--zy-space-sm) 0;
-  border-bottom: 1rpx solid #eef3f1;
+  border-bottom: 1rpx solid var(--zy-color-border);
   display: flex;
   align-items: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.reg-hospital:active { transform: scale(0.98); }
 .reg-hospital:last-child { border-bottom: none; }
 .reg-hospital-main { flex: 1; }
 .reg-name-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
@@ -47,7 +51,7 @@
 .reg-footer {
   margin-top: var(--zy-space-xs);
   padding-top: var(--zy-space-sm);
-  border-top: 1rpx solid #eef3f1;
+  border-top: 1rpx solid var(--zy-color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -107,7 +107,9 @@
         onTouchStart="onVoiceTouchStart"
         onTouchEnd="onVoiceTouchEnd"
         onTouchCancel="onVoiceTouchCancel"
-      >🎙</view>
+      >
+        <view class="zy-ico zy-ico-mic"></view>
+      </view>
       <view class="send-btn {{canSend && !sending ? '' : 'send-disabled'}}" onTap="send">发送</view>
     </view>
     <view a:elif="{{inProgress}}" class="readonly-bar">{{methodRequiredText}}，请稍候</view>

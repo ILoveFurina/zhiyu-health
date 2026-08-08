@@ -9,7 +9,7 @@
       <text class="chip-arrow">切换 ›</text>
     </view>
     <view a:if="{{profileLoaded && profiles.length === 0}}" class="profile-guide" onTap="createProfile">
-      <view class="profile-guide-icon">♡</view>
+      <view class="profile-guide-icon zy-ico zy-ico-heart"></view>
       <view class="profile-guide-copy">
         <view class="profile-guide-title">建立健康档案</view>
         <view class="profile-guide-text">录入基础信息与过敏史，获得更安全的个性化服务</view>
@@ -46,7 +46,7 @@
         data-url="{{entry.url}}"
         onTap="onGridTap"
       >
-        <view class="grid-icon {{entry.textIcon ? 'grid-icon-text' : ''}}">{{entry.icon}}</view>
+        <view class="grid-icon zy-ico zy-ico-{{entry.icon}}"></view>
         <view class="grid-label">{{entry.label}}</view>
         <view a:if="{{entry.desc}}" class="grid-desc">{{entry.desc}}</view>
       </view>
@@ -61,7 +61,8 @@
         <view
           a:for="{{todos}}"
           a:key="key"
-          class="todo-card"
+          class="todo-card zy-fade-in"
+          style="animation-delay: {{index * 40}}ms"
           data-kind="{{item.kind}}"
           onTap="openTodo"
         >

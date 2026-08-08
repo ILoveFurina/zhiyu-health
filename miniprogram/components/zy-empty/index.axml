@@ -1,0 +1,5 @@
+<view class="zy-empty zy-fade-in">
+  <view class="zy-empty-icon zy-ico zy-ico-{{icon}}"></view>
+  <view class="zy-empty-text">{{text}}</view>
+  <view a:if="{{ctaText}}" class="zy-empty-cta" onTap="onCtaTap">{{ctaText}}</view>
+</view>

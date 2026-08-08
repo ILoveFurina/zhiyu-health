@@ -5,7 +5,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .ds-head { display: flex; align-items: center; justify-content: space-between; }
@@ -27,12 +27,14 @@
   width: 96rpx;
   flex-shrink: 0;
   padding: var(--zy-space-xs) 0;
-  border-radius: 16rpx;
-  background: #f4f7f6;
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-fill);
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.ds-day:active { transform: scale(0.98); }
 .ds-day-active { background: var(--zy-color-primary); }
 .ds-day-active .ds-day-week, .ds-day-active .ds-day-label { color: #fff; }
 .ds-day-week { color: var(--zy-text-secondary); font-size: 20rpx; }
@@ -46,8 +48,8 @@
 .ds-doctor {
   margin-top: var(--zy-space-sm);
   padding: var(--zy-space-sm);
-  border-radius: 16rpx;
-  border: 1rpx solid #eef3f1;
+  border-radius: var(--zy-radius-sm);
+  border: 1rpx solid var(--zy-color-border);
 }
 .ds-doctor-disabled { opacity: 0.55; }
 /* 票 62：医生信息与时段行全部禁止换行，窄卡片宽度下不再逐字竖排 */
@@ -110,7 +112,7 @@
 .ds-slots { margin-top: var(--zy-space-sm); }
 .ds-slot {
   padding: var(--zy-space-xs) 0;
-  border-top: 1rpx solid #f2f5f4;
+  border-top: 1rpx solid var(--zy-color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,15 +128,17 @@
   background: var(--zy-color-primary);
   color: #fff;
   font-size: 24rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
-.ds-slot-book-disabled { background: #f2f5f4; color: var(--zy-text-weak); }
+.ds-slot-book:active { transform: scale(0.98); }
+.ds-slot-book-disabled { background: var(--zy-color-fill); color: var(--zy-text-weak); }
 .ds-slot-empty { padding: var(--zy-space-sm) 0; color: var(--zy-text-weak); font-size: 22rpx; }
 
 .ds-no-book {
   margin-top: var(--zy-space-sm);
   padding: var(--zy-space-sm) 0;
-  border-radius: 16rpx;
-  background: #f2f5f4;
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-fill);
   color: var(--zy-text-weak);
   font-size: 24rpx;
   text-align: center;

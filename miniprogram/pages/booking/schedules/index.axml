@@ -22,7 +22,7 @@
   </scroll-view>
 
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{slots.length === 0}}" class="state">当日暂无排班</view>
+  <zy-empty a:elif="{{slots.length === 0}}" icon="calendar" text="当日暂无排班" />
 
   <view a:else class="group">
     <view class="group-date">{{selectedDate}}</view>
@@ -31,7 +31,8 @@
         a:for="{{slots}}"
         a:for-item="slot"
         a:key="schedule_id"
-        class="slot {{slot.remaining_slots <= 0 ? 'slot-disabled' : ''}}"
+        class="slot zy-fade-in {{slot.remaining_slots <= 0 ? 'slot-disabled' : ''}}"
+        style="animation-delay: {{index * 40}}ms"
         data-id="{{slot.schedule_id}}"
         data-date="{{slot.schedule_date}}"
         data-slot="{{slot.time_slot}}"

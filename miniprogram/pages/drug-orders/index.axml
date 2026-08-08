@@ -1,10 +1,10 @@
 <view class="page">
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{orders.length === 0}}" class="state">暂无药品订单</view>
-  <view a:for="{{orders}}" a:key="id" class="card">
+  <zy-empty a:elif="{{orders.length === 0}}" icon="capsule" text="暂无药品订单" />
+  <view a:for="{{orders}}" a:key="id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
     <view class="head">
       <view class="title">药品订单 #{{item.id}}</view>
-      <view class="status">{{item.status_label}}</view>
+      <view class="status status-{{item.status}}">{{item.status_label}}</view>
     </view>
     <view class="meta">电子处方 #{{item.prescription_id}} · {{item.created_at}}</view>
     <view a:for="{{item.items}}" a:for-item="drug" a:key="medication_id" class="drug">

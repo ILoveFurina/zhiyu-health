@@ -11,14 +11,14 @@
     <view a:if="{{messages.length === 0}}" class="empty">
       <view class="appointments-link" onTap="openAppointments">我的挂号</view>
       <view a:if="{{profileLoaded && !currentProfile}}" class="profile-guide" onTap="startHealthProfile">
-        <view class="profile-guide-icon">♡</view>
+        <view class="profile-guide-icon zy-ico zy-ico-heart"></view>
         <view class="profile-guide-copy">
           <view class="profile-guide-title">建立健康档案</view>
           <view class="profile-guide-text">录入基础信息与过敏史，获得更安全的个性化服务</view>
         </view>
         <view class="profile-guide-arrow">›</view>
       </view>
-      <view class="mascot">✚</view>
+      <view class="mascot zy-ico zy-ico-plus"></view>
       <view class="greet">你好，我是<text class="brand">小愈</text></view>
       <view class="greet-sub">描述症状，我帮你找到合适的科室</view>
       <view class="topics">
@@ -55,7 +55,10 @@
 
       <view a:elif="{{item.kind === 'image'}}" class="bubble user image-bubble">
         <image a:if="{{item.url}}" class="image-msg" src="{{item.url}}" mode="aspectFill" onTap="onPreviewImage" data-url="{{item.url}}" />
-        <view a:else class="image-msg-label">📷 {{item.content}}</view>
+        <view a:else class="image-msg-label">
+          <view class="zy-ico zy-ico-camera"></view>
+          <text>{{item.content}}</text>
+        </view>
       </view>
 
       <view a:elif="{{item.kind === 'red_flag'}}" class="redflag-card">
@@ -171,7 +174,7 @@
       <!-- 票 62：智能导诊引导卡（纯客户端 UI，不持久化、不带免责声明） -->
       <view a:elif="{{item.kind === 'feature_guide'}}" class="guide-card" id="msg-{{item.id}}">
         <view class="guide-head">
-          <view class="guide-icon">✚</view>
+          <view class="guide-icon zy-ico zy-ico-plus"></view>
           <view class="guide-title">{{item.guide.title}}</view>
         </view>
         <view class="guide-subtitle">{{item.guide.subtitle}}</view>
@@ -326,7 +329,7 @@
       data-action="{{item.action}}"
       onTap="onBubbleTap"
     >
-      <view class="bubble-icon">{{item.icon}}</view>
+      <view class="bubble-icon zy-ico zy-ico-{{item.icon}}"></view>
       <view class="bubble-label">{{item.label}}</view>
     </view>
   </view>
@@ -353,7 +356,7 @@
         onTouchStart="onVoiceTouchStart"
         onTouchEnd="onVoiceTouchEnd"
         onTouchCancel="onVoiceTouchCancel"
-      >{{recording ? '松开' : '🎙'}}</view>
+      ><text a:if="{{recording}}">松开</text><view a:else class="zy-ico zy-ico-mic"></view></view>
       <input
         class="c-input"
         value="{{inputValue}}"
@@ -399,7 +402,7 @@
       </view>
       <scroll-view class="drawer-list" scroll-y>
         <view a:if="{{drawerLoading}}" class="drawer-state">正在加载…</view>
-        <view a:elif="{{conversations.length === 0}}" class="drawer-state">暂无对话记录</view>
+        <zy-empty a:elif="{{conversations.length === 0}}" icon="consult" text="暂无对话记录" />
         <view
           a:for="{{conversations}}"
           a:key="id"

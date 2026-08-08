@@ -4,7 +4,7 @@
   align-items: center;
   gap: 14rpx;
   background: #fff;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 1rpx solid var(--zy-color-border);
   padding: 14rpx 20rpx;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -16,10 +16,15 @@
   align-items: center;
   gap: var(--zy-space-xs);
   padding: 12rpx 22rpx;
-  border-radius: 30rpx;
+  border-radius: var(--zy-radius-lg);
   background: var(--zy-color-primary-soft);
   color: var(--zy-color-primary);
   font-size: 25rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.bubble-chip:active {
+  transform: scale(0.98);
 }
 
 .bubble-chip-disabled {

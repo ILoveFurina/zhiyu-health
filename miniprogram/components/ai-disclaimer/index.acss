@@ -1,7 +1,7 @@
 .ai-disclaimer {
   margin-top: 12rpx;
   padding-top: 12rpx;
-  border-top: 1rpx dashed #e5e5e5;
+  border-top: 1rpx dashed var(--zy-color-border);
   font-size: 20rpx;
-  color: #999;
+  color: var(--zy-text-weak);
 }

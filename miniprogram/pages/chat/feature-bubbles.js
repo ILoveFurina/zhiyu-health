@@ -12,7 +12,7 @@ const FEATURE_BUBBLES = [
     key: 'triage',
     // 票 62：与首页主卡/宫格入口统一命名「智能导诊」
     label: '智能导诊',
-    icon: '✚',
+    icon: 'plus',
     enabled: true,
     action: 'triage',
   },
@@ -21,15 +21,15 @@ const FEATURE_BUBBLES = [
   {
     key: 'report',
     label: '看报告',
-    icon: '▤',
+    icon: 'report',
     enabled: true,
     action: 'report',
   },
   // 拍照类入口随各自票单落地再点亮；未落地前 enabled:false 不渲染（D8 可插拔纪律）
-  { key: 'pillbox', label: '拍药盒', icon: '⊗', enabled: true, action: 'pillbox' },
-  { key: 'skin', label: '拍皮肤', icon: '⊙', enabled: true, action: 'skin' },
-  { key: 'diet', label: '拍饮食', icon: '✦', enabled: true, action: 'diet' },
-  { key: 'tongue', label: '拍舌苔', icon: '◐', enabled: true, action: 'tongue' },
+  { key: 'pillbox', label: '拍药盒', icon: 'capsule', enabled: true, action: 'pillbox' },
+  { key: 'skin', label: '拍皮肤', icon: 'scan', enabled: true, action: 'skin' },
+  { key: 'diet', label: '拍饮食', icon: 'diet', enabled: true, action: 'diet' },
+  { key: 'tongue', label: '拍舌苔', icon: 'tongue', enabled: true, action: 'tongue' },
   // 票 51：「查药品」入口已隐藏（与拍药盒能力重复且挤占气泡栏）；
   // 文字版能力经 chat 信封 medication_name 保留（拍药盒识别后自动携带）
 ]

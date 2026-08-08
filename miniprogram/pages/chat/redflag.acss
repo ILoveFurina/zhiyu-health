@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: #e64545;
+  background: var(--zy-color-danger);
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -24,7 +24,7 @@
 .rf-btn {
   margin-top: var(--zy-space-xl);
   border: 1rpx solid #fff;
-  border-radius: 36rpx;
+  border-radius: var(--zy-radius-lg);
   padding: var(--zy-space-sm) 56rpx;
   font-size: 28rpx;
   color: #fff;

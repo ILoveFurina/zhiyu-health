@@ -1,6 +1,7 @@
 {
   "defaultTitle": "健康档案",
   "usingComponents": {
-    "ai-disclaimer": "/components/ai-disclaimer/index"
+    "ai-disclaimer": "/components/ai-disclaimer/index",
+    "zy-empty": "/components/zy-empty/index"
   }
 }

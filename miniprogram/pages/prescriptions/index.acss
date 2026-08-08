@@ -1,27 +1,29 @@
-.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: #f3f7f6; }
-.state { padding-top: 180rpx; text-align: center; color: var(--zy-text-weak); }
-.orders-link { margin-bottom: 20rpx; padding: 18rpx; border-radius: 16rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }
-.card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,.06); }
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: var(--zy-color-fill); }
+.orders-link { margin-bottom: 20rpx; padding: 18rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }
+.card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: var(--zy-shadow-card); transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
+.card:active { transform: scale(0.98); }
 .title { color: var(--zy-text-title); font-size: 31rpx; font-weight: 700; }
 .title-row { display: flex; align-items: center; justify-content: space-between; }
 /* 状态徽标（票 60）：已通过=主色、待审核=橙、已驳回=红，色系与既有 terminal-bar 提示一致 */
-.status-tag { margin-left: 12rpx; padding: 2rpx 14rpx; border-radius: 8rpx; font-size: 20rpx; flex-shrink: 0; }
+.status-tag { margin-left: 12rpx; padding: 2rpx 14rpx; border-radius: var(--zy-radius-sm); font-size: 20rpx; flex-shrink: 0; }
 .status-approved { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
-.status-pending { background: #fdf3e3; color: #d48806; }
-.status-rejected { background: #fdeceb; color: #d4380d; }
+.status-pending { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
+.status-rejected { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
 .meta { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 23rpx; }
-.source-tag { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 20rpx; }
-.drug { margin-top: 18rpx; padding: 18rpx; border-radius: 14rpx; background: #f4faf8; color: var(--zy-text-secondary); font-size: 24rpx; line-height: 1.7; }
+.source-tag { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 20rpx; }
+.drug { margin-top: 18rpx; padding: 18rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-primary-soft); color: var(--zy-text-secondary); font-size: 24rpx; line-height: 1.7; }
 .drug-name, .interpretation-title { color: var(--zy-text-title); font-weight: 600; }
 .interpretation-title { margin-top: 22rpx; }
 .interpretation { margin-top: var(--zy-space-xs); color: var(--zy-text-title); font-size: 25rpx; line-height: 1.7; }
 .pharmacy { margin-top: 20rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
-.order { margin-top: var(--zy-space-sm); border: 0; border-radius: 32rpx; background: var(--zy-color-primary); color: #fff; font-size: 26rpx; }
+.order { margin-top: var(--zy-space-sm); border: 0; border-radius: var(--zy-radius-lg); background: var(--zy-color-primary); color: #fff; font-size: 26rpx; }
 .quantity-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; color: var(--zy-text-title); }
-.quantity { width: 100rpx; padding: 6rpx 10rpx; border: 1rpx solid #b8d8d1; border-radius: 10rpx; background: #fff; text-align: center; }
+.quantity { width: 100rpx; padding: 6rpx 10rpx; border: 1rpx solid var(--zy-color-primary-soft); border-radius: var(--zy-radius-sm); background: #fff; text-align: center; }
 /* 待审核/已驳回卡内说明与引导（票 60） */
 .pending-hint { margin-top: 18rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
-.reject-reason { margin-top: 18rpx; padding: 16rpx; border-radius: 12rpx; background: #fdeceb; color: #d4380d; font-size: 23rpx; line-height: 1.6; }
+.reject-reason { margin-top: 18rpx; padding: 16rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-danger-soft); color: var(--zy-color-danger); font-size: 23rpx; line-height: 1.6; }
 .reject-hint { margin-top: 14rpx; color: var(--zy-text-secondary); font-size: 23rpx; line-height: 1.6; }
 .reject-actions { display: flex; gap: 16rpx; margin-top: 16rpx; }
-.reject-btn { flex: 1; padding: 14rpx 0; border-radius: 32rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }
+.reject-btn { flex: 1; padding: 14rpx 0; border-radius: var(--zy-radius-lg); background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }
+/* 骨架屏（票 66）：三行条，形态对齐处方卡标题/明细/解读 */
+.skel-line-gap { margin-top: var(--zy-space-sm); }

@@ -10,7 +10,7 @@
   height: 56rpx;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
+  box-shadow: var(--zy-shadow-card);
   color: var(--zy-color-primary);
   font-size: 36rpx;
   display: flex;
@@ -35,7 +35,7 @@
   right: 0;
   bottom: 0;
   width: 78%;
-  background: #f7f9f8;
+  background: var(--zy-color-fill);
   display: flex;
   flex-direction: column;
 }
@@ -46,7 +46,7 @@
   justify-content: space-between;
   padding: var(--zy-space-md) 28rpx;
   background: #fff;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid var(--zy-color-border);
 }
 
 .drawer-title {
@@ -71,12 +71,17 @@
   border-radius: var(--zy-radius-card);
   border: 1rpx solid var(--zy-color-primary);
   color: var(--zy-color-primary);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.new-chat:active {
+  transform: scale(0.98);
 }
 
 .new-chat-ico {
   width: 44rpx;
   height: 44rpx;
-  border-radius: 12rpx;
+  border-radius: var(--zy-radius-sm);
   background: var(--zy-color-primary);
   color: #fff;
   font-size: 32rpx;
@@ -109,7 +114,12 @@
   border-radius: var(--zy-radius-card);
   padding: var(--zy-space-md) 26rpx;
   margin: var(--zy-space-sm) 0;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
+  box-shadow: var(--zy-shadow-card);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.conv-item:active {
+  transform: scale(0.98);
 }
 
 .conv-item-current {
@@ -138,7 +148,7 @@
 
 .conv-active {
   font-size: 22rpx;
-  color: #e64545;
+  color: var(--zy-color-danger);
 }
 
 .drawer-tip {

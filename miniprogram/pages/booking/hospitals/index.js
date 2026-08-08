@@ -7,6 +7,7 @@ Page({
     loading: true,
     cityName: '',
     hospitals: [],
+    skelItems: [1, 2, 3],
   },
 
   onLoad() {

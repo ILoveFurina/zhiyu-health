@@ -17,7 +17,7 @@
   padding: var(--zy-space-xl) var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -30,10 +30,10 @@
   border: 6rpx solid var(--zy-color-primary-soft);
   border-top-color: var(--zy-color-primary);
   border-radius: 50%;
-  animation: wait-spin 0.9s linear infinite;
+  animation: zy-wait-spin 0.9s linear infinite;
 }
 
-@keyframes wait-spin {
+@keyframes zy-wait-spin {
   to {
     transform: rotate(360deg);
   }
@@ -65,7 +65,7 @@
   width: 88rpx;
   height: 88rpx;
   border-radius: 50%;
-  background: #f2f3f5;
+  background: var(--zy-color-fill);
   color: var(--zy-text-weak);
   font-size: 44rpx;
   font-weight: 700;
@@ -107,6 +107,11 @@
   color: #fff;
   font-size: 28rpx;
   text-align: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
 .btn-secondary {
@@ -120,11 +125,16 @@
   background: #fff;
   font-size: 28rpx;
   text-align: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
 }
 
 .wait-card .btn-secondary {
   margin-top: var(--zy-space-lg);
-  border-color: #e0e0e0;
+  border-color: var(--zy-color-border);
   color: var(--zy-text-secondary);
 }
 

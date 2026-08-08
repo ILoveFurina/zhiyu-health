@@ -1,20 +1,20 @@
 .skin-card {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--zy-radius-sm);
   padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .skin-card-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   margin-bottom: 16rpx;
 }
 
 .skin-type {
   font-size: 28rpx;
-  color: #333;
+  color: var(--zy-text-title);
   margin-bottom: 16rpx;
 }
 
@@ -24,7 +24,7 @@
 
 .finding {
   padding: 16rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid var(--zy-color-border);
 }
 
 .finding:last-child {
@@ -40,51 +40,51 @@
 .severity-label {
   font-size: 22rpx;
   padding: 4rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--zy-radius-sm);
   margin-right: 16rpx;
   color: #fff;
 }
 
 .severity-green {
-  background: #52c41a;
+  background: var(--zy-color-primary);
 }
 
 .severity-yellow {
-  background: #faad14;
+  background: var(--zy-color-warning);
 }
 
 .severity-red {
-  background: #ff4d4f;
+  background: var(--zy-color-danger);
 }
 
 .finding-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
 }
 
 .finding-text {
   font-size: 26rpx;
-  color: #666;
+  color: var(--zy-text-secondary);
   line-height: 1.5;
   margin-bottom: 8rpx;
 }
 
 .finding-advice {
   font-size: 26rpx;
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   line-height: 1.5;
 }
 
 .care-summary {
   font-size: 28rpx;
-  color: #333;
+  color: var(--zy-text-title);
   line-height: 1.6;
   margin-bottom: 16rpx;
 }
 
 .need-doctor {
   font-size: 26rpx;
-  color: #ff4d4f;
+  color: var(--zy-color-danger);
   margin-bottom: 16rpx;
 }

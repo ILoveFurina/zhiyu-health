@@ -12,11 +12,16 @@
 
   <!-- 搜索态：跨科类扁平结果 -->
   <block a:elif="{{keyword}}">
-    <view a:if="{{results.length === 0}}" class="state">没有匹配「{{keyword}}」的科室</view>
+    <zy-empty
+      a:if="{{results.length === 0}}"
+      icon="file"
+      text="{{'没有匹配「' + keyword + '」的科室'}}"
+    />
     <view
       a:for="{{results}}"
       a:key="id"
-      class="result-item"
+      class="result-item zy-fade-in"
+      style="animation-delay: {{index * 40}}ms"
       data-id="{{item.id}}"
       data-name="{{item.name}}"
       onTap="openSlots"
@@ -26,7 +31,7 @@
     </view>
   </block>
 
-  <view a:elif="{{categories.length === 0}}" class="state">当前城市暂无科室目录</view>
+  <zy-empty a:elif="{{categories.length === 0}}" icon="file" text="当前城市暂无科室目录" />
 
   <!-- 左科类、右标准科室 -->
   <view a:else class="columns">
@@ -34,7 +39,8 @@
       <view
         a:for="{{categories}}"
         a:key="category"
-        class="cat {{index === activeIndex ? 'cat-active' : ''}}"
+        class="cat zy-fade-in {{index === activeIndex ? 'cat-active' : ''}}"
+        style="animation-delay: {{index * 40}}ms"
         data-index="{{index}}"
         onTap="onCategoryTap"
       >{{item.category}}</view>
@@ -43,7 +49,8 @@
       <view
         a:for="{{categories[activeIndex].departments}}"
         a:key="id"
-        class="dept"
+        class="dept zy-fade-in"
+        style="animation-delay: {{index * 40}}ms"
         data-id="{{item.id}}"
         data-name="{{item.name}}"
         onTap="openSlots"

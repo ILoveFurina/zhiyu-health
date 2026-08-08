@@ -1,9 +1,18 @@
 <view class="page">
-  <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{messages.length === 0 && reminders.length === 0}}" class="state">暂无站内消息</view>
+  <!-- 骨架屏（票 66）：数据到达前按消息卡形态渲染 4 行占位 -->
+  <block a:if="{{loading}}">
+    <view a:for="{{skelItems}}" a:key="*this" class="zy-skel-card skel-row">
+      <view class="zy-skel zy-skel-circle" style="width: 72rpx; height: 72rpx;"></view>
+      <view class="skel-lines">
+        <view class="zy-skel zy-skel-line" style="width: 55%;"></view>
+        <view class="zy-skel zy-skel-line skel-line-gap" style="width: 85%;"></view>
+      </view>
+    </view>
+  </block>
+  <zy-empty a:elif="{{messages.length === 0 && reminders.length === 0}}" icon="mail" text="暂无站内消息" />
   <block a:else>
     <view a:if="{{reminders.length > 0}}" class="section-title">服药提醒</view>
-    <view a:for="{{reminders}}" a:key="id" class="card reminder">
+    <view a:for="{{reminders}}" a:key="id" class="card reminder zy-fade-in" style="animation-delay: {{index * 40}}ms">
       <view class="head">
         <view class="title">{{item.medication_name}}</view>
         <view class="time">{{item.due_date}}</view>
@@ -15,7 +24,7 @@
       <ai-disclaimer text="{{item.disclaimer}}" />
     </view>
     <view a:if="{{messages.length > 0}}" class="section-title">站内消息</view>
-    <view a:for="{{messages}}" a:key="id" class="card">
+    <view a:for="{{messages}}" a:key="id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
       <view class="head"><view class="title">{{item.title}}</view><view class="time">{{item.created_at}}</view></view>
       <!-- 就诊指引卡（票 43）：appointment_care 渲染结构化卡片，其余 type 走文本 -->
       <block a:if="{{item.type === 'appointment_care' && item.care}}">

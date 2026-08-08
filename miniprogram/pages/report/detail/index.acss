@@ -6,7 +6,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 .section { margin-top: var(--zy-space-lg); }
 .section-title { margin: 0 var(--zy-space-xs) var(--zy-space-sm); color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
@@ -17,10 +17,10 @@
 .head-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
 .record-status { padding: 4rpx 16rpx; border-radius: 999rpx; font-size: 20rpx; white-space: nowrap; }
 .status-succeeded { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
-.status-processing { background: #fdf3e3; color: #d48806; }
-.status-failed { background: #fff0ef; color: #b5443d; }
+.status-processing { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
+.status-failed { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
 .head-meta { margin-top: var(--zy-space-xs); color: var(--zy-text-weak); font-size: 22rpx; }
-.conv-entry { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid #f0f0f0; color: var(--zy-color-primary); font-size: 24rpx; }
+.conv-entry { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); color: var(--zy-color-primary); font-size: 24rpx; }
 
 /* 概要与逐项指标（结构化卡片字段与 chat 会话内同款） */
 .report-summary { color: var(--zy-text-title); font-size: 26rpx; line-height: 1.55; }
@@ -28,15 +28,15 @@
 .priority-label {
   margin-right: 10rpx;
   padding: 3rpx 8rpx;
-  border-radius: 8rpx;
+  border-radius: var(--zy-radius-sm);
   color: #fff;
   font-size: 18rpx;
   white-space: nowrap;
 }
-.priority-red { background: #c2414b; }
-.priority-yellow { background: #c58422; }
+.priority-red { background: var(--zy-color-danger); }
+.priority-yellow { background: var(--zy-color-warning); }
 .priority-blue { background: #4389d8; }
-.priority-green { background: #368c5d; }
+.priority-green { background: var(--zy-color-primary); }
 .finding-name { flex: 1; color: var(--zy-text-title); font-size: 25rpx; font-weight: 600; }
 .finding-value { color: var(--zy-text-title); font-size: 24rpx; }
 .finding-ref { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 20rpx; }
@@ -49,12 +49,12 @@
   color: var(--zy-color-primary);
   font-size: 20rpx;
 }
-.state-DEPOSITED_UNVERIFIED { background: #fdf3e3; color: #c58422; }
+.state-DEPOSITED_UNVERIFIED { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
 .state-DEPOSITED_REJECTED,
 .state-CONFLICT_SKIPPED,
 .state-DUPLICATE_SLOT,
 .state-NO_DATE,
-.state-UNMAPPED { background: #f2f4f4; color: var(--zy-text-secondary); }
+.state-UNMAPPED { background: var(--zy-color-fill); color: var(--zy-text-secondary); }
 .finding-text, .finding-action, .report-line {
   margin-top: var(--zy-space-xs);
   color: var(--zy-text-secondary);
@@ -66,12 +66,12 @@
 .unreadable {
   margin-top: var(--zy-space-sm);
   padding: 14rpx 16rpx;
-  border-radius: 14rpx;
-  background: #fff7e8;
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-warning-soft);
 }
 
 /* 沉淀观测核验操作 */
-.obs-ops { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid #f0f0f0; }
+.obs-ops { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); }
 .obs-op-row { display: flex; gap: var(--zy-space-sm); }
 .obs-op-row + .obs-op-row { margin-top: var(--zy-space-xs); }
 .op-btn {
@@ -83,7 +83,7 @@
 }
 .op-confirm { background: var(--zy-color-primary); color: #fff; }
 .op-correct { border: 1rpx solid var(--zy-color-primary); color: var(--zy-color-primary); }
-.op-reject { border: 1rpx solid #c85d5d; color: #c85d5d; }
+.op-reject { border: 1rpx solid var(--zy-color-danger); color: var(--zy-color-danger); }
 
 /* 纠错输入弹层（自绘，风格同 report 页 detail-mask） */
 .dialog-mask {
@@ -120,9 +120,9 @@
   min-height: 80rpx;
   margin-top: var(--zy-space-sm);
   padding: 20rpx 22rpx;
-  border: 1rpx solid #d9e8e4;
-  border-radius: 18rpx;
-  background: #fbfdfc;
+  border: 1rpx solid var(--zy-color-primary-soft);
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-fill);
   font-size: 26rpx;
 }
 .dialog-picker { display: flex; justify-content: space-between; color: var(--zy-text-title); }

@@ -9,15 +9,15 @@
 
     <view a:if="{{!pending}}" class="upload-actions">
       <view class="upload-btn" data-index="0" onTap="pickReport">
-        <view class="upload-btn-icon">📷</view>
+        <view class="upload-btn-icon zy-ico zy-ico-camera"></view>
         <view class="upload-btn-label">拍摄报告</view>
       </view>
       <view class="upload-btn" data-index="1" onTap="pickReport">
-        <view class="upload-btn-icon">🖼</view>
+        <view class="upload-btn-icon zy-ico zy-ico-image"></view>
         <view class="upload-btn-label">从相册选择</view>
       </view>
       <view class="upload-btn" data-index="2" onTap="pickReport">
-        <view class="upload-btn-icon">📄</view>
+        <view class="upload-btn-icon zy-ico zy-ico-file"></view>
         <view class="upload-btn-label">上传 PDF</view>
       </view>
     </view>
@@ -47,11 +47,12 @@
   <view class="section">
     <view class="section-title">解读记录</view>
     <view a:if="{{loading}}" class="state">正在加载…</view>
-    <view a:elif="{{records.length === 0}}" class="state">暂无报告解读记录</view>
+    <zy-empty a:elif="{{records.length === 0}}" icon="report" text="暂无报告解读记录" />
     <view
       a:for="{{records}}"
       a:key="report_interpretation_id"
-      class="card record"
+      class="card record zy-fade-in"
+      style="animation-delay: {{index * 40}}ms"
       data-id="{{item.report_interpretation_id}}"
       onTap="openRecord"
     >

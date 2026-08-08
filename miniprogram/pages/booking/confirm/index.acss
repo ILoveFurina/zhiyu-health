@@ -5,7 +5,7 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 .card-title { color: var(--zy-text-title); font-size: 30rpx; font-weight: 700; }
 .row { margin-top: var(--zy-space-md); display: flex; align-items: center; justify-content: space-between; }
@@ -24,5 +24,7 @@
   font-size: 30rpx;
   font-weight: 600;
   text-align: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.submit:active { transform: scale(0.98); }
 .submit-disabled { opacity: 0.6; }

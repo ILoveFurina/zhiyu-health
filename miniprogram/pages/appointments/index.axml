@@ -12,9 +12,15 @@
     <view class="quick-link" onTap="openMessages">站内消息</view>
   </view>
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{appointments.length === 0}}" class="state">暂无挂号</view>
+  <zy-empty
+    a:elif="{{appointments.length === 0}}"
+    icon="ticket"
+    text="暂无挂号记录"
+    ctaText="去挂号"
+    onCta="goBooking"
+  />
 
-  <view a:for="{{appointments}}" a:key="appointment_id" class="card">
+  <view a:for="{{appointments}}" a:key="appointment_id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
     <view class="head">
       <view class="doctor">{{item.department_name}} · {{item.doctor_name}}医生</view>
       <view class="status {{item.status === '已约' ? 'booked' : ''}}">{{item.status}}</view>

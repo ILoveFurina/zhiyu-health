@@ -1,3 +1,6 @@
 {
-  "defaultTitle": "我的药品订单"
+  "defaultTitle": "我的药品订单",
+  "usingComponents": {
+    "zy-empty": "/components/zy-empty/index"
+  }
 }
