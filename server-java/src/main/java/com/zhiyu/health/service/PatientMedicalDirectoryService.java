@@ -39,6 +39,7 @@ public class PatientMedicalDirectoryService {
     private final DoctorMapper doctorMapper;
     private final ScheduleMapper scheduleMapper;
     private final PatientMedicalDirectoryDtoMapper directoryDtos;
+    private final SlotWindowGuard slotWindowGuard;
 
     public List<CityView> serviceCities(Coordinates coordinates) {
         return hospitalCampusMapper
@@ -132,7 +133,7 @@ public class PatientMedicalDirectoryService {
         rows.forEach(row -> byDoctor.computeIfAbsent(row.doctorId(), key -> new DoctorSlotCardBuilder(row))
                 .add(row));
         List<DoctorSlotCard> doctors = byDoctor.values().stream()
-                .map(builder -> builder.build(date))
+                .map(builder -> builder.build(date, slotWindowGuard))
                 .sorted(date == null ? DOCTOR_CARD_ORDER : DOCTOR_CARD_ORDER_ON_DATE)
                 .toList();
 
@@ -172,6 +173,7 @@ public class PatientMedicalDirectoryService {
 
     public List<ScheduleView> schedules(long doctorId) {
         return scheduleMapper.selectFutureByDoctor(doctorId, LocalDate.now()).stream()
+                .filter(schedule -> !slotWindowGuard.isClosed(schedule))
                 .map(directoryDtos::toScheduleView)
                 .toList();
     }
@@ -211,13 +213,18 @@ public class PatientMedicalDirectoryService {
             }
         }
 
-        /** dateFilter 非空时 slots 过滤到单日；bookable 与最早可约按过滤后的 slots 重算。 */
-        DoctorSlotCard build(LocalDate dateFilter) {
-            List<SlotItem> filtered = dateFilter == null
-                    ? slots
-                    : slots.stream()
-                            .filter(slot -> slot.scheduleDate().equals(dateFilter.toString()))
-                            .toList();
+        /** dateFilter 非空时 slots 过滤到单日；当天已过时段从号源卡中移除，bookable 与最早可约按过滤后 slots 重算。 */
+        DoctorSlotCard build(LocalDate dateFilter, SlotWindowGuard slotWindowGuard) {
+            List<SlotItem> filtered = slots;
+            if (dateFilter != null) {
+                LocalDate target = dateFilter;
+                filtered = slots.stream()
+                        .filter(slot -> slot.scheduleDate().equals(target.toString()))
+                        .toList();
+            }
+            filtered = filtered.stream()
+                    .filter(slot -> !slotWindowGuard.isClosed(LocalDate.parse(slot.scheduleDate()), slot.timeSlot()))
+                    .toList();
             boolean bookable = false;
             EarliestSlot earliestBookable = null;
             for (SlotItem slot : filtered) {

@@ -27,6 +27,7 @@ import com.zhiyu.health.service.AppointmentService;
 import com.zhiyu.health.service.HealthProfileService;
 import com.zhiyu.health.service.PaymentService;
 import com.zhiyu.health.service.SlotAccounting;
+import com.zhiyu.health.service.SlotWindowGuard;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.service.mapping.PaymentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -148,7 +149,8 @@ class AppointmentPaymentControllerTest {
                 TestContracts.instance(),
                 Mappers.getMapper(AppointmentDtoMapper.class),
                 TestDisclaimers.instance(),
-                new ObjectMapper());
+                new ObjectMapper(),
+                new SlotWindowGuard(TestContracts.instance(), java.time.Clock.systemDefaultZone()));
     }
 
     private Appointment appointment(String paymentStatus) {

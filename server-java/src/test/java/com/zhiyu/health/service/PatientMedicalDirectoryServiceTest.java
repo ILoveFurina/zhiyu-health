@@ -12,15 +12,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.StandardDepartment;
+import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.DepartmentMapper;
 import com.zhiyu.health.mapper.DoctorMapper;
 import com.zhiyu.health.mapper.HospitalCampusMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
 import com.zhiyu.health.mapper.StandardDepartmentMapper;
 import com.zhiyu.health.service.mapping.PatientMedicalDirectoryDtoMapper;
+import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,13 +38,24 @@ class PatientMedicalDirectoryServiceTest {
     private final HospitalCampusMapper hospitalCampusMapper = mock(HospitalCampusMapper.class);
     private final DepartmentMapper departmentMapper = mock(DepartmentMapper.class);
     private final StandardDepartmentMapper standardDepartmentMapper = mock(StandardDepartmentMapper.class);
+    // 时段截止判断：默认固定到系统当天 10:00（上午未结束），现有用例以 LocalDate.now() 构造今天
+    // 上午/下午号源行，均不会被误判截止；已过时段用例用 12:00 的 guard 单独构造 service。
+    private final SlotWindowGuard slotWindowGuard = new SlotWindowGuard(
+            TestContracts.instance(),
+            Clock.fixed(
+                    LocalDate.now()
+                            .atTime(10, 0)
+                            .atZone(ZoneId.of("Asia/Shanghai"))
+                            .toInstant(),
+                    ZoneId.of("Asia/Shanghai")));
     private final PatientMedicalDirectoryService service = new PatientMedicalDirectoryService(
             hospitalCampusMapper,
             departmentMapper,
             standardDepartmentMapper,
             mock(DoctorMapper.class),
             mock(ScheduleMapper.class),
-            Mappers.getMapper(PatientMedicalDirectoryDtoMapper.class));
+            Mappers.getMapper(PatientMedicalDirectoryDtoMapper.class),
+            slotWindowGuard);
 
     @BeforeEach
     void stubStandardDepartment() {
@@ -266,6 +282,64 @@ class PatientMedicalDirectoryServiceTest {
     }
 
     @Test
+    void closedTimeWindowSlotIsFilteredFromDepartmentSlotsCard() {
+        // 当天上午已过 11:30（Clock 固定 12:00）：上午号源从号源卡移除，下午保留为最早可约
+        LocalDate today = LocalDate.now();
+        when(departmentMapper.selectDoctorSlotRows(anyLong(), anyString(), any(), any(), any(), any()))
+                .thenReturn(List.of(slotRow(1L, today, "上午", 5, 1.0), slotRow(1L, today, "下午", 3, 1.0)));
+        SlotWindowGuard closedGuard = new SlotWindowGuard(
+                TestContracts.instance(),
+                Clock.fixed(
+                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(),
+                        ZoneId.of("Asia/Shanghai")));
+        PatientMedicalDirectoryService serviceWithClosedGuard = new PatientMedicalDirectoryService(
+                hospitalCampusMapper,
+                departmentMapper,
+                standardDepartmentMapper,
+                mock(DoctorMapper.class),
+                mock(ScheduleMapper.class),
+                Mappers.getMapper(PatientMedicalDirectoryDtoMapper.class),
+                closedGuard);
+
+        PatientMedicalDirectoryService.StandardDepartmentSlotsView view =
+                serviceWithClosedGuard.standardDepartmentSlots(1L, "410100", null, today);
+
+        PatientMedicalDirectoryService.DoctorSlotCard card = view.doctors().get(0);
+        assertThat(card.slots()).hasSize(1);
+        assertThat(card.slots().get(0).timeSlot()).isEqualTo("下午");
+        assertThat(card.bookable()).isTrue();
+        assertThat(card.earliestBookable().timeSlot()).isEqualTo("下午");
+    }
+
+    @Test
+    void closedTimeWindowSlotIsFilteredFromDoctorSchedules() {
+        // 医生排班页出口同样过滤当天已过时段：上午已过 11:30（Clock 固定 12:00）时上午不返回
+        LocalDate today = LocalDate.now();
+        Schedule morning = schedule(101L, today, TimeSlot.MORNING, 5);
+        Schedule afternoon = schedule(102L, today, TimeSlot.AFTERNOON, 3);
+        ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
+        when(scheduleMapper.selectFutureByDoctor(2L, today)).thenReturn(List.of(morning, afternoon));
+        SlotWindowGuard closedGuard = new SlotWindowGuard(
+                TestContracts.instance(),
+                Clock.fixed(
+                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(),
+                        ZoneId.of("Asia/Shanghai")));
+        PatientMedicalDirectoryService serviceWithClosedGuard = new PatientMedicalDirectoryService(
+                hospitalCampusMapper,
+                departmentMapper,
+                standardDepartmentMapper,
+                mock(DoctorMapper.class),
+                scheduleMapper,
+                Mappers.getMapper(PatientMedicalDirectoryDtoMapper.class),
+                closedGuard);
+
+        List<PatientMedicalDirectoryService.ScheduleView> views = serviceWithClosedGuard.schedules(2L);
+
+        assertThat(views).hasSize(1);
+        assertThat(views.get(0).timeSlot()).isEqualTo("下午");
+    }
+
+    @Test
     void resolveServiceCityCodePicksNearestCampusCityWithCoordinates() {
         // 票 50：Agent 回调不传 city_code，有坐标时 serviceCities 已按最近院区排序，取首项
         when(hospitalCampusMapper.selectServiceCities(113.6458, 34.7572))
@@ -341,5 +415,17 @@ class PatientMedicalDirectoryServiceTest {
                 null,
                 null,
                 null);
+    }
+
+    /** 医生排班页出口测试用：构造一条活跃排班。 */
+    private Schedule schedule(long id, LocalDate date, TimeSlot timeSlot, int remaining) {
+        Schedule schedule = new Schedule();
+        schedule.setId(id);
+        schedule.setScheduleDate(date);
+        schedule.setTimeSlot(timeSlot);
+        schedule.setTotalSlots(remaining);
+        schedule.setRemainingSlots(remaining);
+        schedule.setIsActive(true);
+        return schedule;
     }
 }

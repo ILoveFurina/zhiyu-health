@@ -97,7 +97,8 @@ class AppointmentHttpIntegrationTest {
                 TestContracts.instance(),
                 Mappers.getMapper(AppointmentDtoMapper.class),
                 TestDisclaimers.instance(),
-                new ObjectMapper());
+                new ObjectMapper(),
+                new SlotWindowGuard(TestContracts.instance(), java.time.Clock.systemDefaultZone()));
         MockMvc mvc = standaloneSetup(new AppointmentToolController(
                         service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .build();
