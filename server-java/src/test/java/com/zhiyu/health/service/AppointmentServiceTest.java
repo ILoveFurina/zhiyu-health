@@ -19,6 +19,7 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.mapper.ScheduleRequestMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -34,6 +35,7 @@ class AppointmentServiceTest {
 
     private final AppointmentMapper appointmentMapper = mock(AppointmentMapper.class);
     private final ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
+    private final ScheduleRequestMapper scheduleRequestMapper = mock(ScheduleRequestMapper.class);
     private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
     private final InMemorySlotCounter slotCounter = new InMemorySlotCounter();
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
@@ -267,6 +269,7 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
         when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
+        when(scheduleRequestMapper.countPendingDisableBySchedule(9L)).thenReturn(0);
         when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
         when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
             invocation.<Appointment>getArgument(0).setId(21L);
@@ -283,6 +286,7 @@ class AppointmentServiceTest {
         AppointmentService service = new AppointmentService(
                 appointmentMapper,
                 scheduleMapper,
+                scheduleRequestMapper,
                 messageMapper,
                 new SlotAccounting(slotCounter),
                 transaction,
@@ -332,6 +336,8 @@ class AppointmentServiceTest {
     private AppointmentService service() {
         // 关怀消息上下文：默认提供一份联查结果，覆盖正常挂号路径
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
+        // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
+        when(scheduleRequestMapper.countPendingDisableBySchedule(9L)).thenReturn(0);
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);
@@ -340,6 +346,7 @@ class AppointmentServiceTest {
         return new AppointmentService(
                 appointmentMapper,
                 scheduleMapper,
+                scheduleRequestMapper,
                 messageMapper,
                 new SlotAccounting(slotCounter),
                 transaction,

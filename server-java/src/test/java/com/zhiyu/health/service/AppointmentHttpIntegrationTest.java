@@ -23,6 +23,7 @@ import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.PaymentMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.mapper.ScheduleRequestMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.service.mapping.PaymentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -44,6 +45,7 @@ class AppointmentHttpIntegrationTest {
     void creatingAppointmentPersistsUnpaidFeeAndReturnsPrice() throws Exception {
         AppointmentMapper appointments = mock(AppointmentMapper.class);
         ScheduleMapper schedules = mock(ScheduleMapper.class);
+        ScheduleRequestMapper scheduleRequests = mock(ScheduleRequestMapper.class);
         InAppMessageMapper messages = mock(InAppMessageMapper.class);
         PaymentMapper paymentMapper = mock(PaymentMapper.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
@@ -54,6 +56,7 @@ class AppointmentHttpIntegrationTest {
         when(schedules.selectByIdForUpdate(9L)).thenReturn(schedule());
         when(schedules.decrementRemainingSlots(9L)).thenReturn(1);
         when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
+        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);
@@ -85,6 +88,7 @@ class AppointmentHttpIntegrationTest {
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                scheduleRequests,
                 messages,
                 new SlotAccounting(slots),
                 immediateTransaction(),

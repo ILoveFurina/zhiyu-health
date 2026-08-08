@@ -24,6 +24,7 @@ import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.mapper.ScheduleRequestMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -43,6 +44,7 @@ class DirectAppointmentHttpIntegrationTest {
 
     private final AppointmentMapper appointments = mock(AppointmentMapper.class);
     private final ScheduleMapper schedules = mock(ScheduleMapper.class);
+    private final ScheduleRequestMapper scheduleRequests = mock(ScheduleRequestMapper.class);
     private final InAppMessageMapper messages = mock(InAppMessageMapper.class);
     private final HealthProfileService healthProfiles = mock(HealthProfileService.class);
     private final PaymentService payments = mock(PaymentService.class);
@@ -56,9 +58,12 @@ class DirectAppointmentHttpIntegrationTest {
         when(healthProfiles.requireActive(anyLong())).thenReturn(profile);
         // B 端直接挂号成功也会写就诊指引卡关怀消息（票 43 覆盖所有入口）
         when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
+        // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
+        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,
+                scheduleRequests,
                 messages,
                 new SlotAccounting(slots),
                 immediateTransaction(),

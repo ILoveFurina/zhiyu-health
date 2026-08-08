@@ -142,6 +142,24 @@ class ScheduleRequestControllerTest {
     }
 
     @Test
+    void doctorCanSubmitEnableChangeRequest() throws Exception {
+        when(service.submitChange(
+                        anyLong(), eq(50L), eq("enable"), org.mockito.ArgumentMatchers.nullable(Integer.class)))
+                .thenReturn(request(1L, "PENDING"));
+
+        mockMvc.perform(
+                        post("/api/b/reception/schedules/50/change-request")
+                                .with(StaffTokens.withSubject("10", StaffUser.ROLE_DOCTOR))
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"action": "enable"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
     void submitRejectsEmptyItems() throws Exception {
         mockMvc.perform(
                         post("/api/b/reception/schedule-requests")

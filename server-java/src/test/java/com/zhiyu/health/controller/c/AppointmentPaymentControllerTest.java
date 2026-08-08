@@ -139,6 +139,7 @@ class AppointmentPaymentControllerTest {
         return new AppointmentService(
                 appointments,
                 mock(ScheduleMapper.class),
+                mock(com.zhiyu.health.mapper.ScheduleRequestMapper.class),
                 mock(com.zhiyu.health.mapper.InAppMessageMapper.class),
                 mock(SlotAccounting.class),
                 transactionTemplate(),
