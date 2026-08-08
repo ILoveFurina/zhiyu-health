@@ -241,18 +241,23 @@ class OnlineConsultationControllerTest {
     }
 
     @Test
-    void sendPhotoRejectsOversizeFile() throws Exception {
-        MockMvc mvc = standalone(mock(OnlineConsultationService.class));
+    void sendPhotoDelegatesOversizeToService() throws Exception {
+        // controller 不再重复校验图片大小/格式（与拍药盒一致），全委托 service；
+        // service 抛 400 时 controller 经 @ControllerAdvice 透传给客户端。
+        OnlineConsultationService service = mock(OnlineConsultationService.class);
+        doThrow(new ApiException(400, "图片不能超过 2MB")).when(service).sendImageForPatient(eq(12L), eq(21L), any());
+        MockMvc mvc = standalone(service);
         long maxBytes = new Contracts().consultationPhotoLimits().maxBytes();
 
         mvc.perform(multipart("/api/c/online-consultations/21/photos")
                         .file(new MockMultipartFile("file", "big.png", "image/png", new byte[(int) maxBytes + 1]))
                         .requestAttr("authSubject", 12L))
                 .andExpect(status().isBadRequest());
+        verify(service).sendImageForPatient(eq(12L), eq(21L), any());
     }
 
     private MockMvc standalone(OnlineConsultationService service) {
-        return MockMvcBuilders.standaloneSetup(new OnlineConsultationController(service, new Contracts()))
+        return MockMvcBuilders.standaloneSetup(new OnlineConsultationController(service))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }

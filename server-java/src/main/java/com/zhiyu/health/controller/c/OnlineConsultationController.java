@@ -1,9 +1,7 @@
 package com.zhiyu.health.controller.c;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.AuthFilter;
-import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.OnlineConsultationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -31,7 +29,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class OnlineConsultationController {
 
     private final OnlineConsultationService consultations;
-    private final Contracts contracts;
 
     public record ConfirmInput(@JsonProperty("draft_id") @NotNull Long draftId) {}
 
@@ -92,29 +89,15 @@ public class OnlineConsultationController {
                 patientId, id, input.content().trim()));
     }
 
-    /** 患者发送问诊图片（票 58，ADR-0029）：controller 只做文件校验与装配，状态与归属守卫在 service。 */
+    /** 患者发送问诊图片（票 58，ADR-0029）：纯薄壳，图片校验与状态/归属守卫全在 service。
+     * 与拍药盒链路（PillBoxPhotoController）一致：不在 controller 重复校验图片格式/大小，
+     * 因 service 用 PhotoFileTypes 做 magic bytes 回退（支付宝 my.uploadFile 不可靠设置 Content-Type）。 */
     @PostMapping("/{id}/photos")
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponse sendPhoto(
             @PathVariable long id,
             @RequestParam("file") MultipartFile file,
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
-        validatePhoto(file);
         return new MessageResponse(consultations.sendImageForPatient(patientId, id, file));
-    }
-
-    // controller 只做校验与装配：文件类型/大小不合法直接 400，不进入 service。
-    private void validatePhoto(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new ApiException(400, "请选择图片");
-        }
-        Contracts.ConsultationPhotoLimits limits = contracts.consultationPhotoLimits();
-        if (file.getSize() > limits.maxBytes()) {
-            throw new ApiException(400, "图片不能超过 " + (limits.maxBytes() / 1024 / 1024) + "MB");
-        }
-        String type = file.getContentType();
-        if (type == null || !limits.allowedTypes().contains(type)) {
-            throw new ApiException(400, "图片仅支持 JPEG/PNG 格式");
-        }
     }
 }

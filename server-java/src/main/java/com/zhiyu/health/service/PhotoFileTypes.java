@@ -27,6 +27,37 @@ final class PhotoFileTypes {
         return isImageByMagic(file);
     }
 
+    /**
+     * 探测真实图片媒体类型：优先信任白名单内的 content-type，否则回退 magic bytes。
+     *
+     * <p>支付宝 my.uploadFile 常把 part Content-Type 设为 application/octet-stream 或空，
+     * 直接落库会导致 media_type 失真。本方法在 magic 命中时返回标准 image/jpeg 或 image/png，
+     * 均不命中时回退原始 content-type（可能为 null，调用方自行兜底）。
+     */
+    static String detectMediaType(MultipartFile file) {
+        String declared = file.getContentType();
+        if (declared != null && (declared.equals("image/jpeg") || declared.equals("image/png"))) {
+            return declared;
+        }
+        byte[] head;
+        try {
+            head = file.getBytes();
+        } catch (IOException e) {
+            return declared;
+        }
+        if (head.length >= 3 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xFF) == 0xD8 && (head[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+        if (head.length >= 8
+                && (head[0] & 0xFF) == 0x89
+                && (head[1] & 0xFF) == 0x50
+                && (head[2] & 0xFF) == 0x4E
+                && (head[3] & 0xFF) == 0x47) {
+            return "image/png";
+        }
+        return declared;
+    }
+
     /** JPEG/PNG/WEBP magic bytes 探测；读取异常按非图片处理（调用方据此抛 422）。 */
     private static boolean isImageByMagic(MultipartFile file) {
         byte[] head;

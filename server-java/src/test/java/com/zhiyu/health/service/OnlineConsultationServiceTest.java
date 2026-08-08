@@ -50,6 +50,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** 票 55 在线问诊模块：状态机、归属、幂等与并发出口（mapper 全 mock，行为经模块 interface 断言）。 */
 class OnlineConsultationServiceTest {
 
+    // 真实图片 magic bytes（支付宝 my.uploadFile 常把 Content-Type 设为 octet-stream，需回退字节校验）
+    private static final byte[] JPEG_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0};
+    private static final byte[] PNG_BYTES = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
+
     // ------------------------------------------------------------------
     // 确认建单
     // ------------------------------------------------------------------
@@ -509,7 +513,7 @@ class OnlineConsultationServiceTest {
     @Test
     void patientImageRequiresOwnershipAndInProgressAndMethod() {
         Fixture f = new Fixture();
-        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", JPEG_BYTES);
         // 归属失败：他人问诊单 404
         when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(null);
         assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 21L, file))
@@ -538,7 +542,8 @@ class OnlineConsultationServiceTest {
         initiated.setConsultMethod("TEXT");
         when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
         when(f.minioStorage.storePhoto(any())).thenReturn(Optional.of("photos/2026-08-08/abc123.jpg"));
-        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+        // 真实 JPEG magic bytes（FF D8 FF），content-type 声明 image/jpeg
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", JPEG_BYTES);
 
         OnlineConsultationService.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
 
@@ -552,6 +557,27 @@ class OnlineConsultationServiceTest {
     }
 
     @Test
+    void patientImageAcceptsOctetStreamWithValidMagicBytes() {
+        // 支付宝 my.uploadFile 常把 part Content-Type 设为 application/octet-stream，
+        // 必须回退 magic bytes 校验真实格式，否则合法 JPEG/PNG 被误拒为 400。
+        Fixture f = new Fixture();
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
+        when(f.minioStorage.storePhoto(any())).thenReturn(Optional.of("photos/2026-08-08/abc123.png"));
+        // content-type 为 octet-stream 但字节头是真 PNG magic bytes
+        MockMultipartFile file = new MockMultipartFile("file", "file", "application/octet-stream", PNG_BYTES);
+
+        OnlineConsultationService.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
+
+        ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
+        verify(f.messageMapper).insert(message.capture());
+        // media_type 由 magic bytes 探测为 image/png（不信 octet-stream 声明）
+        assertThat(message.getValue().getContent()).contains("image/png");
+        assertThat(sent.kind()).isEqualTo("image");
+    }
+
+    @Test
     void patientImageFailsWithoutMinioNoDegrade() {
         Fixture f = new Fixture();
         OnlineConsultation initiated = f.consultation("IN_PROGRESS");
@@ -559,7 +585,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
         // MinIO 不可用：图片是消息本体，发送失败（不降级），与拍照分析的旁路语义不同
         when(f.minioStorage.storePhoto(any())).thenReturn(Optional.empty());
-        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[] {1, 2, 3});
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", JPEG_BYTES);
 
         assertThatThrownBy(() -> f.service.sendImageForPatient(12L, 23L, file))
                 .isInstanceOfSatisfying(

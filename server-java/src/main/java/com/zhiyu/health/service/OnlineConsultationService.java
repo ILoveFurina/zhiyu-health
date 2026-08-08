@@ -500,13 +500,16 @@ public class OnlineConsultationService {
         if (file.getSize() > limits.maxBytes()) {
             throw new ApiException(400, "图片不能超过 " + (limits.maxBytes() / 1024 / 1024) + "MB");
         }
-        String type = file.getContentType();
-        if (type == null || !limits.allowedTypes().contains(type)) {
+        // 支付宝 my.uploadFile 不可靠设置 Content-Type（常为 octet-stream），必须回退 magic bytes
+        // 校验真实格式，否则合法 JPEG/PNG 被误拒（与 4 个 PhotoService 一致，ADR-0029）。
+        if (!PhotoFileTypes.isAllowedImage(file, limits.allowedTypes())) {
             throw new ApiException(400, "图片仅支持 JPEG/PNG 格式");
         }
+        // media_type 同样不可信客户端声明，用 magic bytes 探测真实类型落库。
+        String mediaType = PhotoFileTypes.detectMediaType(file);
         String objectKey = minioStorage.storePhoto(file).orElseThrow(() -> new ApiException(503, "图片发送失败，请稍后重试"));
         ObjectNode content =
-                objectMapper.createObjectNode().put("object_key", objectKey).put("media_type", type);
+                objectMapper.createObjectNode().put("object_key", objectKey).put("media_type", mediaType);
         return appendMessage(id, senderType("patient"), OnlineConsultationMessage.KIND_IMAGE, content.toString());
     }
 
