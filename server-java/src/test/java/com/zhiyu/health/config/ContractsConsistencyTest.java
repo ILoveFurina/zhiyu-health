@@ -231,6 +231,62 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void healthObservationEnumsAreCoveredBySchemaCheckConstraints() throws Exception {
+        // 票 61（ADR-0031）：health_observations 的 CHECK 必须覆盖契约全部枚举值，
+        // 漏列会在 DB 层拒写并掐断报告解读成功链路（与 ck_messages_kind 同一纪律）
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        Contracts.HealthObservations observations = contracts.healthObservations();
+        Matcher metricMatcher =
+                Pattern.compile("ck_health_observations_metric\\s").matcher(schema);
+        assertThat(metricMatcher.find())
+                .as("schema.sql 必须存在 ck_health_observations_metric 约束")
+                .isTrue();
+        int metricStart = metricMatcher.start();
+        String metricRegion = schema.substring(metricStart, schema.indexOf("),", metricStart));
+        for (String metricCode : observations.metricCodes()) {
+            assertThat(metricRegion).as("指标 CHECK 必须覆盖 %s", metricCode).contains("'" + metricCode + "'");
+        }
+        int categoryStart = schema.indexOf("ck_health_observations_category");
+        assertThat(categoryStart)
+                .as("schema.sql 必须存在 ck_health_observations_category 约束")
+                .isGreaterThanOrEqualTo(0);
+        String categoryRegion = schema.substring(categoryStart, schema.indexOf(")", categoryStart));
+        for (Contracts.HealthObservations.Metric metric : observations.metrics().values()) {
+            for (String category : metric.categories()) {
+                assertThat(categoryRegion).as("分类值 CHECK 必须覆盖 %s", category).contains("'" + category + "'");
+            }
+        }
+        int sourceStart = schema.indexOf("ck_health_observations_source");
+        String sourceRegion = schema.substring(sourceStart, schema.indexOf(")", sourceStart));
+        for (String source : observations.sourceTypes().values()) {
+            assertThat(sourceRegion).as("来源 CHECK 必须覆盖 %s", source).contains("'" + source + "'");
+        }
+        int statusStart = schema.indexOf("ck_health_observations_status");
+        String statusRegion = schema.substring(statusStart, schema.indexOf(")", statusStart));
+        for (String status : observations.verificationStatuses().values()) {
+            assertThat(statusRegion).as("核验状态 CHECK 必须覆盖 %s", status).contains("'" + status + "'");
+        }
+        // 两个部分唯一索引：同报告映射幂等 + 每日当前槽位唯一（沉淀并发收敛的 DB 兜底）
+        assertThat(schema).contains("uq_health_observations_report_metric");
+        int reportIndexStart = schema.indexOf("uq_health_observations_report_metric");
+        String reportIndexRegion = schema.substring(reportIndexStart, schema.indexOf(";", reportIndexStart));
+        assertThat(reportIndexRegion)
+                .contains("'" + observations.reportAiSource() + "'")
+                .contains("report_interpretation_id")
+                .contains("metric_code");
+        assertThat(schema).contains("uq_health_observations_current_slot");
+        int slotIndexStart = schema.indexOf("uq_health_observations_current_slot");
+        String slotIndexRegion = schema.substring(slotIndexStart, schema.indexOf(";", slotIndexStart));
+        assertThat(slotIndexRegion)
+                .contains("health_profile_id")
+                .contains("observed_on")
+                .contains("WHERE current = TRUE");
+    }
+
+    @Test
     void uploadTypeAccessorsMatchContract() {
         Contracts.UploadLimits limits = contracts.uploadLimits();
         assertThat(limits.pdfType()).isEqualTo("application/pdf");

@@ -1126,3 +1126,113 @@ def test_webp_image_passes_type_check() -> None:
         )
     assert response.status_code == 200
     assert len(model.calls) == 1
+
+
+# ---- 报告日期抄录（票 61，ADR-0031）：LLM 只抄录清晰可见的完整日期，不做映射/猜测 ----
+
+
+def _report_result_with_dates(sample_or_exam_date: str | None, report_date: str | None) -> str:
+    sample = f'"{sample_or_exam_date}"' if sample_or_exam_date is not None else "null"
+    report = f'"{report_date}"' if report_date is not None else "null"
+    return """{
+      "summary":"血常规中血红蛋白偏低，建议结合症状咨询医生。",
+      "items":[{"name":"血红蛋白","value":"108","reference_range":"115-150",
+        "unit":"g/L","priority":"yellow","explanation":"低于报告参考范围。",
+        "action":"建议按医嘱复查血常规。","page":1}],
+      "actions":["携带报告咨询医生"],"unreadable":[],
+      "sample_or_exam_date":%s,"report_date":%s,
+      "scope_supported":true
+    }""" % (sample, report)
+
+
+def _report_app(model: FakeRawVisionModel):
+    return create_app(
+        health_service=StubHealthService(),
+        agent_auth_secret=TEST_AGENT_SECRET,
+        vision_interpreter=StructuredVisionInterpreter(model),
+    )
+
+
+def _post_report(client: TestClient):
+    return client.post(
+        "/api/agent/vision/interpret",
+        data={"scenario": "REPORT"},
+        files=[("files", ("report.png", _png(), "image/png"))],
+        headers={"X-Agent-Callback-Token": TEST_AGENT_SECRET},
+    )
+
+
+def test_report_dates_are_passed_through_with_disclaimer() -> None:
+    # 票 61：模型抄录到完整采样日期与报告日期时，API result 原样透传给 server-java；
+    # 通用免责仍挂载（硬约束 1）。
+    model = FakeRawVisionModel([_report_result_with_dates("2026-07-20", "2026-07-22")])
+    with TestClient(_report_app(model)) as client:
+        response = _post_report(client)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result"]["sample_or_exam_date"] == "2026-07-20"
+    assert body["result"]["report_date"] == "2026-07-22"
+    assert body["disclaimer"] == "仅供参考，不替代医生诊断"
+
+
+def test_report_only_report_date_is_passed_through() -> None:
+    # 票 61：采样日期看不清/只有年月时输出 null，报告日期正常透传。
+    model = FakeRawVisionModel([_report_result_with_dates(None, "2026-07-22")])
+    with TestClient(_report_app(model)) as client:
+        response = _post_report(client)
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["sample_or_exam_date"] is None
+    assert result["report_date"] == "2026-07-22"
+
+
+def test_incomplete_date_is_retried_once_then_valid() -> None:
+    # 票 61：不完整日期（如 2026-08）不符合 schema，走既有重试机制：
+    # 第一次非法、第二次合法，最终返回合法结果。错误以 PydanticCustomError 类型
+    # 进入 validation_hint，可 JSON 序列化喂回 LLM 不崩溃。
+    invalid = _report_result_with_dates("2026-08", "2026-07-22")
+    valid = _report_result_with_dates("2026-07-20", "2026-07-22")
+    model = FakeRawVisionModel([invalid, valid])
+    with TestClient(_report_app(model)) as client:
+        response = _post_report(client)
+    assert response.status_code == 200
+    assert response.json()["result"]["sample_or_exam_date"] == "2026-07-20"
+    assert len(model.calls) == 2
+    assert "invalid_full_iso_date" in str(model.calls[1][-1]["text"])
+
+
+def test_two_incomplete_dates_return_502() -> None:
+    # 票 61：两次输出均含不完整日期 -> VisionOutputError -> 502 VISION_OUTPUT_INVALID。
+    invalid = _report_result_with_dates("2026-08", None)
+    model = FakeRawVisionModel([invalid, invalid])
+    with TestClient(_report_app(model), raise_server_exceptions=False) as client:
+        response = _post_report(client)
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": {"code": "VISION_OUTPUT_INVALID", "message": "本次未能生成可靠的结构化解读，请重试"}
+    }
+    assert len(model.calls) == 2
+
+
+def test_report_items_keep_raw_fields_without_metric_code() -> None:
+    # 票 61 边界：items 只抄录原始项目名/值/单位/参考范围，不出现 metric_code
+    # （确定性映射是 server-java 职责，ReportItem extra="forbid" 也会拒绝 LLM 私加）。
+    model = FakeRawVisionModel([_report_result_with_dates("2026-07-20", "2026-07-22")])
+    with TestClient(_report_app(model)) as client:
+        response = _post_report(client)
+    assert response.status_code == 200
+    item = response.json()["result"]["items"][0]
+    assert set(item.keys()) == {
+        "name",
+        "value",
+        "reference_range",
+        "unit",
+        "priority",
+        "explanation",
+        "action",
+        "page",
+    }
+    assert "metric_code" not in item
+    assert item["name"] == "血红蛋白"
+    assert item["value"] == "108"
+    assert item["unit"] == "g/L"

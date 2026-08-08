@@ -4,6 +4,7 @@
     "pages/chat/index",
     "pages/profile/index",
     "pages/report/index",
+    "pages/report/detail/index",
     "pages/appointments/index",
     "pages/health/index",
     "pages/prescriptions/index",

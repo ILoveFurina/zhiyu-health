@@ -1,0 +1,7 @@
+{
+  "defaultTitle": "报告详情",
+  "titleBarColor": "#e9f6f2",
+  "usingComponents": {
+    "ai-disclaimer": "/components/ai-disclaimer/index"
+  }
+}

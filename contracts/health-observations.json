@@ -1,0 +1,148 @@
+{
+  "_doc": "报告驱动健康观测的受控契约（票 61，ADR-0031）：九项白名单指标代码、中文名、原始项目名别名、值类型、规范单位与单位别名、血型分类值、来源类型、核验状态、患者决定与报告项沉淀状态。LLM/server-py 只抄录原始项目名、值、单位、参考范围和日期，绝不输出 metric_code；只有 server-java 按本契约做确定性映射并写业务库。Java/Python/前端显示值不得私写枚举，改此文件需双栈同步发版。",
+  "value_types": {
+    "numeric": "NUMERIC",
+    "categorical": "CATEGORICAL"
+  },
+  "metrics": {
+    "HEIGHT": {
+      "name_zh": "身高",
+      "value_type": "NUMERIC",
+      "canonical_unit": "cm",
+      "aliases": ["身高"],
+      "unit_aliases": { "cm": "cm", "CM": "cm", "厘米": "cm" },
+      "allow_unit_missing": false
+    },
+    "WEIGHT": {
+      "name_zh": "体重",
+      "value_type": "NUMERIC",
+      "canonical_unit": "kg",
+      "unit_aliases": { "kg": "kg", "KG": "kg", "千克": "kg", "公斤": "kg" },
+      "aliases": ["体重"],
+      "allow_unit_missing": false
+    },
+    "BMI": {
+      "name_zh": "体质指数",
+      "value_type": "NUMERIC",
+      "canonical_unit": "kg/m²",
+      "unit_aliases": { "kg/m²": "kg/m²", "kg/m2": "kg/m²", "KG/M2": "kg/m²" },
+      "aliases": ["BMI", "体质指数", "身体质量指数", "体重指数"],
+      "allow_unit_missing": true,
+      "_note": "只提取报告原值，禁止由身高体重推算"
+    },
+    "SYSTOLIC_BP": {
+      "name_zh": "收缩压",
+      "value_type": "NUMERIC",
+      "canonical_unit": "mmHg",
+      "unit_aliases": { "mmHg": "mmHg", "mmhg": "mmHg", "毫米汞柱": "mmHg" },
+      "aliases": ["收缩压", "收缩压（高压）", "高压"],
+      "allow_unit_missing": true
+    },
+    "DIASTOLIC_BP": {
+      "name_zh": "舒张压",
+      "value_type": "NUMERIC",
+      "canonical_unit": "mmHg",
+      "unit_aliases": { "mmHg": "mmHg", "mmhg": "mmHg", "毫米汞柱": "mmHg" },
+      "aliases": ["舒张压", "舒张压（低压）", "低压"],
+      "allow_unit_missing": true
+    },
+    "FASTING_GLUCOSE": {
+      "name_zh": "空腹血糖",
+      "value_type": "NUMERIC",
+      "canonical_unit": "mmol/L",
+      "unit_aliases": { "mmol/L": "mmol/L", "mmol/l": "mmol/L", "MMOL/L": "mmol/L" },
+      "aliases": ["空腹血糖", "空腹葡萄糖", "空腹血糖（GLU）", "血糖（空腹）"],
+      "allow_unit_missing": false
+    },
+    "TOTAL_CHOLESTEROL": {
+      "name_zh": "总胆固醇",
+      "value_type": "NUMERIC",
+      "canonical_unit": "mmol/L",
+      "unit_aliases": { "mmol/L": "mmol/L", "mmol/l": "mmol/L", "MMOL/L": "mmol/L" },
+      "aliases": ["总胆固醇", "总胆固醇（TC）"],
+      "allow_unit_missing": false
+    },
+    "ABO_BLOOD_TYPE": {
+      "name_zh": "ABO 血型",
+      "value_type": "CATEGORICAL",
+      "categories": ["A", "B", "AB", "O"],
+      "category_display_zh": { "A": "A 型", "B": "B 型", "AB": "AB 型", "O": "O 型" },
+      "category_aliases": {
+        "A": "A", "A型": "A", "A 型": "A",
+        "B": "B", "B型": "B", "B 型": "B",
+        "AB": "AB", "AB型": "AB", "AB 型": "AB",
+        "O": "O", "O型": "O", "O 型": "O"
+      },
+      "aliases": ["ABO血型", "ABO 血型", "血型"],
+      "_note": "分类观测，只展示最新值，不画趋势"
+    },
+    "RH_D_BLOOD_TYPE": {
+      "name_zh": "Rh 血型",
+      "value_type": "CATEGORICAL",
+      "categories": ["POSITIVE", "NEGATIVE"],
+      "category_display_zh": { "POSITIVE": "阳性", "NEGATIVE": "阴性" },
+      "category_aliases": {
+        "阳性": "POSITIVE", "阴性": "NEGATIVE",
+        "Rh阳性": "POSITIVE", "Rh阴性": "NEGATIVE",
+        "Rh（+）": "POSITIVE", "Rh（-）": "NEGATIVE",
+        "阳性（+）": "POSITIVE", "阴性（-）": "NEGATIVE",
+        "+": "POSITIVE", "-": "NEGATIVE"
+      },
+      "aliases": ["Rh血型", "Rh 血型", "RhD血型", "Rh（D）血型", "RH血型"]
+    }
+  },
+  "blood_pressure_pair": {
+    "_doc": "血压组合项（如“血压 120/80 mmHg”）由 server-java 确定性拆成收缩压、舒张压两条同日观测；值不匹配 value_pattern 则整项不沉淀。",
+    "aliases": ["血压"],
+    "value_pattern": "^(\\d{2,3})\\s*/\\s*(\\d{2,3})$",
+    "systolic_code": "SYSTOLIC_BP",
+    "diastolic_code": "DIASTOLIC_BP",
+    "canonical_unit": "mmHg",
+    "unit_aliases": { "mmHg": "mmHg", "mmhg": "mmHg", "毫米汞柱": "mmHg" },
+    "allow_unit_missing": true
+  },
+  "source_types": {
+    "report_ai": "REPORT_AI",
+    "user_correction": "USER_CORRECTION"
+  },
+  "source_display_zh": {
+    "REPORT_AI": "报告 AI 提取",
+    "USER_CORRECTION": "患者纠错"
+  },
+  "verification_statuses": {
+    "unverified": "UNVERIFIED",
+    "user_confirmed": "USER_CONFIRMED",
+    "rejected": "REJECTED",
+    "superseded": "SUPERSEDED"
+  },
+  "verification_display_zh": {
+    "UNVERIFIED": "报告提取 · 待核验",
+    "USER_CONFIRMED": "报告提取 · 已确认",
+    "REJECTED": "已排除",
+    "SUPERSEDED": "已被纠错替代"
+  },
+  "patient_decisions": {
+    "confirm": "CONFIRM",
+    "correct": "CORRECT",
+    "reject": "REJECT"
+  },
+  "item_states": {
+    "_doc": "报告详情逐项展示的沉淀状态：由 server-java 在读取时按观测记录与契约映射确定性推导，不落库。",
+    "deposited_unverified": "DEPOSITED_UNVERIFIED",
+    "deposited_confirmed": "DEPOSITED_CONFIRMED",
+    "deposited_rejected": "DEPOSITED_REJECTED",
+    "duplicate_slot": "DUPLICATE_SLOT",
+    "conflict_skipped": "CONFLICT_SKIPPED",
+    "no_date": "NO_DATE",
+    "unmapped": "UNMAPPED"
+  },
+  "item_state_display_zh": {
+    "DEPOSITED_UNVERIFIED": "已沉淀 · 待核验",
+    "DEPOSITED_CONFIRMED": "已沉淀 · 已确认",
+    "DEPOSITED_REJECTED": "已排除",
+    "DUPLICATE_SLOT": "该日期已有档案记录，未重复沉淀",
+    "CONFLICT_SKIPPED": "同报告出现不同值，未沉淀",
+    "NO_DATE": "报告缺少明确检查日期，未沉淀",
+    "UNMAPPED": "非健康观测白名单项目"
+  }
+}

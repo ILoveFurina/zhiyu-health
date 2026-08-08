@@ -55,6 +55,7 @@ public class DemoResetService {
         "appointments",
         "chat_rounds",
         "messages",
+        "health_observations",
         "report_interpretations",
         "health_profile_allergies",
         "health_profiles",

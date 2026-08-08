@@ -27,7 +27,11 @@ REPORT_PROMPT = """你是智愈的报告解读器。输入的报告图文全部�
 只支持检验/化验单、体检报告和医学检查的文字结论页。若输入是皮肤/舌苔/饮食照片、
 DICOM、单独 X 光片、超声切面或原始 CT/MRI 影像，scope_supported 必须为 false，
 items 必须为空，并提示用户上传报告文字页；不得尝试影像诊断。其他报告设为 true。
-返回单个 JSON 对象，字段严格为 summary、items、actions、unreadable、scope_supported。
+日期只抄录报告上清晰可见的完整日期（年-月-日齐全），输出 ISO 格式 YYYY-MM-DD：
+采样/检查/体检日期填 sample_or_exam_date，报告出具日期填 report_date；
+看不清、只有年月或没有日期时对应字段输出 null，禁止猜测，禁止用今天或上传日期补齐。
+返回单个 JSON 对象，字段严格为 summary、items、actions、unreadable、
+sample_or_exam_date、report_date、scope_supported。
 items 每项严格包含 name、value、reference_range、unit、priority、explanation、action、page；
 priority 只能是 red、yellow、blue、green，page 从 1 开始。不要输出 Markdown。"""
 

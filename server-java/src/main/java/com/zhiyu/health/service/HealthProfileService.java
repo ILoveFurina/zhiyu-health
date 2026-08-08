@@ -3,15 +3,26 @@ package com.zhiyu.health.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.entity.HealthObservation;
 import com.zhiyu.health.entity.HealthProfile;
 import com.zhiyu.health.entity.HealthProfileAllergy;
+import com.zhiyu.health.entity.ReportInterpretation;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
 import com.zhiyu.health.mapper.HealthProfileMapper;
+import com.zhiyu.health.mapper.ReportInterpretationMapper;
 import com.zhiyu.health.service.mapping.HealthProfileDtoMapper;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +31,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class HealthProfileService extends ServiceImpl<HealthProfileMapper, HealthProfile> {
 
+    /** 概要最近报告上限（票 61）：只展示最近若干份 SUCCEEDED 报告。 */
+    private static final int OVERVIEW_RECENT_REPORT_LIMIT = 5;
+
     private final HealthProfileMapper profileMapper;
     private final HealthProfileAllergyMapper allergyMapper;
     private final HealthProfileDtoMapper dtoMapper;
+    private final HealthObservationService observations;
+    private final ReportInterpretationMapper reportMapper;
+    private final Contracts contracts;
+    private final DisclaimerService disclaimers;
+    private final ObjectMapper objectMapper;
 
     public List<ProfileView> list(long patientId) {
         return profileMapper
@@ -68,6 +87,130 @@ public class HealthProfileService extends ServiceImpl<HealthProfileMapper, Healt
             throw new ApiException(409, "请先创建健康档案并选择当前服务对象");
         }
         return profile;
+    }
+
+    /**
+     * 健康档案概要（票 61，ADR-0031）：血型分类卡只放最新有效值，数值指标卡只放有数据项，
+     * 趋势仅当有效观测 ≥2 条才非空；有效投影排除 REJECTED/SUPERSEDED；免责声明固定挂载。
+     */
+    public OverviewView overview(long patientId, long profileId) {
+        HealthProfile profile = requireOwned(patientId, profileId);
+        List<HealthObservation> effective = observations.effectiveForProfile(patientId, profileId);
+        Map<String, List<HealthObservation>> byMetric = new LinkedHashMap<>();
+        for (HealthObservation observation : effective) {
+            byMetric.computeIfAbsent(observation.getMetricCode(), code -> new ArrayList<>())
+                    .add(observation);
+        }
+        Contracts.HealthObservations contract = contracts.healthObservations();
+        List<CategoricalItem> categorical = new ArrayList<>();
+        List<MetricItem> metrics = new ArrayList<>();
+        // 展示顺序固定为契约声明顺序，避免随数据写入顺序漂移
+        for (String metricCode : contract.metricCodes()) {
+            List<HealthObservation> rows = byMetric.get(metricCode);
+            if (rows == null || rows.isEmpty()) {
+                continue;
+            }
+            HealthObservation latest = rows.get(rows.size() - 1);
+            if (contract.categoricalValueType().equals(observations.valueType(metricCode))) {
+                categorical.add(new CategoricalItem(
+                        metricCode,
+                        observations.nameZh(metricCode),
+                        latest.getValueCategory(),
+                        observations.displayValue(latest),
+                        latest.getObservedOn(),
+                        latest.getSourceType(),
+                        latest.getVerificationStatus(),
+                        observations.verificationLabel(latest.getVerificationStatus())));
+            } else {
+                List<TrendPoint> trend = rows.size() >= 2
+                        ? rows.stream()
+                                .map(row -> new TrendPoint(
+                                        row.getId(),
+                                        row.getValueNumeric(),
+                                        row.getObservedOn(),
+                                        row.getVerificationStatus()))
+                                .toList()
+                        : List.of();
+                metrics.add(new MetricItem(
+                        metricCode,
+                        observations.nameZh(metricCode),
+                        latest.getUnit(),
+                        new MetricLatest(
+                                latest.getId(),
+                                latest.getValueNumeric(),
+                                latest.getObservedOn(),
+                                latest.getSourceType(),
+                                latest.getVerificationStatus(),
+                                observations.verificationLabel(latest.getVerificationStatus())),
+                        trend));
+            }
+        }
+        return new OverviewView(
+                new OverviewProfile(
+                        profile.getId(),
+                        profile.getDisplayName(),
+                        profile.getGender(),
+                        profile.getBirthDate(),
+                        profile.getRelationship()),
+                allergyMapper.selectAllergens(profileId),
+                List.copyOf(categorical),
+                List.copyOf(metrics),
+                recentReports(patientId, profileId),
+                disclaimers.text());
+    }
+
+    /** 单指标观测列表：metric_code 必须在契约白名单，按检查日升序，只含有效投影。 */
+    public MetricObservationsView metricObservations(long patientId, long profileId, String metricCode) {
+        requireOwned(patientId, profileId);
+        Contracts.HealthObservations.Metric metric =
+                contracts.healthObservations().metrics().get(metricCode);
+        if (metric == null) {
+            throw new ApiException(422, "指标代码不在健康观测白名单");
+        }
+        List<HealthObservationService.ObservationView> items =
+                observations.effectiveForProfile(patientId, profileId).stream()
+                        .filter(observation -> metricCode.equals(observation.getMetricCode()))
+                        .map(observations::toView)
+                        .toList();
+        return new MetricObservationsView(
+                metricCode, metric.nameZh(), metric.valueType(), metric.canonicalUnit(), items, disclaimers.text());
+    }
+
+    private List<RecentReport> recentReports(long patientId, long profileId) {
+        List<RecentReport> reports = new ArrayList<>();
+        for (ReportInterpretation report :
+                reportMapper.selectSucceededByProfile(patientId, profileId, OVERVIEW_RECENT_REPORT_LIMIT)) {
+            JsonNode result = null;
+            try {
+                result = report.getResultJson() == null ? null : objectMapper.readTree(report.getResultJson());
+            } catch (Exception e) {
+                // 历史结果损坏不阻断概要：该报告按无详情处理（确定性降级，不吞其他异常）
+                result = null;
+            }
+            int attention = 0;
+            if (result != null) {
+                for (JsonNode item : result.path("items")) {
+                    String priority = item.path("priority").asText();
+                    if ("red".equals(priority) || "yellow".equals(priority)) {
+                        attention++;
+                    }
+                }
+            }
+            reports.add(new RecentReport(
+                    report.getId(),
+                    report.getFileName(),
+                    result == null ? null : textOrNull(result, "sample_or_exam_date"),
+                    result == null ? null : textOrNull(result, "report_date"),
+                    result == null ? null : textOrNull(result, "summary"),
+                    attention,
+                    report.getCreatedAt()));
+        }
+        return List.copyOf(reports);
+    }
+
+    private String textOrNull(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : value.asText();
     }
 
     public List<TimelineView> timeline(long patientId, long profileId) {
@@ -159,4 +302,68 @@ public class HealthProfileService extends ServiceImpl<HealthProfileMapper, Healt
             @JsonProperty("birth_date") LocalDate birthDate,
             String relationship,
             List<String> allergies) {}
+
+    /** 档案概要（票 61）：categorical 只放血型类最新有效值；metrics 无数据不生成空卡；disclaimer 固定挂载。 */
+    public record OverviewView(
+            OverviewProfile profile,
+            List<String> allergies,
+            List<CategoricalItem> categorical,
+            List<MetricItem> metrics,
+            @JsonProperty("recent_reports") List<RecentReport> recentReports,
+            String disclaimer) {}
+
+    public record OverviewProfile(
+            Long id,
+            @JsonProperty("display_name") String displayName,
+            String gender,
+            @JsonProperty("birth_date") LocalDate birthDate,
+            String relationship) {}
+
+    public record CategoricalItem(
+            @JsonProperty("metric_code") String metricCode,
+            @JsonProperty("name_zh") String nameZh,
+            String value,
+            @JsonProperty("display_value") String displayValue,
+            @JsonProperty("observed_on") LocalDate observedOn,
+            @JsonProperty("source_type") String sourceType,
+            @JsonProperty("verification_status") String verificationStatus,
+            @JsonProperty("verification_label") String verificationLabel) {}
+
+    public record MetricItem(
+            @JsonProperty("metric_code") String metricCode,
+            @JsonProperty("name_zh") String nameZh,
+            String unit,
+            MetricLatest latest,
+            List<TrendPoint> trend) {}
+
+    public record MetricLatest(
+            @JsonProperty("observation_id") Long observationId,
+            BigDecimal value,
+            @JsonProperty("observed_on") LocalDate observedOn,
+            @JsonProperty("source_type") String sourceType,
+            @JsonProperty("verification_status") String verificationStatus,
+            @JsonProperty("verification_label") String verificationLabel) {}
+
+    public record TrendPoint(
+            @JsonProperty("observation_id") Long observationId,
+            BigDecimal value,
+            @JsonProperty("observed_on") LocalDate observedOn,
+            @JsonProperty("verification_status") String verificationStatus) {}
+
+    public record RecentReport(
+            Long id,
+            @JsonProperty("file_name") String fileName,
+            @JsonProperty("exam_date") String examDate,
+            @JsonProperty("report_date") String reportDate,
+            String summary,
+            @JsonProperty("attention_count") int attentionCount,
+            @JsonProperty("created_at") OffsetDateTime createdAt) {}
+
+    public record MetricObservationsView(
+            @JsonProperty("metric_code") String metricCode,
+            @JsonProperty("name_zh") String nameZh,
+            @JsonProperty("value_type") String valueType,
+            String unit,
+            List<HealthObservationService.ObservationView> observations,
+            String disclaimer) {}
 }

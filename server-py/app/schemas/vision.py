@@ -6,12 +6,17 @@ policy.result_model 动态校验，document 按场景分发预处理。各 resul
 耦合，新增场景只追加模型与策略，不改动既有 REPORT 结构。
 """
 
+import re
+from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.core.contracts import get_contracts
+
+# 完整 ISO 日 YYYY-MM-DD；不完整（2026-08）或非 ISO（2026/08/06、08-06）一律不匹配。
+_ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class ReportItem(BaseModel):
@@ -34,8 +39,34 @@ class ReportInterpretation(BaseModel):
     items: list[ReportItem]
     actions: list[str]
     unreadable: list[str]
+    # 报告日期抄录（票 61，ADR-0031）：LLM 只抄录报告上清晰可见的完整日期，
+    # 看不清、只有年月或没有日期时为 null，禁止猜测或用今天/上传日期补齐。
+    sample_or_exam_date: str | None = None
+    report_date: str | None = None
     # 仅供 server-py 拒绝超范围材料，API 卡片不暴露内部分类字段。
     scope_supported: bool = Field(exclude=True)
+
+    @field_validator("sample_or_exam_date", "report_date")
+    @classmethod
+    def _full_iso_date_or_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        # 只接受完整 ISO 日 YYYY-MM-DD 且为真实存在的日期；
+        # 不完整（2026-08）或非 ISO（2026/08/06）一律拒绝，让 interpreter 重试。
+        # 用 PydanticCustomError 而非裸 ValueError：前者 ctx 可 JSON 序列化，
+        # interpreter 把 ValidationError.errors() 喂回 LLM 重试时不会因序列化失败崩溃。
+        valid = _ISO_DATE_RE.fullmatch(value) is not None
+        if valid:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                valid = False
+        if not valid:
+            raise PydanticCustomError(
+                "invalid_full_iso_date",
+                "日期必须是完整 ISO 格式 YYYY-MM-DD；看不清或只有年月时应输出 null",
+            )
+        return value
 
 
 class SkinFinding(BaseModel):

@@ -36,7 +36,6 @@ Page({
     pending: null, // { items, isPdf }：待上传的报告文件
     uploading: false,
     uploadProgress: '',
-    detail: null, // 无关联会话的记录在页内展示详情
   },
 
   onShow() {
@@ -132,22 +131,7 @@ Page({
   },
 
   openRecord(e) {
-    const id = Number(e.currentTarget.dataset.id)
-    const record = this.data.records.find((item) => item.report_interpretation_id === id)
-    if (!record) return
-    if (record.conversation_id) {
-      // 带关联会话：进 chat 打开该会话，复用抽屉的会话回放逻辑
-      getApp().globalData.pendingOpenConversationId = record.conversation_id
-      my.switchTab({ url: '/pages/chat/index' })
-    } else if (record.result) {
-      // 无关联会话：页内展示结构化解读详情
-      this.setData({ detail: record })
-    }
+    // 统一先进详情页（票 61）；详情页内再提供「查看原会话」入口
+    my.navigateTo({ url: `/pages/report/detail/index?id=${e.currentTarget.dataset.id}` })
   },
-
-  closeDetail() {
-    this.setData({ detail: null })
-  },
-
-  noop() {},
 })

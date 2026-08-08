@@ -48,7 +48,9 @@ class ReportInterpretationServiceTest {
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
 
         List<ReportInterpretationService.ReportView> result = service.listForPatient(12L);
 
@@ -84,7 +86,9 @@ class ReportInterpretationServiceTest {
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
         MultipartFile file = mock(MultipartFile.class);
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-001", List.of(file));
@@ -143,7 +147,9 @@ class ReportInterpretationServiceTest {
                 TestContracts.instance(),
                 healthProfiles,
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-002", List.of(file));
 
@@ -175,7 +181,9 @@ class ReportInterpretationServiceTest {
                 TestContracts.instance(),
                 mock(HealthProfileService.class),
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
 
         ReportInterpretationService.ReportView result = service.finalizeStaged(12L, 8L, "req-retry");
 
@@ -208,7 +216,9 @@ class ReportInterpretationServiceTest {
                 TestContracts.instance(),
                 healthProfiles,
                 TestDisclaimers.instance(),
-                Mappers.getMapper(ReportInterpretationDtoMapper.class));
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class));
 
         assertThatThrownBy(() -> service.interpret(12L, null, "req-timeout", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {
