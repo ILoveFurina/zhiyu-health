@@ -48,24 +48,12 @@ final class ConversationVisionPipeline {
     }
 
     Outcome analyze(long patientId, Long conversationId, List<MultipartFile> files, PhotoAnalysisScenario scenario) {
-        uploads.validate(files, scenario.photoName());
-        HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
-        Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, scenario.title());
-
-        // 旁路持久化失败由 MinioStorageService 自己降级；这里不让对象存储决定分析事务的成败。
-        minioStorage.persistPhotosAndMessages(conversation.getId(), files);
-
-        AgentClient.VisionResponse response;
+        RawOutcome raw = interpret(patientId, conversationId, files, scenario, this::appendFallback);
+        Conversation conversation = raw.conversation();
+        AgentClient.VisionResponse response = raw.response();
         try {
-            response = agentClient.interpretVision(files, profile, scenario.agentScenario());
             // 先验证结果确实可序列化，再写会话卡片，避免留下无法回放的半成品消息。
             objectMapper.writeValueAsString(response.result());
-        } catch (AgentClient.VisionAgentException e) {
-            appendFallback(conversation.getId(), scenario, e);
-            throw new ApiException(e.status(), e.code(), e.getMessage());
-        } catch (RuntimeException e) {
-            appendFallback(conversation.getId(), scenario, null);
-            throw new ApiException(502, scenario.unavailableMessage());
         } catch (Exception e) {
             appendFallback(conversation.getId(), scenario, null);
             throw new ApiException(502, scenario.corruptMessage());
@@ -85,6 +73,35 @@ final class ConversationVisionPipeline {
         return new Outcome(conversation.getId(), response.result(), disclaimers.text(), tcmDisclaimer);
     }
 
+    /**
+     * 四类照片共用的入口骨架。场景回调只决定失败时落什么消息，不重复身份、上传、存储和异常映射。
+     */
+    RawOutcome interpret(
+            long patientId,
+            Long conversationId,
+            List<MultipartFile> files,
+            PhotoAnalysisScenario scenario,
+            FailureRecorder failureRecorder) {
+        uploads.validate(files, scenario.photoName());
+        HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
+        Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, scenario.title());
+
+        // 旁路持久化失败由 MinioStorageService 自己降级；这里不让对象存储决定分析事务的成败。
+        minioStorage.persistPhotosAndMessages(conversation.getId(), files);
+
+        AgentClient.VisionResponse response;
+        try {
+            response = agentClient.interpretVision(files, profile, scenario.agentScenario());
+        } catch (AgentClient.VisionAgentException e) {
+            failureRecorder.record(conversation.getId(), scenario, e);
+            throw new ApiException(e.status(), e.code(), e.getMessage());
+        } catch (RuntimeException e) {
+            failureRecorder.record(conversation.getId(), scenario, null);
+            throw new ApiException(502, scenario.unavailableMessage());
+        }
+        return new RawOutcome(conversation, response);
+    }
+
     private void appendFallback(
             long conversationId, PhotoAnalysisScenario scenario, AgentClient.VisionAgentException error) {
         ObjectNode card = objectMapper.createObjectNode();
@@ -98,4 +115,11 @@ final class ConversationVisionPipeline {
     }
 
     record Outcome(Long conversationId, JsonNode result, String disclaimer, String tcmDisclaimer) {}
+
+    record RawOutcome(Conversation conversation, AgentClient.VisionResponse response) {}
+
+    @FunctionalInterface
+    interface FailureRecorder {
+        void record(long conversationId, PhotoAnalysisScenario scenario, AgentClient.VisionAgentException error);
+    }
 }
