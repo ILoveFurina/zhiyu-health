@@ -184,7 +184,7 @@ export default function DoctorPage() {
         rowKey="id"
         actionRef={actionRef}
         columns={columns}
-        pagination={false}
+        pagination={{ defaultPageSize: 10, pageSizeOptions: [10, 20, 50, 100] }}
         search={false}
         scroll={{ x: 1080 }}
         className="zy-doctor-table"
