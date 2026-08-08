@@ -86,6 +86,7 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
+    showEntrance: true,
     // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
     regCityName: '',
     regTotal: 0,
@@ -141,6 +142,15 @@ Page({
 
   onMoreHospitals() {
     my.navigateTo({ url: '/pages/booking/hospitals/index' })
+  },
+
+  onReady() {
+    // 首页驻留期间只播放一次；切换 tab 再返回不会重触发。
+    this._entranceTimer = setTimeout(() => this.setData({ showEntrance: false }), 560)
+  },
+
+  onUnload() {
+    clearTimeout(this._entranceTimer)
   },
 
   load() {

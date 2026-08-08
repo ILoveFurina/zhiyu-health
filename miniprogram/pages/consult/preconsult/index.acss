@@ -189,15 +189,6 @@
   transform: scale(0.98);
 }
 
-/* ===== 免责声明常驻细条 ===== */
-.disclaimer-bar {
-  background: rgba(245, 245, 245, 0.9);
-  color: var(--zy-text-weak);
-  font-size: 20rpx;
-  text-align: center;
-  padding: var(--zy-space-xs) var(--zy-space-sm);
-}
-
 /* ===== 摘要就绪 CTA ===== */
 .cta-bar {
   display: flex;

@@ -68,9 +68,6 @@
     <view id="thread-bottom" class="thread-tail"></view>
   </scroll-view>
 
-  <!-- 免责声明常驻细条（双保险，与 pages/chat 一致） -->
-  <view class="disclaimer-bar">⚠ 仅供参考，不替代医生诊断</view>
-
   <!-- 摘要快照就绪后的底部 CTA -->
   <view a:if="{{summaryReady}}" class="cta-bar">
     <view class="cta-text">病情摘要已生成</view>

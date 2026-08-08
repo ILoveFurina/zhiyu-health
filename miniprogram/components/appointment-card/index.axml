@@ -9,7 +9,7 @@
     </view>
     <view class="summary-notice">{{card.notice}}</view>
     <view class="summary">病情摘要：{{card.condition_summary}}</view>
-    <ai-disclaimer text="{{card.summary_disclaimer || card.disclaimer}}" />
+    <ai-disclaimer a:if="{{showDisclaimer}}" text="{{card.summary_disclaimer || card.disclaimer}}" />
   </view>
 
   <view a:else>
@@ -21,6 +21,6 @@
       </view>
     </view>
     <view a:if="{{card.appointments.length === 0}}" class="empty">暂无挂号</view>
-    <ai-disclaimer text="{{card.disclaimer}}" />
+    <ai-disclaimer a:if="{{showDisclaimer}}" text="{{card.disclaimer}}" />
   </view>
 </view>

@@ -1,13 +1,17 @@
 /* 功能入口气泡栏（票 19 D4）：常驻输入框上方，唯一功能入口 */
 .bubble-bar {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
+  width: 100%;
+  box-sizing: border-box;
   background: #fff;
   border-top: 1rpx solid var(--zy-color-border);
   padding: 14rpx 20rpx;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+}
+
+.bubble-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 14rpx;
 }
 
 .bubble-chip {

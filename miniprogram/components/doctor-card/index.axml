@@ -49,5 +49,5 @@
     <view a:if="{{card.slots.length === 0}}" class="empty">该医生暂时没有可预约时段</view>
   </view>
 
-  <ai-disclaimer text="{{card.disclaimer}}" />
+  <ai-disclaimer a:if="{{showDisclaimer}}" text="{{card.disclaimer}}" />
 </view>

@@ -1,6 +1,15 @@
 /* 首页：白色圆角卡片浮在薄荷渐变背景上，全部消费 app.acss 的设计 token */
 .page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
 
+@keyframes zy-home-rise {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.zy-home-enter {
+  animation: zy-home-rise var(--zy-motion-slow) var(--zy-ease-out) both;
+}
+
 /* 问候头 */
 .header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
 .greeting { color: var(--zy-text-title); font-size: 44rpx; font-weight: 700; }

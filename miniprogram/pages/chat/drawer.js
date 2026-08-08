@@ -7,6 +7,12 @@ const { soothingTextFor } = require('../../utils/emotion')
 const { parseMarkdown } = require('../../utils/markdown')
 const { apiBaseUrl } = require('../../utils/config')
 
+function titleFromMessages(messages) {
+  const firstUser = messages.find((message) => message.role === 'user' && message.content)
+  const compact = firstUser ? String(firstUser.content).replace(/\s+/g, ' ').trim() : ''
+  return compact ? compact.slice(0, 16) : '智能导诊'
+}
+
 /**
  * 对话记录抽屉逻辑（票 27 决策 6/9/13）。
  * 以方法对象形式导出，在 chat 页 Page() 中展开合并；所有方法以 chat 页实例为 this。
@@ -48,14 +54,14 @@ const drawerMethods = {
 
   /** 点选历史会话：委托 openConversationById（决策 4/13）。 */
   selectConversation(e) {
-    this.openConversationById(e.currentTarget.dataset.id)
+    this.openConversationById(e.currentTarget.dataset.id, e.currentTarget.dataset.title)
   },
 
   /**
    * 按 id 打开历史会话：全量加载消息回放，并在该会话内续聊（决策 4/13）。
    * 供抽屉点选与 tab 外入口（报告解读记录，票 42 阶段三）复用。
    */
-  openConversationById(conversationId) {
+  openConversationById(conversationId, conversationTitle) {
     if (conversationId === this.data.conversationId) {
       this.setData({ drawerOpen: false })
       return
@@ -63,9 +69,11 @@ const drawerMethods = {
     my.showLoading({ content: '加载会话…' })
     listMessages(conversationId)
       .then((messages) => {
+        const replayed = messages.map((m) => this.replayMessage(m)).filter(Boolean)
         this.setData({
-          messages: messages.map((m) => this.replayMessage(m)).filter(Boolean),
+          messages: replayed,
           conversationId,
+          conversationTitle: conversationTitle || titleFromMessages(replayed),
           redFlag: null,
           drawerOpen: false,
           anchorId: 'thread-bottom',
