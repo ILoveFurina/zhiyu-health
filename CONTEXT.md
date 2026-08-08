@@ -93,8 +93,8 @@ _Avoid_: 平台科室枚举、医学知识图谱科室（后者是通用医学�
 _Avoid_: 医院科室分类、院内科室目录
 
 **科室号源卡**:
-标准科室确定后展示的跨医院挂号卡，统一呈现当前城市未来 14 天的日期状态及匹配医生；无论是否有可约号源都返回同一种卡片，有号医生优先，无号医生保留展示并禁用预约。卡片中的医院、距离、医生、排班与余号全部来自 server-java。
-_Avoid_: 无号空结果页、AI 生成号源
+标准科室确定后展示的跨医院挂号卡，统一呈现当前城市未来 14 天的日期状态及匹配医生；无论是否有可约号源都返回同一种卡片，有号医生优先，无号医生保留展示并禁用预约。卡片中的医院、距离、医生、排班与余号全部来自 server-java；医生条确定性展示职称与擅长作为推荐理由（票 60），平台不提供评分、好评率等评价数据。
+_Avoid_: 无号空结果页、AI 生成号源、医生评分/好评率
 
 **推理档位**:
 C 端控制 Agent 响应速度与推理深度的选择，包括快速回答、自动和深度思考；自动档按业务场景选择，普通对话优先速度，复杂解读优先质量。
@@ -170,7 +170,7 @@ _Avoid_: 出诊计划、班次
 _Avoid_: 订单、预约单
 
 **电子处方**:
-医生在线下接诊或在线问诊中开具的药品清单（药品 + 用法用量），复用同一套审核状态流转；问诊完成不等待审核，只有 APPROVED 处方才对 C 端可见并可发起购药（见"药品订单"）。处方经 appointment_id 或 online_consultation_id 两个真实外键二选一关联来源（恰好一个非空，各保持一对一唯一），来源类型只是外键派生展示值，数据库不落 source_type 列。
+医生在线下接诊或在线问诊中开具的药品清单（药品 + 用法用量），复用同一套审核状态流转；问诊完成不等待审核。处方全程对 C 端可见（PENDING 为审核中、REJECTED 为未通过），但用药解读只随 APPROVED 出现，且只有 APPROVED 可发起购药（见"药品订单"）（票 60）；驳回即终态——患者被引导重新发起问诊或挂号，不改方重提（ADR-0030）。处方经 appointment_id 或 online_consultation_id 两个真实外键二选一关联来源（恰好一个非空，各保持一对一唯一），来源类型只是外键派生展示值，数据库不落 source_type 列。
 _Avoid_: 药方、处方单
 
 **接诊记录**:
@@ -218,7 +218,7 @@ C 端首页的功能宫格：分"就医服务"（智能导诊、预约挂号、�
 _Avoid_: 功能列表、服务大厅
 
 **站内消息通道**:
-C 端消息页（`pages/messages`）聚合展示给患者的所有站内通知能力，是 UI/出口层面的概念，不等于某一张表。通道下挂两类物理来源：`in_app_messages` 装一次性事件（就诊小结等，append-only，`disclaimer NOT NULL`，`UNIQUE(related_appointment_id, type)` 幂等）；`med_checkin_records` 装服药打卡生命周期（PENDING->CHECKED 状态机，`due_date` 到点才在通道可见，打卡后离开通道进时间线）。两者物理分离、各守各的约束，只共用消息页 UI 与免责声明标注。
+C 端消息页（`pages/messages`）聚合展示给患者的所有站内通知能力，是 UI/出口层面的概念，不等于某一张表。通道下挂两类物理来源：`in_app_messages` 装一次性事件（就诊指引卡、就诊小结、处方审核结果通知等，append-only，`disclaimer NOT NULL`，按事件来源外键幂等——挂号事件 `UNIQUE(related_appointment_id, type)`，处方审核事件 `UNIQUE(related_prescription_id, type)`，票 60）；`med_checkin_records` 装服药打卡生命周期（PENDING->CHECKED 状态机，`due_date` 到点才在通道可见，打卡后离开通道进时间线）。两者物理分离、各守各的约束，只共用消息页 UI 与免责声明标注。
 _Avoid_: 站内消息表、消息中心（"通道"指出口能力，非某张具体表）
 
 **服药打卡**:
@@ -228,6 +228,10 @@ _Avoid_: 用药提醒（提醒只是 PENDING 态的别名，打卡才是完整�
 **就诊指引卡**:
 挂号成功后随关怀消息下发给患者的结构化就诊提示（地址/楼层/携带材料/注意事项），承载于一条 `in_app_messages`（type=`appointment_care`），由 server-java `AppointmentService.create()` 事务内写入，覆盖 C 端 Agent 与 B 端直接挂号所有入口，靠 `UNIQUE(related_appointment_id, type)` 幂等。内容字段（关怀语/医院/科室/医生/排班/地址/楼层/材料/注意事项）由 `contracts/appointment-care.json` 定义；地址/楼层/材料/注意事项来自 `hospitals` 表静态列，非 LLM 生成。消息页按 type 渲染为卡片，底部带免责声明标注。
 _Avoid_: 就诊通知、导诊卡（"导诊"是 Agent 流程，指引卡是挂号后副作用产物）
+
+**随访**:
+在线问诊完成后由 server-java eager 生成的一次性关怀消息（如"您好些了吗？药吃完了吗？"），承载于 `in_app_messages` 并以 `visible_at` 延迟可见（默认问诊完成 3 天后，演示可缩短）；文案确定性、不经 Agent、不读病情内容，与服药打卡的周期性提醒互补（票 60）。
+_Avoid_: 主动关怀（题目用语，范畴更大）、智能回访（不经 Agent，无"智能"）
 
 **情绪反馈**:
 C 端 Agent 回复携带的三档情绪标注（calm/anxious/fearful），驱动 AI 气泡配色与安抚语。由 server-py 在主回复完成后串行非流式 LLM 调用产生（`response_format=json_object`+pydantic 校验，复用视觉管道结构化输出范式），失败降级 calm；枚举、默认值与安抚语映射在 `contracts/emotion.json`。情绪字段挂 `message` 事件（不新增 SSE 事件），持久化于 `messages.emotion` 列供历史回看复现情绪色。情绪反馈与红线症状正交：红线是 server-java 确定性规则，情绪只是 UI 反馈，不触发中断。
