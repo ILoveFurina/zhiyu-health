@@ -251,28 +251,30 @@ Page({
   },
 
   streamAssistantToken(id, text) {
-    this._aiBubbleState.onBodyStart(id)
     // 票 52：流式每次追加同步重算 Markdown 块；原文 content 保留给 TTS 与复制
     this.patchMessage(id, (msg) => {
-      const content = msg.content + text
-      return { ...msg, content, blocks: parseMarkdown(content) }
+      const ready = this._aiBubbleState.onBodyStart(id, msg)
+      const content = ready.content + text
+      return { ...ready, content, blocks: parseMarkdown(content) }
     })
     this.setData({ anchorId: 'thread-bottom' })
   },
 
   finishAssistant(id, data) {
-    this._aiBubbleState.onBodyStart(id)
     // 票 44：emotion 驱动气泡配色与安抚语；soothing_text 仅 anxious/fearful 携带（calm 无）。
     // 安抚语附气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注、不进 messages 数组。
-    const patch = (msg) => ({
-      ...msg,
-      content: data.content,
-      blocks: parseMarkdown(data.content),
-      disclaimer: data.disclaimer,
-      emotion: data.emotion || 'calm',
-      soothingText: data.soothing_text || '',
-      streaming: false,
-    })
+    const patch = (msg) => {
+      const ready = this._aiBubbleState.onBodyStart(id, msg)
+      return {
+        ...ready,
+        content: data.content,
+        blocks: parseMarkdown(data.content),
+        disclaimer: data.disclaimer,
+        emotion: data.emotion || 'calm',
+        soothingText: data.soothing_text || '',
+        streaming: false,
+      }
+    }
     this.patchMessage(id, patch)
   },
 
