@@ -7,6 +7,7 @@ export default [
   { name: '标准科室目录', path: '/standard-departments', component: './StandardDepartment', access: 'canAdmin' },
   { name: '科室管理', path: '/departments', component: './Department', access: 'canAdmin' },
   { name: '医生管理', path: '/doctors', component: './Doctor', access: 'canAdmin' },
+  { name: '排班审核', path: '/schedule-review', component: './ScheduleReview', access: 'canAdmin' },
   { name: '电子处方审核', path: '/prescriptions', component: './Prescription', access: 'canAdmin' },
   { name: '药品管理', path: '/medications', component: './Medication', access: 'canAdmin' },
   { name: '药品订单管理', path: '/drug-orders', component: './DrugOrder', access: 'canAdmin' },
@@ -15,4 +16,6 @@ export default [
   { name: 'Agent 调用日志', path: '/agent-trace', component: './AgentTrace', access: 'canAdmin' },
   { name: '演示武器包', path: '/demo', component: './Demo', access: 'canAdmin' },
   { name: '接诊台', path: '/workbench', component: './Workbench', access: 'canDoctor' },
+  { name: '排班表', path: '/schedule-table', component: './ScheduleTable' },
+  { name: '排班申请', path: '/schedule-request', component: './ScheduleRequest' },
 ];

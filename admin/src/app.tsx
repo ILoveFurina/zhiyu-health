@@ -16,7 +16,7 @@ import {
 } from '@/utils/session';
 
 const LOGIN_PATH = '/login';
-const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
+const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
 
 // 顶栏面包屑：pathname -> [分组名, 页面名]
 const ROUTE_GROUPS: Record<string, [string, string]> = {
@@ -26,11 +26,14 @@ const ROUTE_GROUPS: Record<string, [string, string]> = {
   '/standard-departments': ['组织管理', '标准科室目录'],
   '/departments': ['组织管理', '科室管理'],
   '/doctors': ['组织管理', '医生管理'],
+  '/schedule-review': ['组织管理', '排班审核'],
   '/prescriptions': ['业务管理', '电子处方审核'],
   '/medications': ['业务管理', '药品管理'],
   '/drug-orders': ['业务管理', '药品订单管理'],
   '/payments': ['业务管理', '收费管理'],
   '/workbench': ['业务管理', '接诊台'],
+  '/schedule-table': ['业务管理', '排班表'],
+  '/schedule-request': ['业务管理', '排班申请'],
   '/knowledge-graph': ['智能与日志', '医学知识图谱'],
   '/agent-trace': ['智能与日志', 'Agent 调用日志'],
   '/demo': ['智能与日志', '演示武器包'],
@@ -132,10 +135,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       children: paths.map((p) => ({ name: ROUTE_NAMES[p], path: p })),
     });
     if (initialState?.currentUser?.role === 'doctor') {
-      return [mk('业务管理', ['/workbench'])];
+      return [mk('业务管理', ['/workbench', '/schedule-table', '/schedule-request'])];
     }
     return [
-      mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors']),
+      mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review']),
       mk('业务管理', ['/prescriptions', '/medications', '/drug-orders', '/payments']),
       mk('智能与日志', ['/knowledge-graph', '/agent-trace', '/demo']),
     ];

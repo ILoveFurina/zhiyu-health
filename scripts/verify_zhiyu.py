@@ -82,10 +82,24 @@ assert n == expected, (
     "seed.sql 不含其数据——重建（reset_zhiyu.py）后必须先重启 server-java 再跑本验证"
 )
 
-print("== 5. schedules 行数（15医生 × 14天 × 2时段 = 420）")
+print("== 5. schedules 行数（15医生 × 7天 × 2时段 = 210）")
 n = q("SELECT count(*) FROM schedules")[0][0]
 print(f"   schedules: {n}")
-assert n == 420, f"schedules 应为 420，实际 {n}"
+assert n == 210, f"schedules 应为 210，实际 {n}"
+
+print("== 5c. schedule_requests 表存在且为空（排班申请由医生提交产生，seed 不预置）")
+q("""
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'schedule_requests'
+    )""")
+exists = q("""
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'schedule_requests'
+    )""")[0][0]
+assert exists, "schedule_requests 表不存在，schema.sql 未正确执行"
+n = q("SELECT count(*) FROM schedule_requests")[0][0]
+print(f"   schedule_requests: {n}")
+assert n == 0, f"schedule_requests 应为 0，实际 {n}"
 
 print("== 5b. 票61 seed 基线（林小满两条历史报告解读 + 16 条健康观测）")
 for t, expected in [("report_interpretations", 2), ("health_observations", 16)]:
