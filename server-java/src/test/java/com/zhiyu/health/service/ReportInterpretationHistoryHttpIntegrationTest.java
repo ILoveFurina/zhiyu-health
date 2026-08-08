@@ -54,7 +54,8 @@ class ReportInterpretationHistoryHttpIntegrationTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
         MockMvc mvc = standaloneSetup(
                         new ReportInterpretationController(service, mock(ReportUploadStagingService.class)))
                 .build();

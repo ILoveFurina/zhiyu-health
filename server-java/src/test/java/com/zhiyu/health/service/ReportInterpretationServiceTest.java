@@ -2,10 +2,13 @@ package com.zhiyu.health.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -59,7 +62,8 @@ class ReportInterpretationServiceTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
 
         List<ReportInterpretationService.ReportView> result = service.listForPatient(12L);
 
@@ -100,7 +104,8 @@ class ReportInterpretationServiceTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
         MultipartFile file = mock(MultipartFile.class);
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-001", List.of(file));
@@ -161,7 +166,8 @@ class ReportInterpretationServiceTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
 
         ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-002", List.of(file));
 
@@ -195,7 +201,8 @@ class ReportInterpretationServiceTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
 
         ReportInterpretationService.ReportView result = service.finalizeStaged(12L, 8L, "req-retry");
 
@@ -230,7 +237,8 @@ class ReportInterpretationServiceTest {
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
-                mock(HealthObservationService.class));
+                mock(HealthObservationService.class),
+                mock(MinioStorageService.class));
 
         assertThatThrownBy(() -> service.interpret(12L, null, "req-timeout", List.of(file)))
                 .isInstanceOfSatisfying(ApiException.class, error -> {
@@ -238,5 +246,109 @@ class ReportInterpretationServiceTest {
                     assertThat(error.getCode()).isEqualTo("VISION_MODEL_TIMEOUT");
                 });
         verify(persistence).fail(processing, "VISION_MODEL_TIMEOUT");
+    }
+
+    @Test
+    void imageFilesArePersistedToMinioAfterStartBeforeVisionCall() throws Exception {
+        ReportInterpretationPersistence persistence = mock(ReportInterpretationPersistence.class);
+        AgentClient agentClient = mock(AgentClient.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        MinioStorageService minioStorage = mock(MinioStorageService.class);
+        ReportInterpretation processing = new ReportInterpretation();
+        processing.setId(34L);
+        processing.setPatientId(12L);
+        processing.setConversationId(9L);
+        processing.setRequestId("req-003");
+        processing.setStatus("PROCESSING");
+        processing.setHealthProfileId(31L);
+        when(persistence.findByRequest(12L, "req-003")).thenReturn(null);
+        MultipartFile front = mock(MultipartFile.class);
+        when(front.getContentType()).thenReturn("image/png");
+        MultipartFile back = mock(MultipartFile.class);
+        when(back.getContentType()).thenReturn("image/jpeg");
+        List<MultipartFile> files = List.of(front, back);
+        when(persistence.start(12L, null, "req-003", files)).thenReturn(processing);
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
+                31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
+        when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
+        AgentClient.VisionResponse vision = new AgentClient.VisionResponse(
+                objectMapper.readTree("{\"summary\":\"均在参考范围内\",\"items\":[],\"actions\":[],\"unreadable\":[]}"),
+                "仅供参考，不替代医生诊断",
+                null,
+                2);
+        when(agentClient.interpretVision(files, profile, "REPORT")).thenReturn(vision);
+        when(persistence.succeed(eq(processing), eq(vision), anyString(), anyString()))
+                .thenReturn(processing);
+        ReportInterpretationService service = new ReportInterpretationService(
+                persistence,
+                agentClient,
+                objectMapper,
+                mock(ReportUploadStagingService.class),
+                TestContracts.instance(),
+                healthProfiles,
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class),
+                minioStorage);
+
+        ReportInterpretationService.ReportView result = service.interpret(12L, null, "req-003", files);
+
+        assertThat(result.status()).isEqualTo("PROCESSING");
+        // 图片在模型网络调用前先行落 MinIO + image 消息（分析失败时用户仍能回看"我拍过什么"）
+        InOrder order = inOrder(persistence, minioStorage, agentClient);
+        order.verify(persistence).start(12L, null, "req-003", files);
+        order.verify(minioStorage).persistPhotosAndMessages(9L, files);
+        order.verify(agentClient).interpretVision(files, profile, "REPORT");
+    }
+
+    @Test
+    void singlePdfIsNotPersistedToMinio() throws Exception {
+        ReportInterpretationPersistence persistence = mock(ReportInterpretationPersistence.class);
+        AgentClient agentClient = mock(AgentClient.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        MinioStorageService minioStorage = mock(MinioStorageService.class);
+        ReportInterpretation processing = new ReportInterpretation();
+        processing.setId(35L);
+        processing.setPatientId(12L);
+        processing.setConversationId(10L);
+        processing.setRequestId("req-pdf");
+        processing.setStatus("PROCESSING");
+        processing.setHealthProfileId(31L);
+        when(persistence.findByRequest(12L, "req-pdf")).thenReturn(null);
+        MultipartFile pdf = mock(MultipartFile.class);
+        when(pdf.getContentType()).thenReturn("application/pdf");
+        List<MultipartFile> files = List.of(pdf);
+        when(persistence.start(12L, null, "req-pdf", files)).thenReturn(processing);
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        HealthProfileService.AgentProfileContext profile = new HealthProfileService.AgentProfileContext(
+                31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", List.of("青霉素"));
+        when(healthProfiles.agentContext(12L, 31L)).thenReturn(profile);
+        AgentClient.VisionResponse vision = new AgentClient.VisionResponse(
+                objectMapper.readTree("{\"summary\":\"pdf 报告\",\"items\":[],\"actions\":[],\"unreadable\":[]}"),
+                "仅供参考，不替代医生诊断",
+                null,
+                1);
+        when(agentClient.interpretVision(files, profile, "REPORT")).thenReturn(vision);
+        when(persistence.succeed(eq(processing), eq(vision), anyString(), anyString()))
+                .thenReturn(processing);
+        ReportInterpretationService service = new ReportInterpretationService(
+                persistence,
+                agentClient,
+                objectMapper,
+                mock(ReportUploadStagingService.class),
+                TestContracts.instance(),
+                healthProfiles,
+                TestDisclaimers.instance(),
+                Mappers.getMapper(ReportInterpretationDtoMapper.class),
+                mock(HealthObservationMapping.class),
+                mock(HealthObservationService.class),
+                minioStorage);
+
+        service.interpret(12L, null, "req-pdf", files);
+
+        // PDF 无法渲染为 image 气泡，不落 MinIO / 不写 image 消息，仅 report_upload 文本承载
+        verify(minioStorage, never()).persistPhotosAndMessages(anyLong(), anyList());
     }
 }

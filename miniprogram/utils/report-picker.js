@@ -6,7 +6,7 @@ function confirmConsent() {
   return new Promise((resolve, reject) => {
     my.confirm({
       title: '报告解读说明',
-      content: '请确认你有权上传该报告。内容将发送至火山方舟多模态模型处理，请先遮盖姓名、身份证号、手机号和就诊卡号；原件不保存。仅供参考，不替代医生诊断。',
+      content: '请确认你有权上传该报告。内容将发送至火山方舟多模态模型处理，请先遮盖姓名、身份证号、手机号和就诊卡号；报告图片原图会留存于你的历史会话中供回看。仅供参考，不替代医生诊断。',
       confirmButtonText: '同意并继续',
       cancelButtonText: '取消',
       success: (result) => {

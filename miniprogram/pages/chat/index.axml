@@ -214,7 +214,7 @@
     <view class="pending-head">
       <view>
         <view class="pending-title">待发送的报告</view>
-        <view class="pending-tip">将发送至多模态模型；请先遮盖身份信息，原件不保存</view>
+        <view class="pending-tip">将发送至多模态模型；请先遮盖身份信息，报告原图留存于历史会话供回看</view>
       </view>
       <view class="pending-count">{{pendingReport.items.length}} 个文件</view>
     </view>

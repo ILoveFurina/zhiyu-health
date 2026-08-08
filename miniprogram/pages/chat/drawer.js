@@ -64,7 +64,7 @@ const drawerMethods = {
     listMessages(conversationId)
       .then((messages) => {
         this.setData({
-          messages: messages.map((m) => this.replayMessage(m)),
+          messages: messages.map((m) => this.replayMessage(m)).filter(Boolean),
           conversationId,
           redFlag: null,
           drawerOpen: false,
@@ -86,21 +86,10 @@ const drawerMethods = {
 
   /** 历史消息回放：原样渲染用户/红线/卡片，AI 文本定格为完整内容（不打字机）。 */
   replayMessage(m) {
+    // report_upload（票 63）：仅作报告记录关联的元数据消息，回显已由紧随其后的
+    // image 消息（原图留 MinIO）承担，回放跳过避免与图片气泡重复。
     if (m.kind === 'report_upload') {
-      let upload = {}
-      try {
-        upload = JSON.parse(m.content)
-      } catch (e) {
-        upload = {}
-      }
-      return {
-        id: ++this._msgSeq,
-        role: m.role,
-        kind: 'text',
-        content: upload.file_name ? `已上传报告：${upload.file_name}` : '已上传报告',
-        disclaimer: '',
-        streaming: false,
-      }
+      return null
     }
     // image kind（票 15 ADR-0023）：content 是 {object_key, media_type} JSON，
     // 按 object_key 回拉 MinIO 原图（经 server-java 图片代理端点，key 即凭证）。

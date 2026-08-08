@@ -34,6 +34,7 @@ public class ReportInterpretationService {
     private final ReportInterpretationDtoMapper reportDtos;
     private final HealthObservationMapping observationMapping;
     private final HealthObservationService observations;
+    private final MinioStorageService minioStorage;
 
     public List<ReportView> listForPatient(long patientId) {
         // 列表需区分“是谁的报告”：姓名取自档案 display_name（用户自填），
@@ -202,6 +203,16 @@ public class ReportInterpretationService {
                 return toView(raced);
             }
             throw duplicateRequest;
+        }
+        // 报告原图"留原图"化（票 63）：图片存 MinIO + 落 image 消息，与拍药品/皮肤同链路（ADR-0023），
+        // chat 即时回显（本地路径）与历史回放（/c/photos?key=）均可用。PDF 无法渲染为 image 气泡，
+        // 维持 report_upload 文本承载；图片消息与 report_upload 并存，前端回放以 image 为准。
+        // 旁路语义 + 独立事务：MinIO 不可用静默降级，不影响解读主流程；分析失败时图片仍留存。
+        List<MultipartFile> imageFiles = files.stream()
+                .filter(file -> !contracts.uploadLimits().pdfType().equals(file.getContentType()))
+                .toList();
+        if (!imageFiles.isEmpty()) {
+            minioStorage.persistPhotosAndMessages(processing.getConversationId(), imageFiles);
         }
         try {
             // 网络调用故意不在 @Transactional 方法内，避免长事务占用连接与锁。

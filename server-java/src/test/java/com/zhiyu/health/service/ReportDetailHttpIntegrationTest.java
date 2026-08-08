@@ -45,7 +45,8 @@ class ReportDetailHttpIntegrationTest {
             TestDisclaimers.instance(),
             Mappers.getMapper(ReportInterpretationDtoMapper.class),
             new HealthObservationMapping(TestContracts.instance()),
-            observationService);
+            observationService,
+            mock(MinioStorageService.class));
     private final MockMvc mvc = standaloneSetup(
                     new ReportInterpretationController(service, mock(ReportUploadStagingService.class)))
             .setControllerAdvice(new ApiExceptionHandler())
