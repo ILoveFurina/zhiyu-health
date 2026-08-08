@@ -80,6 +80,79 @@ def test_chat_streams_tokens_and_final_message_with_disclaimer(harness: SimpleNa
     assert harness.emotion.calls == ["最近总是咳嗽怎么办"]
 
 
+def test_high_effort_streams_reasoning_around_tool_without_persisting_it_in_message() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"doctors": [{"doctor_id": 2, "name": "周安宁"}]})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test",
+        transport=httpx.MockTransport(handler),
+        callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(
+            content="",
+            additional_kwargs={"reasoning_content": "先判断合适的科室。"},
+            tool_calls=[ToolCall(
+                name="recommend_doctors",
+                args={"department_name": "心血管内科"},
+                id="thinking-call-1",
+            )],
+        ),
+        AIMessage(
+            content="建议尽快就诊。",
+            additional_kwargs={"reasoning_content": "结合医生列表整理建议。"},
+        ),
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        client, _ = _build_app(runner)
+        with client:
+            events = _post_chat(client, {
+                "messages": [{"role": "user", "content": "胸闷应该找谁看"}],
+                "effort": "deep",
+            })
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert [event["event"] for event in events] == [
+        "meta", "thinking", "tool_start", "tool_end", "doctor_recommendations",
+        "thinking", "token", "message", "done",
+    ]
+    assert [event["data"] for event in events if event["event"] == "thinking"] == [
+        "先判断合适的科室。", "结合医生列表整理建议。",
+    ]
+    final = next(event["data"] for event in events if event["event"] == "message")
+    assert final["content"] == "建议尽快就诊。"
+    assert "先判断" not in final["content"]
+
+
+def test_non_high_effort_never_exposes_reasoning_content() -> None:
+    fake = GenericFakeChatModel(disable_streaming=True, messages=iter([
+        AIMessage(
+            content="直接回复。",
+            additional_kwargs={"reasoning_content": "这段内部思考不应下发。"},
+        )
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake)
+    client, _ = _build_app(runner)
+
+    with client:
+        events = _post_chat(client, {
+            "messages": [{"role": "user", "content": "你好"}],
+            "effort": "quick",
+        })
+
+    assert "thinking" not in [event["event"] for event in events]
+    assert events[-2]["data"]["content"] == "直接回复。"
+
+
 def test_message_history_is_forwarded_to_agent(harness: SimpleNamespace) -> None:
     _post_chat(
         harness.client,

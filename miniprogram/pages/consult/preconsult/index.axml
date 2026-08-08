@@ -25,7 +25,27 @@
 
       <!-- AI 文本按 Markdown 块渲染（与 pages/chat 同一 block 循环）；blocks 缺失时回退纯文本 -->
       <view a:else class="bubble ai" id="msg-{{item.id}}">
-        <block a:if="{{item.blocks && item.blocks.length}}">
+        <view
+          a:if="{{item.thinkingText || item.deepThoughtBadge}}"
+          class="ai-thinking {{item.thinkingExpanded ? 'ai-thinking-expanded' : ''}}"
+          data-id="{{item.id}}"
+          onTap="onToggleThinking"
+        >
+          <view class="ai-thinking-head">
+            <text>{{item.thinkingSummary || '深度思考中'}}</text>
+            <text a:if="{{item.thinkingText}}" class="ai-thinking-chevron">{{item.thinkingExpanded ? '收起' : '展开'}}</text>
+          </view>
+          <view a:if="{{item.thinkingText && (!item.thinkingComplete || item.thinkingExpanded)}}" class="ai-thinking-content">{{item.thinkingText}}</view>
+        </view>
+        <view a:if="{{item.streaming && !item.content}}" class="ai-waiting {{item.toolStatusError ? 'ai-waiting-error' : ''}}">
+          <view a:if="{{!item.toolStatusError}}" class="ai-waiting-dots">
+            <view class="ai-waiting-dot"></view>
+            <view class="ai-waiting-dot"></view>
+            <view class="ai-waiting-dot"></view>
+          </view>
+          <text>{{item.toolStatus || item.waitingText}}</text>
+        </view>
+        <block a:if="{{item.content && item.blocks && item.blocks.length}}">
           <view a:for="{{item.blocks}}" a:for-item="block" a:key="index">
             <view a:if="{{block.type === 'heading'}}" class="md-h{{block.level}}">
               <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
@@ -41,8 +61,7 @@
             </view>
           </view>
         </block>
-        <text a:else>{{item.content}}</text>
-        <text a:if="{{item.streaming}}" class="cursor">▍</text>
+        <text a:elif="{{item.content}}">{{item.content}}</text>
         <ai-disclaimer a:if="{{!item.streaming && item.disclaimer}}" text="{{item.disclaimer}}" />
       </view>
     </view>

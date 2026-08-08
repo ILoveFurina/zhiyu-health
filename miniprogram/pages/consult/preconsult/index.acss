@@ -1,3 +1,5 @@
+@import "../../../styles/ai-bubble-state.acss";
+
 /* AI 预问诊对话页：气泡/Markdown/输入栏样式与 pages/chat/index.acss 同源 */
 .page {
   display: flex;
@@ -84,10 +86,6 @@
   border-bottom-left-radius: var(--zy-radius-sm);
   box-shadow: var(--zy-shadow-card);
   width: fit-content;
-}
-
-.cursor {
-  color: var(--zy-color-primary);
 }
 
 /* ===== Markdown 块样式（同 pages/chat） ===== */

@@ -127,6 +127,10 @@ class ContractsConsistencyTest {
         assertThat(events.isTraceEvent("tool_end")).isTrue();
         assertThat(events.isTraceEvent("token")).isFalse();
         assertThat(events.isTraceEvent("done")).isFalse();
+        assertThat(events.isTraceEvent(contracts.chatRealtime().thinkingEvent()))
+                .isFalse();
+        assertThat(events.streamEvents())
+                .doesNotContain(contracts.chatRealtime().thinkingEvent());
 
         Set<String> cardAndKinds = new HashSet<>();
         cardAndKinds.addAll(events.cardEvents());

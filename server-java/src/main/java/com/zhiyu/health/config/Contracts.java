@@ -345,6 +345,7 @@ public class Contracts {
             String websocketPath,
             List<String> envelopeTypes,
             List<String> roundStatuses,
+            String thinkingEvent,
             List<String> chatOptionalFields) {
         public ChatRealtime {
             envelopeTypes = List.copyOf(envelopeTypes);

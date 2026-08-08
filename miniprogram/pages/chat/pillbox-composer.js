@@ -2,6 +2,7 @@ const { ensureLogin } = require('../../utils/auth')
 const { createChatChannel } = require('../../utils/chat-stream')
 const { choosePillBoxPhoto } = require('../../utils/pillbox-picker')
 const { uploadPillBoxPhoto } = require('../../utils/pillbox-upload')
+const { createAssistantBubble } = require('../../utils/ai-bubble-state')
 
 /**
  * 拍药盒 composer（票 51，ADR-0028）：选择/上传 -> vision OCR 提名 ->
@@ -103,20 +104,12 @@ module.exports = {
   /** 通用药品说明书流（票 51）：medication_name 信封，流式渲染复用主对话 text 气泡。 */
   startMedicationRound(drugName) {
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content: drugName }
-    const aiMsg = {
-      id: ++this._msgSeq,
-      role: 'assistant',
-      kind: 'text',
-      content: '',
-      disclaimer: '',
-      emotion: 'calm',
-      soothingText: '',
-      streaming: true,
-    }
+    const aiMsg = createAssistantBubble(++this._msgSeq)
     this.setData({
       messages: [...this.data.messages, userMsg, aiMsg],
       anchorId: 'thread-bottom',
     })
+    this._aiBubbleState.start(aiMsg.id)
 
     if (!this._chatChannel) this._chatChannel = createChatChannel()
     this._chatChannel.send({
@@ -124,13 +117,17 @@ module.exports = {
       medicationName: drugName,
       conversationId: this.data.conversationId,
       handlers: {
-        onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
+        onMeta: (data) => {
+          this.setData({ conversationId: data.conversation_id || this.data.conversationId })
+          this._aiBubbleState.onMeta(aiMsg.id, data)
+        },
         onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
+        onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
         onDone: () => {
           this.setData({ pillboxProgress: '' })
-          this.completeRound()
+          this.completeRound(aiMsg.id)
         },
         onError: (err) => {
           this.setData({ pillboxProgress: '' })

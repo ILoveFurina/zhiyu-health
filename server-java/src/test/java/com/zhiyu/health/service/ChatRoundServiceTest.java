@@ -219,6 +219,30 @@ class ChatRoundServiceTest {
         verify(fixture.persistence).markCompleted(34L);
     }
 
+    /** 票 70：思考增量只中继，既不进消息持久化，也不误归类为工具 trace。 */
+    @Test
+    void thinkingEventsAreRelayedWithoutAnyPersistence() {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-thinking")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-thinking", null, "你好")).thenReturn(round);
+        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-thinking"));
+
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("{\"effort\":\"high\"}").event("meta").build());
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder("\"正在梳理症状\"").event("thinking").build());
+        fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
+        fixture.upstream.tryEmitComplete();
+
+        List<String> observed =
+                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+        assertThat(observed).containsExactly("meta", "thinking", "done");
+        verify(fixture.persistence, never()).persistEvent(eq(round), eq("thinking"), any());
+        verify(fixture.agentCallLogs, never()).append(any(), eq("thinking"), any());
+        verify(fixture.persistence).markCompleted(34L);
+    }
+
     /** 票 24 / ADR-0017：trace 落库失败只 log.warn，主流程仍 emit + markCompleted，不写 error_code。 */
     @Test
     void traceAppendFailureDoesNotBreakMainStream() {

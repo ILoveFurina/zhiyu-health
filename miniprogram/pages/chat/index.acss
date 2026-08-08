@@ -3,6 +3,7 @@
 @import "./drawer.acss";
 @import "./feature-bubbles.acss";
 @import "./health-profile.acss";
+@import "../../styles/ai-bubble-state.acss";
 
 /* 聊天页（演示主画面），视觉对齐 docs/specs/0002-ui-conventions.md */
 .page {
@@ -203,10 +204,6 @@
   color: var(--zy-text-weak);
 }
 
-.cursor {
-  color: var(--zy-color-primary);
-}
-
 /* ===== 票 52：AI 气泡 Markdown 块样式 ===== */
 .md-p, .md-li, .md-h1, .md-h2, .md-h3 {
   margin-top: 12rpx;
@@ -344,7 +341,7 @@
   opacity: 0.45;
 }
 
-/* 工具进度状态条（票 24）：瞬态，输入框上方；tool_start 显示 loading，error 显示失败 */
+/* 票 45 语音提示条复用原工具进度条视觉类；工具进度已迁入 AI 气泡。 */
 .tool-progress {
   display: flex;
   align-items: center;

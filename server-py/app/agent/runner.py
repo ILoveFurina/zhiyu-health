@@ -90,7 +90,7 @@ _PRECONSULT_SCENARIO = get_contracts().online_consultation.scenario
 
 @dataclass(frozen=True)
 class AgentOutput:
-    event: Literal["token", "knowledge"] | CardEvent | TraceEvent
+    event: Literal["token", "thinking", "knowledge"] | CardEvent | TraceEvent
     data: str | dict[str, Any]
 
 
@@ -176,11 +176,8 @@ class LangGraphAgentRunner:
                 continue
             chunk, metadata = item
             if isinstance(chunk, AIMessage) and metadata.get("langgraph_node") == "model":
-                # AIMessage 可能同时携带 tool_calls（工具发起）与文本 token（思考+调用）
-                for output in _tool_start_outputs(chunk):
+                for output in _model_outputs(chunk, effort):
                     yield output
-                if isinstance(chunk.content, str) and chunk.content:
-                    yield AgentOutput("token", chunk.content)
                 continue
             if isinstance(chunk, ToolMessage):
                 # tool_end 必须先于对应卡片事件发送（保持"工具完成->结果呈现"因果顺序）。
@@ -194,6 +191,24 @@ class LangGraphAgentRunner:
                 continue
             if isinstance(chunk.content, str) and chunk.content:
                 yield AgentOutput("token", chunk.content)
+
+
+def _model_outputs(message: AIMessage, effort: ReasoningEffort) -> list[AgentOutput]:
+    """按模型原始顺序投影思考、工具发起与正文增量。"""
+    outputs: list[AgentOutput] = []
+    reasoning = _reasoning_content(message) if effort == "high" else None
+    if reasoning:
+        outputs.append(AgentOutput("thinking", reasoning))
+    outputs.extend(_tool_start_outputs(message))
+    if isinstance(message.content, str) and message.content:
+        outputs.append(AgentOutput("token", message.content))
+    return outputs
+
+
+def _reasoning_content(message: AIMessage) -> str | None:
+    """读取方舟兼容流置于 additional_kwargs 的思考增量。"""
+    value = message.additional_kwargs.get("reasoning_content")
+    return value if isinstance(value, str) and value else None
 
 
 def _tool_start_outputs(message: AIMessage) -> list[AgentOutput]:

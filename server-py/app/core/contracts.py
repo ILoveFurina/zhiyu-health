@@ -85,6 +85,16 @@ class ChatDefaultsContract(BaseModel):
     latitude_max: float
 
 
+class ChatRealtimeContract(BaseModel):
+    """C 端实时信封与直播即弃事件。"""
+
+    websocket_path: str
+    envelope_types: list[str]
+    round_statuses: list[str]
+    thinking_event: str
+    chat_optional_fields: list[str]
+
+
 class PrescriptionFlowContract(BaseModel):
     statuses: dict[str, str]
     status_labels: dict[str, str]
@@ -213,6 +223,7 @@ class Contracts(BaseModel):
     vision_errors: VisionErrorsContract
     upload_limits: UploadLimitsContract
     chat_defaults: ChatDefaultsContract
+    chat_realtime: ChatRealtimeContract
     prescription_flow: PrescriptionFlowContract
     payment_flow: PaymentFlowContract
     contraindication: ContraindicationContract
@@ -263,6 +274,9 @@ def _load(dir_path: Path) -> Contracts:
             ),
             chat_defaults=ChatDefaultsContract.model_validate(
                 _read_json(dir_path, "chat-defaults.json")
+            ),
+            chat_realtime=ChatRealtimeContract.model_validate(
+                _read_json(dir_path, "chat-realtime.json")
             ),
             prescription_flow=PrescriptionFlowContract.model_validate(
                 _read_json(dir_path, "prescription-flow.json")
