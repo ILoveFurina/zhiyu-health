@@ -13,10 +13,11 @@ server-py 只承载 LLM/工具循环与表达（ADR-0009）：鉴权、审计、
 
 票 50 智能导诊强制号源查询：meta 之后由编排代码（非 LLM）决定是否直查
 server-java 只读号源——请求携带 retry_standard_department_id 时直查；
-否则拉候选标准科室做科室解析（triage judge），收敛到单一科室
-（explicit_booking/resolved）时强制查询。命中时先产出确定性摘要 message
+否则拉候选标准科室做科室解析（triage judge）；仅当用户明确挂号意图
+（explicit_booking）时强制查询。命中时先产出确定性摘要 message
 事件、再产出 department_slots 卡片事件、最后 done，不进入 Agent 流；
-未命中或目录不可用时退回正常 Agent 流。摘要措辞由代码按契约模板拼装，
+未命中（含纯症状收敛 resolved，走 LLM 工具流）或目录不可用时退回正常
+Agent 流。摘要措辞由代码按契约模板拼装，
 LLM 不参与医院、医生、排班、余号等事实的生成。
 
 票 55 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
@@ -46,10 +47,12 @@ EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
 # 工具进度事件名（票 24）：tool_start/tool_end，不带免责声明（非 AI 产出）。
 EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
 
-# 票 50：触发强制号源查询的解析状态为契约 resolution_statuses 前两态
-# （explicit_booking/resolved），与契约的一致性由 tests/test_contract_consumption.py 钉死。
+# 票 50：触发强制号源查询的解析状态为契约 resolution_statuses 第一态
+# （explicit_booking=明确挂号意图），与契约的一致性由
+# tests/test_contract_consumption.py 钉死。resolved（纯症状收敛）不再强制
+# 查询，退回正常 Agent 流，让症状咨询可触发知识/业务工具（放开收敛判定）。
 _GUIDED = get_contracts().guided_registration
-_QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:2])
+_QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:1])
 
 # 票 55：预问诊场景值与摘要快照事件字段名，唯一事实源是 contracts/online-consultation.json
 _ONLINE = get_contracts().online_consultation

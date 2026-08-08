@@ -1,6 +1,6 @@
 """票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
 
-覆盖：明确科室直查、多轮 resolved 强制查询、ambiguous 退回 Agent 流、
+覆盖：明确科室直查、多轮 resolved 退回 Agent 流、ambiguous 退回 Agent 流、
 摘要先于卡片、查询失败出 failed 卡、retry 字段跳过解析直查、全部无号仍出
 ok 卡（empty 摘要）、目录不可用退回 Agent 流，以及回调 URL/鉴权头断言。
 """
@@ -247,8 +247,9 @@ def test_earliest_tie_breaks_by_doctor_id() -> None:
     )
 
 
-def test_multi_turn_resolved_triggers_forced_query() -> None:
-    """多轮导诊收敛到单一明确科室（resolved）：自动查询，不要求用户再次确认。"""
+def test_multi_turn_resolved_falls_back_to_agent_flow() -> None:
+    """多轮导诊收敛到单一明确科室（resolved）但未明说挂号：不强制查询、
+    不出号源卡，退回正常 Agent 流（放开收敛判定，让症状咨询可触发 LLM 工具）。"""
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
@@ -265,10 +266,10 @@ def test_multi_turn_resolved_triggers_forced_query() -> None:
         ],
     })
 
-    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
-    assert harness.agent.calls == []
-    assert events[2]["data"]["standard_department"]["name"] == "皮肤科"
-    assert [r.url.path for r in requests][-1] == "/api/agent/standard-departments/5/slots"
+    assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
+    assert len(harness.agent.calls) == 1
+    # 只拉了候选目录，未触发号源回调
+    assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
 
 
 def test_ambiguous_falls_back_to_agent_flow_without_slots_callback() -> None:
@@ -334,11 +335,11 @@ def test_all_unbookable_still_yields_ok_card_with_empty_summary() -> None:
     harness = _build_app(
         _directory_handler(requests, slots_payload=_slots_payload(bookable=False)),
         triage_results=[TriageResolution(
-            status="resolved", standard_department_id=5, rationale="症状收敛至皮肤科"
+            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
         )],
     )
 
-    events = _run(harness, {"messages": [{"role": "user", "content": "帮我看看挂什么科"}]})
+    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
 
     assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
     assert events[1]["data"]["content"] == "皮肤科未来14天暂无可约号源。"

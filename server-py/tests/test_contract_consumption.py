@@ -90,8 +90,8 @@ def test_guided_registration_consumption_matches_contract() -> None:
     # TriageResolution.status Literal 与契约 resolution_statuses 一致
     status_type = TriageResolution.model_fields["status"].annotation
     assert set(get_args(status_type)) == set(guided.resolution_statuses)
-    # 触发强制查询的解析状态为契约前两态（explicit_booking/resolved）
-    assert chat_service._QUERY_STATUSES == frozenset(guided.resolution_statuses[:2])
+    # 触发强制查询的解析状态为契约第一态（explicit_booking=明确挂号意图）
+    assert chat_service._QUERY_STATUSES == frozenset(guided.resolution_statuses[:1])
     # 重试字段名与契约 retry_request_field 一致
     assert guided.retry_request_field == "retry_standard_department_id"
     assert guided.retry_request_field in AgentChatRequest.model_fields
