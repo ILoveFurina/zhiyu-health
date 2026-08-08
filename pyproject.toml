@@ -43,6 +43,9 @@ packages = ["server-py/app"]
 [tool.pytest.ini_options]
 pythonpath = ["server-py"]
 testpaths = ["server-py/tests"]
+markers = [
+    "integration: 需要显式开关与真实外部依赖的集成测试",
+]
 
 [tool.ruff]
 line-length = 100
