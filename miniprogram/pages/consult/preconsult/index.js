@@ -177,18 +177,17 @@ Page({
   },
 
   streamToken(id, text) {
-    this._aiBubbleState.onBodyStart(id)
     this.patchMessage(id, (msg) => {
-      const content = msg.content + text
-      return { ...msg, content, blocks: parseMarkdown(content) }
+      const ready = this._aiBubbleState.onBodyStart(id, msg)
+      const content = ready.content + text
+      return { ...ready, content, blocks: parseMarkdown(content) }
     })
     this.setData({ anchorId: 'thread-bottom' })
   },
 
   finishAssistant(id, data) {
-    this._aiBubbleState.onBodyStart(id)
     this.patchMessage(id, (msg) => ({
-      ...msg,
+      ...this._aiBubbleState.onBodyStart(id, msg),
       content: data.content,
       blocks: parseMarkdown(data.content),
       disclaimer: data.disclaimer,

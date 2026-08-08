@@ -42,3 +42,4 @@
 - grilling 决议（2026-08-08，思维链）：用户拍板展示思维链（实时流式 + 完成后折叠），并明确两点修正——思考区不定高会刷屏，故定高窗口 + 点击展开；思考区不加「以上为 AI 思考过程」标注，免责声明只挂正文。持久化否掉：思维链价值在直播陪伴，回放无意义；内容含患者症状复述，落库扩大敏感面；`messages.effort` 列现成，徽章零成本。技术前提已验证：方舟 OpenAI 兼容接口 reasoning_effort=high 时流式 delta 携带 reasoning_content（`server-py/app/core/llm.py` 已在用该非标准协议），langchain ChatOpenAI 置于 additional_kwargs。
 - 合并说明（2026-08-08）：原拆分为 70（等待态）+ 71（思维链）两票，用户要求合一，思维链复用本票的气泡槽位与档位机制，一票闭环。
 - 施工记录（2026-08-09）：新增 chat/preconsult 共用气泡瞬态控制器；thinking 事件按 chat-realtime 契约由 server-py high 档投影、server-java 纯中继，思考内容不进入正文聚合、messages 或 agent_call_logs。Python 定向测试 22 项、Java 契约/轮次测试 51 项通过，Ruff、mypy、Node 语法与状态控制器检查通过；开发者工具人工走查按用户明确要求免验。
+- 回归修复（2026-08-09）：首个正文 token 到达后，`onBodyStart` 与正文追加曾连续两次全量更新 `messages`，支付宝渲染队列会合并高频更新，表现为正文流式丢失、最终一次性出现。现改为在单次消息 patch 内原子完成思考区折叠、工具状态清理与 token 追加；真实页面方法 harness 钉住每个 token 恰好一次累计消息渲染，chat/preconsult 同步修复。

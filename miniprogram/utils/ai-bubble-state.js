@@ -110,13 +110,13 @@ function createAiBubbleState(page) {
       page.patchMessage(id, (msg) => ({ ...msg, thinkingText: msg.thinkingText + text }))
     },
 
-    onBodyStart(id) {
+    onBodyStart(id, msg) {
       clearTimer(id)
-      page.patchMessage(id, (msg) => ({
+      return {
         ...finishThinking(id, msg),
         toolStatus: '',
         toolStatusError: false,
-      }))
+      }
     },
 
     onToolStart(id, data) {
