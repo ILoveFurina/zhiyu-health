@@ -40,15 +40,21 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     List<Schedule> selectAvailableByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
 
+    // 医生排班表：返回未来全部排班（含已停诊，供医生对已停诊排班发起恢复出诊申请），
+    // 子查询带出该排班是否存在待审核的 DISABLE/ENABLE 申请（排班表页面展示"待审核"状态用）。
     @Select(
             """
-            SELECT * FROM schedules
-            WHERE doctor_id = #{doctorId}
-              AND is_active = TRUE
-              AND schedule_date >= #{fromDate}
-            ORDER BY schedule_date,
-                     CASE time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END,
-                     id
+            SELECT s.*, (
+                SELECT sr.action FROM schedule_requests sr
+                WHERE sr.target_schedule_id = s.id AND sr.status = 'PENDING'
+                ORDER BY sr.created_at DESC LIMIT 1
+            ) AS pending_action
+            FROM schedules s
+            WHERE s.doctor_id = #{doctorId}
+              AND s.schedule_date >= #{fromDate}
+            ORDER BY s.schedule_date,
+                     CASE s.time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END,
+                     s.id
             """)
     List<Schedule> selectFutureByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
 
@@ -62,8 +68,25 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     Schedule selectByIdForUpdate(@Param("scheduleId") long scheduleId);
 
+    /** 排班申请查重：同医生同日同时段是否已有活跃排班（CREATE 申请提交前校验）。 */
+    @Select(
+            """
+            SELECT COUNT(*) FROM schedules
+            WHERE doctor_id = #{doctorId}
+              AND schedule_date = #{scheduleDate}
+              AND time_slot = #{timeSlot}
+              AND is_active = TRUE
+            """)
+    int countActiveByDoctorDateSlot(
+            @Param("doctorId") long doctorId,
+            @Param("scheduleDate") LocalDate scheduleDate,
+            @Param("timeSlot") String timeSlot);
+
     @Update("UPDATE schedules SET is_active = FALSE WHERE id = #{scheduleId}")
     int disable(@Param("scheduleId") long scheduleId);
+
+    @Update("UPDATE schedules SET is_active = TRUE WHERE id = #{scheduleId}")
+    int enable(@Param("scheduleId") long scheduleId);
 
     @Update(
             """
