@@ -56,6 +56,7 @@ Page({
     })
   },
   openPrescriptions() { my.navigateTo({ url: '/pages/prescriptions/index' }) },
+  goBooking() { my.navigateTo({ url: '/pages/booking/standard-departments/index' }) },
   openDrugOrders() { my.navigateTo({ url: '/pages/drug-orders/index' }) },
   openMessages() { my.navigateTo({ url: '/pages/messages/index' }) },
   openHealthProfiles() { my.navigateTo({ url: '/pages/health/index' }) },

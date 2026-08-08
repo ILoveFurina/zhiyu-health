@@ -15,11 +15,12 @@
         a:for="{{item.items}}"
         a:for-item="entry"
         a:key="key"
-        class="row {{index < item.items.length - 1 ? 'row-border' : ''}}"
+        class="row zy-fade-in {{index < item.items.length - 1 ? 'row-border' : ''}}"
+        style="animation-delay: {{index * 40}}ms"
         data-url="{{entry.url}}"
         onTap="open"
       >
-        <view class="row-icon {{entry.textIcon ? 'row-icon-text' : ''}}">{{entry.icon}}</view>
+        <view class="row-icon zy-ico zy-ico-{{entry.icon}}"></view>
         <view class="row-label">{{entry.label}}</view>
         <view class="row-arrow">›</view>
       </view>

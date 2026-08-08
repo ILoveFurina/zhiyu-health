@@ -13,5 +13,5 @@
     <view a:if="{{refreshing}}" class="refresh-tip">正在更新号源…</view>
   </block>
 
-  <view a:else class="state">暂无号源信息</view>
+  <zy-empty a:else icon="calendar" text="暂无号源信息" />
 </view>

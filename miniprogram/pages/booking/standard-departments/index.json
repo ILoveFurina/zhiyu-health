@@ -1,4 +1,7 @@
 {
   "defaultTitle": "科室挂号",
-  "titleBarColor": "#e9f6f2"
+  "titleBarColor": "#e9f6f2",
+  "usingComponents": {
+    "zy-empty": "/components/zy-empty/index"
+  }
 }

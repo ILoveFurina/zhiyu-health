@@ -2,7 +2,7 @@ const { ensureLogin } = require('../../utils/auth')
 const { listMessages, listMedCheckins, checkMedCheckin } = require('../../services/patient-care')
 
 Page({
-  data: { loading: true, messages: [], reminders: [] },
+  data: { loading: true, messages: [], reminders: [], skelItems: [1, 2, 3, 4] },
   onShow() {
     ensureLogin()
       .then(() => Promise.all([listMessages(), listMedCheckins()]))

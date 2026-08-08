@@ -4,11 +4,11 @@
 
   <view class="reg-entries">
     <view class="reg-entry" onTap="tapDepartment">
-      <view class="reg-entry-icon">▦</view>
+      <view class="reg-entry-icon zy-ico zy-ico-calendar"></view>
       <view class="reg-entry-label">科室挂号</view>
     </view>
     <view class="reg-entry" onTap="tapGuide">
-      <view class="reg-entry-icon">✚</view>
+      <view class="reg-entry-icon zy-ico zy-ico-plus"></view>
       <view class="reg-entry-label">智能导诊</view>
     </view>
   </view>

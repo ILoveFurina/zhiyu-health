@@ -10,6 +10,7 @@
     "diet-card": "/components/diet-card/index",
     "tongue-card": "/components/tongue-card/index",
     "registration-card": "/components/registration-card/index",
-    "department-slots-card": "/components/department-slots-card/index"
+    "department-slots-card": "/components/department-slots-card/index",
+    "zy-empty": "/components/zy-empty/index"
   }
 }

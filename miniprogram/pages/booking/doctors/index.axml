@@ -4,12 +4,13 @@
   </view>
 
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{doctors.length === 0}}" class="state">该科室暂时没有可预约医生</view>
+  <zy-empty a:elif="{{doctors.length === 0}}" icon="file" text="该科室暂时没有可预约医生" />
 
   <view
     a:for="{{doctors}}"
     a:key="doctor_id"
-    class="card"
+    class="card zy-fade-in"
+    style="animation-delay: {{index * 40}}ms"
     data-id="{{item.doctor_id}}"
     data-name="{{item.name}}"
     data-fee="{{item.registration_fee}}"

@@ -1,26 +1,26 @@
 .diet-card {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--zy-radius-sm);
   padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .diet-card-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   margin-bottom: 16rpx;
 }
 
 .meal-type {
   font-size: 28rpx;
-  color: #333;
+  color: var(--zy-text-title);
   margin-bottom: 8rpx;
 }
 
 .calories {
   font-size: 28rpx;
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   margin-bottom: 16rpx;
 }
 
@@ -30,7 +30,7 @@
 
 .food {
   padding: 16rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid var(--zy-color-border);
 }
 
 .food:last-child {
@@ -46,64 +46,64 @@
 .risk-label {
   font-size: 22rpx;
   padding: 4rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--zy-radius-sm);
   margin-right: 16rpx;
   color: #fff;
 }
 
 .risk-green {
-  background: #52c41a;
+  background: var(--zy-color-primary);
 }
 
 .risk-yellow {
-  background: #faad14;
+  background: var(--zy-color-warning);
 }
 
 .risk-red {
-  background: #ff4d4f;
+  background: var(--zy-color-danger);
 }
 
 .food-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
 }
 
 .food-amount {
   font-size: 24rpx;
-  color: #999;
+  color: var(--zy-text-weak);
   margin-left: 12rpx;
 }
 
 .food-text {
   font-size: 26rpx;
-  color: #666;
+  color: var(--zy-text-secondary);
   line-height: 1.5;
 }
 
 .nutrition-summary {
   font-size: 28rpx;
-  color: #333;
+  color: var(--zy-text-title);
   line-height: 1.6;
   margin-bottom: 12rpx;
 }
 
 .diet-advice {
   font-size: 26rpx;
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   line-height: 1.5;
   margin-bottom: 12rpx;
 }
 
 .personal-tip {
   font-size: 26rpx;
-  color: #faad14;
+  color: var(--zy-color-warning);
   line-height: 1.5;
   margin-bottom: 12rpx;
 }
 
 .need-doctor {
   font-size: 26rpx;
-  color: #ff4d4f;
+  color: var(--zy-color-danger);
   margin-bottom: 16rpx;
 }

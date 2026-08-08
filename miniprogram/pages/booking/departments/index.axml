@@ -4,12 +4,13 @@
   </view>
 
   <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{departments.length === 0}}" class="state">该院区暂时没有可预约科室</view>
+  <zy-empty a:elif="{{departments.length === 0}}" icon="file" text="该院区暂时没有可预约科室" />
 
   <view
     a:for="{{departments}}"
     a:key="department_id"
-    class="card"
+    class="card zy-fade-in"
+    style="animation-delay: {{index * 40}}ms"
     data-id="{{item.department_id}}"
     data-name="{{item.name}}"
     onTap="openDoctors"

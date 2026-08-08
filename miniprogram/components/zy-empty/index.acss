@@ -1,0 +1,33 @@
+/* 共用空状态（票 66）：大号弱色图标 + 文案 + 可选 CTA，接入各「暂无…」列表页 */
+.zy-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 96rpx var(--zy-space-md) 64rpx;
+}
+.zy-empty-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: var(--zy-radius-lg);
+  background: var(--zy-color-fill);
+  color: var(--zy-text-weak);
+  font-size: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.zy-empty-text {
+  margin-top: var(--zy-space-md);
+  color: var(--zy-text-weak);
+  font-size: var(--zy-font-aux);
+}
+.zy-empty-cta {
+  margin-top: var(--zy-space-md);
+  padding: 12rpx 40rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: var(--zy-font-aux);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+.zy-empty-cta:active { transform: scale(0.98); }

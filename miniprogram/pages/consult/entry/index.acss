@@ -21,9 +21,14 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
   display: flex;
   align-items: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.profile-guide:active {
+  transform: scale(0.98);
 }
 
 .profile-guide-icon {

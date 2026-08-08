@@ -4,13 +4,20 @@
     <view class="subtitle">{{cityName ? cityName + ' · ' : ''}}选择你想就诊的医院</view>
   </view>
 
-  <view a:if="{{loading}}" class="state">正在加载…</view>
-  <view a:elif="{{hospitals.length === 0}}" class="state">当前城市暂无平台医院</view>
+  <view a:if="{{loading}}">
+    <view a:for="{{skelItems}}" a:key="*this" class="zy-skel-card skel-card">
+      <view class="zy-skel zy-skel-line" style="width: 42%"></view>
+      <view class="zy-skel zy-skel-line skel-line" style="width: 78%"></view>
+      <view class="zy-skel zy-skel-line skel-line" style="width: 30%"></view>
+    </view>
+  </view>
+  <zy-empty a:elif="{{hospitals.length === 0}}" icon="file" text="当前城市暂无平台医院" />
 
   <view
     a:for="{{hospitals}}"
     a:key="hospital_id"
-    class="card"
+    class="card zy-fade-in"
+    style="animation-delay: {{index * 40}}ms"
     data-id="{{item.hospital_id}}"
     data-name="{{item.name}}"
     onTap="openCampuses"

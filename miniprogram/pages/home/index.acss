@@ -14,7 +14,9 @@
   padding: 10rpx 22rpx 10rpx 12rpx;
   border-radius: 999rpx;
   background: var(--zy-color-primary-soft);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.profile-chip:active { transform: scale(0.98); }
 .chip-avatar {
   width: 44rpx;
   height: 44rpx;
@@ -34,10 +36,12 @@
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
   display: flex;
   align-items: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.profile-guide:active { transform: scale(0.98); }
 .profile-guide-icon {
   width: 72rpx;
   height: 72rpx;
@@ -61,16 +65,17 @@
   padding: var(--zy-space-md) var(--zy-space-sm);
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
 }
 .grid { display: flex; flex-wrap: wrap; }
 .grid-2 .grid-item { width: 50%; }
 .grid-4 .grid-item { width: 25%; }
-.grid-item { box-sizing: border-box; padding: var(--zy-space-sm) var(--zy-space-xs); display: flex; flex-direction: column; align-items: center; }
+.grid-item { box-sizing: border-box; padding: var(--zy-space-sm) var(--zy-space-xs); display: flex; flex-direction: column; align-items: center; transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
+.grid-item:active { transform: scale(0.98); }
 .grid-icon {
   width: 88rpx;
   height: 88rpx;
-  border-radius: 28rpx;
+  border-radius: var(--zy-radius-lg);
   background: var(--zy-color-primary-soft);
   color: var(--zy-color-primary);
   font-size: 42rpx;
@@ -78,7 +83,6 @@
   align-items: center;
   justify-content: center;
 }
-.grid-icon-text { font-size: 30rpx; font-weight: 700; }
 .grid-label { margin-top: 12rpx; color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; }
 .grid-desc { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 
@@ -92,8 +96,10 @@
   box-sizing: border-box;
   border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  box-shadow: var(--zy-shadow-card);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
+.todo-card:active { transform: scale(0.98); }
 .todo-badge {
   display: inline-block;
   padding: 4rpx 16rpx;
@@ -102,7 +108,7 @@
   color: var(--zy-color-primary);
   font-size: 20rpx;
 }
-.todo-badge-pay { background: #fdf3e3; color: #d48806; } /* 待支付用琥珀色与就诊绿区分 */
+.todo-badge-pay { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); } /* 待支付用琥珀色与就诊绿区分 */
 .todo-title { margin-top: var(--zy-space-sm); color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
 .todo-meta { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
 
@@ -131,7 +137,7 @@
   margin-top: var(--zy-space-sm);
   padding: var(--zy-space-sm);
   border-radius: var(--zy-radius-card);
-  border: 1rpx solid #eef3f1;
+  border: 1rpx solid var(--zy-color-border);
   display: flex;
   align-items: center;
   gap: var(--zy-space-sm);

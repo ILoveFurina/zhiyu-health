@@ -1,14 +1,14 @@
 .card {
   margin: 16rpx 0;
   padding: 24rpx;
-  border-radius: 24rpx;
+  border-radius: var(--zy-radius-card);
   background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  box-shadow: var(--zy-shadow-card);
 }
 
 .title {
   margin-bottom: 12rpx;
-  color: #1a1a1a;
+  color: var(--zy-text-title);
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 18rpx;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid var(--zy-color-border);
 }
 
 .hospital:last-child {
@@ -37,14 +37,14 @@
 }
 
 .name {
-  color: #222;
+  color: var(--zy-text-title);
   font-size: 27rpx;
   font-weight: 600;
 }
 
 .hospital-level,
 .address {
-  color: #999;
+  color: var(--zy-text-weak);
   font-size: 22rpx;
 }
 
@@ -55,12 +55,12 @@
 
 .distance {
   margin-top: 6rpx;
-  color: #0e8a7d;
+  color: var(--zy-color-primary);
   font-size: 22rpx;
 }
 
 .locate-tip {
-  color: #666;
+  color: var(--zy-text-secondary);
   font-size: 24rpx;
   line-height: 1.6;
   margin-top: 8rpx;
@@ -70,24 +70,34 @@
   margin-top: 18rpx;
   padding: 16rpx 0;
   text-align: center;
-  border-radius: 24rpx;
-  background: #e9f6f2;
-  color: #0e8a7d;
+  border-radius: var(--zy-radius-card);
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
   font-size: 24rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.locate-action:active {
+  transform: scale(0.98);
 }
 
 .choose {
   flex: 0 0 auto;
   padding: 10rpx 22rpx;
-  border-radius: 26rpx;
-  background: #0e8a7d;
+  border-radius: var(--zy-radius-card);
+  background: var(--zy-color-primary);
   color: #fff;
   font-size: 23rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.choose:active {
+  transform: scale(0.98);
 }
 
 .empty {
   padding: 24rpx 0;
   text-align: center;
-  color: #999;
+  color: var(--zy-text-weak);
   font-size: 22rpx;
 }

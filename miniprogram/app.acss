@@ -15,4 +15,91 @@ page {
   --zy-space-md: 24rpx;
   --zy-space-lg: 32rpx;
   --zy-space-xl: 48rpx;
+
+  /* ===== 票 66 视觉基线 token 补全 ===== */
+  /* 语义色：danger/warning 及其浅底（badge/警示条背景） */
+  --zy-color-danger: #e64545;
+  --zy-color-danger-soft: #fdeceb;
+  --zy-color-warning: #b26a00;
+  --zy-color-warning-soft: #fdf3e3;
+  /* 描边/分隔线与浅填充（输入框、灰底 chip） */
+  --zy-color-border: #eef3f1;
+  --zy-color-fill: #f2f5f4;
+  /* 阴影三级：卡片 / 悬浮卡（取自 health）/ 弹层 */
+  --zy-shadow-card: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+  --zy-shadow-raised: 0 8rpx 30rpx rgba(28, 91, 80, 0.07);
+  --zy-shadow-pop: 0 12rpx 40rpx rgba(0, 0, 0, 0.12);
+  /* 圆角分级（999rpx 胶囊与 50% 正圆保持字面量） */
+  --zy-radius-sm: 16rpx;
+  --zy-radius-lg: 32rpx;
+  /* 动效：克制 ≤400ms，动画只用 transform/opacity */
+  --zy-motion-fast: 150ms;
+  --zy-motion-base: 250ms;
+  --zy-motion-slow: 400ms;
+  --zy-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 字阶四档：标题/正文/辅助/弱 */
+  --zy-font-title: 32rpx;
+  --zy-font-body: 28rpx;
+  --zy-font-aux: 24rpx;
+  --zy-font-weak: 20rpx;
 }
+
+/* ===== 票 66：图标字体（Remix Icon v4.6.0，Apache-2.0；pyftsubset 裁出 15 枚线性图标 base64 内嵌，零图片资产） ===== */
+@font-face {
+  font-family: 'zyicon';
+  src: url('data:font/truetype;charset=utf-8;base64,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') format('truetype');
+}
+/* 用法：<view class="zy-ico zy-ico-plus"></view>，尺寸/颜色由所在容器 font-size/color 控制 */
+.zy-ico::before {
+  font-family: 'zyicon';
+  font-style: normal;
+  font-weight: normal;
+  display: inline-block;
+  line-height: 1;
+}
+.zy-ico-plus::before { content: '\ea13'; }      /* add-line：智能导诊/新建 */
+.zy-ico-scan::before { content: '\ead0'; }      /* body-scan-line：拍皮肤 */
+.zy-ico-calendar::before { content: '\eb23'; }  /* calendar-check-line：预约挂号/排班 */
+.zy-ico-camera::before { content: '\eb31'; }    /* camera-line：拍照 */
+.zy-ico-capsule::before { content: '\eb37'; }   /* capsule-line：药品订单/拍药盒 */
+.zy-ico-tongue::before { content: '\ebd4'; }    /* contrast-2-line：拍舌苔 */
+.zy-ico-report::before { content: '\ecef'; }    /* file-list-3-line：报告解读 */
+.zy-ico-file::before { content: '\ed0f'; }      /* file-text-line：PDF/处方 */
+.zy-ico-heart::before { content: '\ee11'; }     /* heart-pulse-line：健康档案 */
+.zy-ico-image::before { content: '\ee4b'; }     /* image-line：相册 */
+.zy-ico-mail::before { content: '\eef6'; }      /* mail-line：消息中心 */
+.zy-ico-mic::before { content: '\ef50'; }       /* mic-line：语音输入 */
+.zy-ico-diet::before { content: '\f084'; }      /* restaurant-line：拍饮食 */
+.zy-ico-consult::before { content: '\f197'; }   /* stethoscope-line：在线问诊 */
+.zy-ico-ticket::before { content: '\f20b'; }    /* ticket-2-line：我的挂号 */
+
+/* ===== 票 66：骨架屏 shimmer（数据到达前灰色轮廓，替代纯文字加载） ===== */
+@keyframes zy-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.zy-skel {
+  background: linear-gradient(90deg, var(--zy-color-fill) 25%, #fafcfb 50%, var(--zy-color-fill) 75%);
+  background-size: 200% 100%;
+  animation: zy-shimmer 1.2s linear infinite;
+}
+.zy-skel-card {
+  margin-bottom: 20rpx;
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: var(--zy-shadow-card);
+}
+.zy-skel-line { height: 28rpx; border-radius: var(--zy-radius-sm); }
+.zy-skel-circle { border-radius: 50%; }
+
+/* ===== 票 66：微交互（列表浮入 / 按压反馈） ===== */
+@keyframes zy-fade-up {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* 列表卡片逐条浮入：axml 循环里配 style="animation-delay: {{index * 40}}ms" 做 stagger */
+.zy-fade-in { animation: zy-fade-up var(--zy-motion-base) var(--zy-ease-out) both; }
+/* 可点卡片/按钮按压态；元素已有 transform/动画时在页面 acss 内联同规则而非加此类 */
+.zy-press { transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
+.zy-press:active { transform: scale(0.98); }

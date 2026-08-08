@@ -4,7 +4,7 @@ const { createDrugOrder } = require('../../services/drug-orders')
 const { SOURCE_TYPES, SOURCE_TYPE_LABELS, STATUSES } = require('../../utils/prescription')
 
 Page({
-  data: { loading: true, prescriptions: [], orderingId: null },
+  data: { loading: true, prescriptions: [], orderingId: null, skelItems: [1, 2, 3] },
   onShow() { ensureLogin().then(() => this.load()) },
   load() {
     this.setData({ loading: true })
