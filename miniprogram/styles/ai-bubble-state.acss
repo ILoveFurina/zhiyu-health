@@ -1,0 +1,68 @@
+.ai-waiting {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-height: 40rpx;
+  color: var(--zy-text-weak);
+  font-size: 24rpx;
+}
+
+.ai-waiting-error {
+  color: var(--zy-color-danger);
+}
+
+.ai-waiting-dots {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.ai-waiting-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary);
+  animation: zy-ai-waiting-dot 1.2s var(--zy-ease-out) infinite;
+}
+
+.ai-waiting-dot:nth-child(2) { animation-delay: 160ms; }
+.ai-waiting-dot:nth-child(3) { animation-delay: 320ms; }
+
+@keyframes zy-ai-waiting-dot {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-6rpx); }
+}
+
+.ai-thinking {
+  margin-bottom: 14rpx;
+  padding: 14rpx 16rpx;
+  border-radius: var(--zy-radius-sm);
+  background: var(--zy-color-fill);
+  color: var(--zy-text-weak);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.ai-thinking-head {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-weight: 600;
+}
+
+.ai-thinking-content {
+  max-height: 144rpx;
+  margin-top: 8rpx;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ai-thinking-expanded .ai-thinking-content {
+  max-height: none;
+}
+
+.ai-thinking-chevron {
+  margin-left: auto;
+  font-size: 20rpx;
+}

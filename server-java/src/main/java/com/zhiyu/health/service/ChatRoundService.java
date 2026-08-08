@@ -348,6 +348,12 @@ public class ChatRoundService {
         try {
             runtime.recordUpstream(incoming.event());
             JsonNode raw = parseData(incoming.data());
+            // high 档思考增量只做实时中继：内容可能复述患者症状，禁止进入 messages
+            // 与 agent_call_logs；直播结束后即丢弃（票 70，硬约束 5）。
+            if (contracts.chatRealtime().thinkingEvent().equals(incoming.event())) {
+                runtime.emit(incoming.event(), raw);
+                return;
+            }
             // 工具进度事件（票 24）：trace 落库走独立可失败路径，不复用 persistEvent 同步事务。
             // 写入失败只 log.warn 不连坐主对话流（ADR-0017：可用性优先于一致性）。
             if (contracts.sseEvents().isTraceEvent(incoming.event())) {

@@ -193,8 +193,28 @@
       </view>
 
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
+        <view
+          a:if="{{item.thinkingText || item.deepThoughtBadge}}"
+          class="ai-thinking {{item.thinkingExpanded ? 'ai-thinking-expanded' : ''}}"
+          data-id="{{item.id}}"
+          onTap="onToggleThinking"
+        >
+          <view class="ai-thinking-head">
+            <text>{{item.thinkingSummary || '深度思考中'}}</text>
+            <text a:if="{{item.thinkingText}}" class="ai-thinking-chevron">{{item.thinkingExpanded ? '收起' : '展开'}}</text>
+          </view>
+          <view a:if="{{item.thinkingText && (!item.thinkingComplete || item.thinkingExpanded)}}" class="ai-thinking-content">{{item.thinkingText}}</view>
+        </view>
+        <view a:if="{{item.streaming && !item.content}}" class="ai-waiting {{item.toolStatusError ? 'ai-waiting-error' : ''}}">
+          <view a:if="{{!item.toolStatusError}}" class="ai-waiting-dots">
+            <view class="ai-waiting-dot"></view>
+            <view class="ai-waiting-dot"></view>
+            <view class="ai-waiting-dot"></view>
+          </view>
+          <text>{{item.toolStatus || item.waitingText}}</text>
+        </view>
         <!-- 票 52：AI 文本按 Markdown 块渲染；blocks 缺失（错误消息等）时回退纯文本 -->
-        <block a:if="{{item.blocks && item.blocks.length}}">
+        <block a:if="{{item.content && item.blocks && item.blocks.length}}">
           <view a:for="{{item.blocks}}" a:for-item="block" a:key="index">
             <view a:if="{{block.type === 'heading'}}" class="md-h{{block.level}}">
               <text a:for="{{block.segments}}" a:for-item="seg" a:key="index" class="{{seg.bold ? 'md-bold' : ''}}">{{seg.text}}</text>
@@ -210,8 +230,7 @@
             </view>
           </view>
         </block>
-        <text a:else>{{item.content}}</text>
-        <text a:if="{{item.streaming}}" class="cursor">▍</text>
+        <text a:elif="{{item.content}}">{{item.content}}</text>
         <view a:if="{{!item.streaming && item.soothingText}}" class="soothing">{{item.soothingText}}</view>
         <!-- 票 45：TTS 播放/停止按钮（按需点击触发，不自动播放）。ttsEnabled=false 时不渲染 -->
         <view
@@ -332,12 +351,6 @@
       <view class="bubble-icon zy-ico zy-ico-{{item.icon}}"></view>
       <view class="bubble-label">{{item.label}}</view>
     </view>
-  </view>
-
-  <!-- 工具进度状态条（票 24）：瞬态，不进 messages 数组；输入框上方 -->
-  <view a:if="{{toolProgress}}" class="tool-progress {{toolProgressError ? 'tool-progress-error' : ''}}">
-    <view a:if="{{!toolProgressError}}" class="tool-progress-spinner" />
-    <text>{{toolProgress}}</text>
   </view>
 
   <!-- 票 45：语音输入提示条（录音中/识别中/失败），瞬态，不进 messages 数组 -->

@@ -202,6 +202,7 @@ function parseSse(raw) {
 
 function dispatchEvent(event, data, handlers) {
   if (event === 'meta') handlers.onMeta(data)
+  else if (event === 'thinking' && handlers.onThinking) handlers.onThinking(data)
   else if (event === 'token') handlers.onToken(data)
   else if (event === 'message') handlers.onAssistant(data)
   else if (event === 'tool_start') handlers.onToolStart(data)

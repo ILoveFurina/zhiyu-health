@@ -196,6 +196,8 @@ const drawerMethods = {
       // 票 44：历史回看复现情绪色；安抚语按本地映射补回（后端只存 emotion 列不存 soothing_text）
       emotion: m.emotion || 'calm',
       soothingText: soothingTextFor(m.emotion),
+      deepThoughtBadge: m.role === 'assistant' && m.effort === 'high',
+      thinkingSummary: m.role === 'assistant' && m.effort === 'high' ? '已深度思考' : '',
       streaming: false,
     }
   },

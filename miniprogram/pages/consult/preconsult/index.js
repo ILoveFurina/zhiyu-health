@@ -4,6 +4,7 @@ const { getDraft } = require('../../../services/consultation')
 const { listMessages } = require('../../../services/conversations')
 const { parseMarkdown } = require('../../../utils/markdown')
 const { DRAFT_STATUSES } = require('../../../utils/consultation')
+const { createAssistantBubble, createAiBubbleState } = require('../../../utils/ai-bubble-state')
 
 // 预问诊对话的推理档位固定默认档；scenario 不传，由 server-java 校验草稿后强制预问诊场景
 const DEFAULT_EFFORT = 'auto'
@@ -38,6 +39,7 @@ Page({
   _summaryPollTimers: [], // 摘要轮询定时器，卸载时统一清理
 
   onLoad(query) {
+    this._aiBubbleState = createAiBubbleState(this)
     this.setData({
       draftId: query && query.draftId,
       profileName: decodeURIComponent((query && query.profileName) || ''),
@@ -58,6 +60,7 @@ Page({
   onUnload() {
     this._unloaded = true
     this._clearSummaryPoll()
+    if (this._aiBubbleState) this._aiBubbleState.dispose()
     if (this._chatChannel) this._chatChannel.close()
   },
 
@@ -117,6 +120,8 @@ Page({
       content: m.content,
       blocks: m.role === 'assistant' ? parseMarkdown(m.content) : undefined,
       disclaimer: m.disclaimer,
+      deepThoughtBadge: m.role === 'assistant' && m.effort === 'high',
+      thinkingSummary: m.role === 'assistant' && m.effort === 'high' ? '已深度思考' : '',
       streaming: false,
     }
   },
@@ -130,14 +135,7 @@ Page({
     if (!this.data.canSend || this.data.sending) return
     const content = this.data.inputValue.trim()
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content }
-    const aiMsg = {
-      id: ++this._msgSeq,
-      role: 'assistant',
-      kind: 'text',
-      content: '',
-      disclaimer: '',
-      streaming: true,
-    }
+    const aiMsg = createAssistantBubble(++this._msgSeq)
     this.setData({
       messages: [...this.data.messages, userMsg, aiMsg],
       inputValue: '',
@@ -145,6 +143,7 @@ Page({
       sending: true,
       anchorId: 'thread-bottom',
     })
+    this._aiBubbleState.start(aiMsg.id)
 
     if (!this._chatChannel) this._chatChannel = createChatChannel()
     this._chatChannel.send({
@@ -154,12 +153,16 @@ Page({
       effort: DEFAULT_EFFORT,
       preconsultationDraftId: this.data.draftId,
       handlers: {
-        onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
+        onMeta: (data) => {
+          this.setData({ conversationId: data.conversation_id || this.data.conversationId })
+          this._aiBubbleState.onMeta(aiMsg.id, data)
+        },
         onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
+        onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
-        onToolStart: NOOP,
-        onToolEnd: NOOP,
+        onToolStart: (data) => this._aiBubbleState.onToolStart(aiMsg.id, data),
+        onToolEnd: (data) => this._aiBubbleState.onToolEnd(aiMsg.id, data),
         onDoctorRecommendations: NOOP,
         onDoctorSlots: NOOP,
         onHospitalRecommendations: NOOP,
@@ -167,13 +170,14 @@ Page({
         onAppointment: NOOP,
         onAppointments: NOOP,
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
-        onDone: () => this.completeRound(),
+        onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
       },
     })
   },
 
   streamToken(id, text) {
+    this._aiBubbleState.onBodyStart(id)
     this.patchMessage(id, (msg) => {
       const content = msg.content + text
       return { ...msg, content, blocks: parseMarkdown(content) }
@@ -182,6 +186,7 @@ Page({
   },
 
   finishAssistant(id, data) {
+    this._aiBubbleState.onBodyStart(id)
     this.patchMessage(id, (msg) => ({
       ...msg,
       content: data.content,
@@ -221,6 +226,7 @@ Page({
   },
 
   showRedFlag(id, data) {
+    this._aiBubbleState.fail(id)
     this.patchMessage(id, () => ({
       id,
       role: 'assistant',
@@ -236,12 +242,14 @@ Page({
     this.setData({ redFlag: null })
   },
 
-  completeRound() {
+  completeRound(id) {
     if (this._chatChannel) this._chatChannel.finishRound()
+    this._aiBubbleState.complete(id)
     this.setData({ sending: false, canSend: this.data.inputValue.trim().length > 0 })
   },
 
   failRound(id, err) {
+    this._aiBubbleState.fail(id)
     this.patchMessage(id, (msg) => ({
       ...msg,
       content: `抱歉，出了点问题：${err.message || '网络异常'}，请稍后重试`,
@@ -255,6 +263,10 @@ Page({
     this.setData({
       messages: this.data.messages.map((msg) => (msg.id === id ? patch(msg) : msg)),
     })
+  },
+
+  onToggleThinking(e) {
+    this._aiBubbleState.toggle(e.currentTarget.dataset.id)
   },
 
   /** 底部 CTA：去摘要确认页（navigateTo，「继续调整」可 navigateBack 回来续聊）。 */

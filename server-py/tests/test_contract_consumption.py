@@ -42,6 +42,7 @@ def test_stream_event_constants_match_contract() -> None:
         chat_service.EVENT_MESSAGE,
         chat_service.EVENT_DONE,
     ] == events
+    assert get_contracts().chat_realtime.thinking_event == chat_service.EVENT_THINKING
 
 
 def test_trace_events_are_disjoint_from_card_and_stream_events() -> None:
@@ -62,7 +63,7 @@ def test_agent_output_event_literal_matches_contract() -> None:
     knowledge_event = get_contracts().knowledge.knowledge_meta_event
     event_type = AgentOutput.__dataclass_fields__["event"].type
     assert _literal_values(event_type) == {
-        "token", knowledge_event,
+        "token", get_contracts().chat_realtime.thinking_event, knowledge_event,
         *get_contracts().sse_events.card_events,
         *get_contracts().sse_events.trace_events,
     }

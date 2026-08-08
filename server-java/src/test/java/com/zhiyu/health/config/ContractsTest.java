@@ -125,6 +125,7 @@ class ContractsTest {
         assertThat(realtime.runningStatus()).isEqualTo("RUNNING");
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
+        assertThat(realtime.thinkingEvent()).isEqualTo("thinking");
         // 票 51/票 50/票 55：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识）
         assertThat(realtime.chatOptionalFields())
                 .containsExactly("medication_name", "retry_standard_department_id", "preconsultation_draft_id");

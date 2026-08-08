@@ -37,7 +37,7 @@ from typing import Any
 
 from app.agent.emotion import EmotionJudge, LazyEmotionJudge
 from app.agent.preconsult import LazyPreconsultJudge, PreconsultJudge
-from app.agent.runner import AgentContext, AgentRunner, HealthProfileContext
+from app.agent.runner import AgentContext, AgentOutput, AgentRunner, HealthProfileContext
 from app.agent.triage import LazyTriageJudge, TriageJudge
 from app.core.contracts import get_contracts
 from app.schemas.emotion import emotion_soothing_text
@@ -55,6 +55,7 @@ EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
 
 # 工具进度事件名（票 24）：tool_start/tool_end，不带免责声明（非 AI 产出）。
 EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
+EVENT_THINKING = get_contracts().chat_realtime.thinking_event
 
 # 票 50/62：触发强制号源查询的解析状态为契约 resolution_statuses 前两态
 # （explicit_booking=明确挂号意图、resolved=症状收敛到单一科室），与契约的
@@ -62,6 +63,24 @@ EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
 # 直查出卡，不再等用户开口；同一科室已出卡时由去重守卫挡重复（见下）。
 _GUIDED = get_contracts().guided_registration
 _QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:2])
+
+
+def _project_agent_output(
+    output: AgentOutput, parts: list[str], disclaimer: str
+) -> dict[str, object] | None:
+    """将 runner 输出映射为实时事件；thinking 不进入正文聚合。"""
+    if output.event == EVENT_TOKEN and isinstance(output.data, str):
+        parts.append(output.data)
+        return {"event": EVENT_TOKEN, "data": {"text": output.data}}
+    if output.event == EVENT_THINKING and isinstance(output.data, str):
+        return {"event": EVENT_THINKING, "data": output.data}
+    if output.event == EVENT_KNOWLEDGE and isinstance(output.data, dict):
+        return {"event": EVENT_KNOWLEDGE, "data": output.data}
+    if output.event in (EVENT_TOOL_START, EVENT_TOOL_END):
+        return {"event": output.event, "data": output.data}
+    if isinstance(output.data, dict):
+        return {"event": output.event, "data": {**output.data, "disclaimer": disclaimer}}
+    return None
 
 
 def _department_already_summarized(
@@ -418,21 +437,9 @@ class AgentChatService:
             scenario=scenario,
         )
         async for output in self._agent_runner.astream_reply(messages, effort, context):
-            if output.event == EVENT_TOKEN and isinstance(output.data, str):
-                parts.append(output.data)
-                yield {"event": EVENT_TOKEN, "data": {"text": output.data}}
-            elif output.event == EVENT_KNOWLEDGE and isinstance(output.data, dict):
-                # runner 在 search_knowledge 成功检索时产出；不带免责声明（非 AI 产出）
-                yield {"event": EVENT_KNOWLEDGE, "data": output.data}
-            elif output.event in (EVENT_TOOL_START, EVENT_TOOL_END):
-                # 工具进度事件（票 24）：无原文、无免责声明（非 AI 产出）。
-                # tool_call_id 作为 start/end 配对键透传，duration_ms 由 server-java 墙钟计算。
-                yield {"event": output.event, "data": output.data}
-            elif isinstance(output.data, dict):
-                yield {
-                    "event": output.event,
-                    "data": {**output.data, "disclaimer": self._disclaimer},
-                }
+            projected = _project_agent_output(output, parts, self._disclaimer)
+            if projected is not None:
+                yield projected
         # 票 55：摘要不再阻塞 message 事件。emotion 仍同步（它是 message 负载的一部分，
         # 只阻塞一次 LLM）；摘要判定移到 done 之后的后台 task，避免第二次非流式 LLM
         # 调用（timeout 15s × 2 次校验重试）延迟 done 导致客户端输入框长时间锁死。

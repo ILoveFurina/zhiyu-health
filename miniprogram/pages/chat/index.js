@@ -16,6 +16,7 @@ const { loadRegistrationSummary } = require('../../services/registration')
 const { relocate, getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
 const { defaultSelectedDate } = require('../../utils/department-slots')
+const { createAssistantBubble, createAiBubbleState } = require('../../utils/ai-bubble-state')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -31,16 +32,6 @@ const PROMPTS = [
   '为我推荐 28 天健康减肥食谱计划',
 ]
 
-// 工具名->中文文案映射（票 24）：状态条显示"正在{文案}…"，本地维护。
-// 知识工具（search_knowledge/traverse_graph）不发 tool_start，故不在此映射。
-const TOOL_LABELS = {
-  recommend_doctors: '推荐医生',
-  get_doctor_slots: '查询号源',
-  find_hospitals: '查找医院',
-  create_appointment: '挂号',
-  get_appointment: '查询挂号',
-}
-
 Page({
   data: {
     messages: [], // 文本、红线警告或医生/号源结构化卡片
@@ -54,9 +45,6 @@ Page({
     conversationId: null,
     redFlag: null,
     anchorId: '',
-    // 工具进度状态条（瞬态，不进 messages 数组）：tool_start 显示"正在…"，tool_end 分流
-    toolProgress: '',
-    toolProgressError: false,
     // 对话记录抽屉
     drawerOpen: false,
     drawerLoading: false,
@@ -100,6 +88,7 @@ Page({
   ...featureGuideMethods,
 
   onLoad() {
+    this._aiBubbleState = createAiBubbleState(this)
     // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
     ensureLogin()
       .then(() => {
@@ -165,6 +154,7 @@ Page({
   },
 
   onUnload() {
+    if (this._aiBubbleState) this._aiBubbleState.dispose()
     if (this._chatChannel) this._chatChannel.close()
     this.stopTts()
   },
@@ -190,16 +180,7 @@ Page({
 
   startRound(content, location, options) {
     const userMsg = { id: ++this._msgSeq, role: 'user', kind: 'text', content }
-    const aiMsg = {
-      id: ++this._msgSeq,
-      role: 'assistant',
-      kind: 'text',
-      content: '',
-      disclaimer: '',
-      emotion: 'calm',
-      soothingText: '',
-      streaming: true,
-    }
+    const aiMsg = createAssistantBubble(++this._msgSeq)
     this.setData({
       messages: [...this.data.messages, userMsg, aiMsg],
       inputValue: '',
@@ -207,6 +188,7 @@ Page({
       sending: true,
       anchorId: 'thread-bottom',
     })
+    this._aiBubbleState.start(aiMsg.id)
 
     if (!this._chatChannel) this._chatChannel = createChatChannel()
     this._chatChannel.send({
@@ -219,12 +201,16 @@ Page({
       latitude: location && location.latitude,
       retryStandardDepartmentId: options && options.retryStandardDepartmentId,
       handlers: {
-        onMeta: (data) => this.setData({ conversationId: data.conversation_id }),
+        onMeta: (data) => {
+          this.setData({ conversationId: data.conversation_id || this.data.conversationId })
+          this._aiBubbleState.onMeta(aiMsg.id, data)
+        },
         onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
+        onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
-        onToolStart: (data) => this.onToolStart(data),
-        onToolEnd: (data) => this.onToolEnd(data),
+        onToolStart: (data) => this._aiBubbleState.onToolStart(aiMsg.id, data),
+        onToolEnd: (data) => this._aiBubbleState.onToolEnd(aiMsg.id, data),
         onDoctorRecommendations: (data) => this.appendCard('doctor_recommendations', data),
         onDoctorSlots: (data) => this.appendCard('doctor_slots', data),
         onHospitalRecommendations: (data) => this.appendCard('hospital_recommendations', data),
@@ -233,7 +219,7 @@ Page({
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
-        onDone: () => this.completeRound(),
+        onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
       },
     })
@@ -249,8 +235,6 @@ Page({
       canSend: false,
       sending: false,
       redFlag: null,
-      toolProgress: '',
-      toolProgressError: false,
       voiceHint: '',
       voiceHintError: false,
       pendingReport: null,
@@ -262,9 +246,12 @@ Page({
       pendingTongue: null,
       tongueProgress: '',
     })
+    if (this._aiBubbleState) this._aiBubbleState.dispose()
+    this._aiBubbleState = createAiBubbleState(this)
   },
 
   streamAssistantToken(id, text) {
+    this._aiBubbleState.onBodyStart(id)
     // 票 52：流式每次追加同步重算 Markdown 块；原文 content 保留给 TTS 与复制
     this.patchMessage(id, (msg) => {
       const content = msg.content + text
@@ -274,6 +261,7 @@ Page({
   },
 
   finishAssistant(id, data) {
+    this._aiBubbleState.onBodyStart(id)
     // 票 44：emotion 驱动气泡配色与安抚语；soothing_text 仅 anxious/fearful 携带（calm 无）。
     // 安抚语附气泡底部 disclaimer 上方，与回复共用 disclaimer，不单独标注、不进 messages 数组。
     const patch = (msg) => ({
@@ -288,40 +276,12 @@ Page({
     this.patchMessage(id, patch)
   },
 
-  /** 工具进度状态条（票 24）：tool_start 显示"正在{文案}…"，瞬态不进 messages。 */
-  onToolStart(data) {
-    const label = TOOL_LABELS[data.tool_name] || data.tool_name || '处理'
-    this.setData({ toolProgress: `正在${label}…`, toolProgressError: false })
-  },
-
-  /** tool_end 按结果分流：success 短暂显示后清空，error 显示失败，skipped 静默不显示。 */
-  onToolEnd(data) {
-    const result = data.result
-    if (result === 'skipped') {
-      // 降级对用户不可见：直接清空状态条（与"降级"词条一致）
-      this.setData({ toolProgress: '', toolProgressError: false })
-      return
-    }
-    if (result === 'error') {
-      const label = TOOL_LABELS[data.tool_name] || data.tool_name || '操作'
-      this.setData({ toolProgress: `${label}失败`, toolProgressError: true })
-      return
-    }
-    // success：短暂保留后清空，避免与紧随的卡片消息视觉重复
-    setTimeout(() => {
-      if (this.data.toolProgress && !this.data.toolProgressError) {
-        this.setData({ toolProgress: '' })
-      }
-    }, 800)
-  },
-
-  completeRound() {
+  completeRound(id) {
     if (this._chatChannel) this._chatChannel.finishRound()
+    if (id) this._aiBubbleState.complete(id)
     this.setData({
       sending: false,
       canSend: this.data.inputValue.trim().length > 0,
-      toolProgress: '',
-      toolProgressError: false,
     })
   },
 
@@ -440,6 +400,7 @@ Page({
   },
 
   showRedFlag(id, data) {
+    this._aiBubbleState.fail(id)
     this.patchMessage(id, () => ({
       id,
       role: 'assistant',
@@ -456,6 +417,7 @@ Page({
   },
 
   failRound(id, err) {
+    this._aiBubbleState.fail(id)
     this.patchMessage(id, (msg) => ({
       ...msg,
       content: `抱歉，出了点问题：${err.message || '网络异常'}，请稍后重试`,
@@ -569,6 +531,10 @@ Page({
     this.setData({
       messages: this.data.messages.map((msg) => (msg.id === id ? patch(msg) : msg)),
     })
+  },
+
+  onToggleThinking(e) {
+    this._aiBubbleState.toggle(e.currentTarget.dataset.id)
   },
 
   ...drawerMethods,
