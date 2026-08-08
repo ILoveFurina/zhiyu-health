@@ -15,12 +15,15 @@ import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
 import com.zhiyu.health.mapper.PreconsultationDraftMapper;
+import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestDisclaimers;
 import java.time.OffsetDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -77,7 +80,10 @@ class OnlineConsultationConcurrencyTest {
                 TestContracts.instance(),
                 Mappers.getMapper(OnlineConsultationDtoMapper.class),
                 mock(MinioStorageService.class),
-                new ObjectMapper());
+                new ObjectMapper(),
+                mock(PrescriptionMapper.class),
+                mock(InAppMessageMapper.class),
+                TestDisclaimers.instance());
 
         AtomicInteger successes = new AtomicInteger();
         AtomicInteger conflicts = new AtomicInteger();

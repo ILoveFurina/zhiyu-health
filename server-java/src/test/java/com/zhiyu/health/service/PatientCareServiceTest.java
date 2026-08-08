@@ -1,6 +1,7 @@
 package com.zhiyu.health.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,7 +22,8 @@ import org.mapstruct.factory.Mappers;
 
 class PatientCareServiceTest {
     @Test
-    void patientPrescriptionListUsesApprovedOnlyMapperBoundary() {
+    void patientPrescriptionListCoversAllStatusesWithoutMapperFilter() {
+        // 票 60：查询层不再按 APPROVED 过滤；用药解读只随 APPROVED 落库，非 APPROVED 天然为 null
         PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
         PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
@@ -36,20 +38,29 @@ class PatientCareServiceTest {
                 Mappers.getMapper(PrescriptionDtoMapper.class),
                 healthProfiles,
                 clinicalContexts());
-        Prescription approved = new Prescription();
-        approved.setId(31L);
-        approved.setStatus("APPROVED");
-        when(prescriptionMapper.selectApprovedForProfile(7L, 41L, "APPROVED")).thenReturn(List.of(approved));
+        Prescription pending = new Prescription();
+        pending.setId(31L);
+        pending.setAppointmentId(21L);
+        pending.setStatus("PENDING");
+        when(prescriptionMapper.selectForProfile(7L, 41L)).thenReturn(List.of(pending));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of());
 
-        assertEquals(1, service.approvedPrescriptions(7L).size());
-        verify(prescriptionMapper).selectApprovedForProfile(7L, 41L, "APPROVED");
+        List<PatientCareService.PatientPrescriptionView> views = service.prescriptions(7L);
+
+        assertEquals(1, views.size());
+        assertEquals("PENDING", views.get(0).status());
+        assertEquals(
+                TestContracts.instance().prescriptionFlow().statusLabels().get("PENDING"),
+                views.get(0).statusLabel());
+        // 来源单号取 appointment/online_consultation 两外键中非空者（问诊完成页匹配本单处方）
+        assertEquals(21L, views.get(0).sourceId());
+        assertNull(views.get(0).interpretation());
+        verify(prescriptionMapper).selectForProfile(7L, 41L);
     }
 
     @Test
-    void onlineConsultationPrescriptionCarriesContractSourceType() {
-        // 在线问诊处方：source_type 按非空外键派生且只取契约值（票 56），PENDING/REJECTED
-        // 不出队由 selectApprovedForProfile 的 SQL 边界保证（本测试钉住调用边界与派生值）。
+    void rejectedOnlinePrescriptionCarriesStatusLabelReasonAndSourceId() {
+        // 在线问诊处方（票 56/60）：source_type 按非空外键派生且只取契约值；驳回处方带出驳回原因
         PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
         PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
@@ -67,16 +78,22 @@ class PatientCareServiceTest {
         Prescription online = new Prescription();
         online.setId(32L);
         online.setOnlineConsultationId(55L);
-        online.setStatus("APPROVED");
-        when(prescriptionMapper.selectApprovedForProfile(7L, 41L, "APPROVED")).thenReturn(List.of(online));
+        online.setStatus("REJECTED");
+        online.setReviewReason("用法用量需调整");
+        when(prescriptionMapper.selectForProfile(7L, 41L)).thenReturn(List.of(online));
         when(itemMapper.selectDetailed(32L)).thenReturn(List.of());
 
-        List<PatientCareService.PatientPrescriptionView> views = service.approvedPrescriptions(7L);
+        List<PatientCareService.PatientPrescriptionView> views = service.prescriptions(7L);
 
         assertEquals(1, views.size());
         assertEquals(
                 TestContracts.instance().prescriptionFlow().sourceTypes().get("online_consultation"),
                 views.get(0).sourceType());
+        assertEquals(
+                TestContracts.instance().prescriptionFlow().statusLabels().get("REJECTED"),
+                views.get(0).statusLabel());
+        assertEquals("用法用量需调整", views.get(0).reviewReason());
+        assertEquals(55L, views.get(0).sourceId());
     }
 
     private static ClinicalContextService clinicalContexts() {

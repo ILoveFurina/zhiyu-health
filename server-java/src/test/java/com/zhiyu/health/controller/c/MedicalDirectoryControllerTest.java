@@ -152,6 +152,7 @@ class MedicalDirectoryControllerTest {
                 1L,
                 "林知远",
                 "主任医师",
+                "擅长冠心病介入治疗",
                 new BigDecimal("50.00"),
                 1L,
                 "郑州智愈综合医院",
@@ -179,6 +180,7 @@ class MedicalDirectoryControllerTest {
                 .andExpect(jsonPath("$.standard_department.category").value("内科"))
                 .andExpect(jsonPath("$.days.length()").value(1))
                 .andExpect(jsonPath("$.doctors[0].doctor_id").value(1))
+                .andExpect(jsonPath("$.doctors[0].specialty").value("擅长冠心病介入治疗"))
                 .andExpect(jsonPath("$.doctors[0].registration_fee").value(50.00))
                 .andExpect(jsonPath("$.doctors[0].campus_name").value("主院区"))
                 // 票 50：号源卡补院区地址；最早可约序列化为 {date, time_slot}

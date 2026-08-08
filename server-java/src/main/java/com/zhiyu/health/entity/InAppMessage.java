@@ -20,5 +20,10 @@ public class InAppMessage {
     private String content;
     private String disclaimer;
     private Long relatedAppointmentId;
+    // 票 60：审核结果消息挂处方、随访消息挂在线问诊，各配 (外键, type) UNIQUE 兜底幂等
+    private Long relatedPrescriptionId;
+    private Long relatedOnlineConsultationId;
+    // 延迟可见：随访消息为未来时间；null 时走 DB 默认 now()（即时消息）
+    private OffsetDateTime visibleAt;
     private OffsetDateTime createdAt;
 }

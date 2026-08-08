@@ -18,7 +18,7 @@ public class PatientCareController {
     @GetMapping("/prescriptions")
     public List<PatientCareService.PatientPrescriptionView> prescriptions(
             @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
-        return service.approvedPrescriptions(patientId);
+        return service.prescriptions(patientId);
     }
 
     @GetMapping("/messages")

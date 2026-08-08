@@ -6,15 +6,19 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.ConsultationRecord;
+import com.zhiyu.health.entity.InAppMessage;
 import com.zhiyu.health.entity.OnlineConsultation;
 import com.zhiyu.health.entity.OnlineConsultationMessage;
 import com.zhiyu.health.entity.PreconsultationDraft;
+import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
 import com.zhiyu.health.mapper.PreconsultationDraftMapper;
+import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
 import java.time.OffsetDateTime;
@@ -22,6 +26,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -50,6 +55,14 @@ public class OnlineConsultationService {
     private final OnlineConsultationDtoMapper dtoMapper;
     private final MinioStorageService minioStorage;
     private final ObjectMapper objectMapper;
+    private final PrescriptionMapper prescriptionMapper;
+    private final InAppMessageMapper inAppMessageMapper;
+    private final DisclaimerService disclaimers;
+
+    // 演示开关（票 60，与 zhiyu.demo.reset-enabled 同一模式）：随访消息立即可见，
+    // 跳过契约 delay_days 延迟；默认关闭，仅演示环境显式置 true。
+    @Value("${zhiyu.demo.follow-up-visible-immediately:false}")
+    private boolean followUpVisibleImmediately;
 
     // ------------------------------------------------------------------
     // C 端：确认建单、查询、取消、重新提交、医患消息
@@ -303,6 +316,7 @@ public class OnlineConsultationService {
      * 完成问诊（幂等）：状态推进与接诊记录写入同一事务——先条件 UPDATE（并发完成只有一个
      * affected rows = 1，输家在 UPDATE 处即 409），再 insert consultation_records；
      * 其 online_consultation_id UNIQUE 由同一事务保证不被撞库。已完成重复调用直接返回当前单。
+     * 同事务 eager 写随访关怀站内消息（票 60，见 writeFollowUpMessage）。
      */
     public DoctorConsultationDetail complete(long staffId, long id, String diagnosis, String advice) {
         long doctorId = requireDoctor(staffId);
@@ -321,10 +335,63 @@ public class OnlineConsultationService {
             record.setDiagnosis(diagnosis.trim());
             record.setAdvice(advice.trim());
             consultationRecordMapper.insert(record);
+            writeFollowUpMessage(consultation);
             appendMessage(id, senderType("system"), OnlineConsultationMessage.KIND_TEXT, text("consult_completed"));
             logDecision("complete", id, doctorId);
             return toDoctorDetail(consultationMapper.selectDetailedById(id));
         });
+    }
+
+    /**
+     * 接诊抽屉按问诊单查处方（票 60）：医生只能查本人绑定单（与 detail 同一归属边界），
+     * 管理员可查任意单；无处方返回 null 而非 404——「尚未开方」是正常业务态。
+     */
+    public ConsultationPrescriptionView prescriptionForConsultation(long staffId, long id) {
+        StaffUser staff = staffUserMapper.selectById(staffId);
+        if (staff != null && StaffUser.ROLE_ADMIN.equals(staff.getRole())) {
+            if (consultationMapper.selectDetailedById(id) == null) {
+                throw new ApiException(404, "问诊单不存在");
+            }
+        } else if (staff != null && StaffUser.ROLE_DOCTOR.equals(staff.getRole()) && staff.getDoctorId() != null) {
+            requireBoundToDoctor(id, staff.getDoctorId());
+        } else {
+            throw new ApiException(403, "仅医生或管理员可操作");
+        }
+        Prescription prescription = prescriptionMapper.selectByOnlineConsultationId(id);
+        if (prescription == null) {
+            return null;
+        }
+        // 状态标签只经 prescription-flow 契约映射，不落私有枚举。
+        String label = contracts
+                .prescriptionFlow()
+                .statusLabels()
+                .getOrDefault(prescription.getStatus(), prescription.getStatus());
+        return new ConsultationPrescriptionView(
+                prescription.getId(), prescription.getStatus(), label, prescription.getReviewReason());
+    }
+
+    /**
+     * 随访关怀站内消息（票 60）：与问诊完成同事务 eager 写入，type/title/content 只取 contracts；
+     * visible_at = 完成时间 + 契约 delay_days 天，患者消息列表由 visible_at <= now() 延迟可见（B2）；
+     * 演示开关 follow-up-visible-immediately 置 true 时不设 visible_at，走 COALESCE 取 now() 立即可见。
+     * 撞 UNIQUE(related_online_consultation_id, type)（重试/并发越过 complete 幂等早返回）由
+     * ON CONFLICT DO NOTHING 在数据库层幂等吞掉，事务不受损、不冒 500。
+     */
+    private void writeFollowUpMessage(OnlineConsultation consultation) {
+        Contracts.OnlineConsultation.FollowUp followUp =
+                contracts.onlineConsultation().followUp();
+        InAppMessage message = new InAppMessage();
+        message.setPatientId(consultation.getPatientId());
+        message.setType(followUp.messageType());
+        message.setTitle(followUp.title());
+        message.setContent(followUp.content());
+        // server-java 出口兜底：免责声明一律经 DisclaimerService 从契约注入，不信任上游。
+        message.setDisclaimer(disclaimers.text());
+        message.setRelatedOnlineConsultationId(consultation.getId());
+        if (!followUpVisibleImmediately) {
+            message.setVisibleAt(OffsetDateTime.now().plusDays(followUp.delayDays()));
+        }
+        inAppMessageMapper.insertIgnoreConflict(message);
     }
 
     // ------------------------------------------------------------------
@@ -608,6 +675,13 @@ public class OnlineConsultationService {
             @JsonProperty("terminal_hint") String terminalHint) {}
 
     public record PatientRef(String nickname) {}
+
+    /** 接诊抽屉处方卡片（票 60）：状态标签来自 prescription-flow 契约，驳回原因原样带出。 */
+    public record ConsultationPrescriptionView(
+            Long id,
+            String status,
+            @JsonProperty("status_label") String statusLabel,
+            @JsonProperty("review_reason") String reviewReason) {}
 
     /** 医生接受前可见的锁定档案信息：判断是否适合接诊的最小集合。 */
     public record ProfileRef(

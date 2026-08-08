@@ -75,12 +75,21 @@ public interface PrescriptionDtoMapper {
     List<PatientCareService.PatientItemView> toPatientItemViews(List<PrescriptionItem> items);
 
     @Mapping(target = "id", source = "prescription.id")
+    @Mapping(target = "status", source = "prescription.status")
+    @Mapping(target = "statusLabel", source = "statusLabel")
+    @Mapping(target = "reviewReason", source = "prescription.reviewReason")
+    @Mapping(target = "sourceId", source = "sourceId")
     @Mapping(target = "doctorName", source = "prescription.doctorName")
     @Mapping(target = "departmentName", source = "prescription.departmentName")
     @Mapping(target = "interpretation", source = "prescription.interpretation")
     @Mapping(target = "disclaimer", source = "prescription.disclaimer")
     PatientCareService.PatientPrescriptionView toPatientPrescriptionView(
-            Prescription prescription, String sourceType, String date, List<PatientCareService.PatientItemView> items);
+            Prescription prescription,
+            String sourceType,
+            String statusLabel,
+            Long sourceId,
+            String date,
+            List<PatientCareService.PatientItemView> items);
 
     @Mapping(target = "id", source = "message.id")
     @Mapping(target = "type", source = "message.type")

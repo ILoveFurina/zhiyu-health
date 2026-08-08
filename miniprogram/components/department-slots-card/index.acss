@@ -51,6 +51,17 @@
 .doctor-title { color: var(--zy-text-secondary); font-size: 22rpx; }
 .doctor-fee { color: var(--zy-color-primary); font-size: 26rpx; font-weight: 600; }
 .doctor-hospital { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+/* 擅长（票 60）：仿 booking/doctors 列表，次要色 2 行省略；specialty 为 null 时不渲染 */
+.specialty {
+  margin-top: 6rpx;
+  color: var(--zy-text-secondary);
+  font-size: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 .doctor-address { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 
 .slots { margin-top: var(--zy-space-sm); }

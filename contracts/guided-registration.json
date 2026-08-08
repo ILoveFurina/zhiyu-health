@@ -10,9 +10,10 @@
   "summary_templates": {
     "ok": "已为您查询{department}号源：最早可约{earliest_date} {earliest_slot}，当前有号医生{doctor_count}位。",
     "empty": "{department}未来14天暂无可约号源。",
-    "failed": "号源查询失败，请稍后重试。"
+    "failed": "号源查询失败，请稍后重试。",
+    "recommendation": "推荐{doctor_name}（{doctor_title}），擅长{doctor_specialty}。"
   },
-  "_summary_templates_doc": "摘要由代码根据 server-java 返回值拼装，不让 LLM 自由生成医院、医生、地址、距离、排班或余号事实。{earliest_slot} 取上午/下午文案。",
+  "_summary_templates_doc": "摘要由代码根据 server-java 返回值拼装，不让 LLM 自由生成医院、医生、地址、距离、排班或余号事实。{earliest_slot} 取上午/下午文案。票 60：recommendation 为推荐理由子句，由 server-py 拼接到 ok 摘要末尾，无擅长信息时整句省略。",
   "time_slot_labels": {
     "AM": "上午",
     "PM": "下午"

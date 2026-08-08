@@ -418,7 +418,8 @@ public class Contracts {
             Map<String, String> decisions,
             Map<String, String> sourceTypes,
             Map<String, String> sourceTypeLabels,
-            Map<String, String> messageTypes) {
+            Map<String, String> messageTypes,
+            Map<String, ReviewMessage> messages) {
         public PrescriptionFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
@@ -426,20 +427,22 @@ public class Contracts {
             sourceTypes = Map.copyOf(sourceTypes);
             sourceTypeLabels = Map.copyOf(sourceTypeLabels);
             messageTypes = Map.copyOf(messageTypes);
+            messages = Map.copyOf(messages);
         }
+
+        /** 审核结果站内消息文案（票 60）：键为审核结果 approved/rejected，患者向确定性文案。 */
+        public record ReviewMessage(String title, String content) {}
     }
 
     public record OrderFlow(
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, String> decisions,
-            Map<String, String> messageTypes,
             Map<String, String> messages) {
         public OrderFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
-            messageTypes = Map.copyOf(messageTypes);
             messages = Map.copyOf(messages);
         }
     }
@@ -632,7 +635,8 @@ public class Contracts {
             List<String> summaryFields,
             Map<String, String> summaryFieldLabels,
             String summaryEventField,
-            Map<String, String> texts) {
+            Map<String, String> texts,
+            FollowUp followUp) {
         public OnlineConsultation {
             draftStatuses = Map.copyOf(draftStatuses);
             draftStatusLabels = Map.copyOf(draftStatusLabels);
@@ -673,6 +677,9 @@ public class Contracts {
 
         /** C 端五步进度的一步；key 与问诊状态值同源的步骤直接复用状态值。 */
         public record ProgressStep(String key, String label) {}
+
+        /** 随访关怀站内消息（票 60）：COMPLETED 时同事务 eager 生成，visible_at 延迟 delayDays 天可见。 */
+        public record FollowUp(String messageType, String title, String content, int delayDays) {}
     }
 
     /**

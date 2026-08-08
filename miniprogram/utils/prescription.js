@@ -14,4 +14,12 @@ const SOURCE_TYPE_LABELS = {
   ONLINE_CONSULTATION: '在线问诊',
 }
 
-module.exports = { SOURCE_TYPES, SOURCE_TYPE_LABELS }
+// 处方审核状态（票 60）：与 contracts/prescription-flow.json 的 statuses 对齐。
+// 展示文案直接使用 API 下发的 status_label，端侧不镜像 status_labels
+const STATUSES = {
+  pending: 'PENDING',
+  approved: 'APPROVED',
+  rejected: 'REJECTED',
+}
+
+module.exports = { SOURCE_TYPES, SOURCE_TYPE_LABELS, STATUSES }

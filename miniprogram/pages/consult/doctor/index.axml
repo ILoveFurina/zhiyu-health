@@ -48,6 +48,8 @@
         <view class="result-text">{{consultation.advice || '—'}}</view>
       </view>
       <ai-disclaimer />
+      <!-- 票 60：完成态处方出口（本单已开方才渲染），跳处方页看审核状态/购药 -->
+      <view a:if="{{prescriptionLink}}" class="prescription-link" onTap="openPrescription">{{prescriptionLink}}</view>
     </view>
 
     <!-- 医患消息流：患者右侧、医生左侧、系统消息居中灰条 -->

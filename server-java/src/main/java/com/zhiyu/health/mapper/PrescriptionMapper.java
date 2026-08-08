@@ -54,12 +54,13 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE pr.status = #{status} ORDER BY pr.created_at DESC")
     List<Prescription> selectForReview(@Param("status") String status);
 
+    // 票 60：患者处方列表泛化为全状态（不再按 status 过滤）；可见性边界上移到
+    // 「用药解读只随 APPROVED 落库」，由 PatientCareService 注释说明。
     @Select(DETAIL_COLUMNS
             + " WHERE COALESCE(a.patient_id, oc.patient_id) = #{patientId}"
             + " AND COALESCE(a.health_profile_id, oc.health_profile_id) = #{profileId}"
-            + " AND pr.status = #{status} ORDER BY pr.reviewed_at DESC")
-    List<Prescription> selectApprovedForProfile(
-            @Param("patientId") long patientId, @Param("profileId") long profileId, @Param("status") String status);
+            + " ORDER BY pr.created_at DESC")
+    List<Prescription> selectForProfile(@Param("patientId") long patientId, @Param("profileId") long profileId);
 
     @Update(
             """

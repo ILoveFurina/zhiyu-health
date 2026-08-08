@@ -62,3 +62,5 @@ zhiyu:
   demo:
     # 测试默认关闭；reset 中途失败等用例在 service 层用真实 enabled 构造
     reset-enabled: ${DEMO_RESET_ENABLED:false}
+    # 测试默认关闭；开关为 true 的分支在 service 单测直接覆盖字段验证
+    follow-up-visible-immediately: ${DEMO_FOLLOW_UP_VISIBLE_IMMEDIATELY:false}

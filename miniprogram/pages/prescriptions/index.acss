@@ -3,6 +3,12 @@
 .orders-link { margin-bottom: 20rpx; padding: 18rpx; border-radius: 16rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }
 .card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,.06); }
 .title { color: var(--zy-text-title); font-size: 31rpx; font-weight: 700; }
+.title-row { display: flex; align-items: center; justify-content: space-between; }
+/* 状态徽标（票 60）：已通过=主色、待审核=橙、已驳回=红，色系与既有 terminal-bar 提示一致 */
+.status-tag { margin-left: 12rpx; padding: 2rpx 14rpx; border-radius: 8rpx; font-size: 20rpx; flex-shrink: 0; }
+.status-approved { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
+.status-pending { background: #fdf3e3; color: #d48806; }
+.status-rejected { background: #fdeceb; color: #d4380d; }
 .meta { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 23rpx; }
 .source-tag { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 20rpx; }
 .drug { margin-top: 18rpx; padding: 18rpx; border-radius: 14rpx; background: #f4faf8; color: var(--zy-text-secondary); font-size: 24rpx; line-height: 1.7; }
@@ -13,3 +19,9 @@
 .order { margin-top: var(--zy-space-sm); border: 0; border-radius: 32rpx; background: var(--zy-color-primary); color: #fff; font-size: 26rpx; }
 .quantity-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; color: var(--zy-text-title); }
 .quantity { width: 100rpx; padding: 6rpx 10rpx; border: 1rpx solid #b8d8d1; border-radius: 10rpx; background: #fff; text-align: center; }
+/* 待审核/已驳回卡内说明与引导（票 60） */
+.pending-hint { margin-top: 18rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+.reject-reason { margin-top: 18rpx; padding: 16rpx; border-radius: 12rpx; background: #fdeceb; color: #d4380d; font-size: 23rpx; line-height: 1.6; }
+.reject-hint { margin-top: 14rpx; color: var(--zy-text-secondary); font-size: 23rpx; line-height: 1.6; }
+.reject-actions { display: flex; gap: 16rpx; margin-top: 16rpx; }
+.reject-btn { flex: 1; padding: 14rpx 0; border-radius: 32rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 25rpx; text-align: center; }

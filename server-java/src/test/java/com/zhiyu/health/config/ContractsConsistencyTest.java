@@ -311,12 +311,44 @@ class ContractsConsistencyTest {
                 .containsEntry("rejected", "REJECTED");
         assertThat(flow.decisions()).containsEntry("approve", "APPROVE").containsEntry("reject", "REJECT");
         assertThat(flow.messageTypes()).containsEntry("consultation_summary", "CONSULTATION_SUMMARY");
+        // 票 60：审核结果站内消息类型与 approved/rejected 文案钉死（type 与消息键同源取值）
+        assertThat(flow.messageTypes()).containsEntry("prescription_review_result", "PRESCRIPTION_REVIEW_RESULT");
+        assertThat(flow.messages().keySet()).containsExactlyInAnyOrder("approved", "rejected");
+        assertThat(flow.messages().get("approved").title()).isEqualTo("处方审核通过");
+        assertThat(flow.messages().get("rejected").title()).isEqualTo("处方审核未通过");
         // 票 56：处方来源二态（线下挂号/在线问诊），仅是外键派生展示值，数据库不落 source_type 列
         assertThat(flow.sourceTypes())
                 .containsExactlyInAnyOrderEntriesOf(
                         Map.of("appointment", "APPOINTMENT", "online_consultation", "ONLINE_CONSULTATION"));
         assertThat(flow.sourceTypeLabels().keySet())
                 .containsExactlyInAnyOrderElementsOf(flow.sourceTypes().values());
+    }
+
+    @Test
+    void inAppMessagesEventSourcesMatchSchema() throws Exception {
+        // 票 60：in_app_messages 三类事件来源外键各配 UNIQUE（重投幂等），visible_at 支撑随访延迟可见；
+        // 与 ck_messages_kind 同一纪律——约束漂移会在 DB 层放过重复消息或拒写随访
+        String schema = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("schema.sql"))
+                        .readAllBytes(),
+                StandardCharsets.UTF_8);
+        assertThat(schema)
+                .contains("related_prescription_id")
+                .contains("related_online_consultation_id")
+                .contains("visible_at TIMESTAMPTZ NOT NULL DEFAULT now()")
+                .contains("uq_in_app_messages_appointment_type")
+                .contains("uq_in_app_messages_prescription_type")
+                .contains("uq_in_app_messages_consultation_type")
+                .contains("fk_in_app_messages_online_consultation");
+        // 处方审核结果与随访消息类型必须装得下 type VARCHAR(40) 列宽
+        assertThat(contracts
+                        .prescriptionFlow()
+                        .messageTypes()
+                        .get("prescription_review_result")
+                        .length())
+                .isLessThanOrEqualTo(40);
+        assertThat(contracts.onlineConsultation().followUp().messageType().length())
+                .isLessThanOrEqualTo(40);
     }
 
     @Test
