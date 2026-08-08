@@ -10,6 +10,7 @@ import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.mapper.AppointmentMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
 import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.mapper.ScheduleRequestMapper;
 import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,6 +24,7 @@ public class AppointmentService {
 
     private final AppointmentMapper appointmentMapper;
     private final ScheduleMapper scheduleMapper;
+    private final ScheduleRequestMapper scheduleRequestMapper;
     private final InAppMessageMapper messageMapper;
     private final SlotAccounting slotAccounting;
     private final TransactionTemplate transactionTemplate;
@@ -65,6 +67,11 @@ public class AppointmentService {
                     // 时段窗口（上午 11:30 / 下午 18:00）从契约 time_slot_windows 读取，双栈共享单一事实源。
                     if (isSlotWindowClosed(schedule)) {
                         throw new ApiException(409, "该出诊时段已结束，不可再挂号");
+                    }
+                    // 停诊审核冻结：排班存在待审核的停诊申请时冻结挂号，符合"只有可出诊才可挂号"。
+                    // 审核通过则 is_active=false 正式停诊，驳回则恢复可挂号，期间不允许新增挂号。
+                    if (scheduleRequestMapper.countPendingDisableBySchedule(scheduleId) > 0) {
+                        throw new ApiException(409, "该排班正在停诊审核中，暂不可挂号");
                     }
                     Appointment existing =
                             appointmentMapper.selectForProfileAndSchedule(patientId, profileId, scheduleId);
