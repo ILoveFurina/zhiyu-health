@@ -15,8 +15,9 @@
 const { apiBaseUrl } = require('./config')
 const { getToken } = require('./auth')
 
-// 本地镜像 contracts/voice.json 的 enabled 开关（开通后改 true）
-const ASR_ENABLED = false
+// 本地镜像 contracts/voice.json 的 enabled 开关（契约变更须同步更新）：
+// asr_enabled=true（票 58 点亮，Fake 阶段识别文字回填输入框）；tts_enabled 保持 false
+const ASR_ENABLED = true
 const TTS_ENABLED = false
 
 function isAsrEnabled() {
