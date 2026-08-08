@@ -1,7 +1,7 @@
 {
   "_doc": "票50 智能导诊标准科室与科室号源卡：标准科室解析结果、科室号源卡事件状态、确定性摘要模板与失败/重试文案。编排代码（非 LLM）保证查询触发与摘要拼装。本文件是双栈共享常量的单一事实源，改此文件需双栈同步发版。",
   "resolution_statuses": ["explicit_booking", "resolved", "ambiguous", "none"],
-  "_resolution_statuses_doc": "标准科室解析结果：explicit_booking=用户明确表达科室+挂号意图，直接查询；resolved=多轮导诊形成单一明确标准科室（用户未明说挂号），不强制查询，退回 Agent 流由 LLM 工具推进；ambiguous=仍有多个可能科室，只追问一个关键问题或让用户选择，不查询；none=无科室线索，不查询。",
+  "_resolution_statuses_doc": "标准科室解析结果：explicit_booking=用户明确表达科室+挂号意图，直接查询；resolved=多轮导诊形成单一明确标准科室（用户未明说挂号），票 62 起同样直接查询出卡，但同一科室上轮已出号源摘要时去重不重复查询（explicit_booking 不受此限）；ambiguous=仍有多个可能科室，只追问一个关键问题或让用户选择，不查询；none=无科室线索，不查询。",
   "card_event": "department_slots",
   "card_statuses": ["ok", "failed"],
   "_card_statuses_doc": "科室号源卡状态：ok=查询成功（含全部无号，仍出卡，无号医生禁用预约）；failed=查询失败，展示普通失败消息与重新查询操作，不展示空白卡。",

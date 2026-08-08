@@ -41,6 +41,7 @@
         a:for-item="entry"
         a:key="key"
         class="grid-item"
+        data-key="{{entry.key}}"
         data-action="{{entry.action}}"
         data-url="{{entry.url}}"
         onTap="onGridTap"

@@ -234,6 +234,8 @@ public class PatientMedicalDirectoryService {
                     first.doctorName(),
                     first.title(),
                     first.specialty(),
+                    // 票 62：号源卡医生条透出头像（/api/c/photos 代理 URL，空 key 为空串走姓氏圆降级）
+                    PhotoUrls.cUrl(first.photoUrl()),
                     first.registrationFee(),
                     first.hospitalId(),
                     first.hospitalName(),
@@ -286,6 +288,7 @@ public class PatientMedicalDirectoryService {
             @JsonProperty("doctor_name") String doctorName,
             String title,
             String specialty,
+            @JsonProperty("photo_url") String photoUrl,
             @JsonProperty("registration_fee") BigDecimal registrationFee,
             @JsonProperty("hospital_id") long hospitalId,
             @JsonProperty("hospital_name") String hospitalName,

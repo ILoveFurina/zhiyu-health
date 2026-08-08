@@ -91,6 +91,7 @@ class StandardDepartmentToolControllerTest {
                 "林知远",
                 "主任医师",
                 "擅长腹腔镜微创手术",
+                "/api/c/photos?key=photos/doc-1.jpg",
                 new BigDecimal("50.00"),
                 1L,
                 "郑州智愈综合医院",

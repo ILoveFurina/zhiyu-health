@@ -1,8 +1,9 @@
 """票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
 
-覆盖：明确科室直查、多轮 resolved 退回 Agent 流、ambiguous 退回 Agent 流、
-摘要先于卡片、查询失败出 failed 卡、retry 字段跳过解析直查、全部无号仍出
-ok 卡（empty 摘要）、目录不可用退回 Agent 流，以及回调 URL/鉴权头断言。
+覆盖：明确科室直查、多轮 resolved 收敛直查（票 62）、resolved 同科室已出卡
+去重（票 62）、ambiguous 退回 Agent 流、摘要先于卡片、查询失败出 failed 卡、
+retry 字段跳过解析直查、全部无号仍出 ok 卡（empty 摘要）、目录不可用退回
+Agent 流，以及回调 URL/鉴权头断言。
 """
 
 import asyncio
@@ -247,9 +248,9 @@ def test_earliest_tie_breaks_by_doctor_id() -> None:
     )
 
 
-def test_multi_turn_resolved_falls_back_to_agent_flow() -> None:
-    """多轮导诊收敛到单一明确科室（resolved）但未明说挂号：不强制查询、
-    不出号源卡，退回正常 Agent 流（放开收敛判定，让症状咨询可触发 LLM 工具）。"""
+def test_multi_turn_resolved_triggers_forced_query() -> None:
+    """票 62：多轮导诊收敛到单一明确科室（resolved）即直查出卡，
+    不再等用户明说挂号（摘要 + 卡片单步完成，不经 Agent 流）。"""
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
@@ -266,10 +267,59 @@ def test_multi_turn_resolved_falls_back_to_agent_flow() -> None:
         ],
     })
 
+    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
+    assert harness.agent.calls == []
+    assert [r.url.path for r in requests] == [
+        "/api/agent/standard-departments",
+        "/api/agent/standard-departments/5/slots",
+    ]
+
+
+def test_resolved_same_department_already_summarized_skips_duplicate_query() -> None:
+    """票 62 去重守卫：resolved 命中的科室上轮已出号源摘要（ok 或 empty 形态），
+    不重复直查，退回正常 Agent 流——收敛后的闲聊不重复推卡。"""
+    requests: list[httpx.Request] = []
+    harness = _build_app(
+        _directory_handler(requests),
+        triage_results=[TriageResolution(
+            status="resolved", standard_department_id=5, rationale="对话仍收敛至皮肤科"
+        )],
+    )
+
+    events = _run(harness, {
+        "messages": [
+            {"role": "user", "content": "身上起了一片红疹"},
+            {"role": "assistant", "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"},
+            {"role": "user", "content": "好的，谢谢"},
+        ],
+    })
+
     assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
     assert len(harness.agent.calls) == 1
-    # 只拉了候选目录，未触发号源回调
+    # 只拉了候选目录，未重复触发号源回调
     assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
+
+
+def test_explicit_booking_requeries_even_after_summary() -> None:
+    """票 62：用户出卡后再次明确表达挂号意图（explicit_booking）不受去重限制，仍直查。"""
+    requests: list[httpx.Request] = []
+    harness = _build_app(
+        _directory_handler(requests),
+        triage_results=[TriageResolution(
+            status="explicit_booking", standard_department_id=5, rationale="再次明确挂号"
+        )],
+    )
+
+    events = _run(harness, {
+        "messages": [
+            {"role": "user", "content": "身上起了一片红疹"},
+            {"role": "assistant", "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"},
+            {"role": "user", "content": "再帮我查一下皮肤科的号"},
+        ],
+    })
+
+    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
+    assert harness.agent.calls == []
 
 
 def test_ambiguous_falls_back_to_agent_flow_without_slots_callback() -> None:

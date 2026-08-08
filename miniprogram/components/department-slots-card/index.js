@@ -29,6 +29,8 @@ Component({
   data: {
     daysView: [],
     doctorsView: [],
+    // 头像加载失败降级标记（doctor_id -> true），失败一次后改渲染姓氏文字圆
+    avatarFailed: {},
   },
 
   // axml 无法调 toFixed/new Date，日期条元信息与距离在 js 侧派生
@@ -59,6 +61,7 @@ Component({
         ? (doctor.slots || []).filter((slot) => slot.schedule_date === selectedDate)
         : doctor.slots || [],
       distance_text: doctor.distance_km != null ? Number(doctor.distance_km).toFixed(1) : '',
+      initial: doctor.doctor_name ? doctor.doctor_name.slice(0, 1) : '医',
     }))
     this.setData({ daysView, doctorsView })
   },
@@ -66,6 +69,17 @@ Component({
   methods: {
     selectDate(e) {
       this.props.onSelectDate(e.currentTarget.dataset.date, this.props.cardId)
+    },
+
+    /** 票 62：跳科室挂号业务页（纯导航无数据依赖，chat 页与自助号源页同行为）。 */
+    openMoreDepartments() {
+      my.navigateTo({ url: '/pages/booking/standard-departments/index' })
+    },
+
+    /** 头像加载失败：标记后改渲染姓氏文字圆（与 doctor-card 票 59 同套路）。 */
+    onAvatarError(e) {
+      const doctorId = e.currentTarget.dataset.doctorId
+      this.setData({ avatarFailed: { ...this.data.avatarFailed, [doctorId]: true } })
     },
 
     book(e) {

@@ -153,6 +153,7 @@ class MedicalDirectoryControllerTest {
                 "林知远",
                 "主任医师",
                 "擅长冠心病介入治疗",
+                "/api/c/photos?key=photos/doc-1.jpg",
                 new BigDecimal("50.00"),
                 1L,
                 "郑州智愈综合医院",

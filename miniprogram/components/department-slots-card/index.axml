@@ -1,72 +1,86 @@
-<view class="slots-card">
-  <view class="head">
-    <text class="dept-name">{{standardDepartment.name}}</text>
-    <text a:if="{{standardDepartment.category}}" class="dept-category">{{standardDepartment.category}}</text>
+<view class="ds-card">
+  <view class="ds-head">
+    <view class="ds-head-title">
+      <text class="ds-dept-name">{{standardDepartment.name}}</text>
+      <text a:if="{{standardDepartment.category}}" class="ds-dept-category">{{standardDepartment.category}}</text>
+    </view>
+    <!-- 票 62：跳科室挂号业务页（纯导航，组件内自闭环，宿主零接线） -->
+    <view class="ds-more-dept" onTap="openMoreDepartments">更多科室 ›</view>
   </view>
 
   <!-- 14 天日期条：圆点表示当日有可约号源 -->
-  <scroll-view scroll-x class="day-scroll" show-scrollbar="{{false}}">
-    <view class="day-row">
+  <scroll-view scroll-x class="ds-day-scroll" show-scrollbar="{{false}}">
+    <view class="ds-day-row">
       <view
         a:for="{{daysView}}"
         a:key="date"
-        class="day {{item.active ? 'day-active' : ''}}"
+        class="ds-day {{item.active ? 'ds-day-active' : ''}}"
         data-date="{{item.date}}"
         onTap="selectDate"
       >
-        <view class="day-week">{{item.week_label}}</view>
-        <view class="day-label">{{item.day_label}}</view>
-        <view class="day-dot {{item.has_slot ? 'day-dot-on' : ''}}"></view>
+        <view class="ds-day-week">{{item.week_label}}</view>
+        <view class="ds-day-label">{{item.day_label}}</view>
+        <view class="ds-day-dot {{item.has_slot ? 'ds-day-dot-on' : ''}}"></view>
       </view>
     </view>
   </scroll-view>
 
-  <view a:if="{{doctorsView.length === 0}}" class="empty">该科室在当前城市暂无匹配医生</view>
+  <view a:if="{{doctorsView.length === 0}}" class="ds-empty">该科室在当前城市暂无匹配医生</view>
 
   <view
     a:for="{{doctorsView}}"
     a:key="doctor_id"
     a:for-item="doc"
     a:for-index="docIndex"
-    class="doctor {{doc.bookable ? '' : 'doctor-disabled'}}"
+    class="ds-doctor {{doc.bookable ? '' : 'ds-doctor-disabled'}}"
   >
-    <view class="doctor-head">
-      <view class="doctor-name-row">
-        <text class="doctor-name">{{doc.doctor_name}}</text>
-        <text a:if="{{doc.title}}" class="doctor-title">{{doc.title}}</text>
+    <view class="ds-doctor-head">
+      <!-- 头像（票 62）：photo_url 为 /api/c/photos 代理 URL；加载失败降级姓氏文字圆 -->
+      <image
+        a:if="{{doc.photo_url && !avatarFailed[doc.doctor_id]}}"
+        class="ds-avatar"
+        src="{{doc.photo_url}}"
+        mode="aspectFill"
+        data-doctor-id="{{doc.doctor_id}}"
+        onError="onAvatarError"
+      />
+      <view a:else class="ds-avatar ds-avatar-fallback">{{doc.initial}}</view>
+      <view class="ds-doctor-name-row">
+        <text class="ds-doctor-name">{{doc.doctor_name}}</text>
+        <text a:if="{{doc.title}}" class="ds-doctor-title">{{doc.title}}</text>
       </view>
-      <text class="doctor-fee">¥{{doc.registration_fee}}</text>
+      <text class="ds-doctor-fee">¥{{doc.registration_fee}}</text>
     </view>
-    <view class="doctor-hospital">
+    <view class="ds-doctor-hospital">
       {{doc.hospital_name}} · {{doc.campus_name}}<text a:if="{{doc.distance_text}}"> · 距您约 {{doc.distance_text}} km</text>
     </view>
-    <view a:if="{{doc.specialty}}" class="specialty">擅长：{{doc.specialty}}</view>
-    <view a:if="{{doc.campus_address}}" class="doctor-address">{{doc.campus_address}}</view>
+    <view a:if="{{doc.specialty}}" class="ds-specialty">擅长：{{doc.specialty}}</view>
+    <view a:if="{{doc.campus_address}}" class="ds-doctor-address">{{doc.campus_address}}</view>
 
     <!-- 有号医生：上午/下午时段逐条预约；无号医生保留展示并禁用预约（同一种卡片结构） -->
-    <view a:if="{{doc.bookable}}" class="slots">
+    <view a:if="{{doc.bookable}}" class="ds-slots">
       <view
         a:for="{{doc.slots}}"
         a:key="schedule_id"
         a:for-item="slot"
         a:for-index="slotIndex"
-        class="slot"
+        class="ds-slot"
       >
-        <view class="slot-info">
-          <text class="slot-time">{{slot.time_slot}}</text>
-          <text class="slot-remaining {{slot.remaining_slots <= 0 ? 'slot-remaining-none' : ''}}">
+        <view class="ds-slot-info">
+          <text class="ds-slot-time">{{slot.time_slot}}</text>
+          <text class="ds-slot-remaining {{slot.remaining_slots <= 0 ? 'ds-slot-remaining-none' : ''}}">
             {{slot.remaining_slots <= 0 ? '已约满' : '剩余 ' + slot.remaining_slots + ' 个号源'}}
           </text>
         </view>
         <view
-          class="slot-book {{slot.remaining_slots <= 0 ? 'slot-book-disabled' : ''}}"
+          class="ds-slot-book {{slot.remaining_slots <= 0 ? 'ds-slot-book-disabled' : ''}}"
           data-doctor-index="{{docIndex}}"
           data-slot-index="{{slotIndex}}"
           onTap="book"
         >预约</view>
       </view>
-      <view a:if="{{doc.slots.length === 0}}" class="slot-empty">当日暂无排班</view>
+      <view a:if="{{doc.slots.length === 0}}" class="ds-slot-empty">当日暂无排班</view>
     </view>
-    <view a:else class="no-book">暂无可约号源</view>
+    <view a:else class="ds-no-book">暂无可约号源</view>
   </view>
 </view>

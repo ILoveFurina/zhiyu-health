@@ -136,7 +136,9 @@ Page({
     my.navigateTo({ url: '/pages/booking/standard-departments/index' })
   },
 
+  /** 主卡「智能导诊」：经 globalData 交棒（switchTab 不能带参），chat 页 onShow 消费后自动进入导诊引导。 */
   onGuideEntry() {
+    getApp().globalData.pendingTriageEntry = true
     my.switchTab({ url: '/pages/chat/index' })
   },
 
@@ -180,7 +182,9 @@ Page({
   },
 
   onGridTap(e) {
-    const { action, url } = e.currentTarget.dataset
+    const { key, action, url } = e.currentTarget.dataset
+    // 宫格「智能导诊」与主卡入口同一路径：交棒 chat 页自动进入导诊引导
+    if (key === 'triage') getApp().globalData.pendingTriageEntry = true
     if (action === 'switchTab') my.switchTab({ url })
     else my.navigateTo({ url })
   },

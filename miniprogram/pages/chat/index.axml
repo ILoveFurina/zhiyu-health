@@ -151,6 +151,27 @@
         tcmDisclaimer="{{item.tcmDisclaimer}}"
       />
 
+      <!-- 票 62：智能导诊引导卡（纯客户端 UI，不持久化、不带免责声明） -->
+      <view a:elif="{{item.kind === 'feature_guide'}}" class="guide-card" id="msg-{{item.id}}">
+        <view class="guide-head">
+          <view class="guide-icon">✚</view>
+          <view class="guide-title">{{item.guide.title}}</view>
+        </view>
+        <view class="guide-subtitle">{{item.guide.subtitle}}</view>
+        <view class="guide-steps">
+          <text a:for="{{item.guide.steps}}" a:key="index" class="guide-step">{{item}}</text>
+        </view>
+        <view class="guide-chips">
+          <view
+            a:for="{{item.guide.chips}}"
+            a:key="label"
+            class="guide-chip"
+            data-text="{{item.text}}"
+            onTap="sendPrompt"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
       <view a:else class="bubble ai ai-{{item.emotion || 'calm'}}" id="msg-{{item.id}}">
         <!-- 票 52：AI 文本按 Markdown 块渲染；blocks 缺失（错误消息等）时回退纯文本 -->
         <block a:if="{{item.blocks && item.blocks.length}}">

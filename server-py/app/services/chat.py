@@ -47,12 +47,44 @@ EVENT_META, EVENT_KNOWLEDGE, EVENT_TOKEN, EVENT_MESSAGE, EVENT_DONE = (
 # 工具进度事件名（票 24）：tool_start/tool_end，不带免责声明（非 AI 产出）。
 EVENT_TOOL_START, EVENT_TOOL_END = get_contracts().sse_events.trace_events
 
-# 票 50：触发强制号源查询的解析状态为契约 resolution_statuses 第一态
-# （explicit_booking=明确挂号意图），与契约的一致性由
-# tests/test_contract_consumption.py 钉死。resolved（纯症状收敛）不再强制
-# 查询，退回正常 Agent 流，让症状咨询可触发知识/业务工具（放开收敛判定）。
+# 票 50/62：触发强制号源查询的解析状态为契约 resolution_statuses 前两态
+# （explicit_booking=明确挂号意图、resolved=症状收敛到单一科室），与契约的
+# 一致性由 tests/test_contract_consumption.py 钉死。票 62：resolved 收敛即
+# 直查出卡，不再等用户开口；同一科室已出卡时由去重守卫挡重复（见下）。
 _GUIDED = get_contracts().guided_registration
-_QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:1])
+_QUERY_STATUSES = frozenset(_GUIDED.resolution_statuses[:2])
+
+
+def _department_already_summarized(
+    messages: list[dict[str, str]],
+    department_id: int,
+    candidates: list[dict[str, Any]],
+) -> bool:
+    """票 62 去重守卫：同一科室最近一条助手消息已是号源摘要时不再重复直查。
+
+    比对锚点从契约摘要模板派生（ok 前缀"已为您查询{科室}号源"、empty 后缀
+    "{科室}未来14天暂无可约号源"），只看最近一条助手消息：换科室收敛仍正常
+    出卡，explicit_booking（用户再次明确挂号）不经过本守卫。卡片 JSON 不进
+    LLM 上下文（server-java recentContext 排除 ai_card_kinds），故最近助手
+    消息即上轮摘要文本。
+    """
+    name = next((c.get("name") for c in candidates if c.get("id") == department_id), "")
+    if not name:
+        return False
+    last_assistant = next(
+        (m.get("content", "") for m in reversed(messages) if m.get("role") == "assistant"),
+        "",
+    )
+    if not last_assistant:
+        return False
+    ok_template = _GUIDED.summary_templates["ok"]
+    ok_marker = (
+        ok_template.split("{department}")[0]
+        + name
+        + ok_template.split("{department}")[1].split("{", 1)[0]
+    )
+    empty_marker = name + _GUIDED.summary_templates["empty"].rsplit("}", 1)[-1]
+    return ok_marker in last_assistant or empty_marker in last_assistant
 
 # 票 55：预问诊场景值与摘要快照事件字段名，唯一事实源是 contracts/online-consultation.json
 _ONLINE = get_contracts().online_consultation
@@ -174,6 +206,7 @@ class AgentChatService:
         重试字段非空 = 复用已确定科室直查（跳过目录拉取、解析与 Agent 流）；
         目录不可用/无候选/解析未收敛/ID 越界均返回 None，退回正常 Agent 流。
         预问诊场景（票 55）直接短路：预问诊不进挂号闭环，不直查号源、不出科室号源卡。
+        票 62：resolved 命中同一已出卡科室时去重返回 None（见 _department_already_summarized）。
         """
         if self._directory is None or scenario == _ONLINE.scenario:
             return None
@@ -185,12 +218,20 @@ class AgentChatService:
             return None
         resolution = await self._triage_judge.judge(messages, candidates)
         candidate_ids = {c["id"] for c in candidates}
+        department_id = resolution.standard_department_id
         if (
-            resolution.status in _QUERY_STATUSES
-            and resolution.standard_department_id in candidate_ids
+            resolution.status not in _QUERY_STATUSES
+            or department_id is None
+            or department_id not in candidate_ids
         ):
-            return resolution.standard_department_id
-        return None
+            return None
+        # 票 62：resolved（resolution_statuses 第二态）命中同一已出卡科室时去重，
+        # 避免收敛后每句闲聊都重复推号源卡；explicit_booking 仍可重复直查
+        if resolution.status == _GUIDED.resolution_statuses[1] and _department_already_summarized(
+            messages, department_id, candidates
+        ):
+            return None
+        return department_id
 
     async def _preconsult_summary(
         self,

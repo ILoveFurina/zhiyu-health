@@ -10,7 +10,8 @@
 const FEATURE_BUBBLES = [
   {
     key: 'triage',
-    label: 'AI 诊室',
+    // 票 62：与首页主卡/宫格入口统一命名「智能导诊」
+    label: '智能导诊',
     icon: '✚',
     enabled: true,
     action: 'triage',
