@@ -68,6 +68,20 @@ for t in ["hospitals", "hospital_campuses", "standard_departments", "department_
     n = q(f'SELECT count(*) FROM "{t}"')[0][0]
     print(f"   {t}: {n}")
 
+print("== 4b. staff_users 账号（B 端登录）：seed.sql 不种此表，由 StaffUserSeed 在 server-java 启动时补种")
+print("   期望值按 .env 的 SEED_* 键存在性推导（镜像 StaffUserSeed.seedIfAbsent 逻辑）：")
+print("   admin/doctor.lin/doctor.zhou 各需对应 SEED_ADMIN/DOCTOR/DOCTOR2_PASSWORD；13 位医生恒补种")
+expected = 13
+for key in ["SEED_ADMIN_PASSWORD", "SEED_DOCTOR_PASSWORD", "SEED_DOCTOR2_PASSWORD"]:
+    if env.get(key):
+        expected += 1
+n = q("SELECT count(*) FROM staff_users")[0][0]
+print(f"   staff_users: {n} (expected {expected})")
+assert n == expected, (
+    f"staff_users 应为 {expected}，实际 {n}。该表由 StaffUserSeed 在 server-java 启动时补种，"
+    "seed.sql 不含其数据——重建（reset_zhiyu.py）后必须先重启 server-java 再跑本验证"
+)
+
 print("== 5. schedules 行数（15医生 × 14天 × 2时段 = 420）")
 n = q("SELECT count(*) FROM schedules")[0][0]
 print(f"   schedules: {n}")
