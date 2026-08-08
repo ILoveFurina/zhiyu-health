@@ -35,6 +35,7 @@ class ReportInterpretationControllerTest {
                                 8L,
                                 "SUCCEEDED",
                                 2,
+                                "妈妈",
                                 new ObjectMapper().readTree("{\"summary\":\"较新的报告\"}"),
                                 "仅供参考，不替代医生诊断"),
                         new ReportInterpretationService.ReportView(
@@ -42,6 +43,7 @@ class ReportInterpretationControllerTest {
                                 7L,
                                 "SUCCEEDED",
                                 1,
+                                "本人",
                                 new ObjectMapper().readTree("{\"summary\":\"较早的报告\"}"),
                                 "仅供参考，不替代医生诊断")));
         MockMvc mvc = standaloneSetup(
@@ -51,7 +53,9 @@ class ReportInterpretationControllerTest {
         mvc.perform(get("/api/c/report-interpretations").requestAttr("authSubject", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].report_interpretation_id").value(32))
-                .andExpect(jsonPath("$[1].report_interpretation_id").value(31));
+                .andExpect(jsonPath("$[1].report_interpretation_id").value(31))
+                .andExpect(jsonPath("$[0].profile_name").value("妈妈"))
+                .andExpect(jsonPath("$[1].profile_name").value("本人"));
         verify(service).listForPatient(12L);
     }
 
@@ -65,6 +69,7 @@ class ReportInterpretationControllerTest {
                         7L,
                         "SUCCEEDED",
                         1,
+                        null,
                         objectMapper.readTree(
                                 """
                                 {"summary":"血红蛋白偏低","items":[{"name":"血红蛋白"}],
@@ -100,6 +105,7 @@ class ReportInterpretationControllerTest {
                         9L,
                         "SUCCEEDED",
                         1,
+                        null,
                         new ObjectMapper().readTree("{\"summary\":\"解读完成\"}"),
                         "仅供参考，不替代医生诊断"));
         MockMvc mvc = standaloneSetup(new ReportInterpretationController(service, staging))

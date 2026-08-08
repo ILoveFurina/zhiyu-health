@@ -36,7 +36,15 @@ public class ReportInterpretationService {
     private final HealthObservationService observations;
 
     public List<ReportView> listForPatient(long patientId) {
-        return persistence.listForPatient(patientId).stream().map(this::toView).toList();
+        // 列表需区分“是谁的报告”：姓名取自档案 display_name（用户自填），
+        // 刻意不从报告图像抽取姓名（server-py 视觉契约禁止输出任何身份信息）。
+        Map<Long, String> profileNames = new LinkedHashMap<>();
+        for (HealthProfileService.ProfileView profile : healthProfiles.list(patientId)) {
+            profileNames.put(profile.id(), profile.displayName());
+        }
+        return persistence.listForPatient(patientId).stream()
+                .map(record -> toView(record, profileNames.get(record.getHealthProfileId())))
+                .toList();
     }
 
     /**
@@ -257,10 +265,14 @@ public class ReportInterpretationService {
     }
 
     private ReportView toView(ReportInterpretation record) {
+        return toView(record, null);
+    }
+
+    private ReportView toView(ReportInterpretation record, String profileName) {
         try {
             JsonNode result = record.getResultJson() == null ? null : objectMapper.readTree(record.getResultJson());
             // 历史数据中的 disclaimer 可能为空或被污染，server-java 出口始终挂载唯一固定文案。
-            return reportDtos.toView(record, result, disclaimers.text());
+            return reportDtos.toView(record, result, disclaimers.text(), profileName);
         } catch (Exception e) {
             throw new ApiException(500, "报告解读记录损坏");
         }
@@ -271,6 +283,7 @@ public class ReportInterpretationService {
             @JsonProperty("conversation_id") Long conversationId,
             String status,
             @JsonProperty("page_count") Integer pageCount,
+            @JsonProperty("profile_name") String profileName,
             JsonNode result,
             String disclaimer) {}
 

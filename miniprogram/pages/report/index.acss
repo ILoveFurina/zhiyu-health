@@ -1,6 +1,14 @@
 /* 报告解读入口页：上传卡片 + 解读记录列表 + 页内详情，全部消费 app.acss 设计 token */
 .page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; }
 
+/* 栈根直达时的回首页入口 */
+.home-entry {
+  margin-bottom: var(--zy-space-sm);
+  color: var(--zy-color-primary);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
 .card {
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);

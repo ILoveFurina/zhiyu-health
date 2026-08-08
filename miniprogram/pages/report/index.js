@@ -36,10 +36,16 @@ Page({
     pending: null, // { items, isPdf }：待上传的报告文件
     uploading: false,
     uploadProgress: '',
+    stackRoot: false, // 页面栈只有本页时系统返回键会直接退出小程序，需给回首页入口
   },
 
   onShow() {
+    this.setData({ stackRoot: getCurrentPages().length <= 1 })
     this.load()
+  },
+
+  goHome() {
+    my.switchTab({ url: '/pages/home/index' })
   },
 
   load() {

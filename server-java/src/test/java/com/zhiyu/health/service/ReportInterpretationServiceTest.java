@@ -31,22 +31,31 @@ class ReportInterpretationServiceTest {
         ReportInterpretationPersistence persistence = mock(ReportInterpretationPersistence.class);
         ReportInterpretation newer = new ReportInterpretation();
         newer.setId(32L);
+        newer.setHealthProfileId(31L);
         newer.setStatus("SUCCEEDED");
         newer.setResultJson("{\"summary\":\"较新的报告\"}");
         newer.setDisclaimer(null);
         ReportInterpretation older = new ReportInterpretation();
         older.setId(31L);
+        older.setHealthProfileId(30L);
         older.setStatus("SUCCEEDED");
         older.setResultJson("{\"summary\":\"较早的报告\"}");
         older.setDisclaimer("被污染的免责声明");
         when(persistence.listForPatient(12L)).thenReturn(List.of(newer, older));
+        HealthProfileService healthProfiles = mock(HealthProfileService.class);
+        when(healthProfiles.list(12L))
+                .thenReturn(List.of(
+                        new HealthProfileService.ProfileView(
+                                31L, "妈妈", "女", java.time.LocalDate.parse("1962-05-08"), "母亲", false, List.of()),
+                        new HealthProfileService.ProfileView(
+                                30L, "本人", "男", java.time.LocalDate.parse("1992-05-12"), "本人", true, List.of())));
         ReportInterpretationService service = new ReportInterpretationService(
                 persistence,
                 mock(AgentClient.class),
                 new ObjectMapper(),
                 mock(ReportUploadStagingService.class),
                 TestContracts.instance(),
-                mock(HealthProfileService.class),
+                healthProfiles,
                 TestDisclaimers.instance(),
                 Mappers.getMapper(ReportInterpretationDtoMapper.class),
                 mock(HealthObservationMapping.class),
@@ -57,6 +66,9 @@ class ReportInterpretationServiceTest {
         assertThat(result)
                 .extracting(ReportInterpretationService.ReportView::reportInterpretationId)
                 .containsExactly(32L, 31L);
+        assertThat(result)
+                .extracting(ReportInterpretationService.ReportView::profileName)
+                .containsExactly("妈妈", "本人");
         assertThat(result)
                 .extracting(ReportInterpretationService.ReportView::disclaimer)
                 .containsOnly("仅供参考，不替代医生诊断");

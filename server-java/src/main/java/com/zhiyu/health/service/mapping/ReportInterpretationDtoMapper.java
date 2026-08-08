@@ -15,5 +15,7 @@ public interface ReportInterpretationDtoMapper {
     @Mapping(target = "pageCount", source = "record.pageCount")
     @Mapping(target = "result", source = "result")
     @Mapping(target = "disclaimer", source = "disclaimer")
-    ReportInterpretationService.ReportView toView(ReportInterpretation record, JsonNode result, String disclaimer);
+    @Mapping(target = "profileName", source = "profileName")
+    ReportInterpretationService.ReportView toView(
+            ReportInterpretation record, JsonNode result, String disclaimer, String profileName);
 }

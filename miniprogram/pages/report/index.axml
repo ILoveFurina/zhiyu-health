@@ -1,4 +1,6 @@
 <view class="page">
+  <!-- 直达冷启动（页面栈仅本页）时系统返回键会退出小程序，补一个回首页入口 -->
+  <view a:if="{{stackRoot}}" class="home-entry" onTap="goHome">‹ 返回首页</view>
   <!-- 上传区：拍照/相册/PDF，多页报告支持多图；解读过程在会话流中呈现 -->
   <view class="card upload-card">
     <view class="upload-title">上传检查报告</view>
@@ -54,7 +56,7 @@
       onTap="openRecord"
     >
       <view class="record-head">
-        <view class="record-title">报告解读 #{{item.report_interpretation_id}}</view>
+        <view class="record-title">{{item.profile_name ? item.profile_name + ' 的报告' : '报告解读 #' + item.report_interpretation_id}}</view>
         <view class="record-status status-{{item.statusClass}}">{{item.statusLabel}}</view>
       </view>
       <view a:if="{{item.summary}}" class="record-summary">{{item.summary}}</view>
