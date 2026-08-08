@@ -13,7 +13,7 @@ const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
 const { loadRegistrationSummary } = require('../../services/registration')
-const { relocate, getCoords } = require('../../utils/location')
+const { getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
 const { defaultSelectedDate } = require('../../utils/department-slots')
 const { createAssistantBubble, createAiBubbleState } = require('../../utils/ai-bubble-state')
@@ -61,9 +61,8 @@ Page({
     pillboxProgress: '',
     profileLoaded: false,
     currentProfile: null,
-    // AI挂号助手主卡（票 49，空态展示）：与首页同一组件、同一份装配 service
+    // AI挂号助手精简主卡（空态展示）：与首页同一组件、同一份装配 service
     regCityName: '',
-    regHospitals: [],
     regTotal: 0,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
     asrEnabled: isAsrEnabled(),
@@ -115,9 +114,7 @@ Page({
 
   loadRegistrationCard() {
     return loadRegistrationSummary()
-      .then(({ cityName, hospitals, total }) =>
-        this.setData({ regCityName: cityName, regHospitals: hospitals, regTotal: total })
-      )
+      .then(({ cityName, total }) => this.setData({ regCityName: cityName, regTotal: total }))
       .catch(() => {})
   },
 
@@ -130,20 +127,8 @@ Page({
     this.enterTriage()
   },
 
-  onHospitalTap({ hospitalId, hospitalName }) {
-    my.navigateTo({
-      url: `/pages/booking/campuses/index?hospital_id=${hospitalId}&hospital_name=${encodeURIComponent(hospitalName)}`,
-    })
-  },
-
   onMoreHospitals() {
     my.navigateTo({ url: '/pages/booking/hospitals/index' })
-  },
-
-  onRelocate() {
-    relocate().then((picked) => {
-      if (picked) this.loadRegistrationCard()
-    })
   },
 
   // 点击对话中的图片消息全屏预览（ADR-0023 回拉链路）

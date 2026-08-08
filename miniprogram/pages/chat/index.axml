@@ -39,13 +39,10 @@
       <view class="reg-entry-wrap">
         <registration-card
           cityName="{{regCityName}}"
-          hospitals="{{regHospitals}}"
           total="{{regTotal}}"
           onDepartmentEntry="onDepartmentEntry"
           onGuideEntry="onGuideEntry"
-          onHospitalTap="onHospitalTap"
           onMoreHospitals="onMoreHospitals"
-          onRelocate="onRelocate"
         />
       </view>
     </view>

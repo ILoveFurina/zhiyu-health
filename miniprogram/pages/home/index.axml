@@ -18,17 +18,35 @@
     </view>
   </view>
 
-  <!-- AI挂号助手主卡（票 49）：科室挂号/智能导诊入口 + 最近 3 家平台医院 -->
+  <!-- 待办横卡：时效内容优先；无待办时整区不渲染 -->
+  <view a:if="{{todos.length > 0}}" class="section">
+    <view class="section-title">待办事项</view>
+    <scroll-view scroll-x class="todo-scroll" show-scrollbar="{{false}}">
+      <view class="todo-row">
+        <view
+          a:for="{{todos}}"
+          a:key="key"
+          class="todo-card zy-fade-in"
+          style="animation-delay: {{index * 40}}ms"
+          data-kind="{{item.kind}}"
+          onTap="openTodo"
+        >
+          <view class="todo-badge {{item.kind === 'order' ? 'todo-badge-pay' : ''}}">{{item.badge}}</view>
+          <view class="todo-title">{{item.title}}</view>
+          <view class="todo-meta">{{item.meta}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- AI挂号助手精简主卡：保留双入口，医院目录下沉为一行轻入口 -->
   <view class="section">
     <registration-card
       cityName="{{regCityName}}"
-      hospitals="{{regHospitals}}"
       total="{{regTotal}}"
       onDepartmentEntry="onDepartmentEntry"
       onGuideEntry="onGuideEntry"
-      onHospitalTap="onHospitalTap"
       onMoreHospitals="onMoreHospitals"
-      onRelocate="onRelocate"
     />
   </view>
 
@@ -51,27 +69,6 @@
         <view a:if="{{entry.desc}}" class="grid-desc">{{entry.desc}}</view>
       </view>
     </view>
-  </view>
-
-  <!-- 待办横卡：即将就诊的挂号单 + 待支付药品订单；无待办时整区不渲染 -->
-  <view a:if="{{todos.length > 0}}" class="section">
-    <view class="section-title">待办事项</view>
-    <scroll-view scroll-x class="todo-scroll" show-scrollbar="{{false}}">
-      <view class="todo-row">
-        <view
-          a:for="{{todos}}"
-          a:key="key"
-          class="todo-card zy-fade-in"
-          style="animation-delay: {{index * 40}}ms"
-          data-kind="{{item.kind}}"
-          onTap="openTodo"
-        >
-          <view class="todo-badge {{item.kind === 'order' ? 'todo-badge-pay' : ''}}">{{item.badge}}</view>
-          <view class="todo-title">{{item.title}}</view>
-          <view class="todo-meta">{{item.meta}}</view>
-        </view>
-      </view>
-    </scroll-view>
   </view>
 
   <!-- 健康档案切换弹层 -->

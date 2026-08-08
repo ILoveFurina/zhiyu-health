@@ -1,6 +1,5 @@
 <view class="reg-card">
-  <!-- 主卡无副标题（票 49）；城市名由服务城市接口动态解析，不写死 -->
-  <view class="reg-title">AI挂号助手{{cityName ? ' · ' + cityName : ''}}</view>
+  <view class="reg-title">AI挂号助手</view>
 
   <view class="reg-entries">
     <view class="reg-entry" onTap="tapDepartment">
@@ -13,31 +12,8 @@
     </view>
   </view>
 
-  <view class="reg-hospitals">
-    <view
-      a:for="{{hospitals}}"
-      a:key="hospital_id"
-      class="reg-hospital"
-      data-id="{{item.hospital_id}}"
-      data-name="{{item.name}}"
-      onTap="tapHospital"
-    >
-      <view class="reg-hospital-main">
-        <view class="reg-name-row">
-          <text class="reg-name">{{item.name}}</text>
-          <text a:if="{{item.level}}" class="reg-level">{{item.level}}</text>
-        </view>
-        <view class="reg-meta">
-          {{item.campus_name}}<text a:if="{{item.distance_text}}"> · 距您约 {{item.distance_text}} km</text>
-        </view>
-      </view>
-      <view class="reg-arrow">›</view>
-    </view>
-    <view a:if="{{hospitals.length === 0}}" class="reg-empty">当前城市暂无平台医院</view>
-  </view>
-
-  <view class="reg-footer">
-    <text class="reg-total" onTap="tapMore">共 {{total}} 家医院 ›</text>
-    <text class="reg-relocate" onTap="tapRelocate">重新校正位置</text>
+  <view class="reg-directory" onTap="tapMore">
+    <text>{{cityName || '当前城市'}} · 附近 {{total}} 家医院</text>
+    <text class="reg-arrow">›</text>
   </view>
 </view>
