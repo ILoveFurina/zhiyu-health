@@ -14,6 +14,8 @@ export interface ReceptionAppointment {
   patient_nickname: string;
   sequence_number: number;
   status: '已约' | '已接诊';
+  /** 关联电子处方状态（PENDING/APPROVED/REJECTED），未开方为 null */
+  prescription_status: string | null;
   schedule_date: string;
   time_slot: string;
   condition_summary?: string;

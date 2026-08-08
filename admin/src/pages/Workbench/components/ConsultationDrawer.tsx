@@ -1,7 +1,15 @@
 import { Alert, Button, Descriptions, Divider, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
 import type { AppointmentDetail } from '@/services/reception';
 import type { Medication, PrescriptionInput } from '@/services/prescription';
+import { prescriptionStatusLabels } from '@/contracts/prescription';
 import PrescriptionForm from './PrescriptionForm';
+
+// 处方状态 Tag 配色：待审核金 / 已通过绿 / 已驳回红（与列表/处方审核页一致）
+const PRESCRIPTION_COLORS: Record<string, string> = {
+  PENDING: 'gold',
+  APPROVED: 'green',
+  REJECTED: 'red',
+};
 
 interface Props {
   open: boolean;
@@ -31,7 +39,16 @@ export default function ConsultationDrawer(props: Props) {
               <Descriptions.Item label="患者">{appointment.patient_nickname}</Descriptions.Item>
               <Descriptions.Item label="序号">{appointment.sequence_number} 号</Descriptions.Item>
               <Descriptions.Item label="时段">{appointment.time_slot}</Descriptions.Item>
-              <Descriptions.Item label="状态"><Tag color={completed ? 'green' : 'blue'}>{appointment.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {appointment.prescription_status ? (
+                  <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status] ?? 'default'}>
+                    {prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
+                      ?? appointment.prescription_status}
+                  </Tag>
+                ) : (
+                  <Tag color={completed ? 'green' : 'blue'}>{appointment.status}</Tag>
+                )}
+              </Descriptions.Item>
             </Descriptions>
             <Alert
               type="info"

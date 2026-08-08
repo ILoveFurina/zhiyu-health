@@ -17,6 +17,7 @@ import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.entity.TimeSlot;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
+import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -39,6 +40,7 @@ class ReceptionServiceTest {
     private final TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
     private final AgentClient agentClient = mock(AgentClient.class);
     private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
+    private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
     private ReceptionService service;
 
     @BeforeEach
@@ -48,6 +50,7 @@ class ReceptionServiceTest {
                 receptionMapper,
                 consultationMapper,
                 messageMapper,
+                prescriptionMapper,
                 transactionTemplate,
                 agentClient,
                 TestDisclaimers.instance(),

@@ -28,6 +28,8 @@ function detectRuntimeApiBase() {
 }
 
 module.exports = {
-  apiBaseUrl: cached || TUNNEL_API_BASE_URL,
+  // 无缓存时默认 LOCAL（与上方注释一致）：队友克隆后模拟器开箱即用；
+  // 真机探活失败才由 detectRuntimeApiBase 缓存 TUNNEL（需自架隧道填真实域名）。
+  apiBaseUrl: cached || LOCAL_API_BASE_URL,
   detectRuntimeApiBase,
 }

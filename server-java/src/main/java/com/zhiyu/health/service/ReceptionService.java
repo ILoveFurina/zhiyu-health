@@ -6,10 +6,12 @@ import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.Appointment;
 import com.zhiyu.health.entity.ConsultationRecord;
 import com.zhiyu.health.entity.InAppMessage;
+import com.zhiyu.health.entity.Prescription;
 import com.zhiyu.health.entity.Schedule;
 import com.zhiyu.health.entity.StaffUser;
 import com.zhiyu.health.mapper.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.InAppMessageMapper;
+import com.zhiyu.health.mapper.PrescriptionMapper;
 import com.zhiyu.health.mapper.ReceptionMapper;
 import com.zhiyu.health.mapper.StaffUserMapper;
 import java.time.LocalDate;
@@ -26,6 +28,7 @@ public class ReceptionService {
     private final ReceptionMapper receptionMapper;
     private final ConsultationRecordMapper consultationRecordMapper;
     private final InAppMessageMapper messageMapper;
+    private final PrescriptionMapper prescriptionMapper;
     private final TransactionTemplate transactionTemplate;
     private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
@@ -127,12 +130,16 @@ public class ReceptionService {
     }
 
     private AppointmentView toAppointmentView(Appointment appointment) {
+        // 挂号状态与处方状态并列：有处方时前端优先展示处方状态（待审核/已通过/已驳回）。
+        Prescription prescription = prescriptionMapper.selectByAppointmentId(appointment.getId());
+        String prescriptionStatus = prescription == null ? null : prescription.getStatus();
         return new AppointmentView(
                 appointment.getId(),
                 appointment.getScheduleId(),
                 appointment.getPatientNickname(),
                 appointment.getSequenceNumber(),
                 Appointment.displayStatus(appointment.getStatus()),
+                prescriptionStatus,
                 appointment.getScheduleDate() == null
                         ? null
                         : appointment.getScheduleDate().toString(),
@@ -154,6 +161,7 @@ public class ReceptionService {
             String patientNickname,
             Integer sequenceNumber,
             String status,
+            String prescriptionStatus,
             String scheduleDate,
             String timeSlot,
             String conditionSummary,

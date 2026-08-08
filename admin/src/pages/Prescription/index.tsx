@@ -11,13 +11,27 @@ export default function PrescriptionPage() {
   const [rows, setRows] = useState<Prescription[]>([]);
   const [reason, setReason] = useState('');
   const [rejecting, setRejecting] = useState<Prescription>();
+  // 当前正在审核的处方 id：锁定操作列防重复点击，避免并发重复审核触发 409 误报
+  const [reviewingId, setReviewingId] = useState<number>();
   const load = useCallback(() => fetchPendingPrescriptions().then(setRows), []);
   useEffect(() => { load().catch(() => {}); }, [load]);
 
   const review = async (row: Prescription, decision: ReviewDecision, rejectReason?: string) => {
-    await reviewPrescription(row.id, decision, rejectReason);
-    message.success(decision === prescriptionDecisions.approve ? '审核已通过，患者现可查看' : '已驳回电子处方');
-    setRejecting(undefined); setReason(''); await load();
+    setReviewingId(row.id);
+    try {
+      await reviewPrescription(row.id, decision, rejectReason);
+      message.success(decision === prescriptionDecisions.approve ? '审核已通过，患者现可查看' : '已驳回电子处方');
+      setRejecting(undefined); setReason(''); await load();
+    } catch (err: any) {
+      // 幂等冲突（该处方已被审核）：另一处已处理或重复点击所致，不视为失败，刷新保持界面一致
+      if (err?.response?.status === 409) {
+        message.info('该处方已审核，请勿重复操作');
+        setRejecting(undefined); setReason(''); await load();
+      }
+      // 其余错误（如驳回缺原因 400）由全局 errorHandler 统一弹出
+    } finally {
+      setReviewingId(undefined);
+    }
   };
 
   const columns: TableColumnsType<Prescription> = [
@@ -35,10 +49,15 @@ export default function PrescriptionPage() {
     { title: '患者', dataIndex: 'patient_nickname', width: 100 },
     { title: '医生', dataIndex: 'doctor_name', width: 100 },
     { title: '状态', dataIndex: 'status', width: 100, render: (v) => <Tag color="gold">{v}</Tag> },
-    { title: '操作', width: 160, render: (_, row) => <Space>
-      <Button type="link" onClick={() => review(row, prescriptionDecisions.approve)}>通过</Button>
-      <Button type="link" danger onClick={() => setRejecting(row)}>驳回</Button>
-    </Space> },
+    { title: '操作', width: 160, render: (_, row) => {
+      const loading = reviewingId === row.id;
+      return <Space>
+        <Button type="link" loading={loading} disabled={reviewingId != null}
+          onClick={() => review(row, prescriptionDecisions.approve)}>通过</Button>
+        <Button type="link" danger loading={loading} disabled={reviewingId != null}
+          onClick={() => setRejecting(row)}>驳回</Button>
+      </Space>;
+    } },
   ];
 
   const stats = [
@@ -75,7 +94,7 @@ export default function PrescriptionPage() {
           }}
         />
       </Card>
-      <Modal title="驳回电子处方" open={!!rejecting} okButtonProps={{ danger: true, disabled: !reason.trim() }}
+      <Modal title="驳回电子处方" open={!!rejecting} okButtonProps={{ danger: true, disabled: !reason.trim(), loading: reviewingId === rejecting?.id }}
         onCancel={() => setRejecting(undefined)} onOk={() => rejecting && review(rejecting, prescriptionDecisions.reject, reason)}>
         <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="填写驳回原因" rows={4} />
       </Modal>
