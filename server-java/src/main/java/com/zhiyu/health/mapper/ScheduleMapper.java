@@ -58,6 +58,28 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     List<Schedule> selectFutureByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
 
+    // C 端找医生排班列表：只返回患者实际可挂号的排班。已停诊（is_active=FALSE）或存在待审核停诊申请的
+    // 排班在挂号入口会被 404/409 确定性拦截（见 AppointmentService.reserve），若照样展示只会误导点击；
+    // 过滤口径与挂号拦截条件保持一致。remaining_slots=0 的行保留，供端侧置灰展示"约满"。
+    @Select(
+            """
+            SELECT s.*
+            FROM schedules s
+            WHERE s.doctor_id = #{doctorId}
+              AND s.is_active = TRUE
+              AND s.schedule_date >= #{fromDate}
+              AND NOT EXISTS (
+                  SELECT 1 FROM schedule_requests sr
+                  WHERE sr.target_schedule_id = s.id
+                    AND sr.action = 'DISABLE'
+                    AND sr.status = 'PENDING'
+              )
+            ORDER BY s.schedule_date,
+                     CASE s.time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END,
+                     s.id
+            """)
+    List<Schedule> selectBookableByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
+
     @Select(
             """
             SELECT s.*, d.registration_fee

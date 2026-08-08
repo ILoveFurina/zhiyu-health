@@ -172,7 +172,7 @@ public class PatientMedicalDirectoryService {
     }
 
     public List<ScheduleView> schedules(long doctorId) {
-        return scheduleMapper.selectFutureByDoctor(doctorId, LocalDate.now()).stream()
+        return scheduleMapper.selectBookableByDoctor(doctorId, LocalDate.now()).stream()
                 .filter(schedule -> !slotWindowGuard.isClosed(schedule))
                 .map(directoryDtos::toScheduleView)
                 .toList();

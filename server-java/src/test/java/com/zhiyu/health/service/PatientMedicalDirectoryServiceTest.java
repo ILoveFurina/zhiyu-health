@@ -318,7 +318,7 @@ class PatientMedicalDirectoryServiceTest {
         Schedule morning = schedule(101L, today, TimeSlot.MORNING, 5);
         Schedule afternoon = schedule(102L, today, TimeSlot.AFTERNOON, 3);
         ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
-        when(scheduleMapper.selectFutureByDoctor(2L, today)).thenReturn(List.of(morning, afternoon));
+        when(scheduleMapper.selectBookableByDoctor(2L, today)).thenReturn(List.of(morning, afternoon));
         SlotWindowGuard closedGuard = new SlotWindowGuard(
                 TestContracts.instance(),
                 Clock.fixed(
@@ -337,6 +337,29 @@ class PatientMedicalDirectoryServiceTest {
 
         assertThat(views).hasSize(1);
         assertThat(views.get(0).timeSlot()).isEqualTo("下午");
+    }
+
+    @Test
+    void schedulesUsesBookableScopeAndKeepsSoldOutRows() {
+        // C 端排班列表必须走可挂号口径（SQL 内过滤已停诊与待审核停诊，与挂号拦截同口径），
+        // 剩余 0 的行保留供端侧置灰展示"约满"
+        ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
+        when(scheduleMapper.selectBookableByDoctor(2L, LocalDate.now()))
+                .thenReturn(List.of(schedule(103L, LocalDate.now().plusDays(1), TimeSlot.MORNING, 0)));
+        PatientMedicalDirectoryService serviceWithMapper = new PatientMedicalDirectoryService(
+                hospitalCampusMapper,
+                departmentMapper,
+                standardDepartmentMapper,
+                mock(DoctorMapper.class),
+                scheduleMapper,
+                Mappers.getMapper(PatientMedicalDirectoryDtoMapper.class),
+                slotWindowGuard);
+
+        List<PatientMedicalDirectoryService.ScheduleView> views = serviceWithMapper.schedules(2L);
+
+        verify(scheduleMapper).selectBookableByDoctor(2L, LocalDate.now());
+        assertThat(views).hasSize(1);
+        assertThat(views.get(0).remainingSlots()).isZero();
     }
 
     @Test
