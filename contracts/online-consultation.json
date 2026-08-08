@@ -74,7 +74,7 @@
     "allergy_history": "过敏史"
   },
   "summary_event_field": "preconsultation_summary",
-  "_summary_event_field_doc": "server-py 在 message 事件 payload 携带结构化病情摘要快照的字段名，server-java 据此更新预问诊草稿快照。快照含 summary_fields、免责声明标注与 suggested_standard_department_id（受控标准科室解析，未收敛时为空，不得由 LLM 自由编造目录外 ID）。",
+  "_summary_event_field_doc": "摘要快照字段名（保留契约常量，回调 body 仍用同结构）。摘要不再随 message 事件下发：server-py 在 message/done 之后后台异步整理摘要，完成后回调 server-java POST /api/agent/preconsultation-drafts/{id}/summary（body 为摘要快照）落草稿；server-java 复用 PreconsultationService.applySummary 幂等旁路落库。判定失败/超时省略回调，草稿保留上一版。快照含 summary_fields、免责声明标注与 suggested_standard_department_id（受控标准科室解析，未收敛时为空，不得由 LLM 自由编造目录外 ID）。",
   "follow_up": {
     "message_type": "ONLINE_CONSULTATION_FOLLOW_UP",
     "title": "随访关怀",

@@ -98,6 +98,20 @@ class FakePreconsultJudge:
         return None
 
 
+class FakeSummaryCallback:
+    """摘要异步回调 seam 的 fake（票 55 改造）：记录 draftId 与 payload，供断言回调时序。
+
+    不发起真实 HTTP；apply 直接记录调用。配合 chat_service._last_summary_task 可在
+    测试中 await 确定性断言后台 task 已完成。
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    async def apply(self, draft_id: int, payload: dict) -> None:
+        self.calls.append({"draft_id": draft_id, "payload": payload})
+
+
 class FakeKnowledgeRetriever:
     """检索 seam 的 fake：可控召回内容/空/异常，记录调用。"""
 

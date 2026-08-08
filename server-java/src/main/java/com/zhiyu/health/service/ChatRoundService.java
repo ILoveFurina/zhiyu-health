@@ -286,7 +286,6 @@ public class ChatRoundService {
 
     private void runAgent(RunningRound runtime, Command command, PreconsultationDraft preconsultDraft) {
         ChatRound round = runtime.round;
-        runtime.preconsultDraftId = preconsultDraft == null ? null : preconsultDraft.getId();
         persistence.markRunning(round.getId());
         Map<String, Object> body = agentBody(round, command, preconsultDraft);
         log.info("chat round accepted roundId={} requestId={}", round.getId(), round.getRequestId());
@@ -334,6 +333,11 @@ public class ChatRoundService {
         if (command.retryStandardDepartmentId() != null) {
             body.put(contracts.guidedRegistration().retryRequestField(), command.retryStandardDepartmentId());
         }
+        // 票 55：预问诊草稿标识透传给 server-py，供异步摘要 task 回调本端落草稿
+        // （摘要不再随 message 事件下发，改为 done 后后台整理并回调 /api/agent/preconsultation-drafts/{id}/summary）
+        if (preconsultDraft != null) {
+            body.put("preconsultation_draft_id", preconsultDraft.getId());
+        }
         return body;
     }
 
@@ -358,31 +362,13 @@ public class ChatRoundService {
                 runtime.emit(incoming.event(), data);
                 runtime.finish();
             } else {
-                // 票 55：预问诊成功轮次的摘要快照随 message 事件落草稿（旁路，不连坐对话流）。
-                if (runtime.preconsultDraftId != null
-                        && contracts.sseEvents().messageEvent().equals(incoming.event())) {
-                    applySummarySafely(runtime.preconsultDraftId, data);
-                }
+                // 票 55 改造：摘要不再随 message 事件下发（改为 server-py 后台异步回调
+                // /api/agent/preconsultation-drafts/{id}/summary 落草稿），message 分支
+                // 不再旁路触发 applySummary，避免重复落库。
                 runtime.emit(incoming.event(), data);
             }
         } catch (RuntimeException | JsonProcessingException error) {
             fail(runtime, error);
-        }
-    }
-
-    /** 票 55：摘要快照更新失败只记日志（不记内容，防泄漏病情原文），保留上一版且不打断对话流。 */
-    private void applySummarySafely(long draftId, JsonNode messageData) {
-        JsonNode summary = messageData.get(contracts.onlineConsultation().summaryEventField());
-        if (summary == null || !summary.isObject()) {
-            return;
-        }
-        try {
-            preconsultationService.applySummary(draftId, summary);
-        } catch (RuntimeException error) {
-            log.warn(
-                    "preconsultation summary apply failed draftId={} error={}",
-                    draftId,
-                    error.getClass().getSimpleName());
         }
     }
 
@@ -513,8 +499,6 @@ public class ChatRoundService {
         private final AtomicBoolean sawDone = new AtomicBoolean();
         // 药品说明书流（票 51）：server-py 只产 token/done，本端逐 token 累积，流尾组装 message
         private final StringBuilder medicationText = new StringBuilder();
-        // 票 55：预问诊轮次绑定的草稿 id（仅 Agent 轮次非空），message 事件触发摘要快照旁路更新
-        private Long preconsultDraftId;
 
         private RunningRound(ChatRound round) {
             this.round = round;

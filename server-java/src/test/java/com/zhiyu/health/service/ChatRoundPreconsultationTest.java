@@ -53,7 +53,8 @@ class ChatRoundPreconsultationTest {
         assertThat(body.getValue())
                 .containsEntry("scenario", "preconsultation")
                 .containsEntry("conversation_id", 77L)
-                .containsEntry("health_profile", lockedProfile);
+                .containsEntry("health_profile", lockedProfile)
+                .containsEntry("preconsultation_draft_id", 5L);
         // 锁定档案走指定档案通道，不走当前激活档案通道
         verify(fixture.healthProfiles, never()).agentContext(12L);
         // 草稿已绑定会话：不再回填
@@ -100,7 +101,10 @@ class ChatRoundPreconsultationTest {
     }
 
     @Test
-    void messageEventWithSummaryFieldUpdatesDraftSnapshot() throws Exception {
+    void messageEventNoLongerCarriesSummary_draftIdForwardedForAsyncCallback() {
+        // 票 55 改造：摘要不再随 message 事件下发，改为 server-py 后台异步回调
+        // /api/agent/preconsultation-drafts/{id}/summary 落草稿。故 message 事件即使
+        // 携带 preconsultation_summary 字段（旧客户端/回归），forward 也不再旁路触发 applySummary。
         Fixture fixture = new Fixture();
         fixture.startPreconsultRound("req-summary");
         String payload =
@@ -111,21 +115,16 @@ class ChatRoundPreconsultationTest {
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder(payload).event("message").build());
 
-        verify(fixture.preconsultationService)
-                .applySummary(
-                        eq(5L),
-                        eq(
-                                fixture.mapper.readTree(
-                                        "{\"chief_complaint\":\"咳嗽三天\",\"present_illness\":\"干咳无痰\",\"allergy_history\":\"无\",\"suggested_standard_department_id\":2}")));
+        // message 事件不再旁路触发摘要落库（改为独立回调端点）
+        verify(fixture.preconsultationService, never()).applySummary(anyLong(), any());
     }
 
     @Test
-    void summaryApplyFailureKeepsRoundAlive() throws Exception {
+    void roundCompletesOnMessageAndDoneWithoutSummarySideEffect() {
+        // 票 55 改造：摘要旁路已移除，message+done 正常流转不再触达 preconsultationService。
+        // 摘要落库改由独立回调端点（PreconsultationSummaryCallbackController）负责。
         Fixture fixture = new Fixture();
         fixture.startPreconsultRound("req-summary-fail");
-        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
-                .when(fixture.preconsultationService)
-                .applySummary(eq(5L), any());
 
         fixture.upstream.tryEmitNext(ServerSentEvent.builder(
                         "{\"role\":\"assistant\",\"content\":\"x\",\"preconsultation_summary\":{\"chief_complaint\":\"咳嗽\",\"present_illness\":\"干咳\"}}")
@@ -142,6 +141,8 @@ class ChatRoundPreconsultationTest {
         assertThat(observed).containsExactly("message", "done");
         verify(fixture.persistence).markCompleted(34L);
         verify(fixture.persistence, never()).markFailed(any(), anyString());
+        // message 事件含旧字段也不再触发 applySummary（旁路已移除）
+        verify(fixture.preconsultationService, never()).applySummary(anyLong(), any());
     }
 
     @Test

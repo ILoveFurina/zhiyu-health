@@ -22,10 +22,13 @@ LLM 不参与医院、医生、排班、余号等事实的生成。
 
 票 55 预问诊场景（preconsultation，场景值取契约 online-consultation.json）：
 跳过强制号源查询；runner 按场景隔离业务工具并选专用提示词；每个成功轮次后
-串行调用摘要判定器，把结构化病情摘要快照挂在 message 事件的契约字段
-（summary_event_field）上下发，判定失败本轮省略快照字段，不掐断流。
+message 事件只携带 emotion（安抚语），不再阻塞等待摘要判定。摘要改为后台
+fire-and-forget task 异步执行，完成后回调 server-java 落草稿（客户端轮询回拉
+刷新 CTA）。判定失败/超时降级省略回调，保留上一版，不掐断流、不阻塞输入。
 """
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -37,6 +40,9 @@ from app.core.contracts import get_contracts
 from app.schemas.emotion import emotion_soothing_text
 from app.services.directory import DepartmentDirectory
 from app.services.reasoning import EffortChoice, Scenario, map_reasoning_effort
+from app.tools.business import SummaryCallback
+
+logger = logging.getLogger("app.services.chat")
 
 # SSE 流事件名唯一事实源是 contracts/sse-events.json；协议顺序固定，
 # 由 tests/test_contract_consumption.py 与 java 侧 ContractsConsistencyTest 双端钉死。
@@ -146,6 +152,7 @@ class AgentChatService:
         triage_judge: TriageJudge | None = None,
         preconsult_judge: PreconsultJudge | None = None,
         directory: DepartmentDirectory | None = None,
+        summary_callback: SummaryCallback | None = None,
     ) -> None:
         self._agent_runner = agent_runner
         self._rag_available = rag_available
@@ -158,6 +165,10 @@ class AgentChatService:
         self._triage_judge = triage_judge or LazyTriageJudge()
         # 票 55：预问诊摘要判定器（默认懒装配，失败降级 None 本轮省略快照）。
         self._preconsult_judge = preconsult_judge or LazyPreconsultJudge()
+        # 票 55：摘要异步回调 client（fire-and-forget）；None 时跳过回调（测试注入）。
+        self._summary_callback = summary_callback
+        # 最近一次摘要后台 task 引用：fire-and-forget 生产代码不持有，仅供测试 await 确定性断言。
+        self._last_summary_task: asyncio.Task[None] | None = None
         self._directory = directory
         # 免责声明唯一事实源是跨栈契约 contracts/disclaimer.json（硬约束 1），
         # 装配期取出缓存，禁止在本地另立文案常量。
@@ -313,11 +324,14 @@ class AgentChatService:
         messages: list[dict[str, str]],
         parts: list[str],
         effort: str,
-        scenario: Scenario,
-        longitude: float | None,
-        latitude: float | None,
     ) -> dict[str, object]:
-        """message 事件负载组装：回复全文 + 免责声明 + emotion/安抚语 + 预问诊摘要快照。"""
+        """message 事件负载组装：回复全文 + 免责声明 + emotion/安抚语。
+
+        摘要快照不再在此阻塞 message 事件（票 55 改造）：改为 stream() 末尾
+        done 之后的后台 fire-and-forget task 异步执行并回调 server-java 落草稿。
+        摘要判定器仍由编排层持有，但调用时机移出请求路径，避免第二次非流式
+        LLM 调用（timeout 15s × 最多 2 次校验重试）阻塞 done 导致客户端输入框锁死。
+        """
         # 票 44：主回复 token 流完成后、message 事件发出前，串行非流式 LLM 调用判情绪。
         # emotion 挂 message 事件（不新增 SSE 事件）；判断失败/超时降级 calm 不阻塞回复。
         # 仅取最后一条用户消息作为情绪判断输入（避免把整段历史塞进二次调用）。
@@ -338,14 +352,6 @@ class AgentChatService:
         # 与回复共用同一条免责声明，不单独标注、不作为独立消息、不进 messages 数组。
         if soothing is not None:
             message_data["soothing_text"] = soothing
-        # 票 55：预问诊成功轮次挂摘要快照（字段名取契约 summary_event_field）；
-        # 判定失败返回 None 时省略该字段，流与上一版快照均不受影响。
-        if scenario == _ONLINE.scenario:
-            summary_payload = await self._preconsult_summary(
-                messages, "".join(parts), longitude, latitude
-            )
-            if summary_payload is not None:
-                message_data[_ONLINE.summary_event_field] = summary_payload
         return message_data
 
     async def stream(
@@ -361,6 +367,7 @@ class AgentChatService:
         latitude: float | None = None,
         knowledge_source: str | None = None,
         retry_standard_department_id: int | None = None,
+        preconsultation_draft_id: int | None = None,
     ) -> AsyncIterator[dict[str, object]]:
         """对一段消息历史流式生成回复。auto 在此映射为 disabled/high，不外传。"""
         effort = map_reasoning_effort(effort_choice, scenario)
@@ -409,8 +416,47 @@ class AgentChatService:
                     "event": output.event,
                     "data": {**output.data, "disclaimer": self._disclaimer},
                 }
-        message_data = await self._message_event_data(
-            messages, parts, effort, scenario, longitude, latitude
-        )
+        # 票 55：摘要不再阻塞 message 事件。emotion 仍同步（它是 message 负载的一部分，
+        # 只阻塞一次 LLM）；摘要判定移到 done 之后的后台 task，避免第二次非流式 LLM
+        # 调用（timeout 15s × 2 次校验重试）延迟 done 导致客户端输入框长时间锁死。
+        message_data = await self._message_event_data(messages, parts, effort)
         yield {"event": EVENT_MESSAGE, "data": message_data}
         yield {"event": EVENT_DONE, "data": {}}
+        # 预问诊场景：done 已发出（客户端输入框解锁），后台异步整理摘要并回调 server-java。
+        # fire-and-forget：不 await，task 内全 try/except 吞异常（摘要降级语义）。
+        if scenario == _ONLINE.scenario and preconsultation_draft_id is not None:
+            self._spawn_summary_task(
+                preconsultation_draft_id, messages, "".join(parts), longitude, latitude
+            )
+
+    def _spawn_summary_task(
+        self,
+        draft_id: int,
+        messages: list[dict[str, str]],
+        assistant_text: str,
+        longitude: float | None,
+        latitude: float | None,
+    ) -> None:
+        """启动后台摘要判定 task：算出快照后回调 server-java 落草稿。
+
+        task 在流结束（done 已 yield）之后创建，不阻塞 SSE 响应。回调 client 未装配
+        （测试注入）或判定返回 None 时静默跳过。异常只 log.warning 不传播--摘要失败
+        等同本轮降级，草稿保留上一版，不打断对话流。
+        """
+
+        async def _run() -> None:
+            try:
+                payload = await self._preconsult_summary(messages, assistant_text, longitude, latitude)
+            except Exception:
+                # _preconsult_summary 内部已有 try/except，此处兜底防未预期异常逃逸
+                logger.warning("preconsult summary task failed draftId=%s", draft_id, exc_info=True)
+                return
+            if payload is None or self._summary_callback is None:
+                return
+            try:
+                await self._summary_callback.apply(draft_id, payload)
+            except Exception:
+                # callback 内部已吞 httpx 错误，此处兜底防其它未预期异常
+                logger.warning("preconsult summary callback failed draftId=%s", draft_id, exc_info=True)
+
+        self._last_summary_task = asyncio.create_task(_run())

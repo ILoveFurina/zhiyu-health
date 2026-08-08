@@ -13,8 +13,9 @@ const NOOP = () => {}
 
 /**
  * AI 预问诊对话页（票 55）：复用 pages/chat 的 WS/SSE 通道与气泡渲染，
- * 每轮对话携带 preconsultation_draft_id；message 事件后回拉草稿，
- * 摘要快照就绪后亮底部「查看病情摘要并确认」CTA。
+ * 每轮对话携带 preconsultation_draft_id；摘要不再随 message 事件下发（改为
+ * server-py 后台异步整理并回调 server-java 落草稿），故 message 事件后启动
+ * 轮询回拉草稿，摘要快照就绪后亮底部「查看病情摘要并确认」CTA。
  */
 Page({
   data: {
@@ -33,6 +34,8 @@ Page({
   },
 
   _msgSeq: 0,
+  _unloaded: false, // 页面已卸载，停止摘要轮询
+  _summaryPollTimers: [], // 摘要轮询定时器，卸载时统一清理
 
   onLoad(query) {
     this.setData({
@@ -53,6 +56,8 @@ Page({
   },
 
   onUnload() {
+    this._unloaded = true
+    this._clearSummaryPoll()
     if (this._chatChannel) this._chatChannel.close()
   },
 
@@ -64,7 +69,7 @@ Page({
         // 已提交草稿不可再聊：直接去关联问诊单（等待页自持状态分流）
         if (draft.status === DRAFT_STATUSES.submitted && draft.current_consultation_id) {
           my.redirectTo({ url: `/pages/consult/waiting/index?id=${draft.current_consultation_id}` })
-          return
+          return false
         }
         this.setData({
           summaryReady: !!draft.summary,
@@ -74,9 +79,11 @@ Page({
         if (draft.conversation_id && !this.data.historyLoaded) {
           this.loadHistory(draft.conversation_id)
         }
+        return !!draft.summary
       })
       .catch((err) => {
         my.showToast({ content: (err && err.detail) || '预问诊草稿加载失败', type: 'fail' })
+        return false
       })
   },
 
@@ -182,8 +189,35 @@ Page({
       disclaimer: data.disclaimer,
       streaming: false,
     }))
-    // message 事件后草稿快照可能已更新：回拉，有摘要则亮底部 CTA
-    this.loadDraft()
+    // 摘要不再随 message 事件下发（server-py 后台异步整理并回调 server-java 落草稿），
+    // 故 message 事件后启动轮询回拉草稿，摘要就绪即亮底部 CTA。
+    this._pollSummary()
+  },
+
+  /**
+   * 摘要轮询：3s/7s/12s 共 3 次，每次回拉草稿，summaryReady 即停。
+   * 摘要判定是后台异步 LLM 调用（可能数秒~数十秒），轮询覆盖常见时延；
+   * 用户从摘要页返回时 onShow 也会回拉兜底。卸载时统一清理定时器。
+   */
+  _pollSummary() {
+    this._clearSummaryPoll()
+    const delays = [3000, 4000, 5000]
+    delays.forEach((delay) => {
+      const timer = setTimeout(() => {
+        if (this._unloaded || this.data.summaryReady) return
+        this.loadDraft().then((ready) => {
+          if (ready) this._clearSummaryPoll()
+        })
+      }, delay)
+      this._summaryPollTimers.push(timer)
+    })
+  },
+
+  _clearSummaryPoll() {
+    if (this._summaryPollTimers.length) {
+      this._summaryPollTimers.forEach((t) => clearTimeout(t))
+      this._summaryPollTimers = []
+    }
   },
 
   showRedFlag(id, data) {

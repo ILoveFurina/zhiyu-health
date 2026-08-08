@@ -34,7 +34,12 @@ from app.services.graph import build_graph_projector, build_graph_traverser
 from app.services.health import HealthChecker, HealthService
 from app.services.knowledge import build_knowledge_retriever
 from app.services.voice import LazyVoiceService, VoiceService
-from app.tools.business import BusinessCallbackClient, build_business_tools
+from app.tools.business import (
+    BusinessCallbackClient,
+    PreconsultationSummaryCallback,
+    SummaryCallback,
+    build_business_tools,
+)
 
 # Windows 默认 ProactorEventLoop 与 psycopg 异步不兼容，切到 SelectorEventLoop。
 # 生产部署在 Linux 不受影响（Linux 默认即兼容的 epoll 循环）。
@@ -54,6 +59,7 @@ def create_app(
     triage_judge: TriageJudge | None = None,
     preconsult_judge: PreconsultJudge | None = None,
     directory: DepartmentDirectory | None = None,
+    summary_callback: SummaryCallback | None = None,
     voice_service: VoiceService | None = None,
     medication_streamer: MedicationKnowledgeStreamer | None = None,
 ) -> FastAPI:
@@ -72,6 +78,7 @@ def create_app(
                 triage_judge=triage_judge,
                 preconsult_judge=preconsult_judge,
                 directory=directory,
+                summary_callback=summary_callback,
             )
             app.state.health_service = health_service
             app.state.agent_callback_secret = agent_auth_secret
@@ -105,6 +112,8 @@ def create_app(
             triage_judge=triage_judge,
             preconsult_judge=preconsult_judge,
             directory=directory or CallbackDepartmentDirectory(app.state.business_client),
+            # 票 55：摘要异步回调（fire-and-forget），复用业务回调通道落草稿
+            summary_callback=PreconsultationSummaryCallback(app.state.business_client),
         )
         app.state.graph_projector = built_projector
         app.state.vision_interpreter = vision_interpreter or LazyVisionInterpreter()

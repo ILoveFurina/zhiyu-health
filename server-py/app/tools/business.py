@@ -5,18 +5,25 @@ server-java 统一入口的回调通道，地址经 SERVER_JAVA_BASE_URL 配置�
 具体业务工具（挂号、排班查询等）由后续票在此薄壳上逐个实现。
 
 回调失败（售罄 409、server-java 不可用、参数被模型臆造）是正常运行时结果，必须规整为
-模型可向用户解释的错误文本，而非上抛异常——ToolNode 默认只兜参数校验错误，
+模型可向用户解释的错误文本，而非上抛异常--ToolNode 默认只兜参数校验错误，
 执行期异常会穿透图掐断整条 SSE 流（票 33）。错误文本不是 JSON dict，
 不会被 runner._tool_output 投影成卡片，与"工具错误仍会回到模型解释"的设计一致。
+
+预问诊摘要回调（票 55）：摘要判定不再阻塞 message 事件，改为后台 task 异步执行，
+完成后经本模块的 PreconsultationSummaryCallback 回调 server-java 落草稿。
+回调失败只 log.warning 不抛--与摘要降级语义一致（失败保留上一版，不打断对话流）。
 """
 
-from typing import Any
+import logging
+from typing import Any, Protocol
 
 import httpx
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
 from app.agent.runner import AgentContext
+
+logger = logging.getLogger("app.tools.business")
 
 
 class BusinessCallbackClient:
@@ -99,6 +106,40 @@ def _appointment_args_error(schedule_id: int, condition_summary: str) -> str | N
     if not condition_summary.strip():
         return "预约挂号失败：病情摘要为空，请先向用户了解主要症状再预约"
     return None
+
+
+class SummaryCallback(Protocol):
+    """预问诊摘要异步回调：后台 task 算出摘要后回调 server-java 落草稿。
+
+    失败必须吞异常（只记日志），与摘要降级语义一致--回调失败只是本轮草稿保留上一版，
+    不打断对话流、不影响已下发的 message/done（硬约束：摘要不是业务关键路径）。
+    """
+
+    async def apply(self, draft_id: int, payload: dict[str, Any]) -> None:
+        ...
+
+
+class PreconsultationSummaryCallback:
+    """经 BusinessCallbackClient 回调 server-java 摘要落库端点（fire-and-forget）。
+
+    复用业务回调通道（X-Agent-Callback-Token 鉴权、base_url 指向 server-java）。
+    POST /api/agent/preconsultation-drafts/{draft_id}/summary，body 为摘要快照。
+    任一环节失败只 log.warning 不抛--摘要回调不在请求路径上，失败等同本轮降级。
+    """
+
+    def __init__(self, client: BusinessCallbackClient) -> None:
+        self._client = client
+
+    async def apply(self, draft_id: int, payload: dict[str, Any]) -> None:
+        try:
+            await self._client.post(f"/api/agent/preconsultation-drafts/{draft_id}/summary", payload)
+        except httpx.HTTPError as error:
+            # 不记 payload 原文（含病情摘要属患者敏感信息，硬约束 5），只记异常类与 draftId
+            logger.warning(
+                "preconsultation summary callback failed draftId=%s error=%s",
+                draft_id,
+                error.__class__.__name__,
+            )
 
 
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:

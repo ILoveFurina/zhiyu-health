@@ -6,8 +6,9 @@
   get_appointment 业务工具；知识工具仍按 knowledge_source（契约默认 rag）注入；
   triage 场景工具集保持不变（回归）
 - 专用提示词：预问诊使用 PRECONSULTATION_SYSTEM_PROMPT，triage 保持原 SYSTEM_PROMPT
-- 摘要快照：成功轮次后挂 message 事件的契约字段（preconsultation_summary），
-  含摘要字段、受控建议标准科室与免责声明标注；判定失败/异常省略字段不掐断流
+- 摘要异步化（票 55 改造）：摘要不再阻塞 message 事件，改为 done 之后的后台 task
+  异步整理并回调 server-java 落草稿；message 事件不含 preconsultation_summary 字段；
+  判定失败/异常省略回调，流不受影响
 - StructuredPreconsultJudge：json_object + pydantic 校验 + 2 次重试 + 目录外
   科室 ID 归一化 None + 失败降级 None（复用 test_emotion.py 的 fake 范式）
 """
@@ -24,6 +25,7 @@ from conftest import (
     FakeEmotionJudge,
     FakeKnowledgeRetriever,
     FakePreconsultJudge,
+    FakeSummaryCallback,
     StubHealthService,
 )
 from fastapi.testclient import TestClient
@@ -36,6 +38,7 @@ from app.agent.preconsult import StructuredPreconsultJudge
 from app.agent.runner import AgentContext, LangGraphAgentRunner
 from app.main import create_app
 from app.schemas.preconsult import PreconsultationSummary
+from app.services.chat import AgentChatService
 from app.services.directory import CallbackDepartmentDirectory
 from app.tools.business import BusinessCallbackClient, build_business_tools
 
@@ -70,6 +73,7 @@ def _post_chat(client: TestClient, payload: dict) -> list[dict]:
 def _build_harness_app(
     *,
     preconsult: FakePreconsultJudge | None = None,
+    summary_callback: FakeSummaryCallback | None = None,
 ) -> tuple[TestClient, FakeAgentRunner, FakePreconsultJudge]:
     """FakeAgentRunner + fake 摘要判定器的轻量装配（不触真实目录与 LLM）。"""
     fake_agent = FakeAgentRunner()
@@ -80,8 +84,35 @@ def _build_harness_app(
         agent_auth_secret=TEST_AGENT_SECRET,
         emotion_judge=FakeEmotionJudge(),
         preconsult_judge=fake_preconsult,
+        summary_callback=summary_callback,
     )
     return TestClient(app), fake_agent, fake_preconsult
+
+
+async def _stream_events(
+    service: AgentChatService, *, scenario: str = "preconsultation",
+    draft_id: int | None = 99, messages: list[dict] | None = None,
+) -> list[dict]:
+    """直接消费 AgentChatService.stream（不经 HTTP），确定性 await 后台摘要 task。
+
+    HTTP TestClient 的 portal 事件循环无法在同步测试中可靠 pump 后台 create_task；
+    直连 stream() 在 asyncio.run 内消费全部事件后 await _last_summary_task，
+    确保摘要回调断言确定执行完毕。
+    """
+    events: list[dict] = []
+    async for event in service.stream(
+        messages=messages or [{"role": "user", "content": "我咳嗽三天了，青霉素过敏"}],
+        patient_id=12,
+        conversation_id=7,
+        effort_choice="auto",
+        scenario=scenario,
+        preconsultation_draft_id=draft_id,
+    ):
+        events.append(event)
+    # 摘要后台 task 在 done 之后创建，await 确保回调执行完毕再断言
+    if service._last_summary_task is not None:
+        await service._last_summary_task
+    return events
 
 
 def test_preconsultation_scenario_accepted_and_streams_with_locked_profile() -> None:
@@ -115,10 +146,9 @@ def test_preconsultation_scenario_accepted_and_streams_with_locked_profile() -> 
     assert context.scenario == "preconsultation"
     assert context.health_profile.display_name == "妈妈"
     assert context.health_profile.allergies == ["青霉素"]
-    # 预问诊摘要判定器被调用（fake 默认无快照），输入含本轮助手回复
-    assert len(fake_preconsult.calls) == 1
-    round_messages = fake_preconsult.calls[0]["messages"]
-    assert round_messages[-1] == {"role": "assistant", "content": "你好，我是小愈。"}
+    # 摘要判定器在 done 之后后台异步调用（非 message 同步路径）；HTTP 流结束时
+    # 后台 task 可能尚未执行，其调用断言移至 test_summary_async_callback_after_done。
+    assert fake_preconsult.calls == []
 
 
 def test_invalid_scenario_still_rejected() -> None:
@@ -284,27 +314,81 @@ def test_preconsultation_uses_dedicated_prompt_and_triage_keeps_original() -> No
     assert "预问诊阶段" not in triage_prompt[1]
 
 
-def test_summary_snapshot_attached_to_message_event() -> None:
-    """摘要快照：判定器产出挂 message 事件契约字段，含摘要字段 + 建议科室 + 免责声明。"""
+def _build_harness_service(
+    *,
+    preconsult: FakePreconsultJudge | None = None,
+    summary_callback: FakeSummaryCallback | None = None,
+) -> AgentChatService:
+    """直连 stream() 用的 AgentChatService 装配（不经 HTTP，确定性 await 后台 task）。"""
+    fake_agent = FakeAgentRunner()
+    fake_preconsult = preconsult or FakePreconsultJudge()
+    return AgentChatService(
+        fake_agent,
+        rag_available=False,
+        graph_available=False,
+        emotion_judge=FakeEmotionJudge(),
+        preconsult_judge=fake_preconsult,
+        summary_callback=summary_callback,
+    )
+
+
+async def _stream_events(
+    service: AgentChatService, *, scenario: str = "preconsultation",
+    draft_id: int | None = 99, messages: list[dict] | None = None,
+) -> list[dict]:
+    """直接消费 AgentChatService.stream（不经 HTTP），确定性 await 后台摘要 task。
+
+    HTTP TestClient 的 portal 事件循环无法在同步测试中可靠 pump 后台 create_task；
+    直连 stream() 在 asyncio.run 内消费全部事件后 await _last_summary_task，
+    确保摘要回调断言确定执行完毕。
+    """
+    events: list[dict] = []
+    async for event in service.stream(
+        messages=messages or [{"role": "user", "content": "我咳嗽三天了，青霉素过敏"}],
+        patient_id=12,
+        conversation_id=7,
+        effort_choice="auto",
+        scenario=scenario,
+        preconsultation_draft_id=draft_id,
+    ):
+        events.append(event)
+    # 摘要后台 task 在 done 之后创建，await 确保回调执行完毕再断言
+    if service._last_summary_task is not None:
+        await service._last_summary_task
+    return events
+
+
+def test_summary_async_callback_after_done() -> None:
+    """摘要异步化：message 事件不含摘要字段；后台 task 算出快照后回调 server-java 落草稿。
+
+    摘要不再阻塞 message/done--回调在 done 之后异步执行，payload 含摘要字段 +
+    建议科室 + 免责声明（与原 message 挂载的快照结构一致，server-java 复用 applySummary）。
+    """
     summary = PreconsultationSummary(
         chief_complaint="咳嗽三天",
         present_illness="三天前受凉后干咳，无发热，夜间加重",
         allergy_history="青霉素",
         suggested_standard_department_id=8,
     )
-    client, _, fake_preconsult = _build_harness_app(
-        preconsult=FakePreconsultJudge([summary])
+    callback = FakeSummaryCallback()
+    service = _build_harness_service(
+        preconsult=FakePreconsultJudge([summary]), summary_callback=callback
     )
-    with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "我咳嗽三天了，青霉素过敏"}],
-            "scenario": "preconsultation",
-        })
+    events = asyncio.run(_stream_events(service, draft_id=99))
 
+    # 流完整到达 done，message 不再携带 preconsultation_summary（异步化）
+    assert [e["event"] for e in events] == [
+        "meta", "knowledge", "token", "token", "token", "message", "done",
+    ]
     final = events[-2]
     assert final["event"] == "message"
     assert final["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
-    snapshot = final["data"]["preconsultation_summary"]
+    assert "preconsultation_summary" not in final["data"]
+
+    # 后台 task 已完成：回调被调用一次，draftId 与 payload 正确
+    assert len(callback.calls) == 1
+    assert callback.calls[0]["draft_id"] == 99
+    snapshot = callback.calls[0]["payload"]
     assert snapshot["chief_complaint"] == "咳嗽三天"
     assert snapshot["present_illness"] == "三天前受凉后干咳，无发热，夜间加重"
     assert snapshot["allergy_history"] == "青霉素"
@@ -313,14 +397,13 @@ def test_summary_snapshot_attached_to_message_event() -> None:
     assert snapshot["disclaimer"] == "仅供参考，不替代医生诊断"
 
 
-def test_summary_judge_none_omits_field_and_stream_completes() -> None:
-    """判定器返回 None：message 事件无快照字段，流完整到达 done，token 不受影响。"""
-    client, _, _ = _build_harness_app(preconsult=FakePreconsultJudge([None]))
-    with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "我咳嗽三天了"}],
-            "scenario": "preconsultation",
-        })
+def test_summary_judge_none_omits_callback_and_stream_completes() -> None:
+    """判定器返回 None：不触发回调，流完整到达 done，token 不受影响。"""
+    callback = FakeSummaryCallback()
+    service = _build_harness_service(
+        preconsult=FakePreconsultJudge([None]), summary_callback=callback
+    )
+    events = asyncio.run(_stream_events(service, messages=[{"role": "user", "content": "我咳嗽三天了"}]))
 
     assert [e["event"] for e in events] == [
         # knowledge 为 rag 降级元事件（契约默认 rag，测试装配检索器不可用）
@@ -331,27 +414,31 @@ def test_summary_judge_none_omits_field_and_stream_completes() -> None:
     assert "preconsultation_summary" not in final["data"]
     assert final["data"]["content"] == "你好，我是小愈。"
     assert final["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    # None 快照不触发回调
+    assert callback.calls == []
 
 
 def test_summary_judge_exception_degrades_without_breaking_stream() -> None:
-    """判定器异常：编排层降级省略快照字段，不得掐断 SSE 流。"""
-    client, _, _ = _build_harness_app(preconsult=FakePreconsultJudge(raises=True))
-    with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "我咳嗽三天了"}],
-            "scenario": "preconsultation",
-        })
+    """判定器异常：编排层降级不回调，不得掐断 SSE 流。"""
+    callback = FakeSummaryCallback()
+    service = _build_harness_service(
+        preconsult=FakePreconsultJudge(raises=True), summary_callback=callback
+    )
+    events = asyncio.run(_stream_events(service, messages=[{"role": "user", "content": "我咳嗽三天了"}]))
 
     assert [e["event"] for e in events] == [
         "meta", "knowledge", "token", "token", "token", "message", "done",
     ]
     assert "preconsultation_summary" not in events[-2]["data"]
+    # 异常被吞，不触发回调
+    assert callback.calls == []
 
 
 def test_summary_judge_receives_controlled_department_candidates() -> None:
     """受控标准科室解析：候选目录经 server-java 回调拉取并传给判定器。
 
     预问诊跳过强制号源查询：目录回调只发生一次（摘要判定），不触达号源端点。
+    摘要异步化后判定在 done 之后后台执行，故直连 stream() + await task 确定性断言。
     """
     requests: list[httpx.Request] = []
 
@@ -367,25 +454,28 @@ def test_summary_judge_receives_controlled_department_candidates() -> None:
         callback_secret="shared-secret",
     )
     fake_preconsult = FakePreconsultJudge()
-    app = create_app(
-        health_service=StubHealthService(),
-        agent_runner=FakeAgentRunner(),
-        agent_auth_secret=TEST_AGENT_SECRET,
+    service = AgentChatService(
+        FakeAgentRunner(),
+        rag_available=False,
+        graph_available=False,
         emotion_judge=FakeEmotionJudge(),
         preconsult_judge=fake_preconsult,
         directory=CallbackDepartmentDirectory(callback),
     )
 
+    async def run() -> None:
+        events = await _stream_events(
+            service,
+            messages=[{"role": "user", "content": "我咳嗽三天了"}],
+            draft_id=99,
+        )
+        assert events[-1]["event"] == "done"
+
     try:
-        with TestClient(app) as client:
-            events = _post_chat(client, {
-                "messages": [{"role": "user", "content": "我咳嗽三天了"}],
-                "scenario": "preconsultation",
-            })
+        asyncio.run(run())
     finally:
         asyncio.run(callback.aclose())
 
-    assert events[-1]["event"] == "done"
     # 判定器收到受控候选目录（id+name 来自平台目录，非 LLM 编造）
     assert fake_preconsult.calls[0]["candidates"] == _DEPARTMENTS
     # 只拉目录，不查号源（预问诊不进挂号闭环）

@@ -49,3 +49,6 @@ class AgentChatRequest(BaseModel):
     # 票 50 号源卡重试：复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复。
     # 字段名与 contracts/guided-registration.json 的 retry_request_field 一致（契约钉值测试钉死）。
     retry_standard_department_id: int | None = None
+    # 票 55 预问诊草稿标识：server-java 校验归属/状态后强制 preconsultation 场景。
+    # 透传给编排层供异步摘要 task 回调 server-java 落草稿（摘要不再阻塞 message 事件）。
+    preconsultation_draft_id: int | None = None
