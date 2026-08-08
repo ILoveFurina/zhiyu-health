@@ -19,39 +19,48 @@
 
 **Blocked by:** 56 - 在线问诊处方审核与购药（claimed，代码已完成）；50 - 智能导诊科室号源卡（claimed，仅 C 块依赖）
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 A 块：
 
-- [ ] `contracts/prescription-flow.json` 新增审核结果消息类型与文案（APPROVED/REJECTED 各一）；`contracts/order-flow.json` 删除未使用的 `message_types`/`messages`；`ContractsTest` 同步
-- [ ] schema.sql：`in_app_messages` 加 `related_prescription_id BIGINT REFERENCES prescriptions(id)` + `UNIQUE(related_prescription_id, type)`（幂等 ALTER 区套路；与 B 块的 `related_online_consultation_id`/`visible_at` 同票一并落地，只重建一次）
-- [ ] server-java：`PrescriptionService.review` 通过/驳回两分支同事务写站内消息（文案从契约加载、disclaimer 兜底、撞唯一约束幂等不冒 500）；service 级单测覆盖两分支与重复审核幂等
-- [ ] server-java：`GET /api/c/prescriptions` 返回全状态处方（status 及标签从契约加载）；service 单测 + 一条 MockMvc 主链路冒烟
-- [ ] C 端：处方页按状态渲染（审核中 / 未通过+引导 / 可下单）；问诊完成页加"查看电子处方"出口按状态分流
-- [ ] B 端：接诊抽屉（OnlineConsultationDrawer）展示该问诊处方状态与驳回原因
+- [x] `contracts/prescription-flow.json` 新增审核结果消息类型与文案（APPROVED/REJECTED 各一）；`contracts/order-flow.json` 删除未使用的 `message_types`/`messages`；`ContractsTest` 同步
+- [x] schema.sql：`in_app_messages` 加 `related_prescription_id BIGINT REFERENCES prescriptions(id)` + `UNIQUE(related_prescription_id, type)`（幂等 ALTER 区套路；与 B 块的 `related_online_consultation_id`/`visible_at` 同票一并落地，只重建一次）
+- [x] server-java：`PrescriptionService.review` 通过/驳回两分支同事务写站内消息（文案从契约加载、disclaimer 兜底、撞唯一约束幂等不冒 500）；service 级单测覆盖两分支与重复审核幂等
+- [x] server-java：`GET /api/c/prescriptions` 返回全状态处方（status 及标签从契约加载）；service 单测 + 一条 MockMvc 主链路冒烟
+- [x] C 端：处方页按状态渲染（审核中 / 未通过+引导 / 可下单）；问诊完成页加"查看电子处方"出口按状态分流
+- [x] B 端：接诊抽屉（OnlineConsultationDrawer）展示该问诊处方状态与驳回原因
 
 B 块：
 
-- [ ] `contracts/online-consultation.json` 增补随访段（message_type、文案模板、delay_days 默认 3）；双栈契约测试同步
-- [ ] schema.sql：`in_app_messages` 加 `visible_at TIMESTAMPTZ`（存量行回填 now()）与 `related_online_consultation_id` 外键 + `UNIQUE(related_online_consultation_id, type)`
-- [ ] server-java：`OnlineConsultationService.complete` 同事务写随访消息（visible_at = completed_at + delay，撞唯一约束幂等）；service 单测覆盖生成与幂等
-- [ ] server-java：C 端消息列表查询加 `visible_at <= now()` 过滤（就诊指引卡等即时消息不受影响）；service 单测
-- [ ] 演示可见性：延迟经配置缩短到立即可见（沿用 `/api/b/demo/**` 或环境配置边界），保证评审现场可演示
-- [ ] C 端消息页渲染随访卡（文案 + 免责声明标注）
+- [x] `contracts/online-consultation.json` 增补随访段（message_type、文案模板、delay_days 默认 3）；双栈契约测试同步
+- [x] schema.sql：`in_app_messages` 加 `visible_at TIMESTAMPTZ`（存量行回填 now()）与 `related_online_consultation_id` 外键 + `UNIQUE(related_online_consultation_id, type)`
+- [x] server-java：`OnlineConsultationService.complete` 同事务写随访消息（visible_at = completed_at + delay，撞唯一约束幂等）；service 单测覆盖生成与幂等
+- [x] server-java：C 端消息列表查询加 `visible_at <= now()` 过滤（就诊指引卡等即时消息不受影响）；service 单测
+- [x] 演示可见性：延迟经配置缩短到立即可见（沿用 `/api/b/demo/**` 或环境配置边界），保证评审现场可演示
+- [x] C 端消息页渲染随访卡（文案 + 免责声明标注）
 
 C 块：
 
-- [ ] server-java：`DoctorSlotCard` 透出 `specialty`；service 单测断言字段
-- [ ] 抽查 seed 15 位医生 specialty 文案质量（具体病症向，非"常见病"）；若改 seed.sql 与 schema 变更一并 reset + verify
-- [ ] C 端 department-slots-card 加"擅长"行（缺值不渲染该行）
-- [ ] `contracts/guided-registration.json` ok 摘要模板加推荐理由子句；server-py 拼装逻辑与双栈契约测试同步
+- [x] server-java：`DoctorSlotCard` 透出 `specialty`；service 单测断言字段
+- [x] 抽查 seed 15 位医生 specialty 文案质量（具体病症向，非"常见病"）；若改 seed.sql 与 schema 变更一并 reset + verify
+- [x] C 端 department-slots-card 加"擅长"行（缺值不渲染该行）
+- [x] `contracts/guided-registration.json` ok 摘要模板加推荐理由子句；server-py 拼装逻辑与双栈契约测试同步
 
 schema 与验收：
 
-- [ ] schema/seed 全部变更完成后 `uv run python scripts/reset_zhiyu.py` + `uv run python scripts/verify_zhiyu.py`
+- [x] schema/seed 全部变更完成后 `uv run python scripts/reset_zhiyu.py` + `uv run python scripts/verify_zhiyu.py`
 - [ ] 浏览器/开发者工具实测无控制台错误，人工走通：主线"开方 → 审核通过 → 通知 → 处方页下单 → 模拟支付 → B 端确认完成"；支路"驳回 → 通知 → 引导重新问诊"；"完成问诊 →（缩短延迟）→ 消息页出现随访"；"导诊 → 科室号源卡摘要与医生条均见推荐理由"
 - [ ] 票单置 done 前：README 依赖图 T60 节点加 `[x]`
 
 ## Comments
 
 - 立项会话已同步：CONTEXT.md「电子处方」「站内消息通道」「科室号源卡」「随访」词条、README 依赖图 T60 节点、ADR-0030。票内不再重复这些文档项。
+- 施工记录（t60-prescription-loop 分支，worktree `.worktrees/t60-prescription-loop`）：
+  - 提交：6e481b4 立项 docs、2fed22f 主实现、2c58757 合并 main（票 61 health_observations，无冲突）、6e89dea 审查修复。
+  - 与票面的两处偏差：①抽屉处方端点落在 `GET /api/b/reception/online-consultations/{id}/prescription`——`/api/b/**` 默认仅 admin 放行，接诊医生需走 reception 豁免命名空间；②「撞唯一约束幂等不冒 500」用 `INSERT ... ON CONFLICT DO NOTHING`（InAppMessageMapper.insertIgnoreConflict）实现——code-review 发现 PG 事务内约束违例后事务即 aborted，Java 侧 catch DuplicateKeyException 无法挽救，try/catch 方案对真实 PG 不成立。
+  - code-review（Standards/Spec 双轴）：代码本体无硬违规、无 scope creep；两处发现（幂等语义、visible_at 过滤缺单测）均已在 6e89dea 修复并复验。
+  - 实测：API 层全流程 PASS（主线开方→审核通过→通知→下单→模拟支付→B端完成；驳回支路；随访立即可见；号源卡 specialty 双入口透出+摘要推荐子句拼接）；admin 浏览器（Playwright）登录/审核页/订单页/医生抽屉处方状态与驳回原因均正常、无控制台错误；证据在 `.scratch/t60-evidence/`（未入库）。修复后三条消息写入路径已紧凑复验 PASS。
+  - C 块 seed 抽查：15 位医生 specialty 均为具体病症向，无需改 seed。
+  - 云演示库已按合并后 schema 重建并 verify 通过（注意：并行会话也在一起 reset 该库，验收期间被覆盖过一次，演示前如有异样重跑 reset_zhiyu.py 即可）。
+  - 待人工：小程序支付宝开发者工具走查（处方页三态、问诊完成页出口、消息页随访卡、号源卡擅长行）——自动实测无法覆盖，走查无问题后可将票置 done 并给 README T60 加 [x]。
+  - 新发现问题（建议单独开票）：server-py httpx 默认 trust_env 拾取 Windows 系统代理，导致 server-py→server-java 业务回调被塞进本机代理 502（预问诊科室恒 null、导诊工具全失败）；建议业务回调客户端显式 trust_env=False 或启动脚本设 NO_PROXY。
