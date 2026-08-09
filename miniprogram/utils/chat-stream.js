@@ -164,8 +164,15 @@ function createChatChannel() {
 
   function close() {
     closed = true
-    current = null
     clearAuthTimer()
+    // 关闭即在途轮次失败：连接销毁后 done/error 都不可能再到达，必须显式 onError
+    // 让页面把气泡定格为中断态，否则留下永远转圈的僵尸气泡（chat 是 tab 页，
+    // onHide 让出全局唯一单实例连接时必经此路径）。
+    if (current) {
+      const handlers = current.handlers
+      current = null
+      handlers.onError(new Error('已切换页面，对话中断'))
+    }
     if (open) my.closeSocket()
     if (my.offSocketOpen) my.offSocketOpen(onOpen)
     if (my.offSocketMessage) my.offSocketMessage(onMessage)
