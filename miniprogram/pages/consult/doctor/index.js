@@ -3,6 +3,7 @@ const {
   listMessages,
   sendMessage,
   uploadPhoto,
+  endOnlineConsultation,
 } = require('../../../services/consultation')
 const {
   STATUSES,
@@ -41,10 +42,23 @@ function elapsedText(startedAt) {
   return `${minutes}:${seconds}`
 }
 
+/** 时长窗剩余秒数；ends_at 缺失或非法时返回 null（倒计时条不渲染）。 */
+function remainSeconds(endsAt) {
+  if (!endsAt) return null
+  const remainMs = new Date(endsAt).getTime() - Date.now()
+  if (Number.isNaN(remainMs)) return null
+  return Math.max(0, Math.floor(remainMs / 1000))
+}
+
+// 票 86：剩余 ≤ 5 分钟时倒计时条变橙并提示"即将结束"
+const COUNTDOWN_WARN_SECONDS = 300
+
 /**
  * 医生问诊页（票 55）：每 3s 轮询问诊单详情 + 增量拉取医患消息（after_id）。
  * VIDEO 接诊方式展示模拟视频面板（纯 UI，不接真实音视频）；
  * COMPLETED 隐藏输入栏、展示诊断结论/医嘱只读卡。轮询 onHide/onUnload 必清理。
+ * 票 86：IN_PROGRESS 顶部常驻时长窗倒计时条（逐秒倒数，≤5 分钟变橙），
+ * 条右侧"结束问诊"入口（二次确认后置 CANCELLED）；CANCELLED/EXPIRED 锁输入区只读。
  */
 Page({
   data: {
@@ -79,9 +93,13 @@ Page({
     anchorId: '',
     // 票 60：完成态处方出口文案（空串=未开方/未查到，不渲染出口）
     prescriptionLink: '',
+    // 票 86：时长窗倒计时条状态（''=不渲染 / running / warn / ended）与剩余时间 mm:ss
+    countdownState: '',
+    countdownText: '',
   },
 
   _timer: null,
+  _countdownTimer: null,
   _polling: false,
   _errorToasted: false,
   _lastMessageId: 0,
@@ -96,10 +114,12 @@ Page({
 
   onHide() {
     this.stopPolling()
+    this.stopCountdown()
   },
 
   onUnload() {
     this.stopPolling()
+    this.stopCountdown()
   },
 
   startPolling() {
@@ -113,6 +133,38 @@ Page({
       clearInterval(this._timer)
       this._timer = null
     }
+  },
+
+  // ===== 票 86：时长窗倒计时（consultation_ends_at 逐秒倒数，与轮询解耦）=====
+
+  startCountdown() {
+    this.stopCountdown()
+    this.tickCountdown()
+    this._countdownTimer = setInterval(() => this.tickCountdown(), 1000)
+  },
+
+  stopCountdown() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer)
+      this._countdownTimer = null
+    }
+  },
+
+  /** 每秒重算剩余时间；ends_at 非法时直接撤下倒计时条（后端详情为准，下轮轮询恢复）。 */
+  tickCountdown() {
+    const consultation = this.data.consultation
+    const remain = remainSeconds(consultation && consultation.consultation_ends_at)
+    if (remain == null) {
+      this.stopCountdown()
+      this.setData({ countdownState: '', countdownText: '' })
+      return
+    }
+    const minutes = `${Math.floor(remain / 60)}`.padStart(2, '0')
+    const seconds = `${remain % 60}`.padStart(2, '0')
+    this.setData({
+      countdownText: `${minutes}:${seconds}`,
+      countdownState: remain <= COUNTDOWN_WARN_SECONDS ? 'warn' : 'running',
+    })
   },
 
   poll() {
@@ -177,6 +229,44 @@ Page({
     if (completed) this.loadPrescriptionLink()
     // 完成/终态后不再轮询（状态与消息均不再变化）
     if (!inProgress) this.stopPolling()
+    // 票 86：时长窗倒计时。进行中且有 consultation_ends_at 时逐秒倒数；
+    // 页面内转入 CANCELLED/EXPIRED（主动结束/到点惰性收敛）倒计时条置灰"问诊已结束"；
+    // COMPLETED 或直接以终态进入（未曾倒数）则不渲染倒计时条
+    if (inProgress && consultation.consultation_ends_at) {
+      this.startCountdown()
+    } else {
+      this.stopCountdown()
+      if (terminal && this.data.countdownState) {
+        this.setData({ countdownState: 'ended', countdownText: '' })
+      } else if (this.data.countdownState) {
+        this.setData({ countdownState: '', countdownText: '' })
+      }
+    }
+  },
+
+  /** 票 86：患者主动结束问诊（二次确认，结束后不可恢复）。 */
+  onEndConsultation() {
+    if (!this.data.inProgress) return
+    my.confirm({
+      title: '结束本次问诊',
+      content: '结束后本次问诊不可恢复，如需继续咨询需重新发起。确定结束吗？',
+      confirmButtonText: '确定结束',
+      cancelButtonText: '取消',
+      success: (result) => {
+        if (!result.confirm) return
+        endOnlineConsultation(this.data.id)
+          .then((res) => {
+            const consultation = res && res.consultation
+            // 成功后本地即置终态（锁输入、倒计时条变"问诊已结束"），
+            // 再增量拉一次消息把"患者已结束问诊"系统消息上屏
+            if (consultation) this.applyConsultation(consultation)
+            return this.loadMessages()
+          })
+          .catch((err) =>
+            my.showToast({ content: (err && err.detail) || '结束问诊失败，请稍后重试', type: 'fail' })
+          )
+      },
+    })
   },
 
   /** 本单处方出口（票 60）：按 source_type + source_id 匹配本问诊单，状态决定文案。 */
