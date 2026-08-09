@@ -20,6 +20,7 @@ import com.zhiyu.health.service.demo.DemoDashboardService;
 import com.zhiyu.health.service.demo.DemoKnowledgeSourceService;
 import com.zhiyu.health.service.demo.DemoPharmacySyncService;
 import com.zhiyu.health.service.demo.DemoResetService;
+import com.zhiyu.health.service.demo.DemoTimeSlotService;
 import com.zhiyu.health.service.prescription.MedicationAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import java.math.BigDecimal;
@@ -52,6 +53,9 @@ class DemoPharmacySyncControllerTest {
 
     @MockitoBean
     private DemoKnowledgeSourceService knowledgeSourceService;
+
+    @MockitoBean
+    private DemoTimeSlotService timeSlotService;
 
     @MockitoBean
     private MedicationAdminService medicationAdminService;

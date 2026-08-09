@@ -60,3 +60,5 @@ zhiyu:
     reset-enabled: ${DEMO_RESET_ENABLED:false}
     # 测试默认关闭；开关为 true 的分支在 service 单测直接覆盖字段验证
     follow-up-visible-immediately: ${DEMO_FOLLOW_UP_VISIBLE_IMMEDIATELY:false}
+    # 与 main 同步（票 87）：演示时段覆盖默认关闭，service 单测直接构造 enabled 实例验证
+    time-slot-enabled: ${DEMO_TIME_SLOT_ENABLED:false}

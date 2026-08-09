@@ -94,6 +94,17 @@ export interface PharmacyStockView {
   pharmacies: PharmacyStock[];
 }
 
+/** 单个时段的起止时间（HH:mm，闭区间含起止）。 */
+export interface TimeSlotWindow {
+  start: string;
+  end: string;
+}
+
+/** 演示时段覆盖视图（键为上午/下午，与契约 time_slot_windows 同构）。 */
+export interface TimeSlotWindowsView {
+  time_slot_windows: Record<string, TimeSlotWindow>;
+}
+
 /** 触发 Mock 药店库存同步。 */
 export function syncPharmacyStock() {
   return request<PharmacySyncResult>('/api/b/demo/pharmacy-stock/sync', { method: 'POST' });
@@ -102,4 +113,18 @@ export function syncPharmacyStock() {
 /** 取 Mock 药店库存快照。 */
 export function fetchPharmacyStock() {
   return request<PharmacyStockView>('/api/b/demo/pharmacy-stock');
+}
+
+/** 读当前生效时段窗口（演示覆盖优先、契约兜底）；env 未开启返回 403。 */
+export function fetchTimeSlotWindows() {
+  return request<TimeSlotWindowsView>('/api/b/demo/time-slot-windows', { skipErrorHandler: true });
+}
+
+/** 写演示时段覆盖；非法窗口（start >= end 等）返回 400。 */
+export function putTimeSlotWindows(timeSlotWindows: Record<string, TimeSlotWindow>) {
+  return request<TimeSlotWindowsView>('/api/b/demo/time-slot-windows', {
+    method: 'PUT',
+    data: { time_slot_windows: timeSlotWindows },
+    skipErrorHandler: true,
+  });
 }

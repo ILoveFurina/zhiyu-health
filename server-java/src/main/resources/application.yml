@@ -73,3 +73,6 @@ zhiyu:
     reset-enabled: ${DEMO_RESET_ENABLED:false}
     # 票 60 演示开关：随访消息立即可见（跳过契约 delay_days 延迟），默认关闭
     follow-up-visible-immediately: ${DEMO_FOLLOW_UP_VISIBLE_IMMEDIATELY:false}
+    # 演示时段覆盖（票 87，ADR-0022 模式）：默认关闭，开启后 admin 可覆盖上午/下午起止，
+    # C 端挂号截止与 B 端叫号统一走有效时段窗口
+    time-slot-enabled: ${DEMO_TIME_SLOT_ENABLED:false}

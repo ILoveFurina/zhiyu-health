@@ -1,6 +1,7 @@
 package com.zhiyu.health.controller.c;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,6 +35,7 @@ import com.zhiyu.health.service.scheduling.SlotAccounting;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
+import com.zhiyu.health.support.TestSlotWindows;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -85,7 +87,8 @@ class AppointmentPaymentControllerTest {
                 .andExpect(jsonPath("$.detail").value("挂号已取消或状态已变化，无法支付"));
 
         verify(mapper).markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT");
-        verify(appointmentMapper, never()).markBooked(any(), any(), any());
+        // markBooked 首参为 primitive long，用 anyLong() 避免 any() 返回 null 拆箱 NPE
+        verify(appointmentMapper, never()).markBooked(anyLong(), any(), any());
     }
 
     @Test
@@ -174,7 +177,7 @@ class AppointmentPaymentControllerTest {
                 Mappers.getMapper(AppointmentDtoMapper.class),
                 TestDisclaimers.instance(),
                 new ObjectMapper(),
-                new SlotWindowGuard(TestContracts.instance(), java.time.Clock.systemDefaultZone()));
+                new SlotWindowGuard(java.time.Clock.systemDefaultZone(), TestSlotWindows.contractOnly()));
     }
 
     private Appointment appointment(String paymentStatus) {

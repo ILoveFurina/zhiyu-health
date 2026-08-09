@@ -4,6 +4,7 @@
   "knowledge_source_values": ["rag", "graph", "none"],
   "knowledge_source_default": "none",
   "knowledge_source_redis_key": "demo:knowledge_source",
+  "time_slot_windows_redis_key": "demo:time_slot_windows",
   "knowledge_baselines": {
     "knowledge_chunks": 50,
     "neo4j_symptoms": 50,

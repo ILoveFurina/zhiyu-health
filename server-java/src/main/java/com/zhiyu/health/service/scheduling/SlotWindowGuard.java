@@ -2,7 +2,6 @@ package com.zhiyu.health.service.scheduling;
 
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.scheduling.Schedule;
-import com.zhiyu.health.service.appointment.AppointmentService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -10,12 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 排班时段截止判断（号源硬约束）：排班当天且当前时间已超过时段结束时间，则该时段不可再挂号。
+ * 排班时段窗口判断（号源硬约束 + 叫号时段窗口，票 87）：
+ * 窗口来源收敛为 {@link EffectiveSlotWindows}（演示覆盖优先、契约兜底）。
  *
- * <p>时段窗口（上午 09:00-11:30 / 下午 14:00-18:00）从契约 {@code time_slot_windows} 读取，与
- * {@link AppointmentService} 下单校验共享同一事实源。号源查询出口据此过滤掉已过时段，避免端侧展示
- * 不可约入口、用户提交后才被后端拒绝。未来日期不截止；历史日期由 SQL {@code schedule_date >= today}
- * 兜底；未知时段或 null 安全返回 false（不阻断）。
+ * <p>{@code isClosed} 是 C 端挂号截止判断：排班当天且当前时间已超过时段结束时间，则该时段不可再挂号。
+ * 未来日期不截止；未知时段或 null 安全返回 false（不阻断挂号）。
+ *
+ * <p>{@code isWithinWindow} 是 B 端叫号判断：排班当天且当前时间处于 [start, end] 闭区间内才可叫号；
+ * 未知时段或 null 一律返回 false（fail-closed），过点滞留的待就诊患者不可叫号。
  *
  * <p>时间经注入的 {@link Clock} 读取，测试可固定时钟覆盖上午/下午截止边界。
  */
@@ -23,8 +24,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SlotWindowGuard {
 
-    private final Contracts contracts;
     private final Clock clock;
+    private final EffectiveSlotWindows effectiveSlotWindows;
 
     /** 排班日期 + 时段标签（如"上午"/"下午"，与契约 time_slot_windows 键一致）是否已截止。 */
     public boolean isClosed(LocalDate scheduleDate, String timeSlotValue) {
@@ -35,7 +36,7 @@ public class SlotWindowGuard {
             return false;
         }
         Contracts.ScheduleRequestFlow.TimeSlotWindow window =
-                contracts.scheduleRequestFlow().timeSlotWindows().get(timeSlotValue);
+                effectiveSlotWindows.windows().get(timeSlotValue);
         if (window == null) {
             return false;
         }
@@ -51,5 +52,25 @@ public class SlotWindowGuard {
             return false;
         }
         return isClosed(schedule.getScheduleDate(), schedule.getTimeSlot().getValue());
+    }
+
+    /**
+     * 排班日期 + 时段标签是否处于有效时段窗口（闭区间含起止）。未知时段或 null 一律 fail-closed，
+     * 保证只有契约或演示覆盖定义了窗口的时段才可叫号。
+     */
+    public boolean isWithinWindow(LocalDate scheduleDate, String timeSlotValue) {
+        if (scheduleDate == null || timeSlotValue == null) {
+            return false;
+        }
+        if (!scheduleDate.equals(LocalDate.now(clock))) {
+            return false;
+        }
+        Contracts.ScheduleRequestFlow.TimeSlotWindow window =
+                effectiveSlotWindows.windows().get(timeSlotValue);
+        if (window == null) {
+            return false;
+        }
+        LocalTime now = LocalTime.now(clock);
+        return !now.isBefore(LocalTime.parse(window.start())) && !now.isAfter(LocalTime.parse(window.end()));
     }
 }

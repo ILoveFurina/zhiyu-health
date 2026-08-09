@@ -1,5 +1,5 @@
 {
-  "_doc": "线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像。",
+  "_doc": "线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 86 操作顺序与叫号时段窗口）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像（仅状态码/标签，不含迁移，无影响）。",
   "statuses": {
     "pending_payment": "PENDING_PAYMENT",
     "booked": "BOOKED",
@@ -24,7 +24,7 @@
       "to": "IN_PROGRESS"
     },
     "complete": {
-      "from": ["BOOKED", "IN_PROGRESS"],
+      "from": ["IN_PROGRESS"],
       "to": "VISITED"
     },
     "cancel": {

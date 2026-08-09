@@ -536,13 +536,15 @@ public class Contracts {
 
     /**
      * 演示武器包常量（票 25，ADR-0022）：重置确认短语、知识源开关值域与 Redis 键、
-     * 知识基线数量断言阈值、冻结状态码。基线数字来自 seed.sql 与 deploy/neo4j/seed.cypher。
+     * 知识基线数量断言阈值、冻结状态码；票 87 追加演示时段覆盖 Redis 键。
+     * 基线数字来自 seed.sql 与 deploy/neo4j/seed.cypher。
      */
     public record DemoArsenal(
             String resetConfirmPhrase,
             List<String> knowledgeSourceValues,
             String knowledgeSourceDefault,
             String knowledgeSourceRedisKey,
+            String timeSlotWindowsRedisKey,
             Map<String, Integer> knowledgeBaselines,
             int resetFreezeStatus,
             String resetFreezeMessage) {

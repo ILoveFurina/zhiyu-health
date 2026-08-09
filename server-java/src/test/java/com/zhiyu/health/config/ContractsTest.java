@@ -478,6 +478,8 @@ class ContractsTest {
         assertThat(demo.knowledgeSourceValues()).containsExactly("rag", "graph", "none");
         assertThat(demo.knowledgeSourceDefault()).isEqualTo("none");
         assertThat(demo.knowledgeSourceRedisKey()).isEqualTo("demo:knowledge_source");
+        // 票 87：演示时段覆盖的 Redis 键单一事实源
+        assertThat(demo.timeSlotWindowsRedisKey()).isEqualTo("demo:time_slot_windows");
         // 基线数量与 seed.sql / deploy/neo4j/seed.cypher 对齐
         assertThat(demo.knowledgeBaselines())
                 .containsEntry("knowledge_chunks", 50)
@@ -534,7 +536,8 @@ class ContractsTest {
         assertThat(flow.transitions().get("pay").to()).isEqualTo("BOOKED");
         assertThat(flow.transitions().get("call").from()).containsExactly("BOOKED");
         assertThat(flow.transitions().get("call").to()).isEqualTo("IN_PROGRESS");
-        assertThat(flow.transitions().get("complete").from()).containsExactly("BOOKED", "IN_PROGRESS");
+        // 票 87：接诊完成只能从就诊中推进，废弃 BOOKED -> VISITED 直通兜底。
+        assertThat(flow.transitions().get("complete").from()).containsExactly("IN_PROGRESS");
         assertThat(flow.transitions().get("complete").to()).isEqualTo("VISITED");
         // 取消放宽：待支付与待就诊均可取消，均释放号源。
         assertThat(flow.transitions().get("cancel").from()).containsExactly("PENDING_PAYMENT", "BOOKED");

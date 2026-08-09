@@ -8,6 +8,8 @@ export interface ReceptionSchedule {
   remaining_slots: number;
   active: boolean;
   status: 'AVAILABLE' | 'FULL' | 'INACTIVE';
+  /** 是否当前时段窗口（后端统一判定），非当前时段卡片置灰提示 */
+  in_window: boolean;
 }
 
 export interface ReceptionAppointment {
@@ -21,6 +23,8 @@ export interface ReceptionAppointment {
   prescription_status: string | null;
   schedule_date: string;
   time_slot: string;
+  /** 是否可叫号（待就诊且当前处于有效时段窗口，后端统一判定） */
+  callable: boolean;
   condition_summary?: string;
   summary_disclaimer: string;
 }

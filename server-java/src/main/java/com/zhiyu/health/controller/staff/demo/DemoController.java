@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.staff.demo;
 
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.demo.DemoDashboardService;
 import com.zhiyu.health.service.demo.DemoDashboardService.DashboardView;
 import com.zhiyu.health.service.demo.DemoKnowledgeSourceService;
@@ -8,7 +9,10 @@ import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockView;
 import com.zhiyu.health.service.demo.DemoPharmacySyncService.SyncResult;
 import com.zhiyu.health.service.demo.DemoResetService;
 import com.zhiyu.health.service.demo.DemoResetService.ResetResult;
+import com.zhiyu.health.service.demo.DemoTimeSlotService;
+import com.zhiyu.health.service.demo.DemoTimeSlotService.TimeSlotWindowView;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Mock 药店库存同步（票 48，ADR-0026 演示展示层例外）两枚端点收口于此：
  * POST {@code /pharmacy-stock/sync} 触发同步，GET {@code /pharmacy-stock} 取库存快照。
+ *
+ * 演示时段设置（票 87）：GET/PUT {@code /time-slot-windows} 覆盖上午/下午起止，
+ * 受 {@code DEMO_TIME_SLOT_ENABLED} 门控，env 关闭时整个能力 403 不可用。
  */
 @RestController
 @RequestMapping("/api/b/demo")
@@ -37,12 +44,15 @@ public class DemoController {
     private final DemoDashboardService dashboardService;
     private final DemoKnowledgeSourceService knowledgeSourceService;
     private final DemoPharmacySyncService pharmacySyncService;
+    private final DemoTimeSlotService timeSlotService;
 
     public record ResetRequest(@NotBlank String confirm) {}
 
     public record KnowledgeSourceRequest(String knowledgeSource) {}
 
     public record KnowledgeSourceView(String knowledgeSource) {}
+
+    public record TimeSlotWindowRequest(Map<String, Contracts.ScheduleRequestFlow.TimeSlotWindow> timeSlotWindows) {}
 
     @PostMapping("/reset")
     public ResponseEntity<ResetResult> reset(@RequestBody ResetRequest request) {
@@ -81,5 +91,17 @@ public class DemoController {
     @GetMapping("/pharmacy-stock")
     public PharmacyStockView pharmacyStock() {
         return pharmacySyncService.snapshot();
+    }
+
+    /** 读演示时段覆盖（有效时段窗口）；env 未开启 403。 */
+    @GetMapping("/time-slot-windows")
+    public TimeSlotWindowView getTimeSlotWindows() {
+        return timeSlotService.current();
+    }
+
+    /** 写演示时段覆盖；非法窗口 400。 */
+    @PutMapping("/time-slot-windows")
+    public TimeSlotWindowView putTimeSlotWindows(@RequestBody TimeSlotWindowRequest request) {
+        return timeSlotService.update(request.timeSlotWindows());
     }
 }

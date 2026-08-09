@@ -27,15 +27,22 @@ import com.zhiyu.health.mapper.consultation.ReceptionMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.consultation.ReceptionService;
+import com.zhiyu.health.service.scheduling.EffectiveSlotWindows;
+import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -51,9 +58,16 @@ class ReceptionServiceTest {
     private final AppointmentService appointments = mock(AppointmentService.class);
     private ReceptionService service;
 
-    @BeforeEach
-    void setUp() {
-        service = new ReceptionService(
+    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
+    private static final LocalDate TODAY = LocalDate.of(2026, 8, 8);
+    // 固定到上午 10:00（处于上午窗口内），叫号测试不依赖墙上时钟。
+    private static final Clock MORNING_CLOCK =
+            Clock.fixed(ZonedDateTime.of(TODAY, LocalTime.of(10, 0), ZONE).toInstant(), ZONE);
+
+    private ReceptionService buildService(Clock clock) {
+        EffectiveSlotWindows effectiveWindows = new EffectiveSlotWindows(
+                TestContracts.instance(), mock(StringRedisTemplate.class), new ObjectMapper(), false);
+        return new ReceptionService(
                 staffUserMapper,
                 receptionMapper,
                 consultationMapper,
@@ -64,7 +78,13 @@ class ReceptionServiceTest {
                 TestDisclaimers.instance(),
                 TestContracts.instance(),
                 new ObjectMapper(),
-                appointments);
+                appointments,
+                new SlotWindowGuard(clock, effectiveWindows));
+    }
+
+    @BeforeEach
+    void setUp() {
+        service = buildService(MORNING_CLOCK);
         doAnswer(invocation -> {
                     @SuppressWarnings("unchecked")
                     Consumer<TransactionStatus> callback = invocation.getArgument(0);
@@ -100,6 +120,7 @@ class ReceptionServiceTest {
         schedule.setTotalSlots(5);
         schedule.setRemainingSlots(0);
         schedule.setIsActive(true);
+        schedule.setScheduleDate(TODAY);
         when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of(schedule));
         when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
                 .thenReturn(List.of());
@@ -108,6 +129,43 @@ class ReceptionServiceTest {
 
         assertEquals(1, dashboard.schedules().size());
         assertEquals("FULL", dashboard.schedules().get(0).status());
+        // 上午排班 + 上午 10:00 时钟：处于窗口内，卡片不应置灰（票 87）。
+        assertEquals(true, dashboard.schedules().get(0).inWindow());
+    }
+
+    @Test
+    void dashboardMarksBookedCallableWhenWithinWindow() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of());
+        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
+                .thenReturn(List.of(appointment("BOOKED")));
+
+        ReceptionService.ReceptionDashboard dashboard = service.today(8L);
+
+        assertEquals(true, dashboard.appointments().get(0).callable());
+    }
+
+    @Test
+    void dashboardMarksBookedNonCallableOutsideWindow() {
+        // 午休 12:00 不在上午窗口内：待就诊患者不可叫号，且上午排班卡片置灰（票 87）。
+        ReceptionService lunchService = buildService(
+                Clock.fixed(ZonedDateTime.of(TODAY, LocalTime.of(12, 0), ZONE).toInstant(), ZONE));
+        Schedule morning = new Schedule();
+        morning.setId(3L);
+        morning.setTimeSlot(TimeSlot.MORNING);
+        morning.setTotalSlots(5);
+        morning.setRemainingSlots(3);
+        morning.setIsActive(true);
+        morning.setScheduleDate(TODAY);
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of(morning));
+        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
+                .thenReturn(List.of(appointment("BOOKED")));
+
+        ReceptionService.ReceptionDashboard dashboard = lunchService.today(8L);
+
+        assertEquals(false, dashboard.appointments().get(0).callable());
+        assertEquals(false, dashboard.schedules().get(0).inWindow());
     }
 
     @Test
@@ -122,14 +180,13 @@ class ReceptionServiceTest {
     }
 
     @Test
-    void completionPersistsRecordBeforeBookedAppointmentBecomesVisited() {
+    void completionPersistsRecordBeforeInProgressAppointmentBecomesVisited() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
-        Appointment booked = appointment("BOOKED");
-        booked.setPatientId(5L);
-        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(booked, appointment("VISITED"));
-        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(booked);
-        when(receptionMapper.markVisited(21L, "BOOKED", "IN_PROGRESS", "VISITED"))
-                .thenReturn(1);
+        Appointment inProgress = appointment("IN_PROGRESS");
+        inProgress.setPatientId(5L);
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(inProgress, appointment("VISITED"));
+        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(inProgress);
+        when(receptionMapper.markVisited(21L, "IN_PROGRESS", "VISITED")).thenReturn(1);
         when(agentClient.summarizeConsultation("上呼吸道感染", "按需复诊"))
                 .thenReturn(new AgentClient.ClinicalResponse("本次诊断为上呼吸道感染，请按需复诊。", "模型错误文案"));
         ConsultationRecord saved = new ConsultationRecord();
@@ -144,7 +201,7 @@ class ReceptionServiceTest {
         verify(consultationMapper).insert(captor.capture());
         assertEquals(7L, captor.getValue().getDoctorId());
         assertEquals("上呼吸道感染", captor.getValue().getDiagnosis());
-        verify(receptionMapper).markVisited(21L, "BOOKED", "IN_PROGRESS", "VISITED");
+        verify(receptionMapper).markVisited(21L, "IN_PROGRESS", "VISITED");
         ArgumentCaptor<InAppMessage> messageCaptor = ArgumentCaptor.forClass(InAppMessage.class);
         verify(messageMapper).insert(messageCaptor.capture());
         assertEquals(5L, messageCaptor.getValue().getPatientId());
@@ -155,21 +212,34 @@ class ReceptionServiceTest {
     }
 
     @Test
+    void completionRejectsBookedAppointmentBeforeCallingAgent() {
+        // 票 87：废弃 BOOKED -> VISITED 直通兜底，必须先叫号进入就诊中才能完成接诊。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(appointment("BOOKED"));
+
+        ApiException exception = assertThrows(ApiException.class, () -> service.complete(8L, 21L, "上呼吸道感染", "按需复诊"));
+
+        assertEquals(409, exception.getStatus());
+        assertEquals("当前状态不可接诊", exception.getMessage());
+        verify(agentClient, never()).summarizeConsultation(any(), any());
+        verify(receptionMapper, never()).markVisited(anyLong(), any(), any());
+    }
+
+    @Test
     void completionAlsoAcceptsInProgressAppointment() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
         Appointment inProgress = appointment("IN_PROGRESS");
         inProgress.setPatientId(5L);
         when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(inProgress, appointment("VISITED"));
         when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(inProgress);
-        when(receptionMapper.markVisited(21L, "BOOKED", "IN_PROGRESS", "VISITED"))
-                .thenReturn(1);
+        when(receptionMapper.markVisited(21L, "IN_PROGRESS", "VISITED")).thenReturn(1);
         when(agentClient.summarizeConsultation("上呼吸道感染", "按需复诊"))
                 .thenReturn(new AgentClient.ClinicalResponse("请按需复诊。", "ignored"));
 
         ReceptionService.AppointmentDetail result = service.complete(8L, 21L, "上呼吸道感染", "按需复诊");
 
         assertEquals("已接诊", result.appointment().status());
-        verify(receptionMapper).markVisited(21L, "BOOKED", "IN_PROGRESS", "VISITED");
+        verify(receptionMapper).markVisited(21L, "IN_PROGRESS", "VISITED");
     }
 
     @Test
@@ -269,6 +339,22 @@ class ReceptionServiceTest {
         verify(receptionMapper, never()).markInProgress(anyLong(), any(), any());
     }
 
+    @Test
+    void callRejectedOutsideTimeSlotWindow() {
+        // 午休 12:00 不在上午窗口内：过点滞留的待就诊患者不可叫号（票 87）。
+        ReceptionService lunchService = buildService(
+                Clock.fixed(ZonedDateTime.of(TODAY, LocalTime.of(12, 0), ZONE).toInstant(), ZONE));
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(appointment("BOOKED"));
+
+        ApiException exception = assertThrows(ApiException.class, () -> lunchService.call(8L, 21L));
+
+        assertEquals(409, exception.getStatus());
+        assertEquals("当前不在该挂号所属出诊时段内，暂不可叫号", exception.getMessage());
+        verify(messageMapper, never()).insert(any(InAppMessage.class));
+        verify(receptionMapper, never()).markInProgress(anyLong(), any(), any());
+    }
+
     private StaffUser doctorStaff(long doctorId) {
         StaffUser staff = new StaffUser();
         staff.setRole(StaffUser.ROLE_DOCTOR);
@@ -283,7 +369,7 @@ class ReceptionServiceTest {
         appointment.setPatientNickname("小愈");
         appointment.setSequenceNumber(2);
         appointment.setStatus(status);
-        appointment.setScheduleDate(LocalDate.now());
+        appointment.setScheduleDate(TODAY);
         appointment.setTimeSlot(TimeSlot.MORNING);
         appointment.setConditionSummary("咳嗽两天");
         return appointment;

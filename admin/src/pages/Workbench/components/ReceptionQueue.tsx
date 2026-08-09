@@ -42,16 +42,19 @@ export default function ReceptionQueue({ appointments, onOpen, onCall }: Props) 
     {
       title: '操作', width: 170,
       render: (_, row) => {
-        // 已开方（有处方）不再提供"接诊"入口，避免对审核中医嘱重复接诊
-        const viewOnly = row.prescription_status != null || row.status_code === appointmentStatuses.visited;
-        return (
-          <Space size={0}>
-            {row.status_code === appointmentStatuses.booked && (
-              <Button type="link" onClick={() => onCall(row.id)}>叫号</Button>
-            )}
-            <Button type="link" onClick={() => onOpen(row.id)}>{viewOnly ? '查看' : '接诊'}</Button>
-          </Space>
-        );
+        // 票 87：待就诊只可叫号（非当前时段禁用）；就诊中可接诊（即使已开方也可完成）；
+        // 已接诊只读查看。
+        if (row.status_code === appointmentStatuses.booked) {
+          return (
+            <Space size={0}>
+              <Button type="link" disabled={!row.callable} onClick={() => onCall(row.id)}>叫号</Button>
+            </Space>
+          );
+        }
+        if (row.status_code === appointmentStatuses.in_progress) {
+          return <Button type="link" onClick={() => onOpen(row.id)}>接诊</Button>;
+        }
+        return <Button type="link" onClick={() => onOpen(row.id)}>查看</Button>;
       },
     },
   ];
