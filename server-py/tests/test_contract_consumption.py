@@ -16,7 +16,6 @@ from app.api import vision as vision_api
 from app.core.contracts import get_contracts
 from app.schemas.chat import AgentChatRequest
 from app.schemas.preconsult import PreconsultationSummary
-from app.schemas.triage import TriageResolution
 from app.services import chat as chat_service
 from app.services.reasoning import _AUTO_BY_SCENARIO, Scenario
 
@@ -116,12 +115,7 @@ def test_guided_registration_consumption_matches_contract() -> None:
     assert guided.card_event in sse.message_kinds
     assert guided.card_event in sse.ai_card_kinds
     assert sse.event_to_kind[guided.card_event] == guided.card_event
-    # TriageResolution.status Literal 与契约 resolution_statuses 一致
-    status_type = TriageResolution.model_fields["status"].annotation
-    assert set(get_args(status_type)) == set(guided.resolution_statuses)
-    # 票 62：触发强制查询的解析状态为契约前两态
-    # （explicit_booking=明确挂号意图、resolved=症状收敛到单一科室）
-    assert chat_service._QUERY_STATUSES == frozenset(guided.resolution_statuses[:2])
+    assert sse.tool_to_event["get_standard_department_slots"] == guided.card_event
     # 重试字段名与契约 retry_request_field 一致
     assert guided.retry_request_field == "retry_standard_department_id"
     assert guided.retry_request_field in AgentChatRequest.model_fields
@@ -129,12 +123,13 @@ def test_guided_registration_consumption_matches_contract() -> None:
     assert guided.card_statuses == ["ok", "failed"]
     assert set(guided.summary_templates) == {"ok", "empty", "failed", "recommendation"}
     # 票 65：ambiguous 科室选择卡事件已进 card_events/message_kinds/ai_card_kinds/event_to_kind，
-    # 候选上限与点选文案模板从契约取值（judge 归一化截断、端侧镜像文案）
+    # 候选上限与点选文案模板从契约取值（工具目录校验截断、端侧镜像文案）
     assert guided.options_card_event == "department_options"
     assert guided.options_card_event in sse.card_events
     assert guided.options_card_event in sse.message_kinds
     assert guided.options_card_event in sse.ai_card_kinds
     assert sse.event_to_kind[guided.options_card_event] == guided.options_card_event
+    assert sse.tool_to_event["suggest_standard_departments"] == guided.options_card_event
     assert guided.options_max_candidates == 3
     assert "{department}" in guided.options_select_user_text
 

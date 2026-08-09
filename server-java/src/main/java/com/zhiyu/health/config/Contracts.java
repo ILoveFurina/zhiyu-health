@@ -648,13 +648,9 @@ public class Contracts {
     }
 
     /**
-     * 智能导诊标准科室与科室号源卡（票 50）：标准科室解析结果、科室号源卡事件状态、
-     * 确定性摘要模板与失败/重试文案。编排代码（非 LLM）保证查询触发与摘要拼装；
-     * 业务侧暂不消费模板，当前主要供测试钉值与双端一致性。
-     * 票 65：ambiguous 科室选择卡事件、候选上限与点选直查文案模板。
+     * 主 Agent 的标准科室工具与两类卡片契约；目录校验、卡状态和点选直查字段均来自共享契约。
      */
     public record GuidedRegistration(
-            List<String> resolutionStatuses,
             String cardEvent,
             String optionsCardEvent,
             int optionsMaxCandidates,
@@ -665,7 +661,6 @@ public class Contracts {
             Map<String, String> timeSlotLabels,
             String retryUserText) {
         public GuidedRegistration {
-            resolutionStatuses = List.copyOf(resolutionStatuses);
             cardStatuses = List.copyOf(cardStatuses);
             summaryTemplates = Map.copyOf(summaryTemplates);
             timeSlotLabels = Map.copyOf(timeSlotLabels);

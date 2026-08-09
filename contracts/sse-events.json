@@ -27,12 +27,14 @@
     "get_doctor_slots": "doctor_slots",
     "create_appointment": "appointment",
     "get_appointment": "appointments",
+    "get_standard_department_slots": "department_slots",
+    "suggest_standard_departments": "department_options",
     "search_medications": "medications",
     "list_approved_prescriptions": "prescriptions",
     "prepare_drug_order": "drug_order_prepare"
   },
-  "_department_slots_doc": "department_slots 卡（票50）由编排代码确定性产出，不经 LLM 工具调用，故不在 tool_to_event 中。",
-  "_department_options_doc": "department_options 科室选择卡（票65）由编排代码在 triage judge 判 ambiguous 且有候选时确定性产出（候选 id 列表来自 judge 结构化输出、名称取候选目录），不经 LLM 工具调用，故不在 tool_to_event 中。",
+  "_department_slots_doc": "department_slots 卡由 get_standard_department_slots 工具产出；模型只决定调用时机与标准科室名称，医院、医生、排班与余号由 server-java 确定性返回。",
+  "_department_options_doc": "department_options 卡由 suggest_standard_departments 工具产出；候选名称必须命中 server-java 标准科室目录，id 由工具确定性补齐。",
   "_prescriptions_doc": "prescriptions 处方选择卡（票80）：list_approved_prescriptions 工具经 tool_to_event 投影产出，payload 复用 server-java PrescriptionCardView（prescription_id/doctor_name/source_type/source_type_label/date/items[{medication_id,name,specification,dosage,frequency,duration}]）。多处方（>1）时端侧渲染为处方选择卡，每项展示医生+日期+药品摘要，点选经 chat 信封 prescription_id 可选字段回传触发 prepare_drug_order -> drug_order_prepare 确认卡；单处方（=1）直通确认卡（票79）；零处方（空列表）由 server-py runner._tool_output 抑制不下发，Agent 按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」，不出卡不下单。",
   "message_kinds": [
     "text",

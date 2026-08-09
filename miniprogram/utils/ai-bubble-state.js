@@ -1,6 +1,8 @@
 const TOOL_LABELS = {
   recommend_doctors: '推荐医生',
   get_doctor_slots: '查询号源',
+  get_standard_department_slots: '查询科室号源',
+  suggest_standard_departments: '整理候选科室',
   find_hospitals: '查找医院',
   create_appointment: '挂号',
   get_appointment: '查询挂号',
@@ -14,8 +16,6 @@ const PROFILES = {
   },
   quick: {
     initial: '正在回复…',
-    delayed: '正在为您仔细整理回复…',
-    threshold: 3000,
   },
   deep: {
     initial: '正在深度思考您的问题…',
@@ -66,6 +66,7 @@ function createAiBubbleState(page) {
   function scheduleDelayedText(id, effort) {
     clearTimer(id)
     const profile = profileFor(effort)
+    if (!profile.delayed || !profile.threshold) return
     const elapsed = Date.now() - (startedAt.get(id) || Date.now())
     const delay = Math.max(0, profile.threshold - elapsed)
     const timer = setTimeout(() => {

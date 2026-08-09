@@ -14,7 +14,6 @@ from app.agent.emotion import EmotionJudge
 from app.agent.medication import LazyMedicationKnowledgeStreamer, MedicationKnowledgeStreamer
 from app.agent.preconsult import PreconsultJudge
 from app.agent.runner import AgentRunner, LazySettingsAgentRunner
-from app.agent.triage import TriageJudge
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
 from app.http import build_http_app
 from app.runtime import ApplicationRuntime, install_runtime
@@ -35,7 +34,6 @@ def create_test_app(
     graph_available: bool = False,
     graph_projector: object | None = None,
     emotion_judge: EmotionJudge | None = None,
-    triage_judge: TriageJudge | None = None,
     preconsult_judge: PreconsultJudge | None = None,
     directory: DepartmentDirectory | None = None,
     summary_callback: SummaryCallback | None = None,
@@ -52,7 +50,6 @@ def create_test_app(
                     rag_available=rag_available,
                     graph_available=graph_available,
                     emotion_judge=emotion_judge,
-                    triage_judge=triage_judge,
                     preconsult_judge=preconsult_judge,
                     directory=directory,
                     summary_callback=summary_callback,

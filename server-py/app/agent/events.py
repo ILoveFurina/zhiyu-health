@@ -64,12 +64,14 @@ def _tool_start_outputs(message: AIMessage) -> list[AgentOutput]:
     """知识工具只用 knowledge 元事件呈现结果，不制造没有卡片对应物的 start 事件。"""
     outputs: list[AgentOutput] = []
     for call in message.tool_calls or []:
-        if call.get("name") in (KNOWLEDGE_TOOL, GRAPH_TOOL):
+        tool_name = call.get("name")
+        # OpenAI 兼容流会把参数续传成 name 为空的 tool_call chunk，它不是新的工具发起。
+        if not tool_name or tool_name in (KNOWLEDGE_TOOL, GRAPH_TOOL):
             continue
         outputs.append(
             AgentOutput(
                 "tool_start",
-                {"tool_call_id": call.get("id"), "tool_name": call.get("name")},
+                {"tool_call_id": call.get("id"), "tool_name": tool_name},
             )
         )
     return outputs

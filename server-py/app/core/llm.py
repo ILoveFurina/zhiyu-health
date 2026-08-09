@@ -6,10 +6,34 @@
 
 from typing import Any, Literal
 
+from langchain_core.messages import AIMessageChunk, BaseMessageChunk
+from langchain_core.outputs import ChatGenerationChunk
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from app.config import Settings
+
+
+class ArkChatOpenAI(ChatOpenAI):
+    """保留方舟 Chat Completions 流中的非标准思考增量。"""
+
+    def _convert_chunk_to_generation_chunk(
+        self,
+        chunk: dict[str, Any],
+        default_chunk_class: type[BaseMessageChunk],
+        base_generation_info: dict[str, Any] | None,
+    ) -> ChatGenerationChunk | None:
+        generation = super()._convert_chunk_to_generation_chunk(
+            chunk, default_chunk_class, base_generation_info
+        )
+        if generation is None or not isinstance(generation.message, AIMessageChunk):
+            return generation
+        choices = chunk.get("choices") or chunk.get("chunk", {}).get("choices") or []
+        delta = choices[0].get("delta") if choices else None
+        reasoning = delta.get("reasoning_content") if isinstance(delta, dict) else None
+        if isinstance(reasoning, str) and reasoning:
+            generation.message.additional_kwargs["reasoning_content"] = reasoning
+        return generation
 
 
 def build_chat_model(
@@ -30,7 +54,7 @@ def build_chat_model(
         options["extra_body"] = {"thinking": {"type": "disabled"}}
     else:
         options["reasoning_effort"] = reasoning_effort
-    return ChatOpenAI(
+    return ArkChatOpenAI(
         model=settings.doubao_chat_model,
         base_url=settings.ark_base_url,
         api_key=SecretStr(settings.ark_api_key),
