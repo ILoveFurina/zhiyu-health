@@ -76,11 +76,12 @@ public interface ReceptionMapper {
     @Update(
             """
             UPDATE appointments SET status = #{visitedStatus}
-            WHERE id = #{appointmentId} AND status IN (#{bookedStatus}, #{inProgressStatus})
+            WHERE id = #{appointmentId} AND status = #{inProgressStatus}
             """)
+    // 票 86：接诊完成只能从就诊中推进（废弃 BOOKED -> VISITED 直通兜底），
+    // SQL 只接受单一来源态，与契约 complete.from = [IN_PROGRESS] 保持一致。
     int markVisited(
             @Param("appointmentId") long appointmentId,
-            @Param("bookedStatus") String bookedStatus,
             @Param("inProgressStatus") String inProgressStatus,
             @Param("visitedStatus") String visitedStatus);
 

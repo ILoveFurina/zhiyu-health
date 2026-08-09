@@ -31,7 +31,7 @@ class ReceptionControllerTest {
     void doctorListsOnlyDashboardResolvedForAuthenticatedStaff() throws Exception {
         ReceptionService.ReceptionDashboard dashboard = new ReceptionService.ReceptionDashboard(
                 "2026-07-28",
-                List.of(new ReceptionService.ScheduleView(3L, "上午", 10, 4, true)),
+                List.of(new ReceptionService.ScheduleView(3L, "上午", 10, 4, true, "AVAILABLE", true)),
                 List.of(appointment("待就诊", null)));
         when(receptionService.today(8L)).thenReturn(dashboard);
 
@@ -48,7 +48,7 @@ class ReceptionControllerTest {
         // 接诊后药方待审核：view 携带 prescription_status，前端据此显示"待审核"而非"接诊"
         ReceptionService.ReceptionDashboard dashboard = new ReceptionService.ReceptionDashboard(
                 "2026-07-28",
-                List.of(new ReceptionService.ScheduleView(3L, "上午", 10, 4, true)),
+                List.of(new ReceptionService.ScheduleView(3L, "上午", 10, 4, true, "AVAILABLE", true)),
                 List.of(appointment("已接诊", "PENDING")));
         when(receptionService.today(8L)).thenReturn(dashboard);
 
@@ -95,7 +95,7 @@ class ReceptionControllerTest {
     @Test
     void doctorCallsAppointment() throws Exception {
         ReceptionService.AppointmentView appointment = new ReceptionService.AppointmentView(
-                21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断");
+                21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断", false);
         ReceptionService.AppointmentDetail detail =
                 new ReceptionService.AppointmentDetail(appointment, null, null, null);
         when(receptionService.call(8L, 21L)).thenReturn(detail);
@@ -120,6 +120,7 @@ class ReceptionControllerTest {
                 "2026-07-28",
                 "上午",
                 "咳嗽两天",
-                "仅供参考，不替代医生诊断");
+                "仅供参考，不替代医生诊断",
+                false);
     }
 }

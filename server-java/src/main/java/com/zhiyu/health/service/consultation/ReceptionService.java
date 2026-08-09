@@ -18,6 +18,7 @@ import com.zhiyu.health.mapper.consultation.ReceptionMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.common.DisclaimerService;
+import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,6 +41,7 @@ public class ReceptionService {
     private final Contracts contracts;
     private final ObjectMapper objectMapper;
     private final AppointmentService appointments;
+    private final SlotWindowGuard slotWindowGuard;
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
@@ -122,12 +124,7 @@ public class ReceptionService {
             message.setDisclaimer(disclaimers.text());
             message.setRelatedAppointmentId(appointmentId);
             messageMapper.insert(message);
-            if (receptionMapper.markVisited(
-                            appointmentId,
-                            complete.from().get(0),
-                            complete.from().get(1),
-                            complete.to())
-                    != 1) {
+            if (receptionMapper.markVisited(appointmentId, complete.from().get(0), complete.to()) != 1) {
                 throw new IllegalStateException("接诊状态流转失败");
             }
         });
@@ -149,6 +146,13 @@ public class ReceptionService {
         Contracts.AppointmentFlow.Transition call = flow.transitions().get("call");
         if (!call.allows(preview.getStatus())) {
             throw new ApiException(409, "当前状态不可叫号");
+        }
+        // 叫号时段窗口（票 86）：只拦叫号，完成接诊与查看不拦；
+        // 仅当前时间处于该挂号所属排班有效时段窗口内才可叫号，过点滞留患者不可叫号。
+        String timeSlotValue =
+                preview.getTimeSlot() == null ? null : preview.getTimeSlot().getValue();
+        if (!slotWindowGuard.isWithinWindow(preview.getScheduleDate(), timeSlotValue)) {
+            throw new ApiException(409, "当前不在该挂号所属出诊时段内，暂不可叫号");
         }
         transactionTemplate.executeWithoutResult(status -> {
             // 行锁串行化重复叫号；状态推进与通知写入同事务，任一失败都不留下半完成结果。
@@ -223,19 +227,32 @@ public class ReceptionService {
         } else {
             status = "AVAILABLE";
         }
+        // 该排班当前是否处于有效时段窗口（票 86）：供前端排班卡片整卡置灰 + 副标题提示，
+        // 与挂号队列的 callable 同源（slotWindowGuard.isWithinWindow），避免前端复制时段表。
+        String timeSlotValue =
+                schedule.getTimeSlot() == null ? null : schedule.getTimeSlot().getValue();
+        boolean inWindow = slotWindowGuard.isWithinWindow(schedule.getScheduleDate(), timeSlotValue);
         return new ScheduleView(
                 schedule.getId(),
                 schedule.getTimeSlot().getValue(),
                 schedule.getTotalSlots(),
                 schedule.getRemainingSlots(),
                 Boolean.TRUE.equals(schedule.getIsActive()),
-                status);
+                status,
+                inWindow);
     }
 
     private AppointmentView toAppointmentView(Appointment appointment) {
         // 挂号状态与处方状态并列：有处方时前端优先展示处方状态（待审核/已通过/已驳回）。
         Prescription prescription = prescriptionMapper.selectByAppointmentId(appointment.getId());
         String prescriptionStatus = prescription == null ? null : prescription.getStatus();
+        String timeSlotValue = appointment.getTimeSlot() == null
+                ? null
+                : appointment.getTimeSlot().getValue();
+        // 每行是否可叫号（票 86）：仅待就诊且当前处于有效时段窗口（含起止闭区间）可叫，
+        // 后端统一判定，前端不自行复制时段表。
+        boolean callable = contracts.appointmentFlow().status("booked").equals(appointment.getStatus())
+                && slotWindowGuard.isWithinWindow(appointment.getScheduleDate(), timeSlotValue);
         return new AppointmentView(
                 appointment.getId(),
                 appointment.getScheduleId(),
@@ -247,18 +264,23 @@ public class ReceptionService {
                 appointment.getScheduleDate() == null
                         ? null
                         : appointment.getScheduleDate().toString(),
-                appointment.getTimeSlot() == null
-                        ? null
-                        : appointment.getTimeSlot().getValue(),
+                timeSlotValue,
                 // 库存纯内容直接透传；免责声明维持接诊台既有语义：独立字段恒挂载。
                 appointment.getConditionSummary(),
-                disclaimers.text());
+                disclaimers.text(),
+                callable);
     }
 
     public record ReceptionDashboard(String date, List<ScheduleView> schedules, List<AppointmentView> appointments) {}
 
     public record ScheduleView(
-            Long id, String timeSlot, Integer totalSlots, Integer remainingSlots, boolean active, String status) {}
+            Long id,
+            String timeSlot,
+            Integer totalSlots,
+            Integer remainingSlots,
+            boolean active,
+            String status,
+            boolean inWindow) {}
 
     public record AppointmentView(
             Long id,
@@ -271,7 +293,8 @@ public class ReceptionService {
             String scheduleDate,
             String timeSlot,
             String conditionSummary,
-            String summaryDisclaimer) {}
+            String summaryDisclaimer,
+            boolean callable) {}
 
     public record AppointmentDetail(AppointmentView appointment, String diagnosis, String advice, String completedAt) {}
 }
