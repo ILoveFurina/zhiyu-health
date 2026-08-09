@@ -157,7 +157,7 @@ Page({
           this.setData({ conversationId: data.conversation_id || this.data.conversationId })
           this._aiBubbleState.onMeta(aiMsg.id, data)
         },
-        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
+        onFallback: () => this._aiBubbleState.onFallback(aiMsg.id),
         onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),

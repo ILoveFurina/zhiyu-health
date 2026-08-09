@@ -112,6 +112,21 @@ function createAiBubbleState(page) {
       page.patchMessage(id, (msg) => ({ ...msg, thinkingText: msg.thinkingText + text }))
     },
 
+    onFallback(id) {
+      clearTimer(id)
+      metaAt.delete(id)
+      page.patchMessage(id, (msg) => ({
+        ...msg,
+        content: '',
+        blocks: [],
+        waitingText: '实时连接不可用，正在等待完整回复…',
+        thinkingText: '',
+        thinkingSummary: '',
+        thinkingComplete: false,
+        thinkingExpanded: false,
+      }))
+    },
+
     onBodyStart(id, msg) {
       clearTimer(id)
       return {

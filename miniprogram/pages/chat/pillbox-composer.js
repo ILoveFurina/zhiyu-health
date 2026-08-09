@@ -123,7 +123,7 @@ module.exports = {
           this.setData({ conversationId: data.conversation_id || this.data.conversationId })
           this._aiBubbleState.onMeta(aiMsg.id, data)
         },
-        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '' })),
+        onFallback: () => this._aiBubbleState.onFallback(aiMsg.id),
         onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),

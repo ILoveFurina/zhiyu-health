@@ -81,5 +81,5 @@ uvicorn.run('app.main:app', app_dir='server-py', host='0.0.0.0', port=8000)
 - **WebSocket 升级请求由 cpolar 的 Go 客户端代为发起**（User-Agent 被改写为 `Go-http-client/1.1`、`Sec-WebSocket-Key` 重新生成），`Authorization` 等自定义头会丢失。issue 82 之前这会让 server-java 返回 401；本地直连同一 token 101、经隧道 401 是当时确认根因的关键证据。
 - issue 82 将聊天 WS 改为消息层鉴权：`/api/c/chat/ws` 只放行 Upgrade，不建立患者身份；客户端连接后首帧发送 `auth`，server-java 校验患者 JWT 并回复 `authenticated`，之后才允许 `chat`。JWT 不进 URL，也不再依赖 cpolar 无法保留的 Upgrade header。cpolar 能透传连接内帧，因此主路径恢复真实 thinking/token 流。
 - `error: 8 / Invalid Sec-WebSocket-Accept response.` 是旧方案下 server-java 返回 401、响应没有合法 accept 的典型特征。新方案若再次出现该错误，应先检查部署代码是否包含 issue 82、路径是否精确为 `/api/c/chat/ws`，再排查证书和隧道，不要继续向 Upgrade header 塞 token。
-- `chat-stream.js` 仍保留 SSE 降级。它只能在整段响应到达后按节奏重放 token/thinking，不能改善真实 TTFT；认证回执 5 秒超时或 WS 网络失败时才使用。完整诊断见 `docs/engineering-notes/sse-fallback-streaming-replay.md`。
+- `chat-stream.js` 仍保留 SSE 功能降级，但不再定时重放 token/thinking：整段响应完成前明确显示等待，完成后一次展示最终 message，避免伪流式和虚假思考耗时。WS 失败只影响当前轮，下一轮会重新建连和首帧认证。完整诊断见 `docs/engineering-notes/sse-fallback-streaming-replay.md`。
 - cpolar 免费版域名每次重启随机变化，换域名后只需改 `miniprogram/utils/config.js` 顶部的 `TUNNEL_API_BASE_URL`（该改动仅限本地，勿提交）。模拟器/真机的地址选择由 config.js 的 localhost 探活机制自动完成——devtools 会把 platform/brand 伪装成 iPhone，`getSystemInfo` 无法区分，不要再用它做环境判断。
