@@ -30,7 +30,7 @@ Page({
     this.setData({ submitting: true })
     createAppointment(this.data.scheduleId)
       .then(() => {
-        my.showToast({ content: '挂号成功', type: 'success' })
+        my.showToast({ content: '挂号成功，请尽快支付', type: 'success' })
         setTimeout(() => my.redirectTo({ url: '/pages/appointments/index' }), 800)
       })
       .catch((err) => {
