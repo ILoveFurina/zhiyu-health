@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -33,6 +34,21 @@ class ChatWebSocketMessageAuthTest {
     private static final Contracts CONTRACTS = Contracts.load(Path.of("../contracts"));
     private final ObjectMapper mapper = new ObjectMapper();
     private final PatientTokenService tokens = new PatientTokenService(SECRET, 720);
+
+    @Test
+    void springWiresProductionHandlerConstructor() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(ChatRoundService.class, () -> mock(ChatRoundService.class));
+            context.registerBean(ObjectMapper.class, () -> mapper);
+            context.registerBean(Contracts.class, () -> CONTRACTS);
+            context.registerBean(PatientTokenService.class, () -> tokens);
+            context.register(ChatWebSocketHandler.class);
+
+            context.refresh();
+
+            assertThat(context.getBean(ChatWebSocketHandler.class)).isNotNull();
+        }
+    }
 
     @Test
     void validAuthEnablesChatWithoutHandshakeIdentity() throws Exception {

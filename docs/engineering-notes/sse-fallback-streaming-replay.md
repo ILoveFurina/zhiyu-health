@@ -87,3 +87,9 @@ cpolar 仍会重建 Upgrade 并剥离自定义头，但会正常透传连接内�
 - SSE 重放仍是**体感修复**而非真流式：`my.request` 没有增量响应 API，首事件只能等完整响应下载完成。
 - 主路径的 TTFT 由登录态就绪、WS 建连、首帧认证、server-java 受理和 server-py 首事件共同组成，不再额外等待整段模型响应。
 - 开发者工具/真机需确认首个 `meta/thinking` 在最终 `message` 之前可见；该 GUI 验收由开发者执行。
+
+## 7. 首帧鉴权改造引发的 Spring 启动装配回归
+
+issue 82 首次提交为兼容旧单测，在 `ChatWebSocketHandler` 中同时保留了 4 参数生产构造器和 3 参数包级测试构造器。两者都未标注注入语义；Spring 遇到多个候选构造器后改为寻找无参构造器，最终导致 server-java 启动时报 `No default constructor found`。普通 handler 单测均直接 `new` 对象，已有 Web 切片测试又不会装配该普通组件，因此 736 项测试全绿仍未捕获。
+
+修复不是增加无参构造器或仅添加注解，而是删除测试专用构造器，让组件保持唯一生产构造器；旧测试显式传入 mock `PatientTokenService`。同时新增 2 秒级 `AnnotationConfigApplicationContext` 回归测试，使用真实 Spring 构造器选择规则装配该组件。提交前除 handler 测试外，必须实际运行一次 `mvn -f server-java/pom.xml spring-boot:run` 并观察到 `Started ZhiyuApplication`，单纯 `mvn test` 不能替代启动烟测。

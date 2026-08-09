@@ -12,6 +12,7 @@ import com.zhiyu.health.config.ChatWebSocketHandshakeInterceptor;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.common.PatientTokenService;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -36,7 +37,7 @@ class ChatWebSocketHandlerTest {
         Sinks.Many<ChatRoundModels.Event> events = Sinks.many().replay().all();
         when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-34", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -67,7 +68,7 @@ class ChatWebSocketHandlerTest {
         ChatRoundService rounds = mock(ChatRoundService.class);
         when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-1", 7L, "ACCEPTED", Flux.never()));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -90,7 +91,7 @@ class ChatWebSocketHandlerTest {
                 .thenReturn(new ChatRoundModels.Handle(
                         "req-failed", 7L, "ACCEPTED", Flux.error(new RuntimeException("jdbc:postgresql://secret"))));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -110,7 +111,7 @@ class ChatWebSocketHandlerTest {
         ChatRoundService rounds = mock(ChatRoundService.class);
         when(rounds.accept(any())).thenThrow(new RuntimeException("select * from patients"));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -133,7 +134,7 @@ class ChatWebSocketHandlerTest {
         when(rounds.acceptMedication(any()))
                 .thenReturn(new ChatRoundModels.Handle("req-med", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -161,7 +162,7 @@ class ChatWebSocketHandlerTest {
         // 契约：medication_name 与 text 互斥
         ChatRoundService rounds = mock(ChatRoundService.class);
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -186,7 +187,7 @@ class ChatWebSocketHandlerTest {
         // 两者皆空的信封不得落入携带 null content 的普通对话轮次
         ChatRoundService rounds = mock(ChatRoundService.class);
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -212,7 +213,7 @@ class ChatWebSocketHandlerTest {
         Sinks.Many<ChatRoundModels.Event> events = Sinks.many().replay().all();
         when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-retry", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        ChatWebSocketHandler handler = handler(rounds, mapper);
         List<String> sent = new ArrayList<>();
         WebSocketSession session = session(sent);
         handler.afterConnectionEstablished(session);
@@ -231,6 +232,10 @@ class ChatWebSocketHandlerTest {
         JsonNode accepted = mapper.readTree(sent.get(0));
         assertThat(accepted.path("type").asText()).isEqualTo("accepted");
         assertThat(accepted.path("request_id").asText()).isEqualTo("req-retry");
+    }
+
+    private ChatWebSocketHandler handler(ChatRoundService rounds, ObjectMapper mapper) {
+        return new ChatWebSocketHandler(rounds, mapper, CONTRACTS, mock(PatientTokenService.class));
     }
 
     private WebSocketSession session(List<String> sent) throws Exception {

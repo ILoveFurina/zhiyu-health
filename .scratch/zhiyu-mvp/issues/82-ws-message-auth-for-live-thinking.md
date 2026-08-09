@@ -21,3 +21,5 @@
 - 2026-08-09：Node 最小反馈环稳定复现：mock WebSocket 建连失败后，在 `my.request.success` 之前 `onThinking` 调用数恒为 0。支付宝 `my.request` 无增量响应 API，端侧无法从该通道提前获得真实 thinking。
 - 2026-08-09：修复后真实 `chat-stream.js` 探针通过三条路径：成功连接严格发送 `auth → chat` 且 thinking 在 SSE success 前到达；网络失败降级；认证失败降级。JWT 未进入 URL/Upgrade header。
 - 2026-08-09：回归通过：server-java 736 tests（10 skipped）、server-py 224 passed（2 skipped）；Spotless、Ruff、mypy、import-linter 全绿。未改 schema，无需重建演示库；开发者工具/真机视觉验收按约定交给开发者。
+- 2026-08-09：开发者反馈 server-java 启动失败。原始启动命令稳定复现 `ChatWebSocketHandler: No default constructor found`：新增生产构造器时保留了测试专用构造器，导致 Spring 无法自动选择。删除测试构造器并让旧测试显式传 token service；新增真实 Spring 容器装配回归测试。修复后原始启动路径到达 `Started ZhiyuApplication` 且 Hikari 连接成功。
+- 2026-08-09：启动修复后 Java 全量回归 737 tests（10 skipped）及 Spotless 全绿；新增的第 737 项即生产构造器 Spring 装配测试。

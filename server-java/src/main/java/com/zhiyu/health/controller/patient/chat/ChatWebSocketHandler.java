@@ -45,11 +45,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         this.patientTokens = patientTokens;
     }
 
-    /** 存量 handler 单测使用握手属性模拟已认证连接；生产装配始终注入 PatientTokenService。 */
-    ChatWebSocketHandler(ChatRoundService rounds, ObjectMapper objectMapper, Contracts contracts) {
-        this(rounds, objectMapper, contracts, null);
-    }
-
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         // 轮次事件由反应堆线程推送、容器写锁不归我们持有：装饰器把并发写串行化并限时，
