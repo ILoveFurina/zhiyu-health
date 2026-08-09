@@ -59,6 +59,11 @@ function cancelConsultation(id) {
   return request({ url: `/c/online-consultations/${id}/cancel`, method: 'POST' })
 }
 
+/** 患者主动结束进行中的问诊（票 86）：后置 CANCELLED 且不可恢复；非进行中后端 409。 */
+function endOnlineConsultation(id) {
+  return request({ url: `/c/online-consultations/${id}/end`, method: 'POST' })
+}
+
 /** 复用原病情摘要重新提交；返回的是新问诊单，此后一律使用新 id。 */
 function resubmitConsultation(id) {
   return request({ url: `/c/online-consultations/${id}/resubmit`, method: 'POST' })
@@ -108,6 +113,7 @@ module.exports = {
   listConsultations,
   getConsultation,
   cancelConsultation,
+  endOnlineConsultation,
   resubmitConsultation,
   listMessages,
   sendMessage,

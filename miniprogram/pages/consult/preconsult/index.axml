@@ -74,7 +74,10 @@
     <view class="cta-btn" onTap="openSummary">查看病情摘要并确认</view>
   </view>
 
-  <view class="abandon-link" onTap="abandon">放弃本次预问诊</view>
+  <!-- 放弃入口（票 86）：次级描边按钮，全宽置于输入栏上方；确认弹窗与 abandonDraft 逻辑不变 -->
+  <view class="abandon-bar">
+    <view class="btn-abandon" onTap="abandon">放弃本次预问诊</view>
+  </view>
   <view class="composer">
     <!-- 语音提示条：绝对定位浮层，出现不得推位输入栏（票 45 教训，同 chat/doctor 页） -->
     <view a:if="{{voiceHint}}" class="voice-hint {{voiceHintError ? 'voice-hint-error' : ''}}">

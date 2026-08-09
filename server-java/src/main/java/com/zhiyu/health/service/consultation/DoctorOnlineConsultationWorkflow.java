@@ -120,6 +120,8 @@ final class DoctorOnlineConsultationWorkflow {
             throw new ApiException(400, "接诊方式不合法");
         }
         long doctorId = access.requireDoctor(staffId);
+        // 时长窗惰性收敛（票 86）：先翻 EXPIRED 再做状态守卫，医生不能对已到期的问诊继续操作
+        access.expireOverdue();
         OnlineConsultation consultation = access.requireBoundToDoctor(id, doctorId);
         access.requireInProgress(consultation);
         if (consultation.getConsultMethod() != null) {
@@ -147,12 +149,14 @@ final class DoctorOnlineConsultationWorkflow {
 
     List<MessageView> listMessages(long staffId, long id, long afterId) {
         long doctorId = access.requireDoctor(staffId);
+        access.expireOverdue();
         access.requireBoundToDoctor(id, doctorId);
         return messaging.list(id, afterId);
     }
 
     MessageView sendMessage(long staffId, long id, String content) {
         long doctorId = access.requireDoctor(staffId);
+        access.expireOverdue();
         OnlineConsultation consultation = access.requireBoundToDoctor(id, doctorId);
         access.requireInProgress(consultation);
         access.requireMethodInitiated(consultation);
@@ -162,6 +166,8 @@ final class DoctorOnlineConsultationWorkflow {
     /** 完成状态、接诊记录、系统消息与关怀消息在同一事务提交，任何一步失败都整体回滚。 */
     DoctorConsultationDetail complete(long staffId, long id, String diagnosis, String advice) {
         long doctorId = access.requireDoctor(staffId);
+        // 时长窗惰性收敛（票 86）：已到期的进行中单先翻 EXPIRED，不可再完成
+        access.expireOverdue();
         OnlineConsultation consultation = access.requireBoundToDoctor(id, doctorId);
         if (access.completed().equals(consultation.getStatus())) {
             return access.doctorDetail(consultation);

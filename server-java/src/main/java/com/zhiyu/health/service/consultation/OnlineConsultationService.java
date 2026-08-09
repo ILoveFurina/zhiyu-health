@@ -87,6 +87,11 @@ public class OnlineConsultationService {
         return patient.cancel(patientId, id);
     }
 
+    /** 患者主动结束（票 86）：进行中 → CANCELLED + 系统消息。 */
+    public ConsultationDetail end(long patientId, long id) {
+        return patient.end(patientId, id);
+    }
+
     public ConsultationDetail resubmit(long patientId, long id) {
         return patient.resubmit(patientId, id);
     }

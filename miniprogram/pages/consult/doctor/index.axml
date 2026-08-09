@@ -52,6 +52,19 @@
       <view a:if="{{prescriptionLink}}" class="prescription-link" onTap="openPrescription">{{prescriptionLink}}</view>
     </view>
 
+    <!-- 时长窗倒计时条（票 86）：IN_PROGRESS 逐秒倒数，≤5 分钟变橙提示即将结束；
+         页面内转入 CANCELLED/EXPIRED 置灰"问诊已结束"；右侧"结束问诊"仅进行中可见 -->
+    <view a:if="{{countdownState}}" class="countdown-bar countdown-bar-{{countdownState}}">
+      <block a:if="{{countdownState === 'ended'}}">
+        <text>问诊已结束</text>
+      </block>
+      <block a:else>
+        <text>本次问诊剩余 {{countdownText}}</text>
+        <text a:if="{{countdownState === 'warn'}}" class="countdown-warn-text">即将结束</text>
+      </block>
+      <view a:if="{{inProgress}}" class="countdown-end-btn" onTap="onEndConsultation">结束问诊</view>
+    </view>
+
     <!-- 医患消息流：患者右侧、医生左侧、系统消息居中灰条 -->
     <scroll-view
       class="thread"
@@ -117,5 +130,7 @@
     </view>
     <view a:elif="{{inProgress}}" class="readonly-bar">{{methodRequiredText}}，请稍候</view>
     <view a:elif="{{completed}}" class="readonly-bar">问诊已完成，以上记录仅供查看</view>
+    <!-- 票 86：CANCELLED/EXPIRED 同样只读（主动结束/到点自动结束） -->
+    <view a:elif="{{terminal}}" class="readonly-bar">本次问诊已结束，以上记录仅供查看</view>
   </block>
 </view>

@@ -228,12 +228,26 @@
   padding: var(--zy-space-sm) 20rpx var(--zy-space-md);
 }
 
-.abandon-link {
-  padding: 12rpx 0;
-  background: var(--zy-bg-card);
+/* 放弃入口（票 86）：次级描边按钮，与等待页取消问诊同款的克制中性样式 */
+.abandon-bar {
+  padding: var(--zy-space-sm) var(--zy-space-md);
+  background: #fff;
+}
+
+.btn-abandon {
+  box-sizing: border-box;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-border);
   color: var(--zy-text-secondary);
-  font-size: 23rpx;
+  background: #fff;
+  font-size: 28rpx;
   text-align: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.btn-abandon:active {
+  transform: scale(0.98);
 }
 
 .c-input {

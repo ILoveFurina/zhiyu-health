@@ -287,6 +287,7 @@ class OnlineConsultationControllerTest {
                 completed ? "急性上呼吸道感染" : null,
                 completed ? "清淡饮食，按需复诊" : null,
                 inProgress || completed ? "2026-08-07T10:03:00+08:00" : null,
+                inProgress ? "2026-08-07T10:33:00+08:00" : null,
                 completed ? "2026-08-07T10:06:00+08:00" : null,
                 null,
                 "2026-08-07T10:00:00+08:00",

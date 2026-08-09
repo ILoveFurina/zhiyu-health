@@ -247,6 +247,110 @@ class OnlineConsultationServiceTest {
     }
 
     // ------------------------------------------------------------------
+    // 票 86：患者主动结束与时长窗惰性收敛
+    // ------------------------------------------------------------------
+
+    @Test
+    void endTransitionsInProgressToCancelledWithSystemMessage() {
+        Fixture f = new Fixture();
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(f.consultation("IN_PROGRESS"));
+        when(f.consultationMapper.endByPatient(21L, 12L, "IN_PROGRESS", "CANCELLED"))
+                .thenReturn(1);
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("CANCELLED"));
+
+        OnlineConsultationViews.ConsultationDetail detail = f.service.end(12L, 21L);
+
+        assertThat(detail.status()).isEqualTo("CANCELLED");
+        // 状态翻转与系统消息同事务：患者侧可见"患者已结束问诊"
+        ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
+        verify(f.messageMapper).insert(message.capture());
+        assertThat(message.getValue().getSenderType()).isEqualTo("SYSTEM");
+        assertThat(message.getValue().getContent()).isEqualTo("患者已结束问诊");
+        // 结束入口先惰性收敛（接诊超时 + 时长窗），再读单走状态机
+        verify(f.consultationMapper).expireOverdue("WAITING_DOCTOR", "EXPIRED");
+        verify(f.consultationMapper)
+                .expireInProgressOverdue(
+                        eq("IN_PROGRESS"), eq("EXPIRED"), eq(1800), eq("SYSTEM"), eq("text"), anyString());
+    }
+
+    @Test
+    void endRejectsNonInProgressAndForeignConsultation() {
+        Fixture f = new Fixture();
+        // 待接诊：条件更新 0 行 → 409 not_in_progress（复用现有契约文案，不新增错误码）
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(f.consultation("WAITING_DOCTOR"));
+        when(f.consultationMapper.endByPatient(21L, 12L, "IN_PROGRESS", "CANCELLED"))
+                .thenReturn(0);
+        assertThatThrownBy(() -> f.service.end(12L, 21L)).isInstanceOfSatisfying(ApiException.class, e -> {
+            assertThat(e.getStatus()).isEqualTo(409);
+            assertThat(e.getMessage()).isEqualTo("问诊不在进行中");
+        });
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+        // 他人问诊单：404（与 cancel 同一归属边界，不泄露存在性）
+        when(f.consultationMapper.selectDetailedByIdAndPatient(22L, 12L)).thenReturn(null);
+        assertThatThrownBy(() -> f.service.end(12L, 22L))
+                .isInstanceOfSatisfying(
+                        ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(404));
+    }
+
+    @Test
+    void endIsIdempotentWhenAlreadyCancelled() {
+        Fixture f = new Fixture();
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(f.consultation("CANCELLED"));
+
+        OnlineConsultationViews.ConsultationDetail detail = f.service.end(12L, 21L);
+
+        assertThat(detail.status()).isEqualTo("CANCELLED");
+        verify(f.consultationMapper, never()).endByPatient(anyLong(), anyLong(), anyString(), anyString());
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+    }
+
+    @Test
+    void durationWindowSweepUsesContractParamsAtReadAndSendEntries() {
+        // 时长窗收敛（到期翻 EXPIRED、系统消息只写一次、未到期不误触）的 SQL 语义由
+        // OnlineConsultationPgIntegrationTest 覆盖；此处钉住入口调用与契约参数（1800s/文案）
+        Fixture f = new Fixture();
+        OnlineConsultation initiated = f.consultation("IN_PROGRESS");
+        initiated.setConsultMethod("TEXT");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(initiated);
+
+        f.service.sendMessageForPatient(12L, 21L, "医生你好");
+
+        verify(f.consultationMapper)
+                .expireInProgressOverdue("IN_PROGRESS", "EXPIRED", 1800, "SYSTEM", "text", "问诊时间已到，本次问诊已自动结束");
+    }
+
+    @Test
+    void doctorSendMessageRejectedAfterDurationSweepConverged() {
+        // 惰性收敛先执行：已翻 EXPIRED 的单子发消息命中 409，不写任何消息
+        Fixture f = new Fixture();
+        f.givenDoctor(8L, 3L);
+        when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("EXPIRED"));
+
+        assertThatThrownBy(() -> f.service.sendMessageForDoctor(8L, 21L, "你好"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(409);
+                    assertThat(e.getMessage()).isEqualTo("问诊不在进行中");
+                });
+        verify(f.consultationMapper)
+                .expireInProgressOverdue(
+                        eq("IN_PROGRESS"), eq("EXPIRED"), eq(1800), eq("SYSTEM"), eq("text"), anyString());
+        verify(f.messageMapper, never()).insert(any(OnlineConsultationMessage.class));
+    }
+
+    @Test
+    void consultationEndsAtExposedOnlyWhenInProgress() {
+        // 双端倒计时：consultation_ends_at = accepted_at + 契约时长窗，仅进行中单有值
+        Fixture f = new Fixture();
+        OnlineConsultation inProgress = f.consultation("IN_PROGRESS");
+        when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(inProgress);
+        assertThat(f.service.detail(12L, 21L).consultationEndsAt())
+                .isEqualTo(inProgress.getAcceptedAt().plusSeconds(1800).toString());
+        // 终态单无截止时间
+        when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(f.consultation("COMPLETED"));
+        assertThat(f.service.detail(12L, 23L).consultationEndsAt()).isNull();
+    }
+
+    // ------------------------------------------------------------------
     // B 端：科室池、可见性、原子接受
     // ------------------------------------------------------------------
 

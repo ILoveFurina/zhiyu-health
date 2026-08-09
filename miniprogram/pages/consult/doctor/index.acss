@@ -173,6 +173,49 @@
   transform: scale(0.98);
 }
 
+/* ===== 时长窗倒计时条（票 86） ===== */
+.countdown-bar {
+  display: flex;
+  align-items: center;
+  padding: 10rpx var(--zy-space-md);
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-bar-warn {
+  background: var(--zy-color-warning-soft);
+  color: var(--zy-color-warning);
+}
+
+.countdown-bar-ended {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--zy-text-weak);
+  justify-content: center;
+}
+
+.countdown-warn-text {
+  margin-left: var(--zy-space-xs);
+}
+
+.countdown-end-btn {
+  margin-left: auto;
+  padding: 4rpx 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-primary);
+  font-size: 22rpx;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.countdown-bar-warn .countdown-end-btn {
+  border-color: var(--zy-color-warning);
+}
+
+.countdown-end-btn:active {
+  transform: scale(0.98);
+}
+
 /* ===== 消息流 ===== */
 .thread {
   flex: 1;

@@ -1,7 +1,7 @@
 /* 病情摘要确认页 */
 .page {
   min-height: 100vh;
-  padding-bottom: var(--zy-space-lg);
+  padding-bottom: calc(var(--zy-space-lg) + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -88,11 +88,22 @@
   transform: scale(0.98);
 }
 
-.abandon-link {
-  margin-top: 24rpx;
+/* 放弃入口（票 86）：与预问诊页同款次级描边按钮，全宽置底 */
+.btn-abandon {
+  margin: 24rpx var(--zy-space-md) 0;
+  box-sizing: border-box;
+  padding: var(--zy-space-sm);
+  border-radius: 999rpx;
+  border: 1rpx solid var(--zy-color-border);
   color: var(--zy-text-secondary);
-  font-size: 24rpx;
+  background: #fff;
+  font-size: 28rpx;
   text-align: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.btn-abandon:active {
+  transform: scale(0.98);
 }
 
 .btn-primary {

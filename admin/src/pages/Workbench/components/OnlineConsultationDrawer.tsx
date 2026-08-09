@@ -96,11 +96,14 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
   const [prescriptionSubmitting, setPrescriptionSubmitting] = useState(false);
   const [prescriptionCreated, setPrescriptionCreated] = useState(false);
   const [prescription, setPrescription] = useState<ConsultationPrescription | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const lastIdRef = useRef(0);
   const medicationsLoadedRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const inProgress = detail?.status === consultationStatuses.in_progress;
+  // 票 86：固定时长窗倒计时，仅进行中且后端给了结束时刻时启用
+  const endsAt = inProgress ? (detail?.consultation_ends_at ?? null) : null;
   // 已开方：接口返回有处方，或本地刚提交成功（一问诊一处方）
   const hasPrescription = prescription != null || prescriptionCreated;
   const prescriptionRejected = prescription?.status === prescriptionStatuses.rejected;
@@ -179,6 +182,21 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
+
+  // 票 86：剩余时间每秒倒数；到 0 停在"问诊已结束"（终态由后端惰性收敛，下次详情刷新带入）。
+  // 卸载或离开 IN_PROGRESS 时清理计时器与状态
+  useEffect(() => {
+    if (!endsAt) {
+      setRemainingSeconds(null);
+      return;
+    }
+    const tick = () => setRemainingSeconds(
+      Math.max(0, Math.floor((new Date(endsAt).getTime() - Date.now()) / 1000)),
+    );
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [endsAt]);
 
   const handleAccept = async () => {
     if (!consultationId) return;
@@ -281,6 +299,19 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
               <Descriptions.Item label="状态">
                 <Tag color={statusTagColor(detail.status)}>{detail.status_label}</Tag>
               </Descriptions.Item>
+              {/* 票 86：剩余 ≤ 5 分钟橙色警示；倒数到 0 后固定显示"问诊已结束"并停止 */}
+              {endsAt && remainingSeconds != null && (
+                <Descriptions.Item label="剩余时间">
+                  {remainingSeconds > 0 ? (
+                    <Typography.Text type={remainingSeconds <= 300 ? 'warning' : undefined} strong>
+                      {`${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`}
+                      {remainingSeconds <= 300 && '（即将自动结束）'}
+                    </Typography.Text>
+                  ) : (
+                    <Typography.Text type="secondary">问诊已结束</Typography.Text>
+                  )}
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="接诊截止" span={2}>{formatDateTime(detail.expires_at)}</Descriptions.Item>
             </Descriptions>
 

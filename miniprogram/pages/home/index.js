@@ -65,7 +65,15 @@ const CONSULTATION_PRIORITY = {
   COLLECTING: 4,
 }
 
-/** 待办横卡：在线问诊进度优先，其后为待支付挂号、即将就诊与待支付药品订单。 */
+// 处方追踪卡（票 86）：服务端只投影"问诊已完成且处方未终结"的最近链路；
+// APPROVED 下单后即不再返回，交接给药品待支付卡。
+const PRESCRIPTION_TODO = {
+  PENDING: { badge: '处方审核中', badgeClass: 'todo-badge-warn', meta: '问诊已完成，处方审核中' },
+  APPROVED: { badge: '处方已通过', badgeClass: '', meta: '处方已通过，去购药 ›' },
+  REJECTED: { badge: '处方未通过', badgeClass: 'todo-badge-muted', meta: '处方未通过，点击查看详情 ›' },
+}
+
+/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与待支付药品订单。 */
 function buildTodos(appointments, orders, consultationProgress) {
   const today = todayString()
   const decorated = (appointments || []).map(decorateAppointment)
@@ -84,25 +92,32 @@ function buildTodos(appointments, orders, consultationProgress) {
         paymentDeadline: item.payment_deadline,
         paymentCountdownText: seconds == null ? '' : formatCountdown(seconds),
         paymentExpired: seconds != null && seconds <= 0,
-        priority: 5,
+        priority: 6,
         updatedAt: item.payment_deadline || '',
         url: '/pages/appointments/index',
       }
     })
+  // 即将就诊（BOOKED）与就诊中（IN_PROGRESS，票 86 叫号中间态）：叫号当天卡片无缝换文案；
+  // VISITED 及之后为终态，客户端不再展示。
   const upcoming = decorated
-    .filter((item) => item.isBooked && item.schedule_date >= today)
+    .filter((item) => (item.isBooked && item.schedule_date >= today) || item.isInProgress)
     .sort((a, b) => `${a.schedule_date} ${a.time_slot}`.localeCompare(`${b.schedule_date} ${b.time_slot}`))
-    .map((item) => ({
-      key: `appointment-${item.appointment_id}`,
-      kind: 'appointment',
-      badge: '即将就诊',
-      title: `${item.department_name} · ${item.doctor_name}医生`,
-      meta: `${item.schedule_date} ${item.time_slot} · 第 ${item.sequence_number} 号`,
-      payment_payable: false,
-      priority: 6,
-      updatedAt: `${item.schedule_date} ${item.time_slot}`,
-      url: '/pages/appointments/index',
-    }))
+    .map((item) => {
+      const inProgress = item.isInProgress
+      return {
+        key: `appointment-${item.appointment_id}`,
+        kind: 'appointment',
+        badge: inProgress ? '就诊中' : '即将就诊',
+        badgeClass: inProgress ? 'todo-badge-danger' : '',
+        title: `${item.department_name} · ${item.doctor_name}医生`,
+        meta: `${item.schedule_date} ${item.time_slot} · 第 ${item.sequence_number} 号`,
+        hint: inProgress ? '医生已叫号，请前往诊室就诊' : '',
+        payment_payable: false,
+        priority: 7,
+        updatedAt: `${item.schedule_date} ${item.time_slot}`,
+        url: '/pages/appointments/index',
+      }
+    })
   const unpaid = (orders || [])
     .filter((item) => item.status === 'UNPAID')
     .map((item) => ({
@@ -111,11 +126,29 @@ function buildTodos(appointments, orders, consultationProgress) {
       badge: '待支付',
       title: `药品订单 #${item.id}`,
       meta: `合计 ¥${item.total_amount}`,
-      priority: 7,
+      priority: 8,
       updatedAt: item.created_at || '',
       url: '/pages/drug-orders/index',
     }))
   const consultation = (consultationProgress || []).map((item) => {
+    if (item.reference_type === 'PRESCRIPTION') {
+      const deco = PRESCRIPTION_TODO[item.status] || {
+        badge: item.status_label,
+        badgeClass: '',
+        meta: '',
+      }
+      return {
+        key: `consultation-PRESCRIPTION-${item.reference_id}`,
+        kind: 'consultation',
+        badge: deco.badge,
+        badgeClass: deco.badgeClass,
+        title: `${item.department_name} · ${item.doctor_name}`,
+        meta: deco.meta,
+        priority: 5,
+        updatedAt: item.updated_at || '',
+        url: '/pages/prescriptions/index',
+      }
+    }
     const isDraft = item.reference_type === 'DRAFT'
     const url = isDraft
       ? item.status === 'PENDING_CONFIRM'

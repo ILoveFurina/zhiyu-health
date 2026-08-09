@@ -90,6 +90,83 @@ public interface OnlineConsultationMapper extends BaseMapper<OnlineConsultation>
             """)
     int expireOverdue(@Param("waiting") String waiting, @Param("expired") String expired);
 
+    /**
+     * 时长窗惰性收敛（票 86）：IN_PROGRESS 且 accepted_at + 契约时长 <= now() 的单子翻 EXPIRED，
+     * 同一语句用 CTE 为每个翻转行写一条系统消息——翻转与消息同原子提交；并发入口由行锁 +
+     * 条件重估（READ COMMITTED）保证只有一方翻到行，系统消息绝不重复。返回值为写入的消息条数。
+     */
+    @Update(
+            """
+            WITH flipped AS (
+                UPDATE online_consultations SET status = #{expired}, updated_at = now()
+                WHERE status = #{inProgress}
+                  AND accepted_at + make_interval(secs => #{durationSeconds}) <= now()
+                RETURNING id
+            )
+            INSERT INTO online_consultation_messages (consultation_id, sender_type, kind, content)
+            SELECT id, #{senderType}, #{kind}, #{content} FROM flipped
+            """)
+    int expireInProgressOverdue(
+            @Param("inProgress") String inProgress,
+            @Param("expired") String expired,
+            @Param("durationSeconds") int durationSeconds,
+            @Param("senderType") String senderType,
+            @Param("kind") String kind,
+            @Param("content") String content);
+
+    /** 患者主动结束（票 86）：条件更新限定本人与进行中状态，状态不符/越权由调用方转 409/404。 */
+    @Update(
+            """
+            UPDATE online_consultations SET status = #{cancelled}, cancelled_at = now(), updated_at = now()
+            WHERE id = #{id} AND patient_id = #{patientId} AND status = #{inProgress}
+            """)
+    int endByPatient(
+            @Param("id") long id,
+            @Param("patientId") long patientId,
+            @Param("inProgress") String inProgress,
+            @Param("cancelled") String cancelled);
+
+    /**
+     * 处方追踪投影（票 86）：每份健康档案只取最近一次问诊链路（MAX(id)，患者发起新问诊后旧链路
+     * 自然被覆盖）；该单 COMPLETED 且处方未终结（PENDING/APPROVED/REJECTED）才投影；
+     * APPROVED 是否已下单由 has_drug_order 带出，已下单的交接给药品待支付卡，由调用方过滤。
+     */
+    @Select(
+            """
+            SELECT oc.id AS online_consultation_id, oc.health_profile_id,
+                   pr.id AS prescription_id, pr.status AS prescription_status,
+                   d.name AS doctor_name, dep.name AS department_name,
+                   EXISTS(SELECT 1 FROM drug_orders o WHERE o.prescription_id = pr.id) AS has_drug_order,
+                   COALESCE(pr.reviewed_at, pr.created_at) AS updated_at
+            FROM online_consultations oc
+            JOIN prescriptions pr ON pr.online_consultation_id = oc.id
+            JOIN doctors d ON d.id = pr.doctor_id
+            JOIN departments dep ON dep.id = d.department_id
+            WHERE oc.patient_id = #{patientId} AND oc.status = #{completed}
+              AND pr.status IN (#{pending}, #{approved}, #{rejected})
+              AND oc.id = (
+                  SELECT MAX(oc2.id) FROM online_consultations oc2
+                  WHERE oc2.health_profile_id = oc.health_profile_id)
+            ORDER BY oc.id DESC
+            """)
+    List<PrescriptionTrackingRow> selectUnresolvedPrescriptionTracking(
+            @Param("patientId") long patientId,
+            @Param("completed") String completed,
+            @Param("pending") String pending,
+            @Param("approved") String approved,
+            @Param("rejected") String rejected);
+
+    /** 处方追踪投影行：record 构造器顺序须与 SELECT 列顺序一致。 */
+    record PrescriptionTrackingRow(
+            long onlineConsultationId,
+            long healthProfileId,
+            long prescriptionId,
+            String prescriptionStatus,
+            String doctorName,
+            String departmentName,
+            boolean hasDrugOrder,
+            java.time.OffsetDateTime updatedAt) {}
+
     /** 患者取消：条件更新限定本人与待接诊状态，重复取消由调用方先短路（幂等）。 */
     @Update(
             """
