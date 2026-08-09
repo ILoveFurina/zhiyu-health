@@ -1,6 +1,6 @@
 const { ensureLogin } = require('../../../utils/auth')
 const { createChatChannel } = require('../../../utils/chat-stream')
-const { getDraft } = require('../../../services/consultation')
+const { getDraft, abandonDraft } = require('../../../services/consultation')
 const { listMessages } = require('../../../services/conversations')
 const { parseMarkdown } = require('../../../utils/markdown')
 const { DRAFT_STATUSES } = require('../../../utils/consultation')
@@ -271,5 +271,19 @@ Page({
   /** 底部 CTA：去摘要确认页（navigateTo，「继续调整」可 navigateBack 回来续聊）。 */
   openSummary() {
     my.navigateTo({ url: `/pages/consult/summary/index?draftId=${this.data.draftId}` })
+  },
+
+  abandon() {
+    my.confirm({
+      title: '放弃本次预问诊',
+      content: '对话记录会保留，但本次进度将从待办移除。确定放弃吗？',
+      confirmButtonText: '确定放弃',
+      success: (res) => {
+        if (!res.confirm) return
+        abandonDraft(this.data.draftId)
+          .then(() => my.switchTab({ url: '/pages/home/index' }))
+          .catch((err) => my.showToast({ content: (err && err.detail) || '操作失败', type: 'fail' }))
+      },
+    })
   },
 })

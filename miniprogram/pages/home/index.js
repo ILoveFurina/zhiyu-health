@@ -3,6 +3,7 @@ const { listProfiles, activateProfile } = require('../../services/health-profile
 const { listAppointments } = require('../../services/appointments')
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
+const { listConsultationProgress } = require('../../services/consultation')
 const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
 
 // 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
@@ -52,8 +53,15 @@ function todayString() {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-/** 待办横卡数据：即将就诊的挂号单（已约且日期不早于今天）+ 待支付药品订单。 */
-function buildTodos(appointments, orders) {
+const CONSULTATION_PRIORITY = {
+  IN_PROGRESS: 1,
+  PENDING_CONFIRM: 2,
+  WAITING_DOCTOR: 3,
+  COLLECTING: 4,
+}
+
+/** 待办横卡：在线问诊进度优先，其后为即将就诊与待支付订单。 */
+function buildTodos(appointments, orders, consultationProgress) {
   const today = todayString()
   const upcoming = (appointments || [])
     .filter((item) => item.status === '已约' && item.schedule_date >= today)
@@ -64,6 +72,9 @@ function buildTodos(appointments, orders) {
       badge: '即将就诊',
       title: `${item.department_name} · ${item.doctor_name}医生`,
       meta: `${item.schedule_date} ${item.time_slot} · 第 ${item.sequence_number} 号`,
+      priority: 5,
+      updatedAt: `${item.schedule_date} ${item.time_slot}`,
+      url: '/pages/appointments/index',
     }))
   const unpaid = (orders || [])
     .filter((item) => item.status === 'UNPAID')
@@ -73,8 +84,33 @@ function buildTodos(appointments, orders) {
       badge: '待支付',
       title: `药品订单 #${item.id}`,
       meta: `合计 ¥${item.total_amount}`,
+      priority: 6,
+      updatedAt: item.created_at || '',
+      url: '/pages/drug-orders/index',
     }))
-  return [...upcoming, ...unpaid]
+  const consultation = (consultationProgress || []).map((item) => {
+    const isDraft = item.reference_type === 'DRAFT'
+    const url = isDraft
+      ? item.status === 'PENDING_CONFIRM'
+        ? `/pages/consult/summary/index?draftId=${item.reference_id}`
+        : `/pages/consult/preconsult/index?draftId=${item.reference_id}&profileName=${encodeURIComponent(item.health_profile_name)}`
+      : item.status === 'IN_PROGRESS'
+        ? `/pages/consult/doctor/index?id=${item.reference_id}`
+        : `/pages/consult/waiting/index?id=${item.reference_id}`
+    return {
+      key: `consultation-${item.reference_type}-${item.reference_id}`,
+      kind: 'consultation',
+      badge: item.status_label,
+      title: `${item.health_profile_name}的在线问诊`,
+      meta: '点击继续当前流程',
+      priority: CONSULTATION_PRIORITY[item.status] || 4,
+      updatedAt: item.updated_at || '',
+      url,
+    }
+  })
+  return [...consultation, ...upcoming, ...unpaid].sort(
+    (a, b) => a.priority - b.priority || b.updatedAt.localeCompare(a.updatedAt)
+  )
 }
 
 Page({
@@ -94,6 +130,8 @@ Page({
 
   onShow() {
     this.load()
+    clearInterval(this._consultationTodoTimer)
+    this._consultationTodoTimer = setInterval(() => this.refreshConsultationTodos(), 10000)
     this.loadRegistrationCard()
     this.promptLocationOnce()
   },
@@ -151,6 +189,11 @@ Page({
 
   onUnload() {
     clearTimeout(this._entranceTimer)
+    clearInterval(this._consultationTodoTimer)
+  },
+
+  onHide() {
+    clearInterval(this._consultationTodoTimer)
   },
 
   load() {
@@ -161,16 +204,22 @@ Page({
           // 待办数据失败不阻塞问候头与宫格，降级为空待办
           listAppointments().catch(() => []),
           listDrugOrders().catch(() => []),
+          listConsultationProgress()
+            .then((res) => (res && res.items) || [])
+            .catch(() => this._consultationProgress || []),
         ])
       )
-      .then(([profiles, appointments, orders]) => {
+      .then(([profiles, appointments, orders, consultationProgress]) => {
         profiles = profiles.map((item) => ({ ...item, initial: item.display_name.slice(0, 1) }))
         const activeProfile = profiles.find((item) => item.active) || null
+        this._appointments = appointments
+        this._orders = orders
+        this._consultationProgress = consultationProgress
         this.setData({
           profiles,
           activeProfile,
           profileLoaded: true,
-          todos: buildTodos(appointments, orders),
+          todos: buildTodos(appointments, orders, consultationProgress),
         })
       })
       .catch(() => my.showToast({ content: '加载失败，请稍后重试', type: 'fail' }))
@@ -185,8 +234,19 @@ Page({
   },
 
   openTodo(e) {
-    const kind = e.currentTarget.dataset.kind
-    my.navigateTo({ url: kind === 'order' ? '/pages/drug-orders/index' : '/pages/appointments/index' })
+    const item = this.data.todos.find((todo) => todo.key === e.currentTarget.dataset.key)
+    if (item && item.url) my.navigateTo({ url: item.url })
+  },
+
+  refreshConsultationTodos() {
+    return listConsultationProgress()
+      .then((res) => {
+        this._consultationProgress = (res && res.items) || []
+        this.setData({
+          todos: buildTodos(this._appointments || [], this._orders || [], this._consultationProgress),
+        })
+      })
+      .catch(() => {})
   },
 
   openSheet() {

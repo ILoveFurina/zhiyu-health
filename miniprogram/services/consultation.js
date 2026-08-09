@@ -34,6 +34,14 @@ function getDraft(draftId) {
   return request({ url: `/c/preconsultation-drafts/${draftId}` })
 }
 
+function listConsultationProgress() {
+  return request({ url: '/c/preconsultation-drafts/progress' })
+}
+
+function abandonDraft(draftId) {
+  return request({ url: `/c/preconsultation-drafts/${draftId}/abandon`, method: 'POST' })
+}
+
 /** 患者确认摘要后创建在线问诊单（幂等，已提交草稿返回关联问诊单）。 */
 function createConsultation(draftId) {
   return request({ url: '/c/online-consultations', method: 'POST', data: { draft_id: draftId } })
@@ -94,6 +102,8 @@ function uploadPhoto(id, filePath) {
 module.exports = {
   startOrResumeDraft,
   getDraft,
+  listConsultationProgress,
+  abandonDraft,
   createConsultation,
   listConsultations,
   getConsultation,

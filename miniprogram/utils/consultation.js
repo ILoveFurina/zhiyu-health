@@ -9,12 +9,14 @@ const DRAFT_STATUSES = {
   collecting: 'COLLECTING',
   pending_confirm: 'PENDING_CONFIRM',
   submitted: 'SUBMITTED',
+  abandoned: 'ABANDONED',
 }
 
 const DRAFT_STATUS_LABELS = {
   COLLECTING: '病情收集',
   PENDING_CONFIRM: '待确认',
   SUBMITTED: '已提交',
+  ABANDONED: '已放弃',
 }
 
 const STATUSES = {
@@ -99,6 +101,7 @@ const TEXTS = {
   text_started: '医生发起图文问诊',
   method_already_set: '接诊方式已发起，不可更换',
   method_required: '医生尚未发起接诊方式',
+  draft_abandoned: '本次预问诊已放弃',
 }
 
 /** waiting_matching 文案的 {department} 插值；科室名缺失时退化为"合适"。 */

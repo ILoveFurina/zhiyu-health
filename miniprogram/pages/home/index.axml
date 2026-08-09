@@ -29,6 +29,7 @@
           class="todo-card zy-fade-in"
           style="animation-delay: {{index * 40}}ms"
           data-kind="{{item.kind}}"
+          data-key="{{item.key}}"
           onTap="openTodo"
         >
           <view class="todo-badge {{item.kind === 'order' ? 'todo-badge-pay' : ''}}">{{item.badge}}</view>

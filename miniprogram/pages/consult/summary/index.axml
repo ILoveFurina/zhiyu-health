@@ -32,5 +32,6 @@
       </view>
     </view>
     <view a:if="{{confirmHint}}" class="confirm-hint">{{confirmHint}}</view>
+    <view class="abandon-link" onTap="abandon">放弃本次预问诊</view>
   </block>
 </view>

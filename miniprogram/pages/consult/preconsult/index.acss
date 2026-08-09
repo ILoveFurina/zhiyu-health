@@ -227,6 +227,14 @@
   padding: var(--zy-space-sm) 20rpx var(--zy-space-md);
 }
 
+.abandon-link {
+  padding: 12rpx 0;
+  background: var(--zy-bg-card);
+  color: var(--zy-text-secondary);
+  font-size: 23rpx;
+  text-align: center;
+}
+
 .c-input {
   flex: 1;
   background: var(--zy-color-fill);
