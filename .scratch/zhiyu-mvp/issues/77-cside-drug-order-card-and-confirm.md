@@ -4,14 +4,14 @@
 
 **Blocked by:** 75 - server-py 购药工具与 agent 接线；76 - 购药卡片契约与 SSE 事件
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] miniprogram 新增 drug_order_confirm 卡片组件：药品明细（名/规格/单价）、数量、总价、库存可用性、处方来源（处方药路径）、确认下单/取消按钮；就地确认不跳页
-- [ ] miniprogram 新增 drug_order 卡片组件：订单号、状态标签、总价、药品明细、支付/取消入口（复用现有 drug-orders 页的支付/取消逻辑）
-- [ ] chat/index.axml 卡片分发：item.kind === 'drug_order_confirm' / 'drug_order' 各自渲染对应组件 + ai-disclaimer
-- [ ] 确认卡"确认下单"逻辑：组装 CreateInput（OTC: prescription_id=null + items[{medication_id,quantity}]；处方药: prescription_id + items）调 POST /api/c/drug-orders；成功后确认卡就地更新或追加 drug_order 结果卡；失败提示库存不足等
-- [ ] OTC 端到端：用户"帮我买2盒布洛芬" -> Agent search_medications -> prepare_drug_order -> 确认卡 -> 用户确认 -> 下单 -> 结果卡（真机或模拟器走通）
-- [ ] 处方药单处方直通：用户"按处方买药"且仅有1张 APPROVED 处方 -> Agent list_approved_prescriptions -> prepare_drug_order -> 确认卡（标注处方来源）-> 用户确认 -> 下单 -> 结果卡
-- [ ] 硬边界守护验证：用户只说症状（"我头痛"）时 Agent 走通用药品知识解释不出确认卡不下单；用户没给数量时 Agent 反问不默认1
-- [ ] 浏览器/开发者工具实测无控制台错误，人工走通两条路径；可视化视觉层级清晰（药品/价格/库存/状态一目了然）
-- [ ] README.md 依赖关系图新增节点 T77（未完成不加 [x]）
+- [x] miniprogram 新增 drug_order_confirm 卡片组件：药品明细（名/规格/单价）、数量、总价、库存可用性、处方来源（处方药路径）、确认下单/取消按钮；就地确认不跳页
+- [x] miniprogram 新增 drug_order 卡片组件：订单号、状态标签、总价、药品明细、支付/取消入口（复用现有 drug-orders 页的支付/取消逻辑）
+- [x] chat/index.axml 卡片分发：item.kind === 'drug_order_confirm' / 'drug_order' 各自渲染对应组件 + ai-disclaimer
+- [x] 确认卡"确认下单"逻辑：组装 CreateInput（OTC: prescription_id=null + items[{medication_id,quantity}]；处方药: prescription_id + items）调 POST /api/c/drug-orders；成功后确认卡就地更新或追加 drug_order 结果卡；失败提示库存不足等
+- [x] OTC 端到端：用户"帮我买2盒布洛芬" -> Agent search_medications -> prepare_drug_order -> 确认卡 -> 用户确认 -> 下单 -> 结果卡（真机或模拟器走通）
+- [x] 处方药单处方直通：用户"按处方买药"且仅有1张 APPROVED 处方 -> Agent list_approved_prescriptions -> prepare_drug_order -> 确认卡（标注处方来源）-> 用户确认 -> 下单 -> 结果卡
+- [x] 硬边界守护验证：用户只说症状（"我头痛"）时 Agent 走通用药品知识解释不出确认卡不下单；用户没给数量时 Agent 反问不默认1
+- [x] 浏览器/开发者工具实测无控制台错误，人工走通两条路径；可视化视觉层级清晰（药品/价格/库存/状态一目了然）
+- [x] README.md 依赖关系图新增节点 T77（未完成不加 [x]）
