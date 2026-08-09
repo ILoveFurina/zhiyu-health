@@ -154,6 +154,8 @@ function requestData(params) {
     retry_standard_department_id: params.retryStandardDepartmentId || undefined,
     // 票 55：预问诊对话绑定草稿 id，server-java 校验归属与状态后强制预问诊场景
     preconsultation_draft_id: params.preconsultationDraftId || undefined,
+    // 票 78：处方选择卡点选回传的所选处方 id，server-py Agent 据此直接装配购药确认卡
+    prescription_id: params.prescriptionId || undefined,
     conversation_id: params.conversationId || undefined,
     effort: params.effort,
     scenario: params.scenario,
@@ -240,7 +242,9 @@ function dispatchEvent(event, data, handlers) {
   else if (event === 'department_options') handlers.onDepartmentOptions(data)
   else if (event === 'appointment') handlers.onAppointment(data)
   else if (event === 'appointments') handlers.onAppointments(data)
+  else if (event === 'drug_order_prepare') handlers.onDrugOrderPrepare(data)
   else if (event === 'drug_order_confirm') handlers.onDrugOrderConfirmCard(data)
+  else if (event === 'prescriptions') handlers.onPrescriptions(data)
   else if (event === 'red_flag') handlers.onRedFlag(data)
   else if (event === 'done') handlers.onDone()
 }

@@ -191,6 +191,22 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
+      // 票 77/78：购药卡片回放——无需加工，disclaimer 优先取卡片 JSON 内字段（与 department_options 同构）。
+      // drug_order_prepare/drug_order_confirm 同组件渲染；prescriptions 为处方选择卡。
+      if (
+        m.kind === 'prescriptions' ||
+        m.kind === 'drug_order_prepare' ||
+        m.kind === 'drug_order_confirm' ||
+        m.kind === 'drug_order'
+      ) {
+        return {
+          id: ++this._msgSeq,
+          role: m.role,
+          kind: m.kind,
+          card,
+          disclaimer: card.disclaimer || m.disclaimer,
+        }
+      }
       return { id: ++this._msgSeq, role: m.role, kind: m.kind, card, disclaimer: m.disclaimer }
     }
     return {

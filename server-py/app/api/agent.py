@@ -39,6 +39,7 @@ async def chat(
         latitude=body.latitude,
         retry_standard_department_id=body.retry_standard_department_id,
         preconsultation_draft_id=body.preconsultation_draft_id,
+        prescription_id=body.prescription_id,
     )
 
     return StreamingResponse(

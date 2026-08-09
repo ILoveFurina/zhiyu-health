@@ -338,6 +338,11 @@ public class ChatRoundService {
         if (preconsultDraft != null) {
             body.put("preconsultation_draft_id", preconsultDraft.getId());
         }
+        // 票 78：处方选择卡点选回传的 prescription_id 透传给 server-py，Agent 据此直接装配确认卡；
+        // 归属校验延后到 prepare_drug_order（MedicationToolService.prepareForPrescription）。
+        if (command.prescriptionId() != null) {
+            body.put("prescription_id", command.prescriptionId());
+        }
         return body;
     }
 
@@ -475,7 +480,9 @@ public class ChatRoundService {
             Double latitude,
             Long retryStandardDepartmentId,
             // 票 55：预问诊草稿标识；非空时服务端校验归属/状态并强制 preconsultation 场景
-            Long preconsultationDraftId) {}
+            Long preconsultationDraftId,
+            // 票 78：处方选择卡点选回传的所选处方 ID，仅透传给 server-py，归属校验延后到 prepare
+            Long prescriptionId) {}
 
     /** 药品说明书流轮次命令（票 51）：无 effort/scenario/档案/定位，只有药名。 */
     public record MedicationCommand(Long patientId, String requestId, Long conversationId, String drugName) {}
