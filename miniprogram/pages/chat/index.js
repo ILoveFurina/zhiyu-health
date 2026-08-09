@@ -232,8 +232,10 @@ Page({
         onDepartmentOptions: (data) => this.appendCard('department_options', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
-        // 票 77：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页
-        onDrugOrderConfirm: (data) => this.appendCard('drug_order_confirm', data),
+        // 票 77：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页。
+        // handler 名 onDrugOrderConfirmCard 描述「卡片到达」，与组件点击回调页方法
+        // onDrugOrderConfirm（描述「用户确认下单」）刻意分开，避免同词异义。
+        onDrugOrderConfirmCard: (data) => this.appendCard('drug_order_confirm', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -436,11 +438,13 @@ Page({
       .then((order) => {
         // 下单成功：确认卡就地转结果态，追加 drug_order 结果卡（OrderView 即卡片 content）。
         // drug_order 卡不经 Agent，由 server-java 下单成功后本地落库（票 76）。
+        // OrderView 无 disclaimer 字段（落库时由 server-java 出口兜底注入），C 端就地补通用免责
+        // 声明文案，满足硬约束 1（界面无例外），与 ai-disclaimer 默认文案一致（contracts/disclaimer.json）。
         this.setData({
           drugConfirmSubmitting: { ...this.data.drugConfirmSubmitting, [cardId]: false },
           drugConfirmSubmitted: { ...this.data.drugConfirmSubmitted, [cardId]: true },
         })
-        this.appendCard('drug_order', order)
+        this.appendCard('drug_order', { ...order, disclaimer: '仅供参考，不替代医生诊断' })
         my.showToast({ content: '下单成功', type: 'success' })
       })
       .catch((err) => {
