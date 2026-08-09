@@ -17,6 +17,11 @@ const { getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
 const { defaultSelectedDate } = require('../../utils/department-slots')
 const { createAssistantBubble, createAiBubbleState } = require('../../utils/ai-bubble-state')
+const {
+  createDrugOrder,
+  cancelDrugOrder,
+  payDrugOrder,
+} = require('../../services/drug-orders')
 
 // 推理档位三档循环（自动/快速回答/深度思考），后端映射为 reasoning_effort
 const GEARS = [
@@ -78,6 +83,11 @@ Page({
     voiceHintError: false, // 识别失败提示
     ttsLoadingId: 0, // 正在合成的 AI 气泡 id
     ttsPlayingId: 0, // 正在播放的 AI 气泡 id
+    // 票 77：购药两卡就地交互状态。key=卡片所在消息 id，避免组件间串扰与跨卡误触。
+    drugConfirmSubmitting: {}, // 确认卡下单中（cardId -> true）
+    drugConfirmSubmitted: {}, // 确认卡已下单成功（cardId -> true，就地转结果态）
+    drugPayingOrderId: null, // 结果卡模拟支付中（订单 id）
+    drugCancellingOrderId: null, // 结果卡取消中（订单 id）
   },
 
   _msgSeq: 0,
@@ -222,6 +232,8 @@ Page({
         onDepartmentOptions: (data) => this.appendCard('department_options', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
+        // 票 77：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页
+        onDrugOrderConfirm: (data) => this.appendCard('drug_order_confirm', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -253,6 +265,11 @@ Page({
       dietProgress: '',
       pendingTongue: null,
       tongueProgress: '',
+      // 票 77：购药两卡就地交互状态随新对话清空
+      drugConfirmSubmitting: {},
+      drugConfirmSubmitted: {},
+      drugPayingOrderId: null,
+      drugCancellingOrderId: null,
     })
     if (this._aiBubbleState) this._aiBubbleState.dispose()
     this._aiBubbleState = createAiBubbleState(this)
@@ -397,6 +414,85 @@ Page({
     this.sendText(
       `我选择 ${scheduleDate} ${timeSlot} 的号源（schedule_id: ${scheduleId}），请帮我完成挂号`
     )
+  },
+
+  // ===== 票 77：购药两段式确认交互（确认卡 -> 下单 -> 结果卡）=====
+  // 确认卡是下单唯一入口（硬边界）：Agent 不直接扣库存，用户点「确认下单」后由 C 端直接调
+  // POST /api/c/drug-orders（OTC: prescription_id=null + items；处方药: prescription_id + items）。
+  onDrugOrderConfirm({ cardId, card }) {
+    if (!cardId || !card) return
+    if (this.data.drugConfirmSubmitting[cardId] || this.data.drugConfirmSubmitted[cardId]) return
+    // 组装 CreateInput：OTC 路径 prescription_id=null + items；处方药路径 prescription_id + items。
+    // 处方药明细数量由确认卡展示（默认 1，与 prepare 同源），仍按行透传 medication_id+quantity。
+    const items = (card.items || []).map((item) => ({
+      medication_id: item.medication_id,
+      quantity: item.quantity,
+    }))
+    this.setData({
+      drugConfirmSubmitting: { ...this.data.drugConfirmSubmitting, [cardId]: true },
+    })
+    ensureLogin()
+      .then(() => createDrugOrder(card.prescription_id || null, items))
+      .then((order) => {
+        // 下单成功：确认卡就地转结果态，追加 drug_order 结果卡（OrderView 即卡片 content）。
+        // drug_order 卡不经 Agent，由 server-java 下单成功后本地落库（票 76）。
+        this.setData({
+          drugConfirmSubmitting: { ...this.data.drugConfirmSubmitting, [cardId]: false },
+          drugConfirmSubmitted: { ...this.data.drugConfirmSubmitted, [cardId]: true },
+        })
+        this.appendCard('drug_order', order)
+        my.showToast({ content: '下单成功', type: 'success' })
+      })
+      .catch((err) => {
+        this.setData({
+          drugConfirmSubmitting: { ...this.data.drugConfirmSubmitting, [cardId]: false },
+        })
+        // 后端 ApiException detail 承载库存不足等文案（request.js 已抽取 detail）
+        my.showToast({ content: err.detail || err.message || '下单失败，请稍后重试', type: 'fail' })
+      })
+  },
+
+  /** 确认卡「取消」：就地隐藏确认卡（不下单、不调后端），与「确认下单」对称的退出路径。 */
+  onDrugOrderConfirmCancel({ cardId }) {
+    if (!cardId) return
+    this.patchMessage(cardId, (msg) => ({ ...msg, hidden: true }))
+  },
+
+  /** 结果卡「模拟支付」：复用 services/drug-orders.js（与列表页同源），成功后刷新卡片状态。 */
+  onDrugOrderPay({ cardId, orderId }) {
+    if (!orderId || this.data.drugPayingOrderId === orderId) return
+    this.setData({ drugPayingOrderId: orderId })
+    payDrugOrder(orderId)
+      .then((order) => {
+        this.patchMessage(cardId, (msg) => ({ ...msg, card: order }))
+        my.showToast({ content: '模拟支付成功', type: 'success' })
+      })
+      .catch((err) => {
+        my.showToast({ content: err.detail || '支付失败，请刷新后重试', type: 'fail' })
+      })
+      .finally(() => this.setData({ drugPayingOrderId: null }))
+  },
+
+  /** 结果卡「取消订单」：确认后调后端，库存自动返还，成功后刷新卡片状态。 */
+  onDrugOrderCancel({ cardId, orderId }) {
+    if (!orderId || this.data.drugCancellingOrderId === orderId) return
+    my.confirm({
+      title: '取消订单',
+      content: '确认取消该待支付订单吗？库存将自动返还。',
+      success: (result) => {
+        if (!result.confirm) return
+        this.setData({ drugCancellingOrderId: orderId })
+        cancelDrugOrder(orderId)
+          .then((order) => {
+            this.patchMessage(cardId, (msg) => ({ ...msg, card: order }))
+            my.showToast({ content: '订单已取消', type: 'success' })
+          })
+          .catch((err) => {
+            my.showToast({ content: err.detail || '取消失败，请刷新后重试', type: 'fail' })
+          })
+          .finally(() => this.setData({ drugCancellingOrderId: null }))
+      },
+    })
   },
 
   openAppointments() {
