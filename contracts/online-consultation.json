@@ -5,14 +5,16 @@
   "draft_statuses": {
     "collecting": "COLLECTING",
     "pending_confirm": "PENDING_CONFIRM",
-    "submitted": "SUBMITTED"
+    "submitted": "SUBMITTED",
+    "abandoned": "ABANDONED"
   },
   "draft_status_labels": {
     "COLLECTING": "病情收集",
     "PENDING_CONFIRM": "待确认",
-    "SUBMITTED": "已提交"
+    "SUBMITTED": "已提交",
+    "ABANDONED": "已放弃"
   },
-  "_draft_statuses_doc": "预问诊草稿状态：COLLECTING=尚无可用摘要快照；首个成功摘要快照后进入 PENDING_CONFIRM；患者明确确认后 SUBMITTED 并创建在线问诊单，已提交草稿不可再创建新单，只返回关联问诊单。",
+  "_draft_statuses_doc": "预问诊草稿状态：COLLECTING=尚无可用摘要快照；首个成功摘要快照后进入 PENDING_CONFIRM；患者明确确认后 SUBMITTED 并创建在线问诊单；患者可在未提交时显式放弃进入 ABANDONED，保留历史并允许同档案重新开始。",
   "statuses": {
     "waiting_doctor": "WAITING_DOCTOR",
     "in_progress": "IN_PROGRESS",
@@ -33,7 +35,8 @@
     "accept": "ACCEPT",
     "cancel": "CANCEL",
     "complete": "COMPLETE",
-    "resubmit": "RESUBMIT"
+    "resubmit": "RESUBMIT",
+    "abandon": "ABANDON"
   },
   "_decisions_doc": "在线问诊动作决定枚举，用于审计与领域日志；医生接受只有明确动作才生效，查看摘要不推进状态。",
   "progress_steps": [
@@ -99,6 +102,7 @@
     "not_in_progress": "问诊不在进行中",
     "text_started": "医生发起图文问诊",
     "method_already_set": "接诊方式已发起，不可更换",
-    "method_required": "医生尚未发起接诊方式"
+    "method_required": "医生尚未发起接诊方式",
+    "draft_abandoned": "本次预问诊已放弃"
   }
 }

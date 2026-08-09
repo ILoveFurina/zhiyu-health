@@ -606,11 +606,11 @@ CREATE TABLE IF NOT EXISTS preconsultation_drafts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT ck_preconsultation_drafts_status
-        CHECK (status IN ('COLLECTING', 'PENDING_CONFIRM', 'SUBMITTED'))
+        CHECK (status IN ('COLLECTING', 'PENDING_CONFIRM', 'SUBMITTED', 'ABANDONED'))
 );
 
 -- 每份档案同时最多一条未提交草稿：COLLECTING/PENDING_CONFIRM 视作活跃，
--- SUBMITTED 后草稿只读，只返回关联问诊单（幂等确认在 service 层先行短路）。
+-- SUBMITTED 后草稿只读，只返回关联问诊单；ABANDONED 保留历史但解除活跃唯一约束。
 CREATE UNIQUE INDEX IF NOT EXISTS uq_preconsultation_drafts_active
     ON preconsultation_drafts(patient_id, health_profile_id)
     WHERE status IN ('COLLECTING', 'PENDING_CONFIRM');

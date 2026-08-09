@@ -1,4 +1,4 @@
-const { getDraft, createConsultation } = require('../../../services/consultation')
+const { getDraft, createConsultation, abandonDraft } = require('../../../services/consultation')
 const {
   SUMMARY_FIELDS,
   SUMMARY_FIELD_LABELS,
@@ -82,5 +82,19 @@ Page({
         my.showToast({ content: (err && err.detail) || '提交失败，请稍后重试', type: 'fail' })
         this.setData({ submitting: false })
       })
+  },
+
+  abandon() {
+    my.confirm({
+      title: '放弃本次预问诊',
+      content: '病情摘要和对话记录会保留，但本次进度将从待办移除。确定放弃吗？',
+      confirmButtonText: '确定放弃',
+      success: (res) => {
+        if (!res.confirm) return
+        abandonDraft(this.data.draftId)
+          .then(() => my.switchTab({ url: '/pages/home/index' }))
+          .catch((err) => my.showToast({ content: (err && err.detail) || '操作失败', type: 'fail' }))
+      },
+    })
   },
 })

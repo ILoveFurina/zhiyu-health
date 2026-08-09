@@ -88,6 +88,13 @@
   transform: scale(0.98);
 }
 
+.abandon-link {
+  margin-top: 24rpx;
+  color: var(--zy-text-secondary);
+  font-size: 24rpx;
+  text-align: center;
+}
+
 .btn-primary {
   flex: 1;
   padding: var(--zy-space-sm);

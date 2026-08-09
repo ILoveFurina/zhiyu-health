@@ -74,6 +74,7 @@
     <view class="cta-btn" onTap="openSummary">查看病情摘要并确认</view>
   </view>
 
+  <view class="abandon-link" onTap="abandon">放弃本次预问诊</view>
   <view class="composer">
     <input
       class="c-input"

@@ -13,6 +13,8 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.patient.chat.PreconsultationController;
 import com.zhiyu.health.service.chat.PreconsultationService;
+import com.zhiyu.health.service.consultation.PatientConsultationProgressService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -80,8 +82,40 @@ class PreconsultationControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void progressReturnsStartedConsultationTodo() throws Exception {
+        PreconsultationService service = mock(PreconsultationService.class);
+        PatientConsultationProgressService progress = mock(PatientConsultationProgressService.class);
+        when(progress.list(12L))
+                .thenReturn(List.of(new PatientConsultationProgressService.ProgressItem(
+                        "DRAFT", 5L, "COLLECTING", "预问诊进行中", 3L, "林小满", "2026-08-09T10:00:00+08:00")));
+        MockMvc mvc = standalone(service, progress);
+
+        mvc.perform(get("/api/c/preconsultation-drafts/progress").requestAttr("authSubject", 12L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].reference_type").value("DRAFT"))
+                .andExpect(jsonPath("$.items[0].health_profile_name").value("林小满"));
+    }
+
+    @Test
+    void abandonReturnsTerminalDraft() throws Exception {
+        PreconsultationService service = mock(PreconsultationService.class);
+        PreconsultationService.DraftView abandoned =
+                new PreconsultationService.DraftView(5L, "ABANDONED", "已放弃", 77L, 3L, null, null, "created");
+        when(service.abandon(12L, 5L)).thenReturn(abandoned);
+        MockMvc mvc = standalone(service);
+
+        mvc.perform(post("/api/c/preconsultation-drafts/5/abandon").requestAttr("authSubject", 12L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.draft.status").value("ABANDONED"));
+    }
+
     private MockMvc standalone(PreconsultationService service) {
-        return MockMvcBuilders.standaloneSetup(new PreconsultationController(service))
+        return standalone(service, mock(PatientConsultationProgressService.class));
+    }
+
+    private MockMvc standalone(PreconsultationService service, PatientConsultationProgressService progress) {
+        return MockMvcBuilders.standaloneSetup(new PreconsultationController(service, progress))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }
