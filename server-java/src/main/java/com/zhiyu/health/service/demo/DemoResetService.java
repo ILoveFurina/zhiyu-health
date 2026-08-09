@@ -149,7 +149,7 @@ public class DemoResetService {
         }
     }
 
-    /** 清 Redis 演示键：全部号源计数 + 知识源开关键。 */
+    /** 清 Redis 演示键：全部号源计数 + 知识源开关键 + 演示时段覆盖键。 */
     private void clearRedisDemoKeys() {
         ScanOptions options = ScanOptions.scanOptions()
                 .match(SlotKeys.keyPattern())
@@ -171,6 +171,7 @@ public class DemoResetService {
             redis.delete(keys);
         }
         redis.delete(contracts.demoArsenal().knowledgeSourceRedisKey());
+        redis.delete(contracts.demoArsenal().timeSlotWindowsRedisKey());
     }
 
     /** 清 PG 演示业务表：TRUNCATE CASCADE 按外键逆序。保留 staff_users 与参考数据。 */

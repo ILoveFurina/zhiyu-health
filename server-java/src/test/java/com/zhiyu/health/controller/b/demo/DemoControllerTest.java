@@ -1,5 +1,6 @@
 package com.zhiyu.health.controller.b.demo;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.controller.staff.demo.DemoController;
 import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.service.demo.DemoDashboardService;
@@ -23,6 +25,8 @@ import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockView;
 import com.zhiyu.health.service.demo.DemoPharmacySyncService.SyncResult;
 import com.zhiyu.health.service.demo.DemoResetService;
 import com.zhiyu.health.service.demo.DemoResetService.ResetResult;
+import com.zhiyu.health.service.demo.DemoTimeSlotService;
+import com.zhiyu.health.service.demo.DemoTimeSlotService.TimeSlotWindowView;
 import com.zhiyu.health.support.StaffTokens;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -58,6 +62,9 @@ class DemoControllerTest {
     @MockitoBean
     private DemoPharmacySyncService pharmacySyncService;
 
+    @MockitoBean
+    private DemoTimeSlotService timeSlotService;
+
     @Test
     void noTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(post("/api/b/demo/reset")
@@ -68,6 +75,11 @@ class DemoControllerTest {
         mockMvc.perform(get("/api/b/demo/knowledge-source")).andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/b/demo/pharmacy-stock/sync")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/b/demo/pharmacy-stock")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/b/demo/time-slot-windows")).andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/b/demo/time-slot-windows")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -85,6 +97,13 @@ class DemoControllerTest {
                         .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/b/demo/pharmacy-stock").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/b/demo/time-slot-windows").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/b/demo/time-slot-windows")
+                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR))
+                        .contentType("application/json")
+                        .content("{}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -240,5 +259,62 @@ class DemoControllerTest {
                 .andExpect(jsonPath("$.pharmacies[0].region").value("城东区·梧桐路 12 号"))
                 .andExpect(jsonPath("$.pharmacies[0].items[0].medication_name").value("阿莫西林胶囊"))
                 .andExpect(jsonPath("$.pharmacies[0].items[0].stock").value(86));
+    }
+
+    @Test
+    void getTimeSlotWindowsDisabledReturnsForbidden() throws Exception {
+        when(timeSlotService.current()).thenThrow(new ApiException(403, "演示时段设置未开启"));
+
+        mockMvc.perform(get("/api/b/demo/time-slot-windows").with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("演示时段设置未开启"));
+    }
+
+    @Test
+    void getTimeSlotWindowsReturnsEffective() throws Exception {
+        when(timeSlotService.current())
+                .thenReturn(new TimeSlotWindowView(Map.of(
+                        "上午", new Contracts.ScheduleRequestFlow.TimeSlotWindow("09:00", "11:30"),
+                        "下午", new Contracts.ScheduleRequestFlow.TimeSlotWindow("14:00", "18:00"))));
+
+        mockMvc.perform(get("/api/b/demo/time-slot-windows").with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.time_slot_windows.上午.start").value("09:00"))
+                .andExpect(jsonPath("$.time_slot_windows.上午.end").value("11:30"))
+                .andExpect(jsonPath("$.time_slot_windows.下午.end").value("18:00"));
+    }
+
+    @Test
+    void putTimeSlotWindowsRejectsInvalidWindow() throws Exception {
+        org.mockito.Mockito.doThrow(new ApiException(400, "时段窗口非法：需包含上午/下午且开始时间早于结束时间"))
+                .when(timeSlotService)
+                .update(any());
+
+        mockMvc.perform(
+                        put("/api/b/demo/time-slot-windows")
+                                .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN))
+                                .contentType("application/json")
+                                .content(
+                                        "{\"time_slot_windows\":{\"上午\":{\"start\":\"12:00\",\"end\":\"11:00\"},\"下午\":{\"start\":\"13:00\",\"end\":\"17:00\"}}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("时段窗口非法：需包含上午/下午且开始时间早于结束时间"));
+    }
+
+    @Test
+    void putTimeSlotWindowsAcceptsValidWindow() throws Exception {
+        when(timeSlotService.update(any()))
+                .thenReturn(new TimeSlotWindowView(Map.of(
+                        "上午", new Contracts.ScheduleRequestFlow.TimeSlotWindow("08:00", "12:00"),
+                        "下午", new Contracts.ScheduleRequestFlow.TimeSlotWindow("13:00", "17:00"))));
+
+        mockMvc.perform(
+                        put("/api/b/demo/time-slot-windows")
+                                .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN))
+                                .contentType("application/json")
+                                .content(
+                                        "{\"time_slot_windows\":{\"上午\":{\"start\":\"08:00\",\"end\":\"12:00\"},\"下午\":{\"start\":\"13:00\",\"end\":\"17:00\"}}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.time_slot_windows.上午.start").value("08:00"))
+                .andExpect(jsonPath("$.time_slot_windows.下午.end").value("17:00"));
     }
 }
