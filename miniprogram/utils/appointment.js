@@ -24,9 +24,31 @@ function decorateAppointment(item) {
     isPendingPayment: item.status_code === STATUSES.pendingPayment,
     isBooked: item.status_code === STATUSES.booked,
     isInProgress: item.status_code === STATUSES.inProgress,
+    isCancelled: item.status_code === STATUSES.cancelled,
     // 挂号凭证（就诊序号）仅在已支付后展示：待支付尚不构成有效就诊凭证（票 81）。
     hasVoucher: item.status_code !== STATUSES.cancelled && item.status_code !== STATUSES.pendingPayment,
   }
 }
 
-module.exports = { STATUSES, STATUS_LABELS, MESSAGE_TYPES, decorateAppointment }
+function remainingPaymentSeconds(item) {
+  if (item.status_code !== STATUSES.pendingPayment || !item.payment_deadline) return null
+  const deadlineMs = new Date(item.payment_deadline).getTime()
+  if (Number.isNaN(deadlineMs)) return null
+  return Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
+}
+
+function formatCountdown(seconds) {
+  if (seconds == null) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${('0' + m).slice(-2)}:${('0' + s).slice(-2)}`
+}
+
+module.exports = {
+  STATUSES,
+  STATUS_LABELS,
+  MESSAGE_TYPES,
+  decorateAppointment,
+  remainingPaymentSeconds,
+  formatCountdown,
+}
