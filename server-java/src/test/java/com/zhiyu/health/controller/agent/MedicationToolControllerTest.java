@@ -106,6 +106,16 @@ class MedicationToolControllerTest {
                 .andExpect(jsonPath("$.detail").value("处方药须凭已审核电子处方购买"));
     }
 
+    @Test
+    void preparePrescriptionWithoutPatientIdRejected() throws Exception {
+        // 处方药路径需要 patient_id 做归属校验，缺失时返回 400 而非误导性的 404"处方不存在"。
+        when(service.prepare(null, null, 5L, null)).thenThrow(new ApiException(400, "处方药购药确认需要 patient_id"));
+
+        mvc().perform(get("/api/agent/drug-orders/prepare").param("prescription_id", "5"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("处方药购药确认需要 patient_id"));
+    }
+
     // standaloneSetup 不加载 application.yml 的全局 SNAKE_CASE 策略，须显式注入消息转换器
     // （与 DrugOrderFlowTest 同一处理方式），否则 record camelCase 字段会序列化成 medicationId。
     private MockMvc mvc() {

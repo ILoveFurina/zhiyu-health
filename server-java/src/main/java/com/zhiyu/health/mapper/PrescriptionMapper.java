@@ -36,6 +36,11 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE pr.id = #{id}")
     Prescription selectDetailedById(@Param("id") long id);
 
+    // 票 75：购药确认卡处方路径需要带 JOIN 投影（doctor_name/schedule_date 等），
+    // 且须校验患者归属（COALESCE 双来源 patient_id），与 selectForPatient 同一可见性边界。
+    @Select(DETAIL_COLUMNS + " WHERE pr.id = #{id}" + " AND COALESCE(a.patient_id, oc.patient_id) = #{patientId}")
+    Prescription selectDetailedForPatient(@Param("id") long id, @Param("patientId") long patientId);
+
     @Select("SELECT * FROM prescriptions WHERE appointment_id = #{appointmentId}")
     Prescription selectByAppointmentId(@Param("appointmentId") long appointmentId);
 

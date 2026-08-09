@@ -51,8 +51,8 @@ public class MedicationToolController {
             @RequestParam(value = "medication_id", required = false) Long medicationId,
             @RequestParam(value = "quantity", required = false) Integer quantity,
             @RequestParam(value = "prescription_id", required = false) Long prescriptionId) {
-        long trustedPatientId = patientId == null ? 0L : patientId;
-        return medicationToolService.prepare(medicationId, quantity, prescriptionId, trustedPatientId);
+        // patient_id 由 server-py 从可信上下文注入：OTC 路径不使用，处方药路径用于归属校验。
+        return medicationToolService.prepare(medicationId, quantity, prescriptionId, patientId);
     }
 
     public record MedicationList(@JsonProperty("medications") List<MedicationView> medications) {}

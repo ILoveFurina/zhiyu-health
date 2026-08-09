@@ -33,6 +33,7 @@ public class MedicationToolService {
     private final PrescriptionMapper prescriptionMapper;
     private final PrescriptionItemMapper prescriptionItemMapper;
     private final Contracts contracts;
+    private final ClinicalContextService clinicalContexts;
 
     /** 按药名模糊查询在售 OTC 药品（is_prescription=FALSE），供用户点名买药时查药。 */
     public List<MedicationView> searchOtc(String name) {
@@ -56,8 +57,12 @@ public class MedicationToolService {
      * OTC 路径校验药品须 is_prescription=FALSE；处方药路径校验处方 APPROVED 且归属当前患者，
      * 明细数量默认 1（与下单 {@link DrugOrderService} 处方路径默认值同源）。
      */
-    public PrepareOrderView prepare(Long medicationId, Integer quantity, Long prescriptionId, long patientId) {
+    public PrepareOrderView prepare(Long medicationId, Integer quantity, Long prescriptionId, Long patientId) {
         if (prescriptionId != null) {
+            // 处方药路径需要患者归属校验，patient_id 缺失（null/0）属非法请求而非"处方不存在"。
+            if (patientId == null || patientId <= 0) {
+                throw new ApiException(400, "处方药购药确认需要 patient_id");
+            }
             return prepareForPrescription(prescriptionId, patientId);
         }
         return prepareForOtc(medicationId, quantity);
@@ -93,8 +98,10 @@ public class MedicationToolService {
     }
 
     // 处方药路径：处方须 APPROVED 且归属当前患者，明细数量默认 1（同下单处方路径默认值）。
+    // 用 selectDetailedForPatient（DETAIL_COLUMNS 带 JOIN）取 doctor_name/schedule_date 等投影，
+    // 与 selectForPatient 同一患者归属可见性边界。
     private PrepareOrderView prepareForPrescription(Long prescriptionId, long patientId) {
-        Prescription prescription = prescriptionMapper.selectForPatient(prescriptionId, patientId);
+        Prescription prescription = prescriptionMapper.selectDetailedForPatient(prescriptionId, patientId);
         if (prescription == null) {
             throw new ApiException(404, "电子处方不存在");
         }
@@ -132,9 +139,7 @@ public class MedicationToolService {
                     medication.getStock() >= qty));
         }
         BigDecimal total = lines.stream().map(PrepareLineView::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        String sourceType = prescription.getAppointmentId() != null
-                ? contracts.prescriptionFlow().sourceTypes().get("appointment")
-                : contracts.prescriptionFlow().sourceTypes().get("online_consultation");
+        String sourceType = clinicalContexts.sourceTypeOf(prescription);
         return new PrepareOrderView(
                 contracts.orderFlow().sources().get("prescription"),
                 prescriptionId,
@@ -170,9 +175,7 @@ public class MedicationToolService {
                         item.getFrequency(),
                         item.getDuration()))
                 .toList();
-        String sourceType = prescription.getAppointmentId() != null
-                ? contracts.prescriptionFlow().sourceTypes().get("appointment")
-                : contracts.prescriptionFlow().sourceTypes().get("online_consultation");
+        String sourceType = clinicalContexts.sourceTypeOf(prescription);
         String sourceTypeLabel = contracts.prescriptionFlow().sourceTypeLabels().get(sourceType);
         return new PrescriptionCardView(
                 prescription.getId(),
