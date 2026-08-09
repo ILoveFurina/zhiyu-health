@@ -33,6 +33,7 @@ public interface DrugOrderDtoMapper {
 
     @Mapping(target = "id", source = "order.id")
     @Mapping(target = "patientId", source = "order.patientId")
+    @Mapping(target = "patientName", source = "order.patientNickname")
     @Mapping(target = "prescriptionId", source = "order.prescriptionId")
     @Mapping(target = "source", source = "source")
     @Mapping(target = "status", source = "order.status")

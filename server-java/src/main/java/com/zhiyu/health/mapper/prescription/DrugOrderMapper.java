@@ -16,12 +16,24 @@ public interface DrugOrderMapper extends BaseMapper<DrugOrder> {
     @Select(
             """
             <script>
-            SELECT * FROM drug_orders
-            <if test='status != null and status != ""'>WHERE status = #{status}</if>
-            ORDER BY created_at DESC, id DESC
+            SELECT o.*, p.nickname AS patient_nickname
+            FROM drug_orders o
+            JOIN patients p ON p.id = o.patient_id
+            <if test='status != null and status != ""'>WHERE o.status = #{status}</if>
+            ORDER BY o.created_at DESC, o.id DESC
             </script>
             """)
     List<DrugOrder> selectForAdmin(@Param("status") String status);
+
+    // B 端明细：JOIN patients 取昵称（selectById 不带 JOIN，无法回填 patientNickname）
+    @Select(
+            """
+            SELECT o.*, p.nickname AS patient_nickname
+            FROM drug_orders o
+            JOIN patients p ON p.id = o.patient_id
+            WHERE o.id = #{id}
+            """)
+    DrugOrder selectDetailedForAdmin(@Param("id") long id);
 
     @Select(
             """

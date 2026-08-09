@@ -1,6 +1,7 @@
 package com.zhiyu.health.entity.prescription;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
@@ -23,4 +24,8 @@ public class DrugOrder {
     private OffsetDateTime createdAt;
     private OffsetDateTime paidAt;
     private OffsetDateTime cancelledAt;
+
+    // B 端列表展示用：JOIN patients 取昵称，非表列（与 Prescription.patientNickname 同构）
+    @TableField(exist = false)
+    private String patientNickname;
 }

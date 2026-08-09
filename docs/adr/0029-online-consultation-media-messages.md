@@ -7,14 +7,14 @@ Status: accepted（在线问诊图文交流扩展，2026-08-08 grilling 会话�
 ## 决策
 
 1. **消息模型**：`online_consultation_messages` 加 `kind` 列（CHECK `text`/`image`，默认 `text`）；图片消息 `content` 存 `{"object_key","media_type"}` JSON——与 `messages` 表 `image` kind 约定同构。`MessageView` 加 `kind` 字段，`contracts/online-consultation.json` 加 `message_kinds`，双端镜像同步。
-2. **图片管道**：患者新端点 `POST /c/online-consultations/{id}/photos`（multipart，患者鉴权，状态守卫与文字消息同构——仅医生已接受的进行中问诊可发，完成后只读）→ `MinioStorageService.storePhoto` 旁路持久化 → 写 `image` 消息。回看复用既有双通道：C 端 `/api/c/photos`（患者侧）、B 端 `/api/b/photos`（票 54 先例，admin 鉴权，object_key 即凭证）。
+2. **图片管道**：患者新端点 `POST /c/online-consultations/{id}/photos`（multipart，患者鉴权，状态守卫与文字消息同构——仅医生已接受的进行中问诊可发，完成后只读）→ `MinioStorageService.storePhoto` 旁路持久化 → 写 `image` 消息。回看复用既有双通道：C 端 `/api/c/photos`（患者侧）、B 端 `/api/b/reception/photos`（reception 域代理，staff JWT + object_key 即凭证；原拟复用票 54 的 `/api/b/photos`，但该端点被 AdminInterceptor 限定 admin 角色、doctor 回看 403，故在 reception 命名空间另设代理端点供医生回看）。
 3. **语音输入**：点亮 `contracts/voice.json` `asr_enabled`（`tts_enabled` 保持 false）；server-py `voice.py` 增加"enabled 但无火山密钥 → Fake"回落分支（否则 `enabled=true` 会撞 `VolcAsrClient` 的 `NotImplementedError`）。问诊页复用 chat 页 recorder + `utils/voice.js`，识别文字回填输入框、可编辑后发送——语音不落任何消息类型。
-4. **医生端只读**：`OnlineConsultationDrawer` 渲染 `image` 消息（antd `Image` + `/api/b/photos` 代理 + 预览），无上传与语音能力，回复保持纯文字。
+4. **医生端只读**：`OnlineConsultationDrawer` 渲染 `image` 消息（`AuthPhoto` 组件：fetch blob 带 Bearer 调 `/api/b/reception/photos` 代理 + createObjectURL + 预览；`<img>`/Image 无法携带 Authorization header，必须经 fetch 二次请求），无上传与语音能力，回复保持纯文字。
 5. **图片是消息本体**：图片发送失败（含 MinIO 不可用）即发送失败，前端提示重试，不降级落库——与拍照分析"MinIO 失败不落图但分析照常"不同，因为问诊图片没有可替代的产出物。
 
 ## 为什么复用而非另建
 
-- 选图/压缩/知情同意模式、`MinioStorageService`、`/api/b/photos` 代理、ADR-0020 ASR seam 均为页面无关通用件，直接复用；
+- 选图/压缩/知情同意模式、`MinioStorageService`、`/api/b/reception/photos` 代理、ADR-0020 ASR seam 均为页面无关通用件，直接复用；
 - **不复用** 5 个场景上传端点（皮肤/饮食/舌苔/药盒/报告）：它们绑定各自视觉分析场景（上传即触发 LLM），问诊只需"存 + 传"；
 - 语音只做输入通道（ASR→文字），**不做语音消息**：AI 模块无此形态，等于新造功能，且问诊记录保持文字可读可审计。
 
