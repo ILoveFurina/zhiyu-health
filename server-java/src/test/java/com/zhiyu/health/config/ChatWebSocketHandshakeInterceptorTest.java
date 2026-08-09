@@ -33,16 +33,18 @@ class ChatWebSocketHandshakeInterceptorTest {
     }
 
     @Test
-    void queryTokenCannotAuthenticateHandshake() {
+    void unauthenticatedUpgradePassesWithoutTrustingQueryToken() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/chat/ws");
         request.setQueryString("token=must-not-be-used");
 
+        Map<String, Object> attributes = new HashMap<>();
         boolean accepted = interceptor.beforeHandshake(
                 new ServletServerHttpRequest(request),
                 new ServletServerHttpResponse(new MockHttpServletResponse()),
                 mock(WebSocketHandler.class),
-                new HashMap<>());
+                attributes);
 
-        assertThat(accepted).isFalse();
+        assertThat(accepted).isTrue();
+        assertThat(attributes).doesNotContainKey(ChatWebSocketHandshakeInterceptor.ATTR_PATIENT_ID);
     }
 }

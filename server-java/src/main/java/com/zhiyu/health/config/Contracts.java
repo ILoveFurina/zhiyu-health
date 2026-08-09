@@ -361,23 +361,31 @@ public class Contracts {
             chatOptionalFields = List.copyOf(chatOptionalFields);
         }
 
-        // 信封类型按契约顺序固定为 [chat, accepted, event, error]，
+        // 信封类型按契约顺序固定为 [auth, authenticated, chat, accepted, event, error]，
         // 轮次状态按契约顺序固定为 [ACCEPTED, RUNNING, COMPLETED, FAILED]，
         // 顺序由 ContractsTest 钉死。
-        public String chatEnvelope() {
+        public String authEnvelope() {
             return envelopeTypes.get(0);
         }
 
-        public String acceptedEnvelope() {
+        public String authenticatedEnvelope() {
             return envelopeTypes.get(1);
         }
 
-        public String eventEnvelope() {
+        public String chatEnvelope() {
             return envelopeTypes.get(2);
         }
 
-        public String errorEnvelope() {
+        public String acceptedEnvelope() {
             return envelopeTypes.get(3);
+        }
+
+        public String eventEnvelope() {
+            return envelopeTypes.get(4);
+        }
+
+        public String errorEnvelope() {
+            return envelopeTypes.get(5);
         }
 
         public String acceptedStatus() {

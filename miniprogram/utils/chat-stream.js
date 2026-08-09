@@ -5,6 +5,7 @@ const { ensureLogin, getToken } = require('./auth')
 // token 对齐实测 LLM 自然流速（约 20ms/片），thinking 增量更小故节奏加快，避免拖长思考区。
 const SSE_REPLAY_TOKEN_TICK_MS = 20
 const SSE_REPLAY_THINKING_TICK_MS = 8
+const WS_AUTH_TIMEOUT_MS = 5000
 
 function websocketUrl() {
   return `${apiBaseUrl.replace(/^http/, 'ws')}/c/chat/ws`
@@ -13,6 +14,8 @@ function websocketUrl() {
 /** 页面级实时通道：一页一条 WebSocket；建连失败后同 request_id 降级到 SSE。 */
 function createChatChannel() {
   let open = false
+  let authenticated = false
+  let authTimer = null
   let closed = false
   let connectPromise = null
   let connectResolve = null
@@ -22,9 +25,18 @@ function createChatChannel() {
 
   const onOpen = () => {
     open = true
-    if (connectResolve) connectResolve()
-    connectResolve = null
-    connectReject = null
+    // 隧道可能重建 upgrade 并剥掉自定义 header；JWT 改在连接建立后的首帧传输，
+    // authenticated 到达前 connect Promise 不完成，chat 不会抢在认证前发送。
+    authTimer = setTimeout(() => {
+      authTimer = null
+      const shouldClose = open
+      onError({ message: 'WebSocket 认证超时' })
+      if (shouldClose) my.closeSocket()
+    }, WS_AUTH_TIMEOUT_MS)
+    my.sendSocketMessage({
+      data: JSON.stringify({ type: 'auth', data: { token: getToken() } }),
+      fail: (detail) => onError(detail),
+    })
   }
   const onMessage = (res) => {
     let envelope
@@ -32,6 +44,26 @@ function createChatChannel() {
       envelope = JSON.parse(String(res.data || ''))
     } catch (err) {
       failCurrent(new Error('实时消息格式无效'))
+      return
+    }
+    if (envelope.type === 'authenticated') {
+      if (!open) return
+      clearAuthTimer()
+      authenticated = true
+      if (connectResolve) connectResolve()
+      connectResolve = null
+      connectReject = null
+      return
+    }
+    if (envelope.type === 'error' && !authenticated) {
+      clearAuthTimer()
+      const error = new Error((envelope.data && envelope.data.message) || 'WebSocket 认证失败')
+      if (connectReject) connectReject(error)
+      connectResolve = null
+      connectReject = null
+      websocketUnavailable = true
+      if (open) my.closeSocket()
+      if (current) fallbackCurrent()
       return
     }
     if (!current || envelope.request_id !== current.requestId) return
@@ -42,16 +74,25 @@ function createChatChannel() {
     }
   }
   const onError = (detail) => {
+    clearAuthTimer()
     open = false
+    authenticated = false
     websocketUnavailable = true
     console.warn('WebSocket 建连失败', detail)
     if (connectReject) connectReject(new Error(socketErrorMessage(detail)))
     connectResolve = null
     connectReject = null
+    connectPromise = null
     if (current) fallbackCurrent()
   }
   const onClose = () => {
+    clearAuthTimer()
     open = false
+    authenticated = false
+    if (connectReject) connectReject(new Error('WebSocket 认证未完成'))
+    connectResolve = null
+    connectReject = null
+    connectPromise = null
     if (!closed && current) fallbackCurrent()
   }
 
@@ -60,9 +101,14 @@ function createChatChannel() {
   my.onSocketError(onError)
   my.onSocketClose(onClose)
 
+  function clearAuthTimer() {
+    if (authTimer !== null) clearTimeout(authTimer)
+    authTimer = null
+  }
+
   function connect() {
     if (websocketUnavailable) return Promise.reject(new Error('WebSocket 建连失败'))
-    if (open) return Promise.resolve()
+    if (open && authenticated) return Promise.resolve()
     if (connectPromise) return connectPromise
     // 先等登录态就绪再握手，避免启动期 token 尚未落 storage 导致握手 401
     connectPromise = ensureLogin()
@@ -72,9 +118,7 @@ function createChatChannel() {
           connectReject = reject
           my.connectSocket({
             url: websocketUrl(),
-            // 票 34 设计：握手仅经 Authorization 头携带患者 JWT（禁入 URL）；
-            // devtools 会给 header 值包一层双引号，server-java 已兼容剥离。
-            header: { Authorization: `Bearer ${getToken()}` },
+            // JWT 不进 URL/upgrade header；cpolar 重建握手后仍能透传连接内 auth 首帧。
             fail: () => reject(new Error('WebSocket 建连失败')),
           })
         })
@@ -130,6 +174,7 @@ function createChatChannel() {
   function close() {
     closed = true
     current = null
+    clearAuthTimer()
     if (open) my.closeSocket()
     if (my.offSocketOpen) my.offSocketOpen(onOpen)
     if (my.offSocketMessage) my.offSocketMessage(onMessage)

@@ -46,6 +46,17 @@ def test_stream_event_constants_match_contract() -> None:
     assert get_contracts().chat_realtime.thinking_event == chat_service.EVENT_THINKING
 
 
+def test_websocket_auth_envelopes_precede_round_envelopes() -> None:
+    assert get_contracts().chat_realtime.envelope_types == [
+        "auth",
+        "authenticated",
+        "chat",
+        "accepted",
+        "event",
+        "error",
+    ]
+
+
 def test_trace_events_are_disjoint_from_card_and_stream_events() -> None:
     # 票 24：trace 事件名集合必须与 card_events/ai_card_kinds/stream_events 严格不相交，
     # 且不得与 done 重名（done 是轮次终止信号，trace 不得冒充）。

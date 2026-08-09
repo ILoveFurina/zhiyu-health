@@ -1,13 +1,13 @@
 # SSE 降级整段到达导致流式体感丢失：诊断与按节奏重放修复
 
-2026-08-09 记录。C 端对话在 issue 70（AI 等待态/思维链）合入后被报告"AI 失去流式效果"：气泡长时间停留在等待动画，随后整段回复一次性出现。第一次修复猜错了根因（渲染队列合并），本文记录完整的逐跳诊断过程、真根因与最终修复设计。
+2026-08-09 记录。C 端对话在 issue 70（AI 等待态/思维链）合入后被报告"AI 失去流式效果"：气泡长时间停留在等待动画，随后整段回复一次性出现。第一次修复猜错了根因（渲染队列合并），本文记录完整的逐跳诊断过程、真根因，以及 issue 81 的 SSE 体感修复和 issue 82 的 WebSocket 真流式修复。
 
 相关实现：
 
 - `miniprogram/utils/chat-stream.js`：页面级 WS 通道 + SSE 降级，本次唯一改动点
 - `server-py/app/agent/runner.py`、`server-py/app/services/chat.py`：token/thinking 事件产出
-- `server-java/.../service/ChatRoundService.java`、`controller/c/ChatWebSocketHandler.java`：中继
-- `docs/engineering-notes/wss-and-windows-service-pitfalls.md` 第 6 节：cpolar 隧道剥头（WS 不可用的前提）
+- `server-java/.../service/ChatRoundService.java`、`controller/patient/chat/ChatWebSocketHandler.java`：中继与首帧鉴权
+- `docs/engineering-notes/wss-and-windows-service-pitfalls.md` 第 6 节：cpolar 隧道剥头及首帧鉴权方案
 
 ## 1. 症状与第一次误判
 
@@ -47,7 +47,7 @@ mock-login 取患者 JWT 后 curl `-N` 打 `/api/c/chat`，token 以约 40ms 间
 - **WS（主通道）**：一帧一事件，天然逐片。
 - **SSE 降级**：`streamSse` 用 `my.request` 拉取——**`my.request` 不支持增量读取响应体**，`success` 回调拿到的是整段 SSE 文本，随后 `parseSse(...).forEach(dispatchEvent)` 在**同一个 JS tick 内同步派发全部事件**。于是无论 LLM 流了多久，气泡都从等待态直接跳到全文。这正是用户看到的现象。
 
-SSE 降级自票 34 起就是"功能完整、非流式"设计，平时不触发；触发条件是 WS 建连失败——**真机经 cpolar 隧道时 WS 握手必失败**（隧道代理重写升级请求、剥掉 `Authorization`，server-java 401，端侧特征报错 `error: 8 / Invalid Sec-WebSocket-Accept`，见 wss 笔记第 6 节）。本轮报告期间用户正在真机验收语音功能（语音链路必须真机调试），每轮对话都落在 SSE 降级上，"流式丢失"与 issue 70 仅是时间重合。
+SSE 降级自票 34 起就是"功能完整、非流式"设计，平时不触发。issue 82 之前，真机经 cpolar 隧道时 WS 握手会失败：隧道代理重写升级请求并剥掉 `Authorization`，server-java 返回 401，端侧常见 `error: 8 / Invalid Sec-WebSocket-Accept`。本轮报告期间每轮对话因此落在 SSE 降级上，"流式丢失"与 issue 70 仅是时间重合。
 
 ## 3. 修复设计：SSE 降级按节奏重放
 
@@ -60,7 +60,7 @@ SSE 降级自票 34 起就是"功能完整、非流式"设计，平时不触发�
 - **取消语义**：重放闭包钉住本轮对象，`done`/`error`/页面卸载（`finishRound`/`failCurrent`/`close` 均置空 `current`）后 `isAlive()` 为假即停，迟到 token 不会覆盖错误/完成终态，也不会 setData 到已卸载页面。
 - WS 路径不受影响、不加节流——网络天然 pacing，人为延迟只会劣化。
 
-效果：cpolar/真机等 WS 不可用场景下，气泡恢复与 WS 一致的逐字体感；代价是总时长 = 完整响应下载 + 重放时长（20ms × token 数，长回复约 4~7s，与真实流式同量级）。
+效果：WS 确实不可用时，气泡仍能恢复逐字体感；代价是总时长 = 完整响应下载 + 重放时长（20ms × token 数，长回复约 4~7s，与真实流式同量级）。
 
 ## 4. 验证（无 GUI 环境下可做的全部）
 
@@ -69,8 +69,21 @@ SSE 降级自票 34 起就是"功能完整、非流式"设计，平时不触发�
 - 页面级 harness 回归：chat 页逐 token 渲染行为与修复前一致（SSE 重放只改事件到达节奏，不改页面逻辑）。
 - 开发者工具/真机最终渲染无法在本环境自动化实测，合入后需人工确认一轮。
 
-## 5. 边界与后续
+## 5. issue 82：首帧鉴权恢复隧道下真流式
 
-- 重放是**体感修复**而非真流式：首 token 等待 = WS 尝试 + 整段 SSE 下载，长回复这段空窗仍在（等待态动画覆盖）。要隧道下真流式须换 TCP 级透传工具（如 ngrok），cpolar 剥头无解。
-- devtools 模拟器勾选"忽略域名/证书检查"后 WS 可用，该环境本来就是真流式，本次改动无影响。
-- `my.request` 无 `enableChunked` 类增量读取能力（支付宝平台限制），端侧无法把 SSE 降级做成真流式，重放是当前约束下的最优解。
+截图再次出现"默认等待很久，最后 thinking 和正文一起蹦出"，Node 最小反馈环也证明 `my.request.success` 之前没有任何 thinking。这说明 SSE 重放只能改善完成后的呈现，不能改善 TTFT，也不能显示模型正在发生的思考。
+
+最终修复将患者 JWT 从 WebSocket Upgrade header 移到连接内第一条消息：
+
+1. `/api/c/chat/ws` 的 HTTP Upgrade 精确放行，但不因此建立患者身份；其他 HTTP API 的 `AuthFilter` 边界不变。
+2. 客户端 `onOpen` 发送 `{type: "auth", data: {token}}`，JWT 不进入 URL 或 Upgrade header。
+3. server-java 校验签名、有效期和 `scope=c_patient`，回复 `authenticated` 后才接受 `chat`；未认证、无效令牌、staff scope 和重复认证均确定性拒绝。
+4. 客户端收到 `authenticated` 后才完成 `connect()` 并发送 `chat`；认证无回执超过 5 秒则关闭 WS 并降级 SSE，避免半开连接无限等待。
+
+cpolar 仍会重建 Upgrade 并剥离自定义头，但会正常透传连接内消息，因此不再阻断聊天 WS。主路径恢复真实 `meta/thinking/token` 逐帧抵达；SSE 按节奏重放只保留为网络失败兜底。
+
+## 6. 当前边界
+
+- SSE 重放仍是**体感修复**而非真流式：`my.request` 没有增量响应 API，首事件只能等完整响应下载完成。
+- 主路径的 TTFT 由登录态就绪、WS 建连、首帧认证、server-java 受理和 server-py 首事件共同组成，不再额外等待整段模型响应。
+- 开发者工具/真机需确认首个 `meta/thinking` 在最终 `message` 之前可见；该 GUI 验收由开发者执行。

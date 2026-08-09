@@ -10,7 +10,7 @@
 - `.scratch/application-local-wss.yml`：本地 WSS 覆盖配置（8443 + 自签证书）
 - `.scratch/wss-probe.py`：本次诊断用的原始字节捕获探针（保留备用）
 
-## 1. 支付宝开发者工具会给自定义 header 值包一层字面双引号
+## 1. 支付宝开发者工具会给自定义 header 值包一层字面双引号（历史握手方案）
 
 这是"WebSocket 建连失败"的真正根因。开发者工具（Electron 运行时）把 `my.connectSocket` 的 `header` 参数值整体 JSON 序列化后发出，线上实际是：
 
@@ -26,7 +26,7 @@ Sec-WebSocket-Protocol: "bearer, faketoken123"
 - `my.request` 的 header **没有**这个问题，只有 `connectSocket` 被污染；
 - 证书、token 有效期、域名白名单当时全部正常，都是干扰项。
 
-处置：小程序改经 `Authorization: Bearer …` 携带 JWT（即票 34 checklist 的原始设计）；`AuthFilter` 解析 `Authorization` 与 `Sec-WebSocket-Protocol` 前剥离成对外层引号，对真机与标准客户端是 no-op（`AuthFilterTest` 有对应用例）。
+当时的处置是经 `Authorization: Bearer …` 携带 JWT，并在 `AuthFilter` 剥离外层引号。issue 82 后聊天 WebSocket 已不再使用 Upgrade header 鉴权，而在连接建立后发送 `auth` 首帧；剥引号逻辑仍服务于其他受保护 HTTP 请求和历史兼容，不应重新用于聊天 WS。
 
 ## 2. 字节级探针是定位客户端协议行为的唯一可靠手段
 
@@ -73,12 +73,13 @@ uvicorn.run('app.main:app', app_dir='server-py', host='0.0.0.0', port=8000)
 - 本地模拟器：勾选"忽略域名/证书检查"后 `ws://127.0.0.1:8080` 理论上可用；票 34 当时记录 ws://"必失败"因而走 SSE，但按第 1 节的发现回看，那次失败很可能是同一个引号 header bug（握手 401），而非 ws 协议本身被拒——当时没有字节级证据。
 - 建议：统一 WSS。本地 8443 覆盖配置（`.scratch/application-local-wss.yml` + 自签证书入系统信任库）一次配置长期有效；真机与云演示反正要 WSS，双协议只会让本地与真机行为分叉，排错成本远高于一张本地证书。
 
-## 6. 真机预览走 cpolar 隧道：WS 升级请求会被剥掉自定义头（2026-08-07）
+## 6. 真机预览走 cpolar 隧道：Upgrade 会剥头，连接内首帧可透传（2026-08-07，2026-08-09 修订）
 
 真机预览若不用 devtools 调试代理，可用 cpolar 隧道把本地 8080 暴露为受信任 HTTPS 域名（客户端与本地配置在 `.scratch/cpolar/`，已 gitignore）。实测（`.scratch` 回显服务器验证）：
 
 - 普通 HTTP/HTTPS 请求头原样透传，登录、鉴权接口、SSE 对话流全部正常；
-- 但 **WebSocket 升级请求由 cpolar 的 Go 客户端代为发起**（User-Agent 被改写为 `Go-http-client/1.1`、`Sec-WebSocket-Key` 重新生成），`Authorization` 等自定义头全部丢失，握手必然 401"未认证或令牌无效"。本地直连同一 token 握手 101，可据此区分是隧道行为而非服务端问题。
-- 结论：cpolar 隧道下小程序对话 WS 实时通道不可用，只能走 `chat-stream.js` 的 SSE 降级。SSE 降级是整段响应一次性到达（`my.request` 不支持增量读取），端侧已改为按节奏重放 token/thinking 事件恢复逐字体感（诊断与修复全程见 `docs/engineering-notes/sse-fallback-streaming-replay.md`）；需要隧道下真流式时换 TCP 级透传的工具（如 ngrok），不要试图在 cpolar 配置里找开关。
-- 真机侧报错特征：`my.connectSocket` 报 `error: 8 / Invalid Sec-WebSocket-Accept response.`——握手响应没有合法的 accept（隧道剥离 `Authorization` 后 server-java 返回 401，无 accept 头），看到这个错误串即可认定是隧道剥头而非证书/域名问题（2026-08-08 实测复现：同 token 直连 101、经隧道 401）。
+- **WebSocket 升级请求由 cpolar 的 Go 客户端代为发起**（User-Agent 被改写为 `Go-http-client/1.1`、`Sec-WebSocket-Key` 重新生成），`Authorization` 等自定义头会丢失。issue 82 之前这会让 server-java 返回 401；本地直连同一 token 101、经隧道 401 是当时确认根因的关键证据。
+- issue 82 将聊天 WS 改为消息层鉴权：`/api/c/chat/ws` 只放行 Upgrade，不建立患者身份；客户端连接后首帧发送 `auth`，server-java 校验患者 JWT 并回复 `authenticated`，之后才允许 `chat`。JWT 不进 URL，也不再依赖 cpolar 无法保留的 Upgrade header。cpolar 能透传连接内帧，因此主路径恢复真实 thinking/token 流。
+- `error: 8 / Invalid Sec-WebSocket-Accept response.` 是旧方案下 server-java 返回 401、响应没有合法 accept 的典型特征。新方案若再次出现该错误，应先检查部署代码是否包含 issue 82、路径是否精确为 `/api/c/chat/ws`，再排查证书和隧道，不要继续向 Upgrade header 塞 token。
+- `chat-stream.js` 仍保留 SSE 降级。它只能在整段响应到达后按节奏重放 token/thinking，不能改善真实 TTFT；认证回执 5 秒超时或 WS 网络失败时才使用。完整诊断见 `docs/engineering-notes/sse-fallback-streaming-replay.md`。
 - cpolar 免费版域名每次重启随机变化，换域名后只需改 `miniprogram/utils/config.js` 顶部的 `TUNNEL_API_BASE_URL`（该改动仅限本地，勿提交）。模拟器/真机的地址选择由 config.js 的 localhost 探活机制自动完成——devtools 会把 platform/brand 伪装成 iPhone，`getSystemInfo` 无法区分，不要再用它做环境判断。

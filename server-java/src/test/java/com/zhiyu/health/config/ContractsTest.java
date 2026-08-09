@@ -130,11 +130,14 @@ class ContractsTest {
     @Test
     void realtimeEnvelopeAndRoundStatusesAreLoaded() {
         assertThat(contracts.chatRealtime().websocketPath()).isEqualTo("/api/c/chat/ws");
-        assertThat(contracts.chatRealtime().envelopeTypes()).containsExactly("chat", "accepted", "event", "error");
+        assertThat(contracts.chatRealtime().envelopeTypes())
+                .containsExactly("auth", "authenticated", "chat", "accepted", "event", "error");
         assertThat(contracts.chatRealtime().roundStatuses())
                 .containsExactly("ACCEPTED", "RUNNING", "COMPLETED", "FAILED");
         // 命名访问器与契约顺序的映射钉死：消费侧一律经访问器取契约值，不得再硬编码字面量
         Contracts.ChatRealtime realtime = contracts.chatRealtime();
+        assertThat(realtime.authEnvelope()).isEqualTo("auth");
+        assertThat(realtime.authenticatedEnvelope()).isEqualTo("authenticated");
         assertThat(realtime.chatEnvelope()).isEqualTo("chat");
         assertThat(realtime.acceptedEnvelope()).isEqualTo("accepted");
         assertThat(realtime.eventEnvelope()).isEqualTo("event");
