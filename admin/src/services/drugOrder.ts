@@ -14,7 +14,8 @@ export interface DrugOrderItem {
 export interface DrugOrder {
   id: number;
   patient_id: number;
-  prescription_id: number;
+  patient_name?: string;
+  prescription_id: number | null;
   status: DrugOrderStatus;
   status_label: string;
   total_amount: number;

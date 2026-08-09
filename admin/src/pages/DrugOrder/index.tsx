@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
+import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, Tooltip, type TableColumnsType } from 'antd';
 import { orderStatusLabels, orderStatuses } from '@/contracts/order';
 import {
   cancelDrugOrder,
@@ -12,6 +12,7 @@ import {
 } from '@/services/drugOrder';
 import StatCards from '@/components/StatCards';
 import PageHead from '@/components/PageHead';
+import { formatDateTime, formatRelativeTime } from '@/utils/time';
 
 const statusColors: Record<string, string> = {
   [orderStatuses.unpaid]: 'gold',
@@ -48,10 +49,26 @@ export default function DrugOrderPage() {
 
   const columns = useMemo<TableColumnsType<DrugOrder>>(() => [
     { title: '订单', dataIndex: 'id', width: 90, render: (value) => `#${value}` },
-    { title: '患者 ID', dataIndex: 'patient_id', width: 100 },
-    { title: '电子处方', dataIndex: 'prescription_id', width: 110, render: (value) => `#${value}` },
+    {
+      title: '患者', dataIndex: 'patient_name', width: 130,
+      render: (name, row) => (
+        <div>
+          <div>{name || `#${row.patient_id}`}</div>
+          <div style={{ color: '#bfbfbf', fontSize: 12 }}>ID: {row.patient_id}</div>
+        </div>
+      ),
+    },
+    {
+      title: '电子处方', dataIndex: 'prescription_id', width: 110,
+      render: (value) => (value ? `#${value}` : <Tag>非处方药</Tag>),
+    },
     { title: '金额（元）', dataIndex: 'total_amount', width: 120, render: (value) => Number(value).toFixed(2) },
-    { title: '创建时间', dataIndex: 'created_at', width: 220, render: (value) => value || '-' },
+    {
+      title: '创建时间', dataIndex: 'created_at', width: 160,
+      render: (value: string) => value
+        ? <Tooltip title={formatDateTime(value)}>{formatRelativeTime(value)}</Tooltip>
+        : '-',
+    },
     { title: '状态', dataIndex: 'status', width: 100, render: (value: string, row) => <Tag color={statusColors[value]}>{row.status_label}</Tag> },
     {
       title: '操作', width: 250, render: (_, row) => <Space>
@@ -92,10 +109,11 @@ export default function DrugOrderPage() {
         onClose={() => setDetail(undefined)}>
         {detail && <>
           <Descriptions column={2} bordered size="small" items={[
-            { key: 'patient', label: '患者 ID', children: detail.patient_id },
-            { key: 'prescription', label: '电子处方', children: `#${detail.prescription_id}` },
+            { key: 'patient', label: '患者', children: detail.patient_name || `#${detail.patient_id}` },
+            { key: 'prescription', label: '电子处方', children: detail.prescription_id ? `#${detail.prescription_id}` : '非处方药' },
             { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
             { key: 'amount', label: '订单金额', children: `¥${Number(detail.total_amount).toFixed(2)}` },
+            { key: 'createdAt', label: '创建时间', children: formatDateTime(detail.created_at) },
           ]} />
           <Table style={{ marginTop: 20 }} rowKey={(item) => `${item.medication_id}-${item.name}`}
             pagination={false} dataSource={detail.items} columns={[
