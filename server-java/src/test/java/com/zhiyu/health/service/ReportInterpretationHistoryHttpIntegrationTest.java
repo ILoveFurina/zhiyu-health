@@ -9,11 +9,19 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
-import com.zhiyu.health.controller.c.ReportInterpretationController;
-import com.zhiyu.health.entity.ReportInterpretation;
-import com.zhiyu.health.mapper.HealthObservationMapper;
-import com.zhiyu.health.mapper.ReportInterpretationMapper;
-import com.zhiyu.health.service.mapping.ReportInterpretationDtoMapper;
+import com.zhiyu.health.controller.patient.health.ReportInterpretationController;
+import com.zhiyu.health.entity.health.ReportInterpretation;
+import com.zhiyu.health.mapper.health.HealthObservationMapper;
+import com.zhiyu.health.mapper.health.ReportInterpretationMapper;
+import com.zhiyu.health.service.chat.ConversationService;
+import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.health.HealthObservationMapping;
+import com.zhiyu.health.service.health.HealthObservationService;
+import com.zhiyu.health.service.health.HealthProfileService;
+import com.zhiyu.health.service.health.ReportInterpretationPersistence;
+import com.zhiyu.health.service.health.ReportInterpretationService;
+import com.zhiyu.health.service.health.ReportUploadStagingService;
+import com.zhiyu.health.service.health.mapping.ReportInterpretationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.util.List;

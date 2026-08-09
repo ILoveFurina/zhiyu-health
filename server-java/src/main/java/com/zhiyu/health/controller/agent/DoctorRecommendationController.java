@@ -1,7 +1,7 @@
 package com.zhiyu.health.controller.agent;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.zhiyu.health.service.DoctorRecommendationService;
+import com.zhiyu.health.service.organization.DoctorRecommendationService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import java.util.List;

@@ -10,8 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import com.zhiyu.health.controller.c.mapping.HealthProfileInputMapper;
-import com.zhiyu.health.service.HealthProfileService;
+import com.zhiyu.health.controller.patient.health.HealthProfileController;
+import com.zhiyu.health.controller.patient.health.mapping.HealthProfileInputMapper;
+import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import java.time.LocalDate;
 import java.util.List;

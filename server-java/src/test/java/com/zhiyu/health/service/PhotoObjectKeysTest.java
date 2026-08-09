@@ -3,6 +3,7 @@ package com.zhiyu.health.service;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zhiyu.health.service.vision.PhotoObjectKeys;
 import org.junit.jupiter.api.Test;
 
 /** MinIO object key 格式校验：危险输入触发拒绝，合法 key 不误触。 */

@@ -9,8 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.service.MedCheckinService;
-import com.zhiyu.health.service.MedCheckinView;
+import com.zhiyu.health.controller.patient.prescription.MedCheckinController;
+import com.zhiyu.health.service.prescription.MedCheckinService;
+import com.zhiyu.health.service.prescription.MedCheckinView;
 import com.zhiyu.health.support.StaffTokens;
 import java.time.LocalDate;
 import java.util.List;

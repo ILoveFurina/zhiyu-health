@@ -2,6 +2,7 @@ package com.zhiyu.health.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import java.time.Clock;
 import java.time.Instant;

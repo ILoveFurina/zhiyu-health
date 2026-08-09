@@ -2,7 +2,7 @@ package com.zhiyu.health.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhiyu.health.entity.Message;
+import com.zhiyu.health.entity.chat.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
@@ -392,7 +392,7 @@ class ContractsConsistencyTest {
         // 漂移会让 C 端时间线出现契约外类型（ mapper 无法注入 Contracts，只能在此钉死）。
         String sql = String.join(
                 "\n",
-                com.zhiyu.health.mapper.HealthProfileMapper.class
+                com.zhiyu.health.mapper.health.HealthProfileMapper.class
                         .getMethod("selectTimeline", long.class, long.class)
                         .getAnnotation(org.apache.ibatis.annotations.Select.class)
                         .value());

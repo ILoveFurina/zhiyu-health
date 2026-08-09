@@ -11,8 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.entity.Message;
-import com.zhiyu.health.service.ConversationService;
+import com.zhiyu.health.controller.patient.chat.ConversationController;
+import com.zhiyu.health.entity.chat.Message;
+import com.zhiyu.health.service.chat.ConversationService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;

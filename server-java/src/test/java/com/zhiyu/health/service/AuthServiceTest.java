@@ -1,21 +1,21 @@
 package com.zhiyu.health.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.mapper.StaffUserMapper;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.nio.charset.StandardCharsets;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.mapper.common.StaffUserMapper;
+import com.zhiyu.health.service.common.AuthService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /** 认证逻辑：口令校验、令牌 claims（scope=staff + role，AuthFilter 依赖） */
 class AuthServiceTest {
@@ -24,8 +24,7 @@ class AuthServiceTest {
 
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private final AuthService authService =
-            new AuthService(staffUserMapper, passwordEncoder, SECRET, 480);
+    private final AuthService authService = new AuthService(staffUserMapper, passwordEncoder, SECRET, 480);
 
     private StaffUser storedStaff(String password) {
         StaffUser staff = new StaffUser();

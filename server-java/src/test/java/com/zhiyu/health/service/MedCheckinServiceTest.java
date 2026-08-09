@@ -10,13 +10,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.MedCheckinRecord;
-import com.zhiyu.health.entity.Prescription;
-import com.zhiyu.health.entity.PrescriptionItem;
-import com.zhiyu.health.mapper.MedCheckinRecordMapper;
-import com.zhiyu.health.mapper.PrescriptionItemMapper;
-import com.zhiyu.health.mapper.PrescriptionMapper;
-import com.zhiyu.health.service.mapping.MedCheckinDtoMapper;
+import com.zhiyu.health.entity.prescription.MedCheckinRecord;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.entity.prescription.PrescriptionItem;
+import com.zhiyu.health.mapper.prescription.MedCheckinRecordMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.consultation.ClinicalContextService;
+import com.zhiyu.health.service.health.HealthProfileService;
+import com.zhiyu.health.service.prescription.MedCheckinService;
+import com.zhiyu.health.service.prescription.MedCheckinView;
+import com.zhiyu.health.service.prescription.mapping.MedCheckinDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.time.LocalDate;
@@ -236,8 +240,8 @@ class MedCheckinServiceTest {
         return r;
     }
 
-    private com.zhiyu.health.entity.HealthProfile profile(long id) {
-        com.zhiyu.health.entity.HealthProfile p = new com.zhiyu.health.entity.HealthProfile();
+    private com.zhiyu.health.entity.health.HealthProfile profile(long id) {
+        com.zhiyu.health.entity.health.HealthProfile p = new com.zhiyu.health.entity.health.HealthProfile();
         p.setId(id);
         return p;
     }

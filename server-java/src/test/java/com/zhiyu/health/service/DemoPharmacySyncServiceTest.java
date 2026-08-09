@@ -5,8 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.zhiyu.health.service.DemoPharmacySyncService.PharmacyStockView;
-import com.zhiyu.health.service.DemoPharmacySyncService.SyncResult;
+import com.zhiyu.health.service.demo.DemoPharmacySyncService;
+import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockView;
+import com.zhiyu.health.service.demo.DemoPharmacySyncService.SyncResult;
 import org.junit.jupiter.api.Test;
 
 /** Mock 药店库存同步（票 48）：fixture 加载、同步时间进程内流转（未同步 → 已同步）。 */

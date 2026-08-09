@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.service.HospitalRecommendationService;
+import com.zhiyu.health.service.organization.HospitalRecommendationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -13,9 +13,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.MinioStorageService;
-import com.zhiyu.health.service.MinioStorageService.PhotoContent;
+import com.zhiyu.health.controller.staff.organization.DoctorPhotoController;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.common.MinioStorageService.PhotoContent;
 import com.zhiyu.health.support.StaffTokens;
 import java.io.ByteArrayInputStream;
 import java.util.List;

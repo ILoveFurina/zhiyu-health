@@ -12,10 +12,11 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.entity.Payment;
-import com.zhiyu.health.mapper.PaymentMapper;
-import com.zhiyu.health.service.PaymentService;
-import com.zhiyu.health.service.mapping.PaymentDtoMapper;
+import com.zhiyu.health.controller.staff.appointment.PaymentController;
+import com.zhiyu.health.entity.appointment.Payment;
+import com.zhiyu.health.mapper.appointment.PaymentMapper;
+import com.zhiyu.health.service.appointment.PaymentService;
+import com.zhiyu.health.service.appointment.mapping.PaymentDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

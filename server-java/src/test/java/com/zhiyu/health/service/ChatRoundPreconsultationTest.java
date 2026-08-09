@@ -14,9 +14,15 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.ChatRound;
-import com.zhiyu.health.entity.PreconsultationDraft;
+import com.zhiyu.health.entity.chat.ChatRound;
+import com.zhiyu.health.entity.chat.PreconsultationDraft;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
+import com.zhiyu.health.service.chat.AgentCallLogService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
+import com.zhiyu.health.service.chat.ChatRoundPersistence;
+import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.PreconsultationService;
+import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -135,7 +141,7 @@ class ChatRoundPreconsultationTest {
 
         List<String> observed = fixture.handle
                 .events()
-                .map(ChatRoundService.Event::event)
+                .map(ChatRoundModels.Event::event)
                 .collectList()
                 .block(Duration.ofSeconds(1));
         assertThat(observed).containsExactly("message", "done");
@@ -165,12 +171,12 @@ class ChatRoundPreconsultationTest {
         ChatRound round = fixture.round("ACCEPTED", 77L);
         when(fixture.persistence.find(12L, "req-red")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-red", 77L, "我突然昏迷了")).thenReturn(round);
-        com.zhiyu.health.entity.Message warning = new com.zhiyu.health.entity.Message();
+        com.zhiyu.health.entity.chat.Message warning = new com.zhiyu.health.entity.chat.Message();
         warning.setId(41L);
         when(fixture.persistence.completeRedFlag(eq(round), anyString())).thenReturn(warning);
 
         fixture.service.accept(
-                new ChatRoundService.Command(12L, "req-red", null, "我突然昏迷了", null, null, null, null, null, null, 5L));
+                new ChatRoundModels.Command(12L, "req-red", null, "我突然昏迷了", null, null, null, null, null, null, 5L));
 
         // 红线轮次不调 Agent、不更新摘要快照；草稿只承担场景与档案绑定
         verify(fixture.agentClient, never()).chat(any());
@@ -189,7 +195,7 @@ class ChatRoundPreconsultationTest {
         private final Sinks.Many<ServerSentEvent<String>> upstream =
                 Sinks.many().replay().all();
         private final ChatRoundService service;
-        private ChatRoundService.Handle handle;
+        private ChatRoundModels.Handle handle;
 
         private Fixture() {
             when(agentClient.chat(any())).thenReturn(upstream.asFlux());
@@ -226,8 +232,8 @@ class ChatRoundPreconsultationTest {
             return round;
         }
 
-        private ChatRoundService.Command command(String requestId, Long draftId, String scenario) {
-            return new ChatRoundService.Command(
+        private ChatRoundModels.Command command(String requestId, Long draftId, String scenario) {
+            return new ChatRoundModels.Command(
                     12L, requestId, null, "我咳嗽三天了", null, scenario, null, null, null, null, draftId);
         }
 

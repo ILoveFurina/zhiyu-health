@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zhiyu.health.service.common.DisclaimerService;
 import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.Test;
 

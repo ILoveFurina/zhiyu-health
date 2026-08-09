@@ -15,22 +15,25 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.ConsultationRecord;
-import com.zhiyu.health.entity.InAppMessage;
-import com.zhiyu.health.entity.OnlineConsultation;
-import com.zhiyu.health.entity.OnlineConsultationMessage;
-import com.zhiyu.health.entity.PreconsultationDraft;
-import com.zhiyu.health.entity.Prescription;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.mapper.ConsultationRecordMapper;
-import com.zhiyu.health.mapper.HealthProfileAllergyMapper;
-import com.zhiyu.health.mapper.InAppMessageMapper;
-import com.zhiyu.health.mapper.OnlineConsultationMapper;
-import com.zhiyu.health.mapper.OnlineConsultationMessageMapper;
-import com.zhiyu.health.mapper.PreconsultationDraftMapper;
-import com.zhiyu.health.mapper.PrescriptionMapper;
-import com.zhiyu.health.mapper.StaffUserMapper;
-import com.zhiyu.health.service.mapping.OnlineConsultationDtoMapper;
+import com.zhiyu.health.entity.chat.PreconsultationDraft;
+import com.zhiyu.health.entity.common.InAppMessage;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.consultation.ConsultationRecord;
+import com.zhiyu.health.entity.consultation.OnlineConsultation;
+import com.zhiyu.health.entity.consultation.OnlineConsultationMessage;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.mapper.chat.PreconsultationDraftMapper;
+import com.zhiyu.health.mapper.common.InAppMessageMapper;
+import com.zhiyu.health.mapper.common.StaffUserMapper;
+import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
+import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
+import com.zhiyu.health.mapper.consultation.OnlineConsultationMessageMapper;
+import com.zhiyu.health.mapper.health.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.consultation.OnlineConsultationService;
+import com.zhiyu.health.service.consultation.OnlineConsultationViews;
+import com.zhiyu.health.service.consultation.mapping.OnlineConsultationDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.time.OffsetDateTime;
@@ -66,7 +69,7 @@ class OnlineConsultationServiceTest {
         OnlineConsultation existing = f.consultation("WAITING_DOCTOR");
         when(f.consultationMapper.selectLatestByDraftId(5L)).thenReturn(existing);
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.confirm(12L, 5L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.confirm(12L, 5L);
 
         assertThat(detail.id()).isEqualTo(21L);
         assertThat(detail.status()).isEqualTo("WAITING_DOCTOR");
@@ -83,7 +86,7 @@ class OnlineConsultationServiceTest {
         when(f.draftMapper.markSubmitted(eq(5L), eq("SUBMITTED"), eq("COLLECTING"), eq("PENDING_CONFIRM")))
                 .thenReturn(1);
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.confirm(12L, 5L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.confirm(12L, 5L);
 
         ArgumentCaptor<OnlineConsultation> inserted = ArgumentCaptor.forClass(OnlineConsultation.class);
         verify(f.consultationMapper).insert(inserted.capture());
@@ -149,7 +152,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.selectActiveByProfile(3L, "WAITING_DOCTOR", "IN_PROGRESS"))
                 .thenReturn(active);
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.confirm(12L, 5L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.confirm(12L, 5L);
 
         // 并发确认撞部分唯一索引：幂等回放既有活跃单，不产生第二张问诊单
         assertThat(detail.id()).isEqualTo(21L);
@@ -168,7 +171,7 @@ class OnlineConsultationServiceTest {
                 .thenReturn(1);
         when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("CANCELLED"));
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.cancel(12L, 21L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.cancel(12L, 21L);
 
         assertThat(detail.status()).isEqualTo("CANCELLED");
         assertThat(detail.progressStep()).isNull();
@@ -180,7 +183,7 @@ class OnlineConsultationServiceTest {
         Fixture f = new Fixture();
         when(f.consultationMapper.selectDetailedByIdAndPatient(21L, 12L)).thenReturn(f.consultation("CANCELLED"));
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.cancel(12L, 21L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.cancel(12L, 21L);
 
         assertThat(detail.status()).isEqualTo("CANCELLED");
         verify(f.consultationMapper, never()).cancel(anyLong(), anyLong(), anyString(), anyString());
@@ -204,7 +207,7 @@ class OnlineConsultationServiceTest {
         // Fixture 的 insert 答案对 draftId=5 回填 id 21，重读按同一 id 打桩
         when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("WAITING_DOCTOR"));
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.resubmit(12L, 21L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.resubmit(12L, 21L);
 
         ArgumentCaptor<OnlineConsultation> inserted = ArgumentCaptor.forClass(OnlineConsultation.class);
         verify(f.consultationMapper).insert(inserted.capture());
@@ -238,7 +241,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.selectActiveByProfile(3L, "WAITING_DOCTOR", "IN_PROGRESS"))
                 .thenReturn(f.consultation("IN_PROGRESS"));
 
-        OnlineConsultationService.ConsultationDetail detail = f.service.resubmit(12L, 21L);
+        OnlineConsultationViews.ConsultationDetail detail = f.service.resubmit(12L, 21L);
 
         assertThat(detail.status()).isEqualTo("IN_PROGRESS");
     }
@@ -267,7 +270,7 @@ class OnlineConsultationServiceTest {
                 .thenReturn(List.of(f.consultation("WAITING_DOCTOR")));
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of("青霉素"));
 
-        List<OnlineConsultationService.DoctorListItem> pool = f.service.pool(8L);
+        List<OnlineConsultationViews.DoctorListItem> pool = f.service.pool(8L);
 
         assertThat(pool).hasSize(1);
         assertThat(pool.get(0).standardDepartmentId()).isEqualTo(2L);
@@ -354,7 +357,7 @@ class OnlineConsultationServiceTest {
                 .thenReturn(1);
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
 
-        OnlineConsultationService.DoctorConsultationDetail detail = f.service.accept(8L, 21L);
+        OnlineConsultationViews.DoctorConsultationDetail detail = f.service.accept(8L, 21L);
 
         assertThat(detail.status()).isEqualTo("IN_PROGRESS");
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
@@ -428,7 +431,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.startMethod(21L, 3L, "IN_PROGRESS", "VIDEO")).thenReturn(1);
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
 
-        OnlineConsultationService.DoctorConsultationDetail detail = f.service.startMethod(8L, 21L, "VIDEO");
+        OnlineConsultationViews.DoctorConsultationDetail detail = f.service.startMethod(8L, 21L, "VIDEO");
 
         assertThat(detail.consultMethod()).isEqualTo("VIDEO");
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
@@ -499,7 +502,7 @@ class OnlineConsultationServiceTest {
         OnlineConsultation initiated = f.consultation("IN_PROGRESS");
         initiated.setConsultMethod("TEXT");
         when(f.consultationMapper.selectDetailedByIdAndPatient(23L, 12L)).thenReturn(initiated);
-        OnlineConsultationService.MessageView sent = f.service.sendMessageForPatient(12L, 23L, "医生你好");
+        OnlineConsultationViews.MessageView sent = f.service.sendMessageForPatient(12L, 23L, "医生你好");
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
         verify(f.messageMapper).insert(message.capture());
         assertThat(message.getValue().getSenderType()).isEqualTo("PATIENT");
@@ -545,7 +548,7 @@ class OnlineConsultationServiceTest {
         // 真实 JPEG magic bytes（FF D8 FF），content-type 声明 image/jpeg
         MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", JPEG_BYTES);
 
-        OnlineConsultationService.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
+        OnlineConsultationViews.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
 
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
         verify(f.messageMapper).insert(message.capture());
@@ -568,7 +571,7 @@ class OnlineConsultationServiceTest {
         // content-type 为 octet-stream 但字节头是真 PNG magic bytes
         MockMultipartFile file = new MockMultipartFile("file", "file", "application/octet-stream", PNG_BYTES);
 
-        OnlineConsultationService.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
+        OnlineConsultationViews.MessageView sent = f.service.sendImageForPatient(12L, 23L, file);
 
         ArgumentCaptor<OnlineConsultationMessage> message = ArgumentCaptor.forClass(OnlineConsultationMessage.class);
         verify(f.messageMapper).insert(message.capture());
@@ -655,7 +658,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.complete(21L, 3L, "IN_PROGRESS", "COMPLETED")).thenReturn(1);
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
 
-        OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
+        OnlineConsultationViews.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
 
         assertThat(detail.status()).isEqualTo("COMPLETED");
         assertThat(detail.diagnosis()).isEqualTo("急性上呼吸道感染");
@@ -679,7 +682,7 @@ class OnlineConsultationServiceTest {
         when(f.consultationMapper.selectDetailedById(21L)).thenReturn(f.consultation("COMPLETED"));
         when(f.allergyMapper.selectAllergens(3L)).thenReturn(List.of());
 
-        OnlineConsultationService.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
+        OnlineConsultationViews.DoctorConsultationDetail detail = f.service.complete(8L, 21L, "急性上呼吸道感染", "清淡饮食");
 
         assertThat(detail.status()).isEqualTo("COMPLETED");
         verify(f.consultationMapper, never()).complete(anyLong(), anyLong(), anyString(), anyString());
@@ -750,7 +753,7 @@ class OnlineConsultationServiceTest {
         rejected.setReviewReason("用法用量需调整");
         when(f.prescriptionMapper.selectByOnlineConsultationId(21L)).thenReturn(rejected);
 
-        OnlineConsultationService.ConsultationPrescriptionView view = f.service.prescriptionForConsultation(8L, 21L);
+        OnlineConsultationViews.ConsultationPrescriptionView view = f.service.prescriptionForConsultation(8L, 21L);
 
         assertThat(view.id()).isEqualTo(31L);
         assertThat(view.status()).isEqualTo("REJECTED");

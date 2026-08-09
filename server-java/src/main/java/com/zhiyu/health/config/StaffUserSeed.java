@@ -1,8 +1,8 @@
 package com.zhiyu.health.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.mapper.common.StaffUserMapper;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;

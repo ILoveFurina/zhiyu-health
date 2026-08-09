@@ -7,9 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import com.zhiyu.health.entity.Patient;
-import com.zhiyu.health.service.PatientService;
-import com.zhiyu.health.service.PatientTokenService;
+import com.zhiyu.health.controller.patient.common.CAuthController;
+import com.zhiyu.health.entity.common.Patient;
+import com.zhiyu.health.service.common.PatientService;
+import com.zhiyu.health.service.common.PatientTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;

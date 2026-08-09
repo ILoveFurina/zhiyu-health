@@ -1,6 +1,6 @@
 package com.zhiyu.health.config;
 
-import com.zhiyu.health.controller.c.ChatWebSocketHandler;
+import com.zhiyu.health.controller.patient.chat.ChatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;

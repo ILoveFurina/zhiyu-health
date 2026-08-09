@@ -7,8 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.PrescriptionService;
+import com.zhiyu.health.controller.staff.prescription.PrescriptionReviewController;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.service.prescription.PrescriptionService;
 import com.zhiyu.health.support.StaffTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;

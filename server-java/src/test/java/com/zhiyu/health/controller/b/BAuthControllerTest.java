@@ -1,19 +1,20 @@
 package com.zhiyu.health.controller.b;
 
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.AuthService;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.zhiyu.health.controller.staff.common.BAuthController;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.service.common.AuthService;
 import com.zhiyu.health.support.StaffTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** B 端认证 seam：登录签发令牌、/me 返回资料；字段锁 snake_case（票 02 契约） */
 @WebMvcTest(BAuthController.class)
@@ -74,8 +75,7 @@ class BAuthControllerTest {
         staff.setDoctorId(1L);
         when(authService.profile(7L)).thenReturn(staff);
 
-        mockMvc.perform(get("/api/b/auth/me")
-                        .with(StaffTokens.withSubject("7", StaffUser.ROLE_DOCTOR)))
+        mockMvc.perform(get("/api/b/auth/me").with(StaffTokens.withSubject("7", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("doctor.lin"))
                 .andExpect(jsonPath("$.role").value("doctor"))
@@ -86,15 +86,13 @@ class BAuthControllerTest {
     void meRejectsDeletedAccount() throws Exception {
         when(authService.profile(7L)).thenReturn(null);
 
-        mockMvc.perform(get("/api/b/auth/me")
-                        .with(StaffTokens.withSubject("7", StaffUser.ROLE_DOCTOR)))
+        mockMvc.perform(get("/api/b/auth/me").with(StaffTokens.withSubject("7", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("登录已失效"));
     }
 
     @Test
     void meRejectsMissingToken() throws Exception {
-        mockMvc.perform(get("/api/b/auth/me"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/b/auth/me")).andExpect(status().isUnauthorized());
     }
 }

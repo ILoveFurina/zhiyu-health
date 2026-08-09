@@ -10,10 +10,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.zhiyu.health.entity.ScheduleRequest;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.service.ScheduleRequestService;
+import com.zhiyu.health.controller.staff.scheduling.ScheduleRequestDoctorController;
+import com.zhiyu.health.controller.staff.scheduling.ScheduleReviewController;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.scheduling.ScheduleRequest;
+import com.zhiyu.health.entity.scheduling.TimeSlot;
+import com.zhiyu.health.service.scheduling.ScheduleRequestService;
 import com.zhiyu.health.support.StaffTokens;
 import java.time.LocalDate;
 import java.util.List;

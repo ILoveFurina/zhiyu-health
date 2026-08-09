@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.mapper.StaffUserMapper;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.mapper.common.StaffUserMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

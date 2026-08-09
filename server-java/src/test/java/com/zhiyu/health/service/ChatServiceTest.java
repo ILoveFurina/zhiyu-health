@@ -11,7 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.controller.c.ChatController;
+import com.zhiyu.health.controller.patient.chat.ChatController;
+import com.zhiyu.health.service.chat.ChatRoundModels;
+import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatService;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -28,7 +31,7 @@ class ChatServiceTest {
 
     @Test
     void failureBeforeFirstEventPropagatesAsHttpError() throws Exception {
-        Sinks.Many<ChatRoundService.Event> upstream = Sinks.many().replay().all();
+        Sinks.Many<ChatRoundModels.Event> upstream = Sinks.many().replay().all();
         MockMvc mvc = mvc(upstream);
         MvcResult result = start(mvc);
 
@@ -39,12 +42,12 @@ class ChatServiceTest {
 
     @Test
     void failureAfterEventsCompletesQuietlyWithoutConverterNoise() throws Exception {
-        Sinks.Many<ChatRoundService.Event> upstream = Sinks.many().replay().all();
+        Sinks.Many<ChatRoundModels.Event> upstream = Sinks.many().replay().all();
         MockMvc mvc = mvc(upstream);
         MvcResult result = start(mvc);
 
         upstream.tryEmitNext(
-                new ChatRoundService.Event("meta", mapper.createObjectNode().put("conversation_id", 7)));
+                new ChatRoundModels.Event("meta", mapper.createObjectNode().put("conversation_id", 7)));
         upstream.tryEmitError(new RuntimeException("upstream boom"));
 
         String body = mvc.perform(asyncDispatch(result))
@@ -58,9 +61,9 @@ class ChatServiceTest {
         assertThat(body).doesNotContain("upstream boom");
     }
 
-    private MockMvc mvc(Sinks.Many<ChatRoundService.Event> upstream) {
+    private MockMvc mvc(Sinks.Many<ChatRoundModels.Event> upstream) {
         ChatRoundService rounds = mock(ChatRoundService.class);
-        when(rounds.accept(any())).thenReturn(new ChatRoundService.Handle("req-1", 7L, "ACCEPTED", upstream.asFlux()));
+        when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-1", 7L, "ACCEPTED", upstream.asFlux()));
         return MockMvcBuilders.standaloneSetup(new ChatController(new ChatService(rounds, mapper)))
                 .setMessageConverters(
                         new StringHttpMessageConverter(StandardCharsets.UTF_8),
