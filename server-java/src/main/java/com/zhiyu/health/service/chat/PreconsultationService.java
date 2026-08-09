@@ -61,6 +61,19 @@ public class PreconsultationService {
         return toView(requireOwned(patientId, draftId));
     }
 
+    /** 患者显式放弃未提交草稿；终态重复调用幂等返回，已提交草稿不可放弃。 */
+    public DraftView abandon(long patientId, long draftId) {
+        PreconsultationDraft draft = requireOwned(patientId, draftId);
+        if (abandoned().equals(draft.getStatus())) {
+            return toView(draft);
+        }
+        if (submitted().equals(draft.getStatus())
+                || draftMapper.abandon(draftId, patientId, collecting(), pendingConfirm(), abandoned()) != 1) {
+            throw new ApiException(409, contracts.onlineConsultation().texts().get("draft_abandoned"));
+        }
+        return toView(requireOwned(patientId, draftId));
+    }
+
     /**
      * 对话轮次的草稿绑定校验（可信预问诊模式）：归属、存在性与未提交状态任一不符即 409，
      * 客户端不得伪造草稿标识或借已提交草稿继续获得 preconsultation 场景权限。
@@ -69,7 +82,7 @@ public class PreconsultationService {
         PreconsultationDraft draft = draftMapper.selectById(draftId);
         boolean usable = draft != null
                 && draft.getPatientId() == patientId
-                && !submitted().equals(draft.getStatus());
+                && (collecting().equals(draft.getStatus()) || pendingConfirm().equals(draft.getStatus()));
         if (!usable) {
             throw new ApiException(409, contracts.onlineConsultation().texts().get("scenario_requires_draft"));
         }
@@ -162,6 +175,10 @@ public class PreconsultationService {
 
     private String submitted() {
         return contracts.onlineConsultation().draftStatuses().get("submitted");
+    }
+
+    private String abandoned() {
+        return contracts.onlineConsultation().draftStatuses().get("abandoned");
     }
 
     public record DraftView(

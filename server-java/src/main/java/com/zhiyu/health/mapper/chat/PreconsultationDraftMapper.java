@@ -2,6 +2,7 @@ package com.zhiyu.health.mapper.chat;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhiyu.health.entity.chat.PreconsultationDraft;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -9,6 +10,19 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface PreconsultationDraftMapper extends BaseMapper<PreconsultationDraft> {
+
+    /** 已发送首条消息的活跃草稿；空草稿不进入首页待办。 */
+    @Select(
+            """
+            SELECT * FROM preconsultation_drafts
+            WHERE patient_id = #{patientId} AND conversation_id IS NOT NULL
+              AND status IN (#{collecting}, #{pendingConfirm})
+            ORDER BY updated_at DESC
+            """)
+    List<PreconsultationDraft> selectStartedActiveByPatient(
+            @Param("patientId") long patientId,
+            @Param("collecting") String collecting,
+            @Param("pendingConfirm") String pendingConfirm);
 
     /** 同一患者同一档案的未提交草稿（活跃草稿由部分唯一索引保证最多一条）。 */
     @Select(
@@ -66,4 +80,18 @@ public interface PreconsultationDraftMapper extends BaseMapper<PreconsultationDr
             @Param("submitted") String submitted,
             @Param("collecting") String collecting,
             @Param("pendingConfirm") String pendingConfirm);
+
+    /** 显式放弃只允许从未提交状态推进；保留草稿和会话历史。 */
+    @Update(
+            """
+            UPDATE preconsultation_drafts SET status = #{abandoned}, updated_at = now()
+            WHERE id = #{id} AND patient_id = #{patientId}
+              AND status IN (#{collecting}, #{pendingConfirm})
+            """)
+    int abandon(
+            @Param("id") long id,
+            @Param("patientId") long patientId,
+            @Param("collecting") String collecting,
+            @Param("pendingConfirm") String pendingConfirm,
+            @Param("abandoned") String abandoned);
 }
