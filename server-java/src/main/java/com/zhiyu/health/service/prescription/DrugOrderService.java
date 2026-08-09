@@ -56,7 +56,8 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
     }
 
     public OrderView getForAdmin(long orderId) {
-        DrugOrder order = orderMapper.selectById(orderId);
+        // JOIN patients 取昵称（selectById 不带 JOIN，无法回填 patientNickname）
+        DrugOrder order = orderMapper.selectDetailedForAdmin(orderId);
         if (order == null) {
             throw new ApiException(404, "药品订单不存在");
         }
@@ -291,6 +292,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
     public record OrderView(
             Long id,
             Long patientId,
+            String patientName,
             Long prescriptionId,
             String source,
             String status,

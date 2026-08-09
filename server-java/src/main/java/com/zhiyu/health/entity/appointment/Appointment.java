@@ -29,6 +29,8 @@ public class Appointment {
     private String conditionSummary;
     private OffsetDateTime createdAt;
     private OffsetDateTime cancelledAt;
+    // 待支付单的支付截止时刻；支付完成后保留原值作审计痕迹，不随状态推进清空（票 81）。
+    private OffsetDateTime paymentDeadline;
 
     @TableField(exist = false)
     private Long doctorId;

@@ -507,21 +507,30 @@ class ContractsTest {
         Contracts.AppointmentFlow flow = contracts.appointmentFlow();
         assertThat(flow.statuses())
                 .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "pending_payment", "PENDING_PAYMENT",
                         "booked", "BOOKED",
                         "in_progress", "IN_PROGRESS",
                         "cancelled", "CANCELLED",
                         "visited", "VISITED"));
         assertThat(flow.statusLabels())
-                .containsEntry("BOOKED", "已约")
+                .containsEntry("PENDING_PAYMENT", "待支付")
+                .containsEntry("BOOKED", "待就诊")
                 .containsEntry("IN_PROGRESS", "就诊中")
                 .containsEntry("CANCELLED", "已取消")
                 .containsEntry("VISITED", "已接诊");
+        // 支付门控（票 81）：待支付 -> 待就诊，支付完成才对接诊台可见。
+        assertThat(flow.transitions().get("pay").from()).containsExactly("PENDING_PAYMENT");
+        assertThat(flow.transitions().get("pay").to()).isEqualTo("BOOKED");
         assertThat(flow.transitions().get("call").from()).containsExactly("BOOKED");
         assertThat(flow.transitions().get("call").to()).isEqualTo("IN_PROGRESS");
         assertThat(flow.transitions().get("complete").from()).containsExactly("BOOKED", "IN_PROGRESS");
         assertThat(flow.transitions().get("complete").to()).isEqualTo("VISITED");
-        assertThat(flow.transitions().get("cancel").from()).containsExactly("BOOKED");
+        // 取消放宽：待支付与待就诊均可取消，均释放号源。
+        assertThat(flow.transitions().get("cancel").from()).containsExactly("PENDING_PAYMENT", "BOOKED");
         assertThat(flow.transitions().get("cancel").to()).isEqualTo("CANCELLED");
+        // 支付截止默认 60 秒（演示便于观察超时收敛）；接诊台可见白名单排除待支付。
+        assertThat(flow.paymentTimeoutSeconds()).isEqualTo(60);
+        assertThat(flow.receptionVisibleStatuses()).containsExactly("BOOKED", "IN_PROGRESS", "VISITED");
         Contracts.AppointmentFlow.CalledNotice notice = flow.calledNotice();
         assertThat(notice.messageType()).isEqualTo("appointment_called");
         assertThat(notice.title()).isEqualTo("请到诊室就诊");

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.staff.appointment.PaymentController;
 import com.zhiyu.health.entity.appointment.Payment;
+import com.zhiyu.health.mapper.appointment.AppointmentMapper;
 import com.zhiyu.health.mapper.appointment.PaymentMapper;
 import com.zhiyu.health.service.appointment.PaymentService;
 import com.zhiyu.health.service.appointment.mapping.PaymentDtoMapper;
@@ -32,9 +33,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 class PaymentControllerTest {
 
     private final PaymentMapper mapper = mock(PaymentMapper.class);
+    private final AppointmentMapper appointmentMapper = mock(AppointmentMapper.class);
     private final PaymentDtoMapper dtoMapper = Mappers.getMapper(PaymentDtoMapper.class);
     private final PaymentService service =
-            new PaymentService(mapper, transactionTemplate(), TestContracts.instance(), dtoMapper);
+            new PaymentService(mapper, appointmentMapper, transactionTemplate(), TestContracts.instance(), dtoMapper);
     private final PaymentController controller = new PaymentController(service);
 
     @Test
@@ -65,6 +67,8 @@ class PaymentControllerTest {
     void adminPaysUnpaidAppointmentFee() throws Exception {
         when(mapper.selectForUpdate(41L)).thenReturn(payment("UNPAID"));
         when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
+        // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）。
+        when(appointmentMapper.markBooked(21L, "PENDING_PAYMENT", "BOOKED")).thenReturn(1);
 
         mvc().perform(post("/api/b/payments/41/pay"))
                 .andExpect(status().isOk())

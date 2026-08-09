@@ -231,6 +231,8 @@ Page({
         onDrugOrderPrepare: (data) => this.appendCard('drug_order_prepare', data),
         // 票 80：处方选择卡（多处方点选），payload 含 prescriptions 列表
         onPrescriptions: (data) => this.appendCard('prescriptions', data),
+        // 查药结果卡（search_medications 工具产出），只读展示药名/规格/单价/库存，不交互
+        onMedications: (data) => this.appendCard('medications', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -450,8 +452,10 @@ Page({
       .then((order) => {
         // 下单成功：确认卡就地转结果态，追加 drug_order 结果卡（OrderView 即卡片 content）。
         // drug_order 卡不经 Agent，由 server-java 下单成功后本地落库（票 78）。
-        // OrderView 无 disclaimer 字段（落库时由 server-java 出口兜底注入），C 端就地补通用免责
-        // 声明文案，满足硬约束 1（界面无例外），与 ai-disclaimer 默认文案一致（contracts/disclaimer.json）。
+        // drug_order 结果卡只在实时会话中展示与操作（支付/取消）；历史回看时不落库--
+        // 确认卡回放为只读「已下单」态，订单状态/支付/取消统一在 drug-orders 订单列表页管理
+        // （该页总是拉实时数据，避免聊天历史中卡片快照与后端订单状态不同步）。
+        // OrderView 无 disclaimer 字段，C 端就地补通用免责声明，满足硬约束 1（界面无例外）。
         this.setData({
           drugConfirmSubmitting: { ...this.data.drugConfirmSubmitting, [cardId]: false },
           drugConfirmSubmitted: { ...this.data.drugConfirmSubmitted, [cardId]: true },
@@ -509,6 +513,15 @@ Page({
           .finally(() => this.setData({ drugCancellingOrderId: null }))
       },
     })
+  },
+
+  openAppointments() {
+    my.navigateTo({ url: '/pages/appointments/index' })
+  },
+
+  /** 历史确认卡「查看订单」入口：跳药品订单列表页管理订单状态（支付/取消）。 */
+  openDrugOrders() {
+    my.navigateTo({ url: '/pages/drug-orders/index' })
   },
 
   openHealthProfiles() {

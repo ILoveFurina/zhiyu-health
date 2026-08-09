@@ -56,6 +56,11 @@
   color: var(--zy-color-primary);
 }
 
+.status.pending-payment {
+  color: var(--zy-color-warning);
+  font-weight: 600;
+}
+
 .status.in-progress {
   color: var(--zy-color-warning);
   font-weight: 600;

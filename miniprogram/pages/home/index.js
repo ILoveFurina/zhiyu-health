@@ -52,11 +52,11 @@ function todayString() {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-/** 待办横卡数据：即将就诊的挂号单（已约且日期不早于今天）+ 待支付药品订单。 */
+/** 待办横卡数据：即将就诊的挂号单（待就诊且日期不早于今天）+ 待支付药品订单。 */
 function buildTodos(appointments, orders) {
   const today = todayString()
   const upcoming = (appointments || [])
-    .filter((item) => item.status === '已约' && item.schedule_date >= today)
+    .filter((item) => item.status === '待就诊' && item.schedule_date >= today)
     .sort((a, b) => `${a.schedule_date} ${a.time_slot}`.localeCompare(`${b.schedule_date} ${b.time_slot}`))
     .map((item) => ({
       key: `appointment-${item.appointment_id}`,

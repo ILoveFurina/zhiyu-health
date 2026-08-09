@@ -17,6 +17,7 @@ import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.service.scheduling.SlotAccounting;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,9 +52,16 @@ public class AppointmentService {
         return view(created.id());
     }
 
-    /** C 端功能目录直接挂号；按票 41 边界不创建收费记录，重复提交返回明确冲突。 */
+    /** C 端功能目录直接挂号（票 81 修订票 41 边界）：与 AI 引导挂号统一走待支付。 */
     public AppointmentView createDirect(long patientId, long scheduleId) {
-        return view(reserve(patientId, null, scheduleId, DuplicatePolicy.REJECT).id());
+        CreatedAppointment created = reserve(patientId, null, scheduleId, DuplicatePolicy.REJECT);
+        try {
+            // 与 AI 引导挂号同口径建收费记录；附属记录失败不撤销真实挂号结果。
+            payments.createUnpaid(created.id(), created.registrationFee());
+        } catch (RuntimeException ignored) {
+            // 幂等挂号请求会再次尝试补建收费记录，唯一键避免重复收费。
+        }
+        return view(created.id());
     }
 
     private CreatedAppointment reserve(
@@ -99,7 +107,11 @@ public class AppointmentService {
                     appointment.setScheduleId(scheduleId);
                     appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
                     appointment.setRegistrationFee(schedule.getRegistrationFee());
-                    appointment.setStatus(contracts.appointmentFlow().status("booked"));
+                    // 挂号成功即进入待支付并占用号源（占位等支付，票 81）；
+                    // 号源在扣减时已占住，支付完成推进为待就诊，超时/取消才释放。
+                    appointment.setStatus(contracts.appointmentFlow().status("pending_payment"));
+                    appointment.setPaymentDeadline(OffsetDateTime.now()
+                            .plusSeconds(contracts.appointmentFlow().paymentTimeoutSeconds()));
                     appointmentMapper.insert(appointment);
                     writeAppointmentCareMessage(patientId, scheduleId, appointment.getId());
                     return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
@@ -162,6 +174,8 @@ public class AppointmentService {
     }
 
     public List<AppointmentView> listForPatient(long patientId) {
+        // C 端列表入口惰性收敛过期待支付单（释放号源），与接诊台入口同构（ADR-0033）。
+        expireOverdueAppointments();
         long profileId = healthProfiles.requireActive(patientId).getId();
         return appointmentMapper.selectViewsByProfile(patientId, profileId).stream()
                 .map(this::toView)
@@ -195,6 +209,8 @@ public class AppointmentService {
     }
 
     public AppointmentView cancel(long patientId, long appointmentId) {
+        // C 端取消入口惰性收敛：若该单已超时，先收敛为已取消并释放号源，再返回最新视图。
+        expireOverdueAppointments();
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withRefund 的补偿范围覆盖整个事务（含提交失败）：已退还未提交即撤销退还。
         Long resultId = slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
@@ -212,7 +228,13 @@ public class AppointmentService {
             if (!cancel.allows(appointment.getStatus())) {
                 throw new ApiException(409, "当前状态不可取消");
             }
-            if (appointmentMapper.markCancelled(appointmentId, cancel.from().get(0), cancel.to()) != 1
+            // cancel.from = [PENDING_PAYMENT, BOOKED]，两条来源态都释放号源。
+            if (appointmentMapper.markCancelled(
+                                    appointmentId,
+                                    cancel.from().get(0),
+                                    cancel.from().get(1),
+                                    cancel.to())
+                            != 1
                     || scheduleMapper.incrementRemainingSlots(appointment.getScheduleId()) != 1) {
                 throw new IllegalStateException("取消挂号的 PostgreSQL 回补失败");
             }
@@ -220,6 +242,47 @@ public class AppointmentService {
             return appointment.getId();
         }));
         return view(resultId);
+    }
+
+    /**
+     * 支付超时惰性收敛（票 81，ADR-0033）：在接诊台/C 端列表/pay/cancel 入口同步调用，
+     * 把 payment_deadline 已过的待支付挂号单推进为已取消并释放号源。与在线问诊
+     * expireOverdue 同构--不引入调度中间件，号源释放靠下次入口访问触发。
+     * 每条独立 withRefund 事务：markCancelled 的 CAS 守卫并发重复收敛（返回 0 即跳过），
+     * 退款失败的事务整体回滚不影响其它条目。
+     */
+    public void expireOverdueAppointments() {
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        List<AppointmentMapper.OverdueAppointment> overdue =
+                appointmentMapper.selectOverduePending(flow.status("pending_payment"));
+        for (AppointmentMapper.OverdueAppointment item : overdue) {
+            try {
+                cancelOverdue(item.id(), item.scheduleId());
+            } catch (RuntimeException ignored) {
+                // 单条收敛失败不阻断其余条目；下次入口访问会再次尝试该条。
+            }
+        }
+    }
+
+    /** 超时取消单条挂号：无患者身份校验（系统收敛），CAS 只接受待支付态。 */
+    private void cancelOverdue(long appointmentId, long scheduleId) {
+        slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
+            Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+            // CAS 守卫：并发收敛或患者已手动取消时状态不再是待支付，UPDATE 返回 0 即安全跳过。
+            if (appointmentMapper.markCancelled(
+                            appointmentId,
+                            flow.status("pending_payment"),
+                            flow.status("booked"),
+                            flow.status("cancelled"))
+                    != 1) {
+                return null;
+            }
+            if (scheduleMapper.incrementRemainingSlots(scheduleId) != 1) {
+                throw new IllegalStateException("超时取消的 PostgreSQL 号源回补失败");
+            }
+            refund.grant(scheduleId);
+            return null;
+        }));
     }
 
     private AppointmentView view(Long appointmentId) {

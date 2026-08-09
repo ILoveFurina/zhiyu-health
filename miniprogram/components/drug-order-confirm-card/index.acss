@@ -82,3 +82,19 @@
 .doc-btn-confirm { background: var(--zy-color-primary); color: #fff; }
 .doc-btn-disabled { opacity: 0.5; }
 .doc-submitted { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm) 0; color: var(--zy-color-primary); font-size: 24rpx; text-align: center; }
+
+/* 历史回放只读态（票 78/79）：结果卡不持久化，确认卡回放时隐藏确认/取消按钮，
+ * 改提示文案 + 「查看订单」入口跳订单列表页管理订单状态（避免快照与后端状态不同步）。 */
+.doc-actions-history { flex-direction: column; align-items: stretch; }
+.doc-history-hint {
+  color: var(--zy-text-weak);
+  font-size: 24rpx;
+  text-align: center;
+  line-height: 1.5;
+}
+.doc-btn-orders {
+  margin-top: var(--zy-space-xs);
+  border: 1rpx solid var(--zy-color-primary);
+  color: var(--zy-color-primary);
+  background: var(--zy-color-primary-soft);
+}

@@ -6,6 +6,11 @@
  * POST /api/c/drug-orders（OTC: prescription_id=null + items；处方药: prescription_id + items），
  * 下单成功后确认卡就地转结果态（或追加 drug_order 结果卡），失败提示库存不足等。
  *
+ * 历史回放只读态（history=true）：drug_order 结果卡（带支付/取消动态按钮）不持久化，
+ * 避免卡片快照与后端订单实际状态不同步（取消/支付后快照仍是 UNPAID，操作即报错）。历史回放时
+ * 确认卡置 history 只读态，隐藏「确认下单/取消」按钮，改为「查看订单」入口跳药品订单列表页
+ * 管理订单状态（该页总拉实时数据）。
+ *
  * content JSON 字段（与 MedicationToolService.PrepareOrderView 对齐）：
  *   source(PRESCRIPTION|OTC 枚举值,见 contracts/order-flow.json sources)/
  *   prescription_id/items[{medication_id,name,specification,quantity,unit_price,
@@ -18,8 +23,10 @@ Component({
     cardId: null, // 宿主消息 id，回调原样带回供宿主定位
     submitting: false, // 是否下单中（宿主控制，禁用按钮）
     submitted: false, // 是否已下单成功（就地转结果态，隐藏确认/取消按钮）
+    history: false, // 历史回放只读态：隐藏确认/取消按钮，改为「查看订单」入口（票 78/79）
     onConfirm: () => {},
     onCancel: () => {},
+    onGoOrders: () => {},
   },
 
   data: {
@@ -42,12 +49,15 @@ Component({
 
   methods: {
     confirm() {
-      if (this.props.submitting || this.props.submitted) return
+      if (this.props.submitting || this.props.submitted || this.props.history) return
       this.props.onConfirm({ cardId: this.props.cardId, card: this.props.card })
     },
     cancel() {
-      if (this.props.submitting) return
+      if (this.props.submitting || this.props.history) return
       this.props.onCancel({ cardId: this.props.cardId })
+    },
+    goOrders() {
+      this.props.onGoOrders({})
     },
   },
 })

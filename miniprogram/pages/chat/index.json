@@ -13,6 +13,7 @@
     "drug-order-confirm-card": "/components/drug-order-confirm-card/index",
     "drug-order-card": "/components/drug-order-card/index",
     "prescription-selection-card": "/components/prescription-selection-card/index",
+    "medications-card": "/components/medications-card/index",
     "zy-empty": "/components/zy-empty/index"
   }
 }

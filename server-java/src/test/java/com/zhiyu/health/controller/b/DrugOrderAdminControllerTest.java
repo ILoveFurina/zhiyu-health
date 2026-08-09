@@ -52,6 +52,7 @@ class DrugOrderAdminControllerTest {
     @Test
     void filtersOrdersByContractStatus() throws Exception {
         DrugOrder order = order(51L, "PAID");
+        order.setPatientNickname("张三");
         when(orderMapper.selectForAdmin("PAID")).thenReturn(List.of(order));
         when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
 
@@ -59,19 +60,23 @@ class DrugOrderAdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(51))
                 .andExpect(jsonPath("$[0].status").value("PAID"))
-                .andExpect(jsonPath("$[0].status_label").value("已支付"));
+                .andExpect(jsonPath("$[0].status_label").value("已支付"))
+                .andExpect(jsonPath("$[0].patient_name").value("张三"));
     }
 
     @Test
     void getsOrderDetail() throws Exception {
         DrugOrder order = order(51L, "UNPAID");
-        when(orderMapper.selectById(51L)).thenReturn(order);
+        order.setPatientNickname("李四");
+        // B 端明细经 selectDetailedForAdmin（JOIN patients 取昵称），非 selectById
+        when(orderMapper.selectDetailedForAdmin(51L)).thenReturn(order);
         when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
 
         mvc().perform(get("/api/b/drug-orders/51"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(51))
                 .andExpect(jsonPath("$.prescription_id").value(31))
+                .andExpect(jsonPath("$.patient_name").value("李四"))
                 .andExpect(jsonPath("$.items").isArray());
     }
 

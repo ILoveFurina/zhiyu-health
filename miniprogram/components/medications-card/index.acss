@@ -1,0 +1,57 @@
+/* 查药结果卡（票 77/79）：只读展示 search_medications 查到的在售 OTC 药品清单。
+ * 类名带 mc- 前缀--支付宝组件样式不隔离，与 doc-/psc- 等裸类名会串扰。
+ * 视觉层级对齐 drug-order-confirm-card：卡片化 + 药品明细分行。 */
+.mc-card {
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: var(--zy-shadow-card);
+}
+
+.mc-head { display: flex; align-items: center; }
+.mc-title-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
+.mc-title { color: var(--zy-text-title); font-size: 32rpx; font-weight: 700; }
+/* 字体图标：尺寸/颜色由容器 font-size/color 控制（见 app.acss .zy-ico 注释） */
+.mc-title-icon { color: var(--zy-color-primary); font-size: 36rpx; }
+
+.mc-empty {
+  margin-top: var(--zy-space-sm);
+  color: var(--zy-text-weak);
+  font-size: 26rpx;
+}
+
+.mc-list { margin-top: var(--zy-space-sm); }
+
+/* 单个药品：卡片化分隔，与确认卡药品明细视觉层级一致但更紧凑（只读无操作区） */
+.mc-item {
+  padding: var(--zy-space-sm) 0;
+  border-top: 1rpx solid var(--zy-color-border);
+}
+.mc-item:first-child { border-top: none; }
+
+.mc-item-head { display: flex; align-items: center; justify-content: space-between; }
+.mc-item-name { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.mc-item-status {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 20rpx;
+  font-weight: 600;
+}
+.mc-item-status-inactive {
+  background: var(--zy-color-danger-soft);
+  color: var(--zy-color-danger);
+}
+
+.mc-item-generic { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+.mc-item-spec { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+
+.mc-item-foot {
+  margin-top: var(--zy-space-xs);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mc-item-price { color: var(--zy-color-danger); font-size: 28rpx; font-weight: 700; }
+.mc-item-stock { color: var(--zy-text-weak); font-size: 22rpx; }

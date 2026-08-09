@@ -278,6 +278,7 @@ function dispatchEvent(event, data, handlers) {
   else if (event === 'drug_order_prepare') handlers.onDrugOrderPrepare(data)
   else if (event === 'drug_order_confirm') handlers.onDrugOrderConfirmCard(data)
   else if (event === 'prescriptions') handlers.onPrescriptions(data)
+  else if (event === 'medications') handlers.onMedications(data)
   else if (event === 'red_flag') handlers.onRedFlag(data)
   else if (event === 'done') handlers.onDone()
 }

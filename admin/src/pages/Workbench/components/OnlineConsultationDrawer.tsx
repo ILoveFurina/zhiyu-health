@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert, App, Avatar, Button, Descriptions, Divider, Drawer, Form, Image, Input,
+  Alert, App, Avatar, Button, Descriptions, Divider, Drawer, Form, Input,
   Popconfirm, Space, Spin, Tag, Typography,
 } from 'antd';
 import { SendOutlined, VideoCameraOutlined } from '@ant-design/icons';
@@ -34,6 +34,7 @@ import {
   type PrescriptionInput,
 } from '@/services/prescription';
 import PrescriptionForm from './PrescriptionForm';
+import AuthPhoto from '@/components/AuthPhoto';
 import { formatChatTime, formatDateTime } from '@/utils/time';
 
 interface Props {
@@ -379,15 +380,13 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                           color: fromDoctor ? '#fff' : 'inherit',
                           border: fromDoctor ? 'none' : '1px solid #e6f2ee',
                         }}>
-                          {/* 票 58：患者图片消息（kind=image），content 为 {"object_key","media_type"} JSON，
-                              经 /api/b/photos 代理回看（与 B 端医生照片同通道）；kind 与契约 message_kinds 索引一一对应 */}
+                          {/* 票 58：患者图片消息（kind=image），content 为 {"object_key","media_type"} JSON。
+                              回看走 reception 域鉴权代理（/api/b/reception/photos，doctor 可访问）——
+                              /api/b/photos 仅限 admin 角色且 <img> 带不了 Bearer，故 AuthPhoto 先 fetch blob；
+                              kind 与契约 message_kinds 索引一一对应 */}
                           {item.kind === messageKinds[1] ? (
                             parseImageObjectKey(item.content) ? (
-                              <Image
-                                width={220}
-                                src={`/api/b/photos?key=${encodeURIComponent(parseImageObjectKey(item.content))}`}
-                                style={{ borderRadius: 8 }}
-                              />
+                              <AuthPhoto objectKey={parseImageObjectKey(item.content)} />
                             ) : (
                               <Typography.Text type="secondary">图片暂不可查看</Typography.Text>
                             )

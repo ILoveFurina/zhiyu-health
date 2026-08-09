@@ -154,6 +154,16 @@
         <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
       </view>
 
+      <!-- 查药结果卡（medications）。search_medications 工具产出，只读展示在售 OTC 药品清单
+           （药名/通用名/规格/单价/库存/在售状态），不交互不下单：下单由 Agent 自主调
+           prepare_drug_order -> 确认卡 -> 结果卡，不把选药交给用户。 -->
+      <view a:elif="{{item.kind === 'medications'}}" id="msg-{{item.id}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <medications-card card="{{item.card}}" />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
+
       <!-- 票 79/78：购药确认卡。server-py 经 prepare_drug_order 工具装配后以 drug_order_prepare
            事件下发（tool_to_event 映射）；历史回放可能以 drug_order_confirm kind 落库，两 kind
            共用同一组件渲染。就地确认不跳页，确认下单调 POST /api/c/drug-orders；取消就地隐藏卡片。 -->
@@ -164,8 +174,10 @@
             cardId="{{item.id}}"
             submitting="{{drugConfirmSubmitting[item.id]}}"
             submitted="{{drugConfirmSubmitted[item.id]}}"
+            history="{{item.history}}"
             onConfirm="onDrugOrderConfirm"
             onCancel="onDrugOrderConfirmCancel"
+            onGoOrders="openDrugOrders"
           />
         </view>
         <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />

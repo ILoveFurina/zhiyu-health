@@ -87,6 +87,7 @@ class AppointmentHttpIntegrationTest {
         slots.initialize(9L, 1);
         PaymentService payments = new PaymentService(
                 paymentMapper,
+                appointments,
                 immediateTransaction(),
                 TestContracts.instance(),
                 Mappers.getMapper(PaymentDtoMapper.class));

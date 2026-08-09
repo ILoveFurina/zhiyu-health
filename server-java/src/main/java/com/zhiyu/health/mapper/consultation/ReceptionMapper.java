@@ -28,14 +28,16 @@ public interface ReceptionMapper {
             JOIN schedules s ON s.id = a.schedule_id
             JOIN health_profiles hp ON hp.id = a.health_profile_id
             WHERE s.doctor_id = #{doctorId} AND s.schedule_date = #{date}
-              AND a.status <> #{cancelledStatus}
+              AND a.status IN (#{bookedStatus}, #{inProgressStatus}, #{visitedStatus})
             ORDER BY CASE s.time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END,
                      a.sequence_number
             """)
     List<Appointment> selectAppointments(
             @Param("doctorId") long doctorId,
             @Param("date") LocalDate date,
-            @Param("cancelledStatus") String cancelledStatus);
+            @Param("bookedStatus") String bookedStatus,
+            @Param("inProgressStatus") String inProgressStatus,
+            @Param("visitedStatus") String visitedStatus);
 
     @Select(
             """
@@ -81,4 +83,18 @@ public interface ReceptionMapper {
             @Param("bookedStatus") String bookedStatus,
             @Param("inProgressStatus") String inProgressStatus,
             @Param("visitedStatus") String visitedStatus);
+
+    // 单叫号约束（票 81，ADR-0033）：医生维度（跨当天所有排班）同时只能一条就诊中。
+    // 叫号事务内行锁该医生的就诊中行：存在则阻塞并返回非空，调用方据此 409 拒绝。
+    // FOR UPDATE 锁住既有 IN_PROGRESS 行串行化并发叫号，防止两个 B 端 tab 同时叫号的 TOCTOU。
+    @Select(
+            """
+            SELECT a.id FROM appointments a
+            JOIN schedules s ON s.id = a.schedule_id
+            WHERE s.doctor_id = #{doctorId} AND a.status = #{inProgressStatus}
+            LIMIT 1
+            FOR UPDATE
+            """)
+    Long selectInProgressForDoctor(
+            @Param("doctorId") long doctorId, @Param("inProgressStatus") String inProgressStatus);
 }
