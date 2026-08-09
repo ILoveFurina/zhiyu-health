@@ -188,7 +188,15 @@ def _tool_name_recording_runner(
     )
 
 
-_BUSINESS_TOOLS = {"recommend_doctors", "get_doctor_slots", "create_appointment", "get_appointment"}
+_BUSINESS_TOOLS = {
+    "recommend_doctors",
+    "get_doctor_slots",
+    "create_appointment",
+    "get_appointment",
+    "search_medications",
+    "list_approved_prescriptions",
+    "prepare_drug_order",
+}
 
 
 def _build_tool_isolation_app(runner: LangGraphAgentRunner) -> TestClient:

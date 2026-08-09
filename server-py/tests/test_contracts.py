@@ -18,21 +18,25 @@ def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
     assert events.stream_events == ["meta", "knowledge", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
-    assert len(events.card_events) == 7
+    assert len(events.card_events) == 10
     assert "department_slots" in events.card_events
     # 票 65：ambiguous 科室选择卡由编排代码产出，不进 tool_to_event
     assert "department_options" in events.card_events
     assert "department_options" not in events.tool_to_event.values()
+    # 票 75：购药三工具（查药/已审核处方/购药确认卡）进 tool_to_event
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
         "create_appointment": "appointment",
         "get_appointment": "appointments",
+        "search_medications": "medications",
+        "list_approved_prescriptions": "prescriptions",
+        "prepare_drug_order": "drug_order_prepare",
     }
     # 票 50：find_hospitals 已移除，department_slots 由编排代码产出故不在 tool_to_event
     assert "find_hospitals" not in events.tool_to_event
     assert "department_slots" not in events.tool_to_event.values()
-    assert len(events.message_kinds) == 15
+    assert len(events.message_kinds) == 18
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
     assert "skin_analysis" in events.message_kinds
@@ -43,8 +47,8 @@ def test_sse_event_protocol_is_complete() -> None:
     # 说明书走流式文本（kind=text），禁忌仅留 B 端开方链路
     assert "medication_info" not in events.message_kinds
     assert "medication_safety" not in events.message_kinds
-    assert len(events.ai_card_kinds) == 11
-    assert len(events.event_to_kind) == 8
+    assert len(events.ai_card_kinds) == 14
+    assert len(events.event_to_kind) == 11
 
 
 def test_guided_registration_contract_is_loaded() -> None:

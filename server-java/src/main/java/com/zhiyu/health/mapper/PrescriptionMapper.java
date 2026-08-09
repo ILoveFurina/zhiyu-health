@@ -36,6 +36,11 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE pr.id = #{id}")
     Prescription selectDetailedById(@Param("id") long id);
 
+    // 票 75：购药确认卡处方路径需要带 JOIN 投影（doctor_name/schedule_date 等），
+    // 且须校验患者归属（COALESCE 双来源 patient_id），与 selectForPatient 同一可见性边界。
+    @Select(DETAIL_COLUMNS + " WHERE pr.id = #{id}" + " AND COALESCE(a.patient_id, oc.patient_id) = #{patientId}")
+    Prescription selectDetailedForPatient(@Param("id") long id, @Param("patientId") long patientId);
+
     @Select("SELECT * FROM prescriptions WHERE appointment_id = #{appointmentId}")
     Prescription selectByAppointmentId(@Param("appointmentId") long appointmentId);
 
@@ -78,6 +83,14 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             + " AND COALESCE(a.health_profile_id, oc.health_profile_id) = #{profileId}"
             + " ORDER BY pr.created_at DESC")
     List<Prescription> selectForProfile(@Param("patientId") long patientId, @Param("profileId") long profileId);
+
+    // 票 75：AI 购药选已审核处方，只查该患者 APPROVED 处方（双来源 COALESCE 归属校验），
+    // 供处方药购药路径选处方；不带 health_profile 维度（购药场景只需患者归属即可）。
+    @Select(DETAIL_COLUMNS
+            + " WHERE COALESCE(a.patient_id, oc.patient_id) = #{patientId}"
+            + " AND pr.status = #{status}"
+            + " ORDER BY pr.created_at DESC")
+    List<Prescription> selectForPatientByStatus(@Param("patientId") long patientId, @Param("status") String status);
 
     @Update(
             """
