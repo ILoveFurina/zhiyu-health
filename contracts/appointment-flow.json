@@ -1,18 +1,24 @@
 {
-  "_doc": "线下挂号状态机与叫号通知（票 71）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像。",
+  "_doc": "线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像。",
   "statuses": {
+    "pending_payment": "PENDING_PAYMENT",
     "booked": "BOOKED",
     "in_progress": "IN_PROGRESS",
     "cancelled": "CANCELLED",
     "visited": "VISITED"
   },
   "status_labels": {
-    "BOOKED": "已约",
+    "PENDING_PAYMENT": "待支付",
+    "BOOKED": "待就诊",
     "IN_PROGRESS": "就诊中",
     "CANCELLED": "已取消",
     "VISITED": "已接诊"
   },
   "transitions": {
+    "pay": {
+      "from": ["PENDING_PAYMENT"],
+      "to": "BOOKED"
+    },
     "call": {
       "from": ["BOOKED"],
       "to": "IN_PROGRESS"
@@ -22,10 +28,14 @@
       "to": "VISITED"
     },
     "cancel": {
-      "from": ["BOOKED"],
+      "from": ["PENDING_PAYMENT", "BOOKED"],
       "to": "CANCELLED"
     }
   },
+  "payment_timeout_seconds": 60,
+  "_payment_timeout_seconds_doc": "待支付挂号单的支付截止秒数；过期在接诊台/C 端列表/详情/pay/cancel 入口惰性收敛为 CANCELLED 并释放号源，不引入调度中间件（与在线问诊 accept_timeout_seconds 同构）。演示默认 60 秒便于观察超时收敛，正式可调大。",
+  "reception_visible_statuses": ["BOOKED", "IN_PROGRESS", "VISITED"],
+  "_reception_visible_statuses_doc": "B 端接诊台可见的挂号状态白名单：待支付（PENDING_PAYMENT）对医生不可见，支付完成推进为待就诊（BOOKED）后才进入接诊台队列；接诊台入口先全局惰性收敛过期待支付单再按此白名单查询。",
   "called_notice": {
     "message_type": "appointment_called",
     "title": "请到诊室就诊",
