@@ -163,15 +163,9 @@ class ContractsConsistencyTest {
         // 且与 trace_events 不相交、不与 done 重名（done 是轮次终止信号）。
         Contracts.SseEvents events = contracts.sseEvents();
         for (String kind : new String[] {"drug_order_confirm", "drug_order"}) {
-            assertThat(events.cardEvents())
-                    .as("card_events 必须包含 %s", kind)
-                    .contains(kind);
-            assertThat(events.messageKinds())
-                    .as("message_kinds 必须包含 %s", kind)
-                    .contains(kind);
-            assertThat(events.aiCardKinds())
-                    .as("ai_card_kinds 必须包含 %s", kind)
-                    .contains(kind);
+            assertThat(events.cardEvents()).as("card_events 必须包含 %s", kind).contains(kind);
+            assertThat(events.messageKinds()).as("message_kinds 必须包含 %s", kind).contains(kind);
+            assertThat(events.aiCardKinds()).as("ai_card_kinds 必须包含 %s", kind).contains(kind);
             assertThat(events.eventToKind())
                     .as("event_to_kind 必须把 %s 映射到自身", kind)
                     .containsEntry(kind, kind);

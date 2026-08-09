@@ -18,7 +18,7 @@ def test_sse_event_protocol_is_complete() -> None:
     events = get_contracts().sse_events
     assert events.stream_events == ["meta", "knowledge", "token", "message", "done"]
     assert events.red_flag_event == "red_flag"
-    assert len(events.card_events) == 10
+    assert len(events.card_events) == 12
     assert "department_slots" in events.card_events
     # 票 65：ambiguous 科室选择卡由编排代码产出，不进 tool_to_event
     assert "department_options" in events.card_events
@@ -36,7 +36,7 @@ def test_sse_event_protocol_is_complete() -> None:
     # 票 50：find_hospitals 已移除，department_slots 由编排代码产出故不在 tool_to_event
     assert "find_hospitals" not in events.tool_to_event
     assert "department_slots" not in events.tool_to_event.values()
-    assert len(events.message_kinds) == 18
+    assert len(events.message_kinds) == 20
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
     assert "skin_analysis" in events.message_kinds
@@ -47,8 +47,15 @@ def test_sse_event_protocol_is_complete() -> None:
     # 说明书走流式文本（kind=text），禁忌仅留 B 端开方链路
     assert "medication_info" not in events.message_kinds
     assert "medication_safety" not in events.message_kinds
-    assert len(events.ai_card_kinds) == 14
-    assert len(events.event_to_kind) == 11
+    # 票 76：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记
+    assert "drug_order_confirm" in events.card_events
+    assert "drug_order_confirm" in events.message_kinds
+    assert "drug_order" in events.card_events
+    assert "drug_order" in events.message_kinds
+    assert len(events.ai_card_kinds) == 16
+    assert len(events.event_to_kind) == 13
+    assert events.event_to_kind["drug_order_confirm"] == "drug_order_confirm"
+    assert events.event_to_kind["drug_order"] == "drug_order"
 
 
 def test_guided_registration_contract_is_loaded() -> None:
