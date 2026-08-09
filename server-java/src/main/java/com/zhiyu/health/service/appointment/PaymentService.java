@@ -70,8 +70,9 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
             throw new ApiException(409, contracts.paymentFlow().messages().get("already_paid"));
         }
         String paid = contracts.paymentFlow().statuses().get("paid");
-        if (paymentMapper.markPaid(appointmentId, paid, unpaid) == 0) {
-            throw new ApiException(409, "挂号收费状态已变化，请刷新后重试");
+        String pendingPayment = contracts.appointmentFlow().status("pending_payment");
+        if (paymentMapper.markPaid(appointmentId, paid, unpaid, pendingPayment) == 0) {
+            throw new ApiException(409, "挂号已取消或状态已变化，无法支付");
         }
         // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）：CAS 只接受待支付。
         // 模拟支付下不堆并发防御：返回 0 仅在支付与超时收敛极端竞态时出现，demo 不会触发。

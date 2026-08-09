@@ -36,13 +36,19 @@ public interface PaymentMapper extends BaseMapper<Payment> {
     // 旧状态谓词是锁之外的最终原子护栏；受影响行为 0 时由 service 报并发冲突，paid_at 不会误写。
     @Update(
             """
-            UPDATE payments SET status = #{paidStatus}, paid_at = now()
-            WHERE appointment_id = #{appointmentId} AND status = #{unpaidStatus}
+            UPDATE payments p
+            SET status = #{paidStatus}, paid_at = now()
+            FROM appointments a
+            WHERE a.id = p.appointment_id
+              AND p.appointment_id = #{appointmentId}
+              AND p.status = #{unpaidStatus}
+              AND a.status = #{pendingPaymentStatus}
             """)
     int markPaid(
             @Param("appointmentId") long appointmentId,
             @Param("paidStatus") String paidStatus,
-            @Param("unpaidStatus") String unpaidStatus);
+            @Param("unpaidStatus") String unpaidStatus,
+            @Param("pendingPaymentStatus") String pendingPaymentStatus);
 
     @Select(
             """
