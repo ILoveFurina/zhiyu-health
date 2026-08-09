@@ -76,6 +76,24 @@
 
   <view class="abandon-link" onTap="abandon">放弃本次预问诊</view>
   <view class="composer">
+    <!-- 语音提示条：绝对定位浮层，出现不得推位输入栏（票 45 教训，同 chat/doctor 页） -->
+    <view a:if="{{voiceHint}}" class="voice-hint {{voiceHintError ? 'voice-hint-error' : ''}}">
+      <view a:if="{{!voiceHintError && recording}}" class="voice-hint-spinner" />
+      <text>{{voiceHint}}</text>
+    </view>
+    <!-- 触摸事件挂静态外壳（属性不随手势变化），按钮本体随手势重绘不影响触摸序列；
+         padding+负 margin 扩大命中热区，抵消真机原生 input 命中框偏移 -->
+    <view
+      a:if="{{asrEnabled}}"
+      class="voice-btn-touch"
+      onTouchStart="onVoiceTouchStart"
+      onTouchEnd="onVoiceTouchEnd"
+      onTouchCancel="onVoiceTouchCancel"
+    >
+      <view class="voice-btn {{recording ? 'voice-btn-active' : ''}} {{sending ? 'voice-btn-disabled' : ''}}">
+        <view class="zy-ico zy-ico-mic"></view>
+      </view>
+    </view>
     <input
       class="c-input"
       value="{{inputValue}}"

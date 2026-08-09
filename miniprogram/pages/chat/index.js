@@ -104,14 +104,20 @@ Page({
     this._aiBubbleState = createAiBubbleState(this)
     // 冷启动 AI 页为全新聊天态，不自动恢复上次会话（见票 27 决策 13）
     ensureLogin()
-      .then(() => {
-        this._chatChannel = createChatChannel()
-        this._chatChannel.connect().catch(() => {})
-      })
+      .then(() => this._ensureChatChannel())
       .catch(() => my.showToast({ content: '登录失败，请检查业务后端', type: 'fail' }))
   },
 
+  /** 建通道并 eager connect；通道 close 后是一次性的（closed 不可逆），回显时必须重建。 */
+  _ensureChatChannel() {
+    if (this._chatChannel) return
+    this._chatChannel = createChatChannel()
+    this._chatChannel.connect().catch(() => {})
+  },
+
   onShow() {
+    // tab 页 onHide 已让出全局单实例连接，回显时重建通道
+    this._ensureChatChannel()
     ensureLogin()
       .then(() => currentProfile())
       .then((result) => this.setData({ currentProfile: result.profile, profileLoaded: true }))
@@ -129,6 +135,16 @@ Page({
     const url = e.currentTarget.dataset.url
     if (!url) return
     my.previewImage({ urls: [url] })
+  },
+
+  // chat 是 tabBar 页，切走只触发 hide 不触发 unload：必须主动让出全局唯一的单实例
+  // WebSocket（支付宝单实例二次 connectSocket 直接报错），否则预问诊等页面建连必失败；
+  // close 会把在途轮次显式结算为中断，回显时由 onShow 重建通道。
+  onHide() {
+    if (this._chatChannel) {
+      this._chatChannel.close()
+      this._chatChannel = null
+    }
   },
 
   onUnload() {
