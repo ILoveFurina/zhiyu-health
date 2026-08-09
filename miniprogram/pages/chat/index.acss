@@ -12,17 +12,17 @@
   height: 100vh;
 }
 
-/* 页内次级 header：在文档流内占位，不覆盖消息流。 */
+/* 页内次级 header：轻量工具栏，不与系统标题栏争夺视觉层级。 */
 .chat-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 88rpx;
-  padding: var(--zy-space-sm) var(--zy-space-md);
+  min-height: 76rpx;
+  padding: 8rpx 18rpx 8rpx 30rpx;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1rpx solid var(--zy-color-border);
+  background: linear-gradient(180deg, #dff2ec 0%, #e6f5f1 100%);
+  border-bottom: 1rpx solid rgba(0, 124, 88, 0.09);
 }
 
 .chat-header-title {
@@ -30,34 +30,50 @@
   flex: 1;
   overflow: hidden;
   color: var(--zy-text-title);
-  font-size: 30rpx;
-  font-weight: 700;
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 0.5rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chat-header-title-empty {
+  height: 40rpx;
 }
 
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: var(--zy-space-sm);
+  gap: 4rpx;
   margin-left: var(--zy-space-sm);
+  padding: 4rpx;
+  border: 1rpx solid rgba(0, 124, 88, 0.08);
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .chat-header-btn {
-  width: 56rpx;
+  width: 60rpx;
   height: 56rpx;
-  border-radius: 50%;
-  background: var(--zy-color-primary-soft);
-  color: var(--zy-color-primary);
-  font-size: 28rpx;
+  border-radius: 18rpx;
+  background: transparent;
+  color: #52706b;
+  font-size: 30rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out), background-color var(--zy-motion-fast) var(--zy-ease-out);
 }
 
-.chat-header-btn:active { transform: scale(0.96); }
-.chat-header-new { font-size: 36rpx; }
+.chat-header-btn:active {
+  background: rgba(0, 168, 112, 0.1);
+  transform: scale(0.95);
+}
+
+.chat-header-new {
+  color: var(--zy-color-primary);
+  font-size: 32rpx;
+}
 
 .thread {
   flex: 1;
@@ -74,32 +90,34 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 120rpx;
-}
-
-.appointments-link {
-  align-self: flex-end;
-  margin-bottom: 20rpx;
-  color: var(--zy-color-primary);
-  font-size: 24rpx;
+  padding-top: 88rpx;
 }
 
 .mascot {
-  width: 176rpx;
-  height: 176rpx;
+  position: relative;
+  width: 132rpx;
+  height: 132rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--zy-color-primary-soft), var(--zy-color-primary-soft));
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), var(--zy-color-primary-soft));
+  border: 1rpx solid rgba(0, 168, 112, 0.08);
   color: var(--zy-color-primary);
-  font-size: 76rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.mascot-mark {
+  position: relative;
+  z-index: 1;
+  font-size: 54rpx;
+}
+
 .greet {
-  margin-top: 28rpx;
-  font-size: 34rpx;
-  font-weight: 600;
+  margin-top: 24rpx;
+  color: var(--zy-text-title);
+  font-size: 36rpx;
+  font-weight: 650;
+  letter-spacing: 0.5rpx;
 }
 
 .greet .brand {
@@ -107,27 +125,27 @@
 }
 
 .greet-sub {
-  margin-top: 10rpx;
+  margin-top: 12rpx;
   font-size: 24rpx;
-  color: var(--zy-text-weak);
+  color: var(--zy-text-secondary);
 }
 
 .topics {
   width: 100%;
-  margin-top: 40rpx;
+  margin-top: 36rpx;
   display: flex;
   flex-direction: column;
-  gap: var(--zy-space-sm);
+  gap: 12rpx;
 }
 
 .topic {
-  background: #fff;
-  border-radius: var(--zy-radius-card);
-  padding: var(--zy-space-md) 26rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(23, 63, 58, 0.06);
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
   display: flex;
   align-items: center;
-  gap: var(--zy-space-sm);
-  box-shadow: var(--zy-shadow-card);
+  gap: 18rpx;
   transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
 
@@ -135,13 +153,13 @@
   transform: scale(0.98);
 }
 
-.topic .hash {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: var(--zy-radius-sm);
-  background: var(--zy-color-primary);
-  color: #fff;
-  font-size: 24rpx;
+.topic-icon {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 14rpx;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 25rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -151,18 +169,6 @@
 .topic .topic-text {
   font-size: 26rpx;
   color: var(--zy-text-title);
-}
-
-.topic .arrow {
-  margin-left: auto;
-  color: var(--zy-text-weak);
-  font-size: 32rpx;
-}
-
-/* 空态 AI挂号助手主卡（票 49）：.empty 为居中 flex，主卡需撑满宽度 */
-.reg-entry-wrap {
-  width: 100%;
-  margin-top: var(--zy-space-lg);
 }
 
 /* ===== 气泡 ===== */
@@ -349,6 +355,28 @@
 .c-input-placeholder { color: var(--zy-text-weak); }
 .c-input-voice-error { background: var(--zy-color-danger-soft); }
 .c-input-placeholder-error { color: var(--zy-color-danger); }
+
+.image-add-btn {
+  flex: 0 0 auto;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.image-add-btn:active {
+  transform: scale(0.95);
+}
+
+.image-add-btn-disabled {
+  opacity: 0.45;
+}
 
 .c-row2 {
   display: flex;

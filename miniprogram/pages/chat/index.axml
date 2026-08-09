@@ -1,12 +1,15 @@
 <view class="page">
   <!-- 页内次级 header：文档流布局，不覆盖消息；抽屉交互保持票 27 的自绘路线。 -->
   <view class="chat-header">
-    <view class="chat-header-title">{{conversationTitle}}</view>
+    <view a:if="{{conversationTitle}}" class="chat-header-title">{{conversationTitle}}</view>
+    <view a:else class="chat-header-title chat-header-title-empty" aria-hidden="true"></view>
     <view class="chat-header-actions">
       <view class="chat-header-btn" onTap="openDrawer" aria-label="对话记录">
         <view class="zy-ico zy-ico-file"></view>
       </view>
-      <view class="chat-header-btn chat-header-new" onTap="startNewConversation" aria-label="新对话">＋</view>
+      <view class="chat-header-btn chat-header-new" onTap="startNewConversation" aria-label="新对话">
+        <view class="zy-ico zy-ico-plus"></view>
+      </view>
     </view>
   </view>
   <scroll-view
@@ -17,7 +20,6 @@
   >
     <!-- 空状态：问候 + 3 个推荐提示词（导诊/用药注意/健康管理各一） -->
     <view a:if="{{messages.length === 0}}" class="empty">
-      <view class="appointments-link" onTap="openAppointments">我的挂号</view>
       <view a:if="{{profileLoaded && !currentProfile}}" class="profile-guide" onTap="startHealthProfile">
         <view class="profile-guide-icon zy-ico zy-ico-heart"></view>
         <view class="profile-guide-copy">
@@ -26,33 +28,24 @@
         </view>
         <view class="profile-guide-arrow">›</view>
       </view>
-      <view class="mascot zy-ico zy-ico-plus"></view>
+      <view class="mascot">
+        <view class="mascot-mark zy-ico zy-ico-heart"></view>
+      </view>
       <view class="greet">你好，我是<text class="brand">小愈</text></view>
       <view class="greet-sub">描述症状，我帮你找到合适的科室</view>
       <view class="topics">
         <view
           a:for="{{prompts}}"
-          a:key="index"
+          a:key="text"
           class="topic"
-          data-text="{{item}}"
+          data-text="{{item.text}}"
           onTap="sendPrompt"
         >
-          <view class="hash">#</view>
-          <view class="topic-text">{{item}}</view>
-          <view class="arrow">›</view>
+          <view class="topic-icon zy-ico zy-ico-{{item.icon}}"></view>
+          <view class="topic-text">{{item.text}}</view>
         </view>
       </view>
 
-      <!-- AI挂号助手主卡（票 49）：与首页同一组件；智能导诊入口复用 enterTriage 导诊引导 -->
-      <view class="reg-entry-wrap">
-        <registration-card
-          cityName="{{regCityName}}"
-          total="{{regTotal}}"
-          onDepartmentEntry="onDepartmentEntry"
-          onGuideEntry="onGuideEntry"
-          onMoreHospitals="onMoreHospitals"
-        />
-      </view>
     </view>
 
     <view a:for="{{messages}}" a:key="id">
@@ -404,7 +397,7 @@
     <view class="pending-send {{sending ? 'pending-send-disabled' : ''}}" onTap="sendPendingPillbox">发送并识别</view>
   </view>
 
-  <!-- 功能入口气泡栏（D4）：常驻输入框上方，唯一功能入口；+ 按钮已拆除 -->
+  <!-- 功能入口气泡栏（D4）：常驻输入框上方，保持单行横向滑动。 -->
   <scroll-view scroll-x class="bubble-bar" show-scrollbar="{{false}}">
     <view class="bubble-row">
       <view
@@ -441,6 +434,13 @@
         placeholder-class="{{voiceHintError ? 'c-input-placeholder-error' : 'c-input-placeholder'}}"
         disabled="{{sending}}"
       />
+      <view
+        class="image-add-btn {{sending ? 'image-add-btn-disabled' : ''}}"
+        onTap="openImageAttachment"
+        aria-label="发送图片"
+      >
+        <view class="zy-ico zy-ico-plus"></view>
+      </view>
     </view>
     <view class="c-row2">
       <view class="cpill gear" onTap="cycleGear">{{gearLabel}} ▸</view>
