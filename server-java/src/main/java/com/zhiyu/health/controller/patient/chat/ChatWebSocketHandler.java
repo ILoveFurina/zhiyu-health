@@ -101,14 +101,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     .subscribe(
                             event -> sendEvent(state.session, handle.requestId(), event),
                             error -> {
-                                sendError(state.session, handle.requestId(), "ROUND_FAILED", error.getMessage());
+                                sendError(state.session, handle.requestId(), "ROUND_FAILED", "对话处理失败，请稍后重试");
                                 state.busy.set(false);
                             },
                             () -> state.busy.set(false));
         } catch (Exception error) {
             // 与解析分支同理：accept 的校验/装配异常不经 @ControllerAdvice，就地转为 error 信封并释放占用
             state.busy.set(false);
-            sendError(state.session, envelope.requestId(), "CHAT_REJECTED", error.getMessage());
+            sendError(state.session, envelope.requestId(), "CHAT_REJECTED", "消息未能受理，请检查后重试");
         }
     }
 

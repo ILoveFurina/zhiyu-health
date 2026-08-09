@@ -1,4 +1,4 @@
-﻿"""标准科室解析结构化输出契约（扩展候选科室列表）。
+"""标准科室解析结构化输出契约（扩展候选科室列表）。
 
 编排层在 Agent 流之前发起一次非流式 LLM 调用，判定对话是否已收敛到单一
 标准科室，产出 TriageResolution(status, standard_department_id,

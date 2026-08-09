@@ -1,4 +1,4 @@
-﻿"""通用药品说明书流 HTTP seam（票 51，ADR-0028）；fake 替换真实方舟模型。"""
+"""通用药品说明书流 HTTP seam（票 51，ADR-0028）；fake 替换真实方舟模型。"""
 
 import json
 from collections.abc import AsyncIterator

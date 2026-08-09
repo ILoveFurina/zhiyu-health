@@ -1,4 +1,4 @@
-﻿"""受控视觉场景注册表；C 端只能选择已登记策略，不能注入提示词。
+"""受控视觉场景注册表；C 端只能选择已登记策略，不能注入提示词。
 
 每个场景绑定 system_prompt + result_model，interpreter 按 policy.result_model 动态
 校验输出。新增拍照分析场景（SKIN/16 饮食/17 舌苔）只需在此注册策略并定义

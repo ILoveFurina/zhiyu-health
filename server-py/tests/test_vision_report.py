@@ -1,4 +1,4 @@
-﻿"""报告解读主链路与报告日期结构化输出。"""
+"""报告解读主链路与报告日期结构化输出。"""
 
 from fastapi.testclient import TestClient
 
@@ -6,6 +6,8 @@ from app.agent.vision.interpreter import StructuredVisionInterpreter
 from app.testing import create_test_app
 from conftest import TEST_AGENT_SECRET, StubHealthService
 from vision_support import FakeRawVisionModel, FakeVisionInterpreter, _mixed_pdf, _png
+
+
 def test_report_image_returns_structured_card_with_disclaimer() -> None:
     fake = FakeVisionInterpreter()
     app = create_test_app(
@@ -177,11 +179,13 @@ def test_two_invalid_model_outputs_return_stable_error_without_raw_content() -> 
     assert response.status_code == 502
     # 文案以 contracts/vision-errors.json（java 出口版）为准
     assert response.json() == {
-        "detail": {"code": "VISION_OUTPUT_INVALID", "message": "本次未能生成可靠的结构化解读，请重试"}
+        "detail": {
+            "code": "VISION_OUTPUT_INVALID",
+            "message": "本次未能生成可靠的结构化解读，请重试",
+        }
     }
     assert "患者原文" not in response.text
     assert len(model.calls) == 2
-
 
 
 # ---- 报告日期抄录（票 61，ADR-0031）：LLM 只抄录清晰可见的完整日期，不做映射/猜测 ----
@@ -265,7 +269,10 @@ def test_two_incomplete_dates_return_502() -> None:
         response = _post_report(client)
     assert response.status_code == 502
     assert response.json() == {
-        "detail": {"code": "VISION_OUTPUT_INVALID", "message": "本次未能生成可靠的结构化解读，请重试"}
+        "detail": {
+            "code": "VISION_OUTPUT_INVALID",
+            "message": "本次未能生成可靠的结构化解读，请重试",
+        }
     }
     assert len(model.calls) == 2
 

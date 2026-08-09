@@ -25,7 +25,7 @@ def test_ambiguous_candidates_filtered_deduped_and_capped() -> None:
     normalized = _normalize(resolution, _CANDIDATES)
     assert normalized.status == "ambiguous"
     # 999 越界丢弃、第二个 8 去重、保序后截断到上限
-    assert normalized.candidate_department_ids == [8, 5, 11, 14, 17][: _MAX]
+    assert normalized.candidate_department_ids == [8, 5, 11, 14, 17][:_MAX]
     assert normalized.standard_department_id is None
 
 
@@ -72,14 +72,18 @@ class _FakeModel:
 
 def test_structured_judge_normalizes_ambiguous_candidates() -> None:
     """端到端（fake 模型）：合法 JSON 的 ambiguous 候选经归一化后下发。"""
-    model = _FakeModel([
-        json.dumps({
-            "status": "ambiguous",
-            "standard_department_id": None,
-            "candidate_department_ids": [8, 999, 5],
-            "rationale": "呼吸内科或皮肤科",
-        })
-    ])
+    model = _FakeModel(
+        [
+            json.dumps(
+                {
+                    "status": "ambiguous",
+                    "standard_department_id": None,
+                    "candidate_department_ids": [8, 999, 5],
+                    "rationale": "呼吸内科或皮肤科",
+                }
+            )
+        ]
+    )
     judge = StructuredTriageJudge(model)
     candidates = [{"id": 5, "name": "皮肤科"}, {"id": 8, "name": "呼吸内科"}]
 

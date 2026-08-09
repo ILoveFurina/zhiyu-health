@@ -1,4 +1,4 @@
-﻿"""语音双向客户端 seam（ADR-0020）：ASR 识别与 TTS 合成的可替换适配层。
+"""语音双向客户端 seam（ADR-0020）：ASR 识别与 TTS 合成的可替换适配层。
 
 与 vision interpreter 同构：定义 Protocol（AsrClient/TtsClient），契约 enabled=false 时
 Disabled 占位抛 VOICE_UNCONFIGURED；enabled=true 时按运行时凭据选 Volc 实现或回落 Fake
@@ -84,7 +84,7 @@ class _DisabledTtsClient:
 
 
 class VolcAsrClient:
-    """火山录音文件识别极速版适配（）：wav base64 内联上送，一次请求同步返回 result.text。
+    """火山录音文件识别极速版适配：wav base64 内联上送，一次请求同步返回 result.text。
 
     成功与否看响应头 X-Api-Status-Code 而非 body（20000000 成功；20000003 静音、45000002
     空音频），失败排障依赖 X-Tt-Logid。日志只记状态码与 logid，绝不记音频与识别文字原文
@@ -129,17 +129,25 @@ class VolcAsrClient:
         except httpx.TimeoutException as exc:
             raise VoiceError("VOICE_MODEL_TIMEOUT", "火山 ASR 调用超时") from exc
         except httpx.HTTPError as exc:
-            raise VoiceError("VOICE_MODEL_FAILED", f"火山 ASR 网络错误（{type(exc).__name__}）") from exc
+            raise VoiceError(
+                "VOICE_MODEL_FAILED", f"火山 ASR 网络错误（{type(exc).__name__}）"
+            ) from exc
         status = response.headers.get("x-api-status-code", "")
         logid = response.headers.get("x-tt-logid", "")
         elapsed_ms = int((time.monotonic() - started_at) * 1000)
         if status != "20000000":
-            logger.warning("volc asr failed status=%s logid=%s elapsed_ms=%d", status, logid, elapsed_ms)
+            logger.warning(
+                "volc asr failed status=%s logid=%s elapsed_ms=%d", status, logid, elapsed_ms
+            )
             if status in ("20000003", "45000002"):
                 raise VoiceError("VOICE_AUDIO_INVALID", "静音或空音频")
-            raise VoiceError("VOICE_MODEL_FAILED", f"火山 ASR 失败（{status or response.status_code}）")
+            raise VoiceError(
+                "VOICE_MODEL_FAILED", f"火山 ASR 失败（{status or response.status_code}）"
+            )
         # 耗时日志只记毫秒数/音频字节数/logid，不记识别文字原文（硬约束 5）
-        logger.info("volc asr ok elapsed_ms=%d audio_bytes=%d logid=%s", elapsed_ms, len(audio_bytes), logid)
+        logger.info(
+            "volc asr ok elapsed_ms=%d audio_bytes=%d logid=%s", elapsed_ms, len(audio_bytes), logid
+        )
         try:
             text = (response.json().get("result") or {}).get("text") or ""
         except ValueError as exc:

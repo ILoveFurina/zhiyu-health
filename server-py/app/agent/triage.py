@@ -1,4 +1,4 @@
-﻿"""标准科室解析判定器（扩展 ambiguous 候选科室输出）。
+"""标准科室解析判定器（扩展 ambiguous 候选科室输出）。
 
 对话 meta 之后、Agent 流之前，编排层拉取候选标准科室并发起一次非流式 LLM
 调用，判定用户意图是否已收敛到单一标准科室（explicit_booking/resolved/
@@ -28,7 +28,7 @@ _MAX_OPTIONS = get_contracts().guided_registration.options_max_candidates
 _SYSTEM_PROMPT = (
     "你是医疗 AI 助手小愈的导诊解析器。根据对话历史与候选标准科室列表，"
     "判断用户的就诊科室意图是否已收敛，只在 explicit_booking、resolved、ambiguous、none 中选一：\n"
-    "- explicit_booking：用户明确表达了\"某科室 + 挂号/预约\"意图\n"
+    '- explicit_booking：用户明确表达了"某科室 + 挂号/预约"意图\n'
     "- resolved：多轮导诊后症状已收敛到单一明确的标准科室（用户未明说挂号）\n"
     "- ambiguous：仍有多个可能科室，无法确定单一科室\n"
     "- none：对话中没有可用的科室线索\n"
@@ -37,9 +37,9 @@ _SYSTEM_PROMPT = (
     "candidate_department_ids 仅当 status 为 ambiguous 时给出：从候选列表挑出"
     f"最可能的科室 id，按可能性从高到低排序，至多 {_MAX_OPTIONS} 个，不得编造；"
     "其余 status 输出 []。\n"
-    "仅输出 JSON：{\"status\": \"<explicit_booking|resolved|ambiguous|none>\", "
-    "\"standard_department_id\": <int|null>, \"candidate_department_ids\": [<int>...], "
-    "\"rationale\": \"<简短中文理由>\"}。"
+    '仅输出 JSON：{"status": "<explicit_booking|resolved|ambiguous|none>", '
+    '"standard_department_id": <int|null>, "candidate_department_ids": [<int>...], '
+    '"rationale": "<简短中文理由>"}。'
     "不输出其他内容，不做诊断或用药建议。"
 )
 
@@ -47,15 +47,13 @@ _SYSTEM_PROMPT = (
 class RawTriageModel(Protocol):
     """返回模型原始文本；调用方负责结构校验。"""
 
-    async def ainvoke(self, prompt_text: str) -> str:
-        ...
+    async def ainvoke(self, prompt_text: str) -> str: ...
 
 
 class TriageJudge(Protocol):
     async def judge(
         self, messages: list[dict[str, str]], candidates: list[dict[str, Any]]
-    ) -> TriageResolution:
-        ...
+    ) -> TriageResolution: ...
 
 
 def _build_prompt(messages: list[dict[str, str]], candidates: list[dict[str, Any]]) -> str:
@@ -63,10 +61,7 @@ def _build_prompt(messages: list[dict[str, str]], candidates: list[dict[str, Any
         f"{'用户' if m.get('role') == 'user' else '助手'}：{m.get('content', '')}" for m in messages
     )
     return (
-        "候选标准科室："
-        + json.dumps(candidates, ensure_ascii=False)
-        + "\n\n对话历史：\n"
-        + history
+        "候选标准科室：" + json.dumps(candidates, ensure_ascii=False) + "\n\n对话历史：\n" + history
     )
 
 
@@ -117,9 +112,15 @@ class StructuredTriageJudge:
         prompt = _build_prompt(messages, candidates)
         validation_hint = ""
         for attempt in range(2):
-            request_text = prompt if not attempt else (
-                prompt + "\n\n上次输出未通过结构校验：" + validation_hint
-                + "。请重新输出严格符合 Schema 的 JSON。"
+            request_text = (
+                prompt
+                if not attempt
+                else (
+                    prompt
+                    + "\n\n上次输出未通过结构校验："
+                    + validation_hint
+                    + "。请重新输出严格符合 Schema 的 JSON。"
+                )
             )
             try:
                 raw = await self._model.ainvoke(request_text)

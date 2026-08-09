@@ -1,4 +1,4 @@
-﻿"""视觉接口测试共用 fake 与最小文件样例。"""
+"""视觉接口测试共用 fake 与最小文件样例。"""
 
 from io import BytesIO
 
@@ -6,6 +6,8 @@ import pymupdf
 from PIL import Image
 
 from app.schemas.vision import ReportInterpretation
+
+
 class FakeVisionInterpreter:
     def __init__(self) -> None:
         self.calls: list[object] = []
@@ -98,5 +100,3 @@ def _blank_pdf() -> bytes:
     content = document.tobytes()
     document.close()
     return content
-
-

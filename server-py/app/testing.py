@@ -16,7 +16,7 @@ from app.agent.preconsult import PreconsultJudge
 from app.agent.runner import AgentRunner, LazySettingsAgentRunner
 from app.agent.triage import TriageJudge
 from app.agent.vision.interpreter import LazyVisionInterpreter, VisionInterpreter
-from app.main import build_http_app
+from app.http import build_http_app
 from app.runtime import ApplicationRuntime, install_runtime
 from app.services.chat import AgentChatService
 from app.services.directory import DepartmentDirectory
@@ -68,4 +68,4 @@ def create_test_app(
         )
         yield
 
-    return build_http_app(lifespan)
+    return build_http_app(lifespan, ["http://localhost:5173"])

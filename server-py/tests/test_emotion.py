@@ -1,4 +1,4 @@
-﻿"""情绪反馈（票 44，ADR-0019）测试：结构化输出校验、重试、降级 calm、message 事件携带 emotion。
+"""情绪反馈（票 44，ADR-0019）测试：结构化输出校验、重试、降级 calm、message 事件携带 emotion。
 
 覆盖：
 - EmotionJudge 的 json_object + pydantic 校验 + 2 次重试范式（复用 vision interpreter 范式）
@@ -71,10 +71,12 @@ def test_judge_returns_valid_emotion_on_first_try() -> None:
 
 
 def test_judge_retries_on_invalid_json_then_succeeds() -> None:
-    model = FakeRawEmotionModel([
-        "这不是 JSON",
-        json.dumps({"emotion": "fearful", "rationale": "胸痛伴冷汗"}),
-    ])
+    model = FakeRawEmotionModel(
+        [
+            "这不是 JSON",
+            json.dumps({"emotion": "fearful", "rationale": "胸痛伴冷汗"}),
+        ]
+    )
     judge = StructuredEmotionJudge(model)
 
     result = asyncio.run(judge.judge("胸痛出冷汗"))
@@ -83,10 +85,12 @@ def test_judge_retries_on_invalid_json_then_succeeds() -> None:
 
 
 def test_judge_degrades_to_calm_after_two_failures() -> None:
-    model = FakeRawEmotionModel([
-        json.dumps({"emotion": "angry", "rationale": "非白名单"}),  # 校验失败
-        "仍然不是 JSON",  # JSON 解析失败
-    ])
+    model = FakeRawEmotionModel(
+        [
+            json.dumps({"emotion": "angry", "rationale": "非白名单"}),  # 校验失败
+            "仍然不是 JSON",  # JSON 解析失败
+        ]
+    )
     judge = StructuredEmotionJudge(model)
 
     result = asyncio.run(judge.judge("随便说点什么"))
@@ -142,7 +146,9 @@ def test_message_event_carries_anxious_emotion_and_soothing_text() -> None:
         emotion_judge=fake_emotion,
     )
     with TestClient(app) as client:
-        events = _post_chat(client, {"messages": [{"role": "user", "content": "我头疼好几天了怎么办"}]})
+        events = _post_chat(
+            client, {"messages": [{"role": "user", "content": "我头疼好几天了怎么办"}]}
+        )
 
     final = events[-2]
     assert final["event"] == "message"
@@ -197,13 +203,16 @@ def test_emotion_judge_receives_last_user_message_in_multi_turn() -> None:
         emotion_judge=fake_emotion,
     )
     with TestClient(app) as client:
-        _post_chat(client, {
-            "messages": [
-                {"role": "user", "content": "我咳嗽三天了"},
-                {"role": "assistant", "content": "有发烧吗"},
-                {"role": "user", "content": "还开始发烧了"},
-            ],
-        })
+        _post_chat(
+            client,
+            {
+                "messages": [
+                    {"role": "user", "content": "我咳嗽三天了"},
+                    {"role": "assistant", "content": "有发烧吗"},
+                    {"role": "user", "content": "还开始发烧了"},
+                ],
+            },
+        )
 
     assert fake_emotion.calls == ["还开始发烧了"]
 

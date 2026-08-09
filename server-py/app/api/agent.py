@@ -1,4 +1,4 @@
-﻿"""Agent 对话接口（供 server-java 经 SSE 调用，ADR-0009 统一入口链路）。
+"""Agent 对话接口（供 server-java 经 SSE 调用，ADR-0009 统一入口链路）。
 
 端侧不直连本接口：请求一律由 server-java 鉴权/审计后转发，token 逐跳透传。
 """

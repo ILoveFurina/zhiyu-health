@@ -36,7 +36,11 @@ def _department_already_summarized(
     if not name:
         return False
     last_assistant = next(
-        (message.get("content", "") for message in reversed(messages) if message.get("role") == "assistant"),
+        (
+            message.get("content", "")
+            for message in reversed(messages)
+            if message.get("role") == "assistant"
+        ),
         "",
     )
     if not last_assistant:
@@ -63,9 +67,7 @@ def _build_slots_summary(payload: dict[str, Any]) -> str:
     name = department.get("name", "") if isinstance(department, dict) else ""
     doctors = [item for item in payload.get("doctors", []) if isinstance(item, dict)]
     bookable = [item for item in doctors if item.get("bookable")]
-    earliest_pool = [
-        item for item in bookable if isinstance(item.get("earliest_bookable"), dict)
-    ]
+    earliest_pool = [item for item in bookable if isinstance(item.get("earliest_bookable"), dict)]
     if not bookable or not earliest_pool:
         return _GUIDED.summary_templates["empty"].format(department=name)
     earliest_doctor = min(

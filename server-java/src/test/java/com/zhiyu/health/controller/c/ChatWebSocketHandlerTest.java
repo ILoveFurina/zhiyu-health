@@ -84,6 +84,48 @@ class ChatWebSocketHandlerTest {
     }
 
     @Test
+    void roundFailureDoesNotExposeUpstreamExceptionMessage() throws Exception {
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        when(rounds.accept(any()))
+                .thenReturn(new ChatRoundModels.Handle(
+                        "req-failed", 7L, "ACCEPTED", Flux.error(new RuntimeException("jdbc:postgresql://secret"))));
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage("{\"type\":\"chat\",\"request_id\":\"req-failed\",\"data\":{\"content\":\"你好\"}}"));
+
+        JsonNode error = mapper.readTree(sent.get(1));
+        assertThat(error.path("data").path("code").asText()).isEqualTo("ROUND_FAILED");
+        assertThat(error.path("data").path("message").asText()).isEqualTo("对话处理失败，请稍后重试");
+        assertThat(sent.get(1)).doesNotContain("postgresql", "secret");
+    }
+
+    @Test
+    void rejectedRoundDoesNotExposeInternalExceptionMessage() throws Exception {
+        ChatRoundService rounds = mock(ChatRoundService.class);
+        when(rounds.accept(any())).thenThrow(new RuntimeException("select * from patients"));
+        ObjectMapper mapper = new ObjectMapper();
+        ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
+        List<String> sent = new ArrayList<>();
+        WebSocketSession session = session(sent);
+        handler.afterConnectionEstablished(session);
+
+        handler.handleTextMessage(
+                session,
+                new TextMessage("{\"type\":\"chat\",\"request_id\":\"req-rejected\",\"data\":{\"content\":\"你好\"}}"));
+
+        JsonNode error = mapper.readTree(sent.get(0));
+        assertThat(error.path("data").path("code").asText()).isEqualTo("CHAT_REJECTED");
+        assertThat(error.path("data").path("message").asText()).isEqualTo("消息未能受理，请检查后重试");
+        assertThat(sent.get(0)).doesNotContain("patients", "select");
+    }
+
+    @Test
     void medicationNameEnvelopeRoutesToMedicationRound() throws Exception {
         // 票 51：chat 信封携带 medication_name 时走说明书流轮次，token 经 event 信封透传
         ChatRoundService rounds = mock(ChatRoundService.class);

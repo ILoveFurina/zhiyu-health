@@ -1,4 +1,4 @@
-﻿"""跨栈契约基座：仓库根 contracts/ 是 server-java 与 server-py 共享常量的单一事实源。
+"""跨栈契约基座：仓库根 contracts/ 是 server-java 与 server-py 共享常量的单一事实源。
 
 懒加载 + 进程内缓存；契约缺失或损坏属部署错误，首次访问即抛 RuntimeError，
 不静默降级。消费接线在后续阶段进行，当前只暴露 get_contracts() 供读取。
@@ -165,7 +165,7 @@ class VoiceContract(BaseModel):
 
 
 class GuidedRegistrationContract(BaseModel):
-    """智能导诊标准科室与科室号源卡（）：解析结果、卡状态、确定性摘要模板。
+    """智能导诊标准科室与科室号源卡：解析结果、卡状态、确定性摘要模板。
 
     触发与摘要拼装由编排代码（services 层）保证，不依赖 LLM 自主调工具；
     resolution_statuses 前两态（explicit_booking/resolved）触发强制号源查询。
@@ -186,7 +186,7 @@ class GuidedRegistrationContract(BaseModel):
 
 
 class OnlineConsultationContract(BaseModel):
-    """在线问诊主闭环（）：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
+    """在线问诊主闭环：预问诊场景值、病情摘要字段清单与摘要快照事件字段名。
 
     server-py 只消费这三项（场景判定、摘要结构钉值、message 事件挂载字段名）；
     状态机、进度步骤、接诊方式与文案由 server-java 与端侧消费，按既有契约模型

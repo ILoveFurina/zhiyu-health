@@ -1,4 +1,4 @@
-﻿"""饮食拍照分析场景。"""
+"""饮食拍照分析场景。"""
 
 from fastapi.testclient import TestClient
 
@@ -142,5 +142,3 @@ def test_diet_out_of_scope_image_is_rejected_with_diet_code() -> None:
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "VISION_DIET_SCOPE_UNSUPPORTED"
     assert len(raw_model.calls) == 1
-
-

@@ -1,4 +1,4 @@
-﻿"""视觉输入校验与规范化。"""
+"""视觉输入校验与规范化。"""
 
 import re
 from dataclasses import dataclass
@@ -50,7 +50,7 @@ def _input_error(code: str) -> VisionInputError:
 
 
 def parse_optional_health_profile(raw: str | None) -> HealthProfilePayload | None:
-    """可选健康档案解析（）：无档案是合法业务状态，契约上只用"字段未传"表达；
+    """可选健康档案解析：无档案是合法业务状态，契约上只用"字段未传"表达；
     历史调用方曾把空档案序列化为字面 "null" 发出，兼容视为未提供。
     其余畸形/不完整 JSON 契约化为 VISION_PROFILE_INVALID，不得泄漏为裸 500。"""
     if raw is None or raw.strip() == "null":
@@ -133,8 +133,7 @@ def _prepare_pdf(data: bytes, scenario: str) -> PreparedDocument:
         if not 1 <= document.page_count <= MAX_PDF_PAGES:
             raise _input_error("VISION_PDF_PAGE_LIMIT")
         if not any(
-            _pdf_page_has_content(document.load_page(index))
-            for index in range(document.page_count)
+            _pdf_page_has_content(document.load_page(index)) for index in range(document.page_count)
         ):
             raise _input_error("VISION_FILE_UNREADABLE")
         pages = tuple(
@@ -174,7 +173,9 @@ def _is_reliable_text(text: str) -> bool:
     if len(compact) < _MIN_TEXT_CHARS:
         return False
     normal = sum(
-        char.isalnum() or "\u4e00" <= char <= "\u9fff" or char in ",.;:!?%+-/()[]，。；：！？（）【】"
+        char.isalnum()
+        or "\u4e00" <= char <= "\u9fff"
+        or char in ",.;:!?%+-/()[]，。；：！？（）【】"
         for char in compact
     )
     return normal / len(compact) >= _NORMAL_CHAR_RATIO and "�" not in compact

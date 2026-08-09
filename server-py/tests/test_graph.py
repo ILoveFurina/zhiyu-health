@@ -1,4 +1,4 @@
-﻿"""知识图谱增强（ADR-0013）：TestClient + fake 图遍历替身。
+"""知识图谱增强（ADR-0013）：TestClient + fake 图遍历替身。
 
 覆盖：graph 态先遍历后生成、none 态不遍历、空召回降级走裸 LLM、
 knowledge 元事件状态正确、graph 与 rag 互斥不注入对方工具、投影接口。
@@ -8,7 +8,13 @@ import json
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
-from conftest import TEST_AGENT_SECRET, FakeEmotionJudge, FakeGraphTraverser, FakeKnowledgeRetriever, StubHealthService
+from conftest import (
+    TEST_AGENT_SECRET,
+    FakeEmotionJudge,
+    FakeGraphTraverser,
+    FakeKnowledgeRetriever,
+    StubHealthService,
+)
 from fastapi.testclient import TestClient
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolCall
@@ -99,25 +105,41 @@ def _build_app(
 
 _NEIGHBORS = [
     GraphNeighbor(name="心律失常", node_type="Disease", relation="INDICATES", direction="outgoing"),
-    GraphNeighbor(name="心血管内科", node_type="Department", relation="SUGGESTS_DEPARTMENT", direction="outgoing"),
+    GraphNeighbor(
+        name="心血管内科",
+        node_type="Department",
+        relation="SUGGESTS_DEPARTMENT",
+        direction="outgoing",
+    ),
 ]
 
 
 def test_graph_traverses_before_generation_and_emits_ok_event() -> None:
     """graph 态先遍历后生成，knowledge 事件 source=graph/status=ok。"""
     traverser = FakeGraphTraverser(_NEIGHBORS)
-    fake = _ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="", tool_calls=[
-            ToolCall(name="traverse_graph", args={"entities": ["胸闷气短"]}, id="g-1")
-        ]),
-        "结合图谱检索，胸闷气短可能关联心律失常，建议到心血管内科评估。",
-    ]))
+    fake = _ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(name="traverse_graph", args={"entities": ["胸闷气短"]}, id="g-1")
+                    ],
+                ),
+                "结合图谱检索，胸闷气短可能关联心律失常，建议到心血管内科评估。",
+            ]
+        ),
+    )
     client = _build_app(fake, traverser)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "最近胸闷气短"}],
-            "knowledge_source": "graph",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "最近胸闷气短"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     # 先遍历后生成：traverser 在 LLM 生成最终文本前被调用
     assert traverser.calls == [["胸闷气短"]]
@@ -142,10 +164,13 @@ def test_none_source_does_not_inject_traverse_graph_tool() -> None:
     fake = _recording_fake(iter(["我没有检索，直接回答。"]), bound_names)
     client = _build_app(fake, traverser)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "感冒怎么办"}],
-            "knowledge_source": "none",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "感冒怎么办"}],
+                "knowledge_source": "none",
+            },
+        )
 
     assert traverser.calls == []
     assert "knowledge" not in [e["event"] for e in events]
@@ -155,18 +180,29 @@ def test_none_source_does_not_inject_traverse_graph_tool() -> None:
 def test_graph_empty_recall_degrades_to_bare_llm_with_degraded_event() -> None:
     """graph 空召回标 degraded，仍产出 message + done（降级不中断流）。"""
     traverser = FakeGraphTraverser(neighbors=[])  # 空召回
-    fake = _ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="", tool_calls=[
-            ToolCall(name="traverse_graph", args={"entities": ["罕见症状"]}, id="g-2")
-        ]),
-        "未检索到图谱信息，基于自身知识回答。",
-    ]))
+    fake = _ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(name="traverse_graph", args={"entities": ["罕见症状"]}, id="g-2")
+                    ],
+                ),
+                "未检索到图谱信息，基于自身知识回答。",
+            ]
+        ),
+    )
     client = _build_app(fake, traverser)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "罕见症状"}],
-            "knowledge_source": "graph",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "罕见症状"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     knowledge = next(e for e in events if e["event"] == "knowledge")
     assert knowledge["data"] == {"source": "graph", "status": "degraded", "count": 0}
@@ -181,18 +217,29 @@ def test_graph_traversal_failure_degrades_silently() -> None:
     此处用空召回 fake 模拟"遍历失败已被吞掉"后的工具视角：count=0 -> degraded。
     """
     traverser = FakeGraphTraverser(neighbors=[])
-    fake = _ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="", tool_calls=[
-            ToolCall(name="traverse_graph", args={"entities": ["头痛"]}, id="g-3")
-        ]),
-        "图谱暂时不可用，我基于自身知识回答。",
-    ]))
+    fake = _ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(name="traverse_graph", args={"entities": ["头痛"]}, id="g-3")
+                    ],
+                ),
+                "图谱暂时不可用，我基于自身知识回答。",
+            ]
+        ),
+    )
     client = _build_app(fake, traverser)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "头痛"}],
-            "knowledge_source": "graph",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "头痛"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     knowledge = next(e for e in events if e["event"] == "knowledge")
     assert knowledge["data"]["status"] == "degraded"
@@ -220,12 +267,20 @@ def test_graph_and_rag_are_mutually_exclusive() -> None:
     retriever = FakeKnowledgeRetriever()
     traverser = FakeGraphTraverser(_NEIGHBORS)
     bound_names: list[str] = []
-    fake = _recording_fake(iter([
-        AIMessage(content="", tool_calls=[
-            ToolCall(name="traverse_graph", args={"entities": ["胸闷"]}, id="g-4")
-        ]),
-        "回答。",
-    ]), bound_names)
+    fake = _recording_fake(
+        iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(name="traverse_graph", args={"entities": ["胸闷"]}, id="g-4")
+                    ],
+                ),
+                "回答。",
+            ]
+        ),
+        bound_names,
+    )
     runner = LangGraphAgentRunner(
         lambda effort: fake, knowledge_retriever=retriever, graph_traverser=traverser
     )
@@ -237,10 +292,13 @@ def test_graph_and_rag_are_mutually_exclusive() -> None:
         emotion_judge=FakeEmotionJudge(),
     )
     with TestClient(app) as client:
-        _post_chat(client, {
-            "messages": [{"role": "user", "content": "胸闷"}],
-            "knowledge_source": "graph",
-        })
+        _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "胸闷"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     # graph 态只注入 traverse_graph，不注入 search_knowledge
     assert "search_knowledge" not in bound_names
@@ -253,15 +311,23 @@ def test_graph_and_rag_are_mutually_exclusive() -> None:
 def test_graph_unavailable_when_requested_emits_unavailable_event() -> None:
     """graph 选中但遍历器未配置（graph_available=False）-> unavailable 降级。"""
     traverser = FakeGraphTraverser(_NEIGHBORS)
-    fake = _ToolCallingFake(disable_streaming=True, messages=iter([
-        "图谱不可用，走裸 LLM。",
-    ]))
+    fake = _ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                "图谱不可用，走裸 LLM。",
+            ]
+        ),
+    )
     client = _build_app(fake, traverser, graph_available=False)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "症状"}],
-            "knowledge_source": "graph",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "症状"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     knowledge = next(e for e in events if e["event"] == "knowledge")
     assert knowledge["data"] == {"source": "graph", "status": "unavailable", "count": 0}
@@ -271,18 +337,29 @@ def test_graph_unavailable_when_requested_emits_unavailable_event() -> None:
 def test_graph_event_has_no_disclaimer_but_message_does() -> None:
     """knowledge 元事件不带免责声明（非 AI 产出）；message 带（硬约束 1）。"""
     traverser = FakeGraphTraverser(_NEIGHBORS)
-    fake = _ToolCallingFake(disable_streaming=True, messages=iter([
-        AIMessage(content="", tool_calls=[
-            ToolCall(name="traverse_graph", args={"entities": ["胸闷"]}, id="g-5")
-        ]),
-        "建议就医。",
-    ]))
+    fake = _ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(name="traverse_graph", args={"entities": ["胸闷"]}, id="g-5")
+                    ],
+                ),
+                "建议就医。",
+            ]
+        ),
+    )
     client = _build_app(fake, traverser)
     with client:
-        events = _post_chat(client, {
-            "messages": [{"role": "user", "content": "胸闷"}],
-            "knowledge_source": "graph",
-        })
+        events = _post_chat(
+            client,
+            {
+                "messages": [{"role": "user", "content": "胸闷"}],
+                "knowledge_source": "graph",
+            },
+        )
 
     knowledge = next(e for e in events if e["event"] == "knowledge")
     assert "disclaimer" not in knowledge["data"]
@@ -296,7 +373,9 @@ def test_graph_event_has_no_disclaimer_but_message_does() -> None:
 class _FakeProjector:
     """投影 service 的 fake：可控投影/详情结果。"""
 
-    def __init__(self, projection_data: dict | None = None, detail_data: dict | None = None) -> None:
+    def __init__(
+        self, projection_data: dict | None = None, detail_data: dict | None = None
+    ) -> None:
         self._projection = projection_data or {"nodes": [], "edges": []}
         self._detail = detail_data
 

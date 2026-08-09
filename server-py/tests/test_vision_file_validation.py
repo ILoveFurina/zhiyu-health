@@ -1,4 +1,4 @@
-﻿"""视觉文件、范围、档案编码与稳定错误语义。"""
+"""视觉文件、范围、档案编码与稳定错误语义。"""
 
 from io import BytesIO
 
@@ -9,7 +9,16 @@ from app.agent.vision.interpreter import StructuredVisionInterpreter
 from app.schemas.vision import ReportInterpretation
 from app.testing import create_test_app
 from conftest import TEST_AGENT_SECRET, StubHealthService
-from vision_support import FakeRawVisionModel, FakeVisionInterpreter, _blank_pdf, _large_png, _png, _webp
+from vision_support import (
+    FakeRawVisionModel,
+    FakeVisionInterpreter,
+    _blank_pdf,
+    _large_png,
+    _png,
+    _webp,
+)
+
+
 def _pill_box_result() -> str:
     return """{
       "candidates":[
@@ -19,7 +28,6 @@ def _pill_box_result() -> str:
       "unreadable_hint":"",
       "scope_supported":true
     }"""
-
 
 
 def test_large_image_is_resized_and_reencoded_before_model_call() -> None:
@@ -112,7 +120,6 @@ def test_model_timeout_returns_distinct_stable_code() -> None:
         )
     assert response.status_code == 504
     assert response.json()["detail"]["code"] == "VISION_MODEL_TIMEOUT"
-
 
 
 # ---- 可选健康档案编码（票 46）：无档案是合法业务状态，不得成为拍药盒前置条件 ----
@@ -262,5 +269,3 @@ def test_webp_image_passes_type_check() -> None:
         )
     assert response.status_code == 200
     assert len(model.calls) == 1
-
-

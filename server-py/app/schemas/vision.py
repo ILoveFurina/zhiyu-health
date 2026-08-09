@@ -1,6 +1,6 @@
-﻿"""视觉场景结构化契约。
+"""视觉场景结构化契约。
 
-报告解读（REPORT）与拍照分析（SKIN/DIET）共用同一 scenario 驱动管道（）：
+报告解读（REPORT）与拍照分析（SKIN/DIET）共用同一 scenario 驱动管道：
 每个场景在 scenarios.py 注册自己的 system_prompt 与 result_model，interpreter 按
 policy.result_model 动态校验，document 按场景分发预处理。各 result_model 字段互不
 耦合，新增场景只追加模型与策略，不改动既有 REPORT 结构。
@@ -10,7 +10,14 @@ import re
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 from app.core.contracts import get_contracts
@@ -176,8 +183,11 @@ class TongueAnalysis(BaseModel):
         # 用 PydanticCustomError 而非裸 ValueError：前者 ctx 可 JSON 序列化，
         # interpreter 把 ValidationError.errors() 喂回 LLM 重试时不会因序列化失败崩溃。
         if self.need_doctor and not self.urgency_hint:
-            raise PydanticCustomError("need_doctor_requires_urgency_hint", "need_doctor 为 true 时 urgency_hint 不得为空")
+            raise PydanticCustomError(
+                "need_doctor_requires_urgency_hint", "need_doctor 为 true 时 urgency_hint 不得为空"
+            )
         return self
+
 
 class PillCandidate(BaseModel):
     """药盒视觉识别的单个候选药名（ADR-0025）。

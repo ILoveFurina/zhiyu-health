@@ -34,22 +34,26 @@ def test_sse_frame_format_is_unchanged() -> None:
 
 def test_complete_stream_yields_frames_and_logs_lifecycle(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.DEBUG, logger="app.api.sse"):
-        frames = _drain(log_sse_stream(
-            _events(
-                {"event": "meta", "data": {"effort": "low"}},
-                {"event": "token", "data": {"text": "你好"}},
-                {"event": "done", "data": {}},
-            ),
-            context=CONTEXT,
-        ))
+        frames = _drain(
+            log_sse_stream(
+                _events(
+                    {"event": "meta", "data": {"effort": "low"}},
+                    {"event": "token", "data": {"text": "你好"}},
+                    {"event": "done", "data": {}},
+                ),
+                context=CONTEXT,
+            )
+        )
 
     assert frames == [
         'event: meta\ndata: {"effort": "low"}\n\n',
         'event: token\ndata: {"text": "你好"}\n\n',
-        'event: done\ndata: {}\n\n',
+        "event: done\ndata: {}\n\n",
     ]
     messages = [record.getMessage() for record in caplog.records]
-    assert any("sse stream start" in m and "conversation=7" in m and "effort=low" in m for m in messages)
+    assert any(
+        "sse stream start" in m and "conversation=7" in m and "effort=low" in m for m in messages
+    )
     assert any(
         "sse stream complete" in m and "'meta': 1" in m and "'token': 1" in m and "'done': 1" in m
         for m in messages
@@ -66,11 +70,17 @@ def test_client_disconnect_is_logged_and_cancellation_propagates(
         # server-java 取消上游订阅时 uvicorn 以 disconnect 取消本流（票 33 的静默路径）
         raise asyncio.CancelledError
 
-    with caplog.at_level(logging.WARNING, logger="app.api.sse"), pytest.raises(asyncio.CancelledError):
+    with (
+        caplog.at_level(logging.WARNING, logger="app.api.sse"),
+        pytest.raises(asyncio.CancelledError),
+    ):
         _drain(log_sse_stream(cancelled_midway(), context=CONTEXT))
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert any("cancelled by client" in r.getMessage() and "conversation=7" in r.getMessage() for r in warnings)
+    assert any(
+        "cancelled by client" in r.getMessage() and "conversation=7" in r.getMessage()
+        for r in warnings
+    )
 
 
 def test_stream_failure_is_logged_with_exception_and_propagates(
@@ -80,9 +90,14 @@ def test_stream_failure_is_logged_with_exception_and_propagates(
         yield {"event": "meta", "data": {"effort": "low"}}
         raise ValueError("graph exploded")
 
-    with caplog.at_level(logging.ERROR, logger="app.api.sse"), pytest.raises(ValueError, match="graph exploded"):
+    with (
+        caplog.at_level(logging.ERROR, logger="app.api.sse"),
+        pytest.raises(ValueError, match="graph exploded"),
+    ):
         _drain(log_sse_stream(failing(), context=CONTEXT))
 
     errors = [r for r in caplog.records if r.levelno == logging.ERROR]
-    assert any("sse stream failed" in r.getMessage() and "conversation=7" in r.getMessage() for r in errors)
+    assert any(
+        "sse stream failed" in r.getMessage() and "conversation=7" in r.getMessage() for r in errors
+    )
     assert any(r.exc_info is not None for r in errors)

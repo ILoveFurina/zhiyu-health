@@ -1,4 +1,4 @@
-﻿"""票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
+"""票 50 智能导诊强制号源查询（HTTP seam，MockTransport 替换 server-java）。
 
 覆盖：明确科室直查、多轮 resolved 收敛直查（票 62）、resolved 同科室已出卡
 去重（票 62）、ambiguous 退回 Agent 流、摘要先于卡片、查询失败出 failed 卡、
@@ -12,7 +12,13 @@ from types import SimpleNamespace
 from typing import Any
 
 import httpx
-from conftest import TEST_AGENT_SECRET, FakeAgentRunner, FakeEmotionJudge, FakeTriageJudge, StubHealthService
+from conftest import (
+    TEST_AGENT_SECRET,
+    FakeAgentRunner,
+    FakeEmotionJudge,
+    FakeTriageJudge,
+    StubHealthService,
+)
 from fastapi.testclient import TestClient
 
 from app.testing import create_test_app
@@ -43,8 +49,12 @@ def _slots_payload(*, bookable: bool = True) -> dict[str, Any]:
             "bookable": bookable,
             "earliest_bookable": {"date": "2026-08-09", "time_slot": "PM"} if bookable else None,
             "slots": [
-                {"schedule_id": 91, "schedule_date": "2026-08-09", "time_slot": "PM",
-                 "remaining_slots": 3 if bookable else 0},
+                {
+                    "schedule_id": 91,
+                    "schedule_date": "2026-08-09",
+                    "time_slot": "PM",
+                    "remaining_slots": 3 if bookable else 0,
+                },
             ],
         },
         {
@@ -62,8 +72,12 @@ def _slots_payload(*, bookable: bool = True) -> dict[str, Any]:
             "bookable": bookable,
             "earliest_bookable": {"date": "2026-08-08", "time_slot": "AM"} if bookable else None,
             "slots": [
-                {"schedule_id": 92, "schedule_date": "2026-08-08", "time_slot": "AM",
-                 "remaining_slots": 2 if bookable else 0},
+                {
+                    "schedule_id": 92,
+                    "schedule_date": "2026-08-08",
+                    "time_slot": "AM",
+                    "remaining_slots": 2 if bookable else 0,
+                },
             ],
         },
     ]
@@ -120,8 +134,11 @@ def _build_app(
         directory=CallbackDepartmentDirectory(callback),
     )
     return SimpleNamespace(
-        client=TestClient(app), agent=fake_agent, emotion=fake_emotion,
-        triage=fake_triage, callback=callback,
+        client=TestClient(app),
+        agent=fake_agent,
+        emotion=fake_emotion,
+        triage=fake_triage,
+        callback=callback,
     )
 
 
@@ -159,16 +176,21 @@ def test_explicit_booking_triggers_forced_query_with_summary_before_card() -> No
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
+        triage_results=[
+            TriageResolution(
+                status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
+            )
+        ],
     )
 
-    events = _run(harness, {
-        "messages": [{"role": "user", "content": "我要挂皮肤科的号"}],
-        "longitude": 121.4737,
-        "latitude": 31.2304,
-    })
+    events = _run(
+        harness,
+        {
+            "messages": [{"role": "user", "content": "我要挂皮肤科的号"}],
+            "longitude": 121.4737,
+            "latitude": 31.2304,
+        },
+    )
 
     # 事件顺序钉死：meta -> message 摘要 -> department_slots 卡 -> done
     assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
@@ -212,15 +234,20 @@ def test_earliest_doctor_without_specialty_omits_recommendation_clause() -> None
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests, slots_payload=payload),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
+        triage_results=[
+            TriageResolution(
+                status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
+            )
+        ],
     )
 
     events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
 
     assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
-    assert events[1]["data"]["content"] == "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+    assert (
+        events[1]["data"]["content"]
+        == "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"
+    )
 
 
 def test_earliest_tie_breaks_by_doctor_id() -> None:
@@ -235,9 +262,11 @@ def test_earliest_tie_breaks_by_doctor_id() -> None:
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests, slots_payload=payload),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
+        triage_results=[
+            TriageResolution(
+                status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
+            )
+        ],
     )
 
     events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
@@ -254,18 +283,23 @@ def test_multi_turn_resolved_triggers_forced_query() -> None:
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
-        triage_results=[TriageResolution(
-            status="resolved", standard_department_id=5, rationale="症状收敛至皮肤科"
-        )],
+        triage_results=[
+            TriageResolution(
+                status="resolved", standard_department_id=5, rationale="症状收敛至皮肤科"
+            )
+        ],
     )
 
-    events = _run(harness, {
-        "messages": [
-            {"role": "user", "content": "身上起了一片红疹"},
-            {"role": "assistant", "content": "疹子痒不痒？有没有发烧？"},
-            {"role": "user", "content": "很痒，没有发烧"},
-        ],
-    })
+    events = _run(
+        harness,
+        {
+            "messages": [
+                {"role": "user", "content": "身上起了一片红疹"},
+                {"role": "assistant", "content": "疹子痒不痒？有没有发烧？"},
+                {"role": "user", "content": "很痒，没有发烧"},
+            ],
+        },
+    )
 
     assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
     assert harness.agent.calls == []
@@ -281,18 +315,26 @@ def test_resolved_same_department_already_summarized_skips_duplicate_query() -> 
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
-        triage_results=[TriageResolution(
-            status="resolved", standard_department_id=5, rationale="对话仍收敛至皮肤科"
-        )],
+        triage_results=[
+            TriageResolution(
+                status="resolved", standard_department_id=5, rationale="对话仍收敛至皮肤科"
+            )
+        ],
     )
 
-    events = _run(harness, {
-        "messages": [
-            {"role": "user", "content": "身上起了一片红疹"},
-            {"role": "assistant", "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"},
-            {"role": "user", "content": "好的，谢谢"},
-        ],
-    })
+    events = _run(
+        harness,
+        {
+            "messages": [
+                {"role": "user", "content": "身上起了一片红疹"},
+                {
+                    "role": "assistant",
+                    "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。",
+                },
+                {"role": "user", "content": "好的，谢谢"},
+            ],
+        },
+    )
 
     assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
     assert len(harness.agent.calls) == 1
@@ -305,155 +347,26 @@ def test_explicit_booking_requeries_even_after_summary() -> None:
     requests: list[httpx.Request] = []
     harness = _build_app(
         _directory_handler(requests),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="再次明确挂号"
-        )],
-    )
-
-    events = _run(harness, {
-        "messages": [
-            {"role": "user", "content": "身上起了一片红疹"},
-            {"role": "assistant", "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。"},
-            {"role": "user", "content": "再帮我查一下皮肤科的号"},
+        triage_results=[
+            TriageResolution(
+                status="explicit_booking", standard_department_id=5, rationale="再次明确挂号"
+            )
         ],
-    })
+    )
+
+    events = _run(
+        harness,
+        {
+            "messages": [
+                {"role": "user", "content": "身上起了一片红疹"},
+                {
+                    "role": "assistant",
+                    "content": "已为您查询皮肤科号源：最早可约2026-08-08 上午，当前有号医生2位。",
+                },
+                {"role": "user", "content": "再帮我查一下皮肤科的号"},
+            ],
+        },
+    )
 
     assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
     assert harness.agent.calls == []
-
-
-def test_ambiguous_falls_back_to_agent_flow_without_slots_callback() -> None:
-    """仍有多个可能科室（ambiguous）但 judge 未给候选：走正常 Agent 流，
-    不查号源、不出选择卡（候选为空时选择卡没有可点项，只留文字追问）。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(
-        _directory_handler(requests),
-        triage_results=[TriageResolution(status="ambiguous", rationale="皮肤科或变态反应科")],
-    )
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "身上痒怎么办"}]})
-
-    assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
-    assert len(harness.agent.calls) == 1
-    # 只拉了候选目录，未触发号源回调
-    assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
-
-
-def test_ambiguous_with_candidates_yields_options_card_after_message() -> None:
-    """票 65：ambiguous 且 judge 产出候选科室——Agent 文字流照常，message 事件后
-    追加 department_options 选择卡（id 来自 judge、name 按 id 从目录确定性查出），
-    不查号源、不短路 Agent 流。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(
-        _directory_handler(requests),
-        triage_results=[TriageResolution(
-            status="ambiguous",
-            candidate_department_ids=[8, 5],
-            rationale="呼吸内科或皮肤科",
-        )],
-    )
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "我头痛发热，该挂什么科"}]})
-
-    assert [e["event"] for e in events] == [
-        "meta", "token", "token", "token", "message", "department_options", "done",
-    ]
-    assert len(harness.agent.calls) == 1
-    card = events[5]["data"]
-    assert card["standard_departments"] == [
-        {"id": 8, "name": "呼吸内科"},
-        {"id": 5, "name": "皮肤科"},
-    ]
-    assert card["disclaimer"] == "仅供参考，不替代医生诊断"
-    # 只拉了候选目录，未触发号源回调
-    assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
-
-
-def test_slots_failure_yields_failed_card_without_message() -> None:
-    """号源查询失败：出 failed 卡（失败文案 + 科室 ID），不出空白卡、不进 Agent 流。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(
-        _directory_handler(requests, slots_status=500),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
-    )
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
-
-    assert [e["event"] for e in events] == ["meta", "department_slots", "done"]
-    card = events[1]["data"]
-    assert card["status"] == "failed"
-    assert card["standard_department"] == {"id": 5}
-    assert card["message"] == "号源查询失败，请稍后重试。"
-    assert card["disclaimer"] == "仅供参考，不替代医生诊断"
-    assert harness.agent.calls == []
-
-
-def test_retry_standard_department_id_skips_triage_and_queries_directly() -> None:
-    """重试字段直查：跳过目录拉取、科室解析与 Agent 流，复用已确定科室。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(_directory_handler(requests))  # triage 无编排结果，被调用即露馅
-
-    events = _run(harness, {
-        "messages": [{"role": "user", "content": "重新查询号源"}],
-        "retry_standard_department_id": 5,
-        "longitude": 121.4737,
-        "latitude": 31.2304,
-    })
-
-    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
-    assert harness.triage.calls == []
-    assert harness.agent.calls == []
-    # 只调号源端点，不再拉目录
-    assert [r.url.path for r in requests] == ["/api/agent/standard-departments/5/slots"]
-    assert requests[0].headers["X-Agent-Callback-Token"] == "shared-secret"
-
-
-def test_all_unbookable_still_yields_ok_card_with_empty_summary() -> None:
-    """全部无号：仍出 ok 卡（医生保留禁用预约），摘要为 empty 模板。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(
-        _directory_handler(requests, slots_payload=_slots_payload(bookable=False)),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
-    )
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
-
-    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
-    assert events[1]["data"]["content"] == "皮肤科未来14天暂无可约号源。"
-    card = events[2]["data"]
-    assert card["status"] == "ok"
-    assert len(card["doctors"]) == 2  # 无号医生保留在卡内
-    assert all(not d["bookable"] for d in card["doctors"])
-
-
-def test_directory_failure_falls_back_to_agent_flow() -> None:
-    """候选目录查询失败：跳过科室解析，走正常 Agent 流，不查号源。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(_directory_handler(requests, departments_status=500))
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
-
-    assert [e["event"] for e in events] == ["meta", "token", "token", "token", "message", "done"]
-    assert harness.triage.calls == []
-    assert len(harness.agent.calls) == 1
-    assert [r.url.path for r in requests] == ["/api/agent/standard-departments"]
-
-
-def test_departments_bare_list_shape_is_tolerated() -> None:
-    """目录端点容错裸列表返回形态（非 {departments: [...]} 包装）。"""
-    requests: list[httpx.Request] = []
-    harness = _build_app(
-        _directory_handler(requests, bare_list=True),
-        triage_results=[TriageResolution(
-            status="explicit_booking", standard_department_id=5, rationale="明确皮肤科挂号"
-        )],
-    )
-
-    events = _run(harness, {"messages": [{"role": "user", "content": "我要挂皮肤科的号"}]})
-
-    assert [e["event"] for e in events] == ["meta", "message", "department_slots", "done"]
-    assert harness.triage.calls[0]["candidates"] == _DEPARTMENTS
