@@ -24,6 +24,7 @@ import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.consultation.ReceptionService;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
@@ -46,6 +47,7 @@ class ReceptionServiceTest {
     private final AgentClient agentClient = mock(AgentClient.class);
     private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
     private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
+    private final AppointmentService appointments = mock(AppointmentService.class);
     private ReceptionService service;
 
     @BeforeEach
@@ -60,7 +62,8 @@ class ReceptionServiceTest {
                 agentClient,
                 TestDisclaimers.instance(),
                 TestContracts.instance(),
-                new ObjectMapper());
+                new ObjectMapper(),
+                appointments);
         doAnswer(invocation -> {
                     @SuppressWarnings("unchecked")
                     Consumer<TransactionStatus> callback = invocation.getArgument(0);
@@ -75,14 +78,16 @@ class ReceptionServiceTest {
     void dashboardQueriesOnlyDoctorBoundToAuthenticatedStaff() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
         when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of());
-        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "CANCELLED"))
+        // 接诊台可见白名单（票 81）：待支付不进队列，只查 BOOKED/IN_PROGRESS/VISITED。
+        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
                 .thenReturn(List.of(appointment("BOOKED")));
 
         ReceptionService.ReceptionDashboard dashboard = service.today(8L);
 
         assertEquals(1, dashboard.appointments().size());
+        verify(appointments).expireOverdueAppointments();
         verify(receptionMapper).selectSchedules(7L, LocalDate.now());
-        verify(receptionMapper).selectAppointments(7L, LocalDate.now(), "CANCELLED");
+        verify(receptionMapper).selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED");
     }
 
     @Test
@@ -167,6 +172,8 @@ class ReceptionServiceTest {
         Appointment inProgress = appointment("IN_PROGRESS");
         when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(booked, inProgress);
         when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(booked);
+        // 单叫号约束（票 81）：该医生当前无就诊中挂号，允许叫号。
+        when(receptionMapper.selectInProgressForDoctor(7L, "IN_PROGRESS")).thenReturn(null);
         when(receptionMapper.markInProgress(21L, "BOOKED", "IN_PROGRESS")).thenReturn(1);
 
         ReceptionService.AppointmentDetail result = service.call(8L, 21L);
@@ -221,6 +228,25 @@ class ReceptionServiceTest {
 
         assertEquals(409, exception.getStatus());
         verify(messageMapper, never()).insert(any(InAppMessage.class));
+    }
+
+    @Test
+    void callRejectedWhenDoctorAlreadyHasInProgressAppointment() {
+        // 单叫号约束（票 81，ADR-0033）：医生维度同时只能一条就诊中，
+        // 既有 IN_PROGRESS 时必须先完成接诊才能叫下一个号。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        Appointment booked = appointment("BOOKED");
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(booked, booked);
+        when(receptionMapper.selectAppointmentForUpdate(21L, 7L)).thenReturn(booked);
+        // 该医生已有一条就诊中挂号（另一患者），叫号被拒。
+        when(receptionMapper.selectInProgressForDoctor(7L, "IN_PROGRESS")).thenReturn(99L);
+
+        ApiException exception = assertThrows(ApiException.class, () -> service.call(8L, 21L));
+
+        assertEquals(409, exception.getStatus());
+        assertEquals("请先完成当前就诊后再叫下一个号", exception.getMessage());
+        verify(messageMapper, never()).insert(any(InAppMessage.class));
+        verify(receptionMapper, never()).markInProgress(anyLong(), any(), any());
     }
 
     private StaffUser doctorStaff(long doctorId) {

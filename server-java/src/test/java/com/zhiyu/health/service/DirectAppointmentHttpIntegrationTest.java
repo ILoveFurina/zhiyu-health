@@ -86,7 +86,8 @@ class DirectAppointmentHttpIntegrationTest {
     }
 
     @Test
-    void successDeductsOneSlotAndDoesNotCreatePayment() throws Exception {
+    void successDeductsOneSlotAndCreatesPayment() throws Exception {
+        // 票 81 修订票 41 边界：直挂号与 AI 引导挂号统一走待支付，建收费记录。
         when(schedules.selectByIdForUpdate(9L)).thenReturn(schedule(1));
         when(schedules.decrementRemainingSlots(9L)).thenReturn(1);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
@@ -107,7 +108,7 @@ class DirectAppointmentHttpIntegrationTest {
 
         assertThat(slots.values.get(9L)).hasValue(0);
         verify(schedules).decrementRemainingSlots(9L);
-        verify(payments, never()).createUnpaid(anyLong(), any());
+        verify(payments).createUnpaid(21L, new BigDecimal("30.00"));
         // 票 43：B 端直接挂号成功也写就诊指引卡关怀消息，覆盖所有挂号入口
         verify(messages).insert(any(InAppMessage.class));
     }
@@ -190,7 +191,7 @@ class DirectAppointmentHttpIntegrationTest {
         appointment.setScheduleDate(LocalDate.parse("2026-08-03"));
         appointment.setTimeSlot(TimeSlot.MORNING);
         appointment.setSequenceNumber(1);
-        appointment.setStatus("BOOKED");
+        appointment.setStatus("PENDING_PAYMENT");
         appointment.setRegistrationFee(new BigDecimal("30.00"));
         appointment.setCreatedAt(OffsetDateTime.parse("2026-08-02T10:00:00+08:00"));
         return appointment;

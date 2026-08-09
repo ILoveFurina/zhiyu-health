@@ -28,7 +28,7 @@ class AppointmentControllerTest {
     @Test
     void listsCurrentPatientsAppointmentsAndCancelsOne() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
-        AppointmentService.AppointmentView booked = appointment("已约");
+        AppointmentService.AppointmentView booked = appointment("待就诊");
         AppointmentService.AppointmentView cancelled = appointment("已取消");
         when(service.listForPatient(12L)).thenReturn(List.of(booked));
         when(service.cancel(12L, 21L)).thenReturn(cancelled);
@@ -59,7 +59,7 @@ class AppointmentControllerTest {
     @Test
     void directlyCreatesAppointmentForAuthenticatedPatient() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
-        when(service.createDirect(12L, 9L)).thenReturn(appointment("已约"));
+        when(service.createDirect(12L, 9L)).thenReturn(appointment("待就诊"));
         MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance(), appointmentCards))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();

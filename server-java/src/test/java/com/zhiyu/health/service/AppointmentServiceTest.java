@@ -69,14 +69,15 @@ class AppointmentServiceTest {
             inserted.set(appointment);
             return 1;
         });
-        Appointment createdView = view("BOOKED", 1);
+        Appointment createdView = view("PENDING_PAYMENT", 1);
         createdView.setConditionSummary(null);
         when(appointmentMapper.selectViewById(21L)).thenReturn(createdView);
         slotCounter.initialize(9L, 3);
 
         AppointmentService.AppointmentView created = service().create(12L, 7L, 9L);
 
-        assertThat(created.status()).isEqualTo("已约");
+        // 挂号成功即进入待支付（票 81），支付完成才推进为待就诊。
+        assertThat(created.status()).isEqualTo("待支付");
         assertThat(created.sequenceNumber()).isEqualTo(1);
         assertThat(created.conditionSummary()).isNull();
         assertThat(inserted.get().getConditionSummary()).isNull();
@@ -87,7 +88,8 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void directAppointmentDeductsSlotWithoutCreatingPayment() {
+    void directAppointmentDeductsSlotAndCreatesPayment() {
+        // 票 81 修订票 41 边界：直挂号与 AI 引导挂号统一走待支付，建收费记录。
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
         when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
         when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
@@ -96,14 +98,14 @@ class AppointmentServiceTest {
             appointment.setId(21L);
             return 1;
         });
-        when(appointmentMapper.selectViewById(21L)).thenReturn(view("BOOKED", 1));
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("PENDING_PAYMENT", 1));
         slotCounter.initialize(9L, 1);
 
         AppointmentService.AppointmentView result = service().createDirect(12L, 9L);
 
         assertThat(result.id()).isEqualTo(21L);
         assertThat(slotCounter.values.get(9L)).hasValue(0);
-        verify(payments, never()).createUnpaid(anyLong(), any());
+        verify(payments).createUnpaid(21L, new BigDecimal("30.00"));
     }
 
     @Test
@@ -325,7 +327,9 @@ class AppointmentServiceTest {
         Appointment booked = appointment(21L, "BOOKED");
         Appointment cancelled = appointment(21L, "CANCELLED");
         when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked, cancelled);
-        when(appointmentMapper.markCancelled(21L, "BOOKED", "CANCELLED")).thenReturn(1);
+        // cancel.from = [PENDING_PAYMENT, BOOKED]（票 81）：markCancelled 接收两个来源态。
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(1);
         when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
         slotCounter.initialize(9L, 2);
@@ -335,7 +339,7 @@ class AppointmentServiceTest {
         service.cancel(12L, 21L);
 
         assertThat(slotCounter.values.get(9L)).hasValue(3);
-        verify(appointmentMapper).markCancelled(21L, "BOOKED", "CANCELLED");
+        verify(appointmentMapper).markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED");
         verify(scheduleMapper).incrementRemainingSlots(9L);
     }
 
@@ -347,8 +351,45 @@ class AppointmentServiceTest {
                 .isInstanceOf(ApiException.class)
                 .hasMessage("当前状态不可取消");
 
-        verify(appointmentMapper, never()).markCancelled(anyLong(), any(), any());
+        verify(appointmentMapper, never()).markCancelled(anyLong(), any(), any(), any());
         verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+    }
+
+    @Test
+    void overduePendingPaymentIsCancelledAndSlotRefunded() {
+        // 票 81 支付超时惰性收敛：过期待支付单被推进为已取消并释放号源。
+        slotCounter.initialize(9L, 2);
+        AppointmentService service = service();
+        // service() 内部 serviceWithGuard 已把 selectOverduePending(any()) 默认置空，
+        // 此处在构造后再覆盖为非空，模拟存在过期待支付单。
+        when(appointmentMapper.selectOverduePending("PENDING_PAYMENT"))
+                .thenReturn(java.util.List.of(new AppointmentMapper.OverdueAppointment(21L, 9L)));
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(1);
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+
+        service.expireOverdueAppointments();
+
+        verify(appointmentMapper).markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED");
+        verify(scheduleMapper).incrementRemainingSlots(9L);
+        // 号源已释放回补（withRefund 的 grant 做 Redis INCR）。
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+    }
+
+    @Test
+    void overdueCancellationSkipsAlreadyCancelledAppointment() {
+        // CAS 守卫：并发收敛或患者已手动取消时 markCancelled 返回 0，跳过号源回补。
+        slotCounter.initialize(9L, 2);
+        AppointmentService service = service();
+        when(appointmentMapper.selectOverduePending("PENDING_PAYMENT"))
+                .thenReturn(java.util.List.of(new AppointmentMapper.OverdueAppointment(21L, 9L)));
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(0);
+
+        service.expireOverdueAppointments();
+
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        assertThat(slotCounter.values.get(9L)).hasValue(2);
     }
 
     @Test
@@ -393,6 +434,8 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
         // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
         when(scheduleRequestMapper.countPendingDisableBySchedule(9L)).thenReturn(0);
+        // 支付超时惰性收敛（票 81）：默认无过期待支付单，list/cancel 入口收敛为空操作。
+        when(appointmentMapper.selectOverduePending(any())).thenReturn(java.util.List.of());
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);

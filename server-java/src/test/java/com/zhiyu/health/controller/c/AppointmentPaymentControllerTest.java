@@ -50,16 +50,21 @@ import org.springframework.transaction.support.TransactionTemplate;
 class AppointmentPaymentControllerTest {
 
     private final PaymentMapper mapper = mock(PaymentMapper.class);
+    private final AppointmentMapper appointmentMapper = mock(AppointmentMapper.class);
     private final PaymentDtoMapper dtoMapper = Mappers.getMapper(PaymentDtoMapper.class);
     private final PaymentService service =
-            new PaymentService(mapper, transactionTemplate(), TestContracts.instance(), dtoMapper);
-    private final AppointmentPaymentController controller = new AppointmentPaymentController(service);
+            new PaymentService(mapper, appointmentMapper, transactionTemplate(), TestContracts.instance(), dtoMapper);
+    private final AppointmentService appointmentService = mock(AppointmentService.class);
+    private final AppointmentPaymentController controller =
+            new AppointmentPaymentController(service, appointmentService);
 
     @Test
     void currentPatientPaysUnpaidAppointmentFee() throws Exception {
         Payment payment = payment("UNPAID");
         when(mapper.selectForPatientForUpdate(21L, 12L)).thenReturn(payment);
         when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
+        // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）。
+        when(appointmentMapper.markBooked(21L, "PENDING_PAYMENT", "BOOKED")).thenReturn(1);
 
         mvc().perform(post("/api/c/appointments/21/payment/pay").requestAttr("authSubject", 12L))
                 .andExpect(status().isOk())
@@ -80,6 +85,7 @@ class AppointmentPaymentControllerTest {
             stored.set(persisted);
             return 1;
         });
+        when(appointmentMapper.markBooked(21L, "PENDING_PAYMENT", "BOOKED")).thenReturn(1);
         when(mapper.selectById(41L)).thenAnswer(ignored -> copy(stored.get()));
         AppointmentService appointments = appointmentService(stored);
         AppointmentController appointmentController = new AppointmentController(
@@ -137,6 +143,8 @@ class AppointmentPaymentControllerTest {
         HealthProfile profile = new HealthProfile();
         profile.setId(31L);
         when(healthProfiles.requireActive(12L)).thenReturn(profile);
+        // 支付超时惰性收敛（票 81）：列表入口调用，默认无过期待支付单。
+        when(appointments.selectOverduePending(any())).thenReturn(List.of());
         when(appointments.selectViewsByProfile(12L, 31L))
                 .thenAnswer(ignored -> List.of(appointment(stored.get().getStatus())));
         return new AppointmentService(

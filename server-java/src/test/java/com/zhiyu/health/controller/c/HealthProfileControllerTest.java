@@ -96,7 +96,7 @@ class HealthProfileControllerTest {
                         new HealthProfileService.TimelineView(
                                 onlineType, 44L, "在线问诊", "周安宁 · 呼吸内科", "2026-07-29T09:00:00+08:00", null),
                         new HealthProfileService.TimelineView(
-                                "APPOINTMENT", 42L, "心血管内科挂号", "林知远 · 已约", "2026-07-28T09:00:00+08:00", null)));
+                                "APPOINTMENT", 42L, "心血管内科挂号", "林知远 · 待就诊", "2026-07-28T09:00:00+08:00", null)));
         MockMvc mvc = standaloneSetup(
                         new HealthProfileController(service, Mappers.getMapper(HealthProfileInputMapper.class)))
                 .build();
