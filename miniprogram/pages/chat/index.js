@@ -83,7 +83,7 @@ Page({
     voiceHintError: false, // 识别失败提示
     ttsLoadingId: 0, // 正在合成的 AI 气泡 id
     ttsPlayingId: 0, // 正在播放的 AI 气泡 id
-    // 票 77：购药两卡就地交互状态。key=卡片所在消息 id，避免组件间串扰与跨卡误触。
+    // 票 79：购药两卡就地交互状态。key=卡片所在消息 id，避免组件间串扰与跨卡误触。
     drugConfirmSubmitting: {}, // 确认卡下单中（cardId -> true）
     drugConfirmSubmitted: {}, // 确认卡已下单成功（cardId -> true，就地转结果态）
     drugPayingOrderId: null, // 结果卡模拟支付中（订单 id）
@@ -233,14 +233,14 @@ Page({
         onDepartmentOptions: (data) => this.appendCard('department_options', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
-        // 票 77/78：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页。
+        // 票 79/78：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页。
         // server-py 经 tool_to_event 下发 drug_order_prepare 事件（实时流），历史回放可能以
         // drug_order_confirm kind 落库；两 kind 渲染同一组件，handler 各自 appendCard 对应 kind。
         // handler 名 onDrugOrderConfirmCard 描述「卡片到达」，与组件点击回调页方法
         // onDrugOrderConfirm（描述「用户确认下单」）刻意分开，避免同词异义。
         onDrugOrderConfirmCard: (data) => this.appendCard('drug_order_confirm', data),
         onDrugOrderPrepare: (data) => this.appendCard('drug_order_prepare', data),
-        // 票 78：处方选择卡（多处方点选），payload 含 prescriptions 列表
+        // 票 80：处方选择卡（多处方点选），payload 含 prescriptions 列表
         onPrescriptions: (data) => this.appendCard('prescriptions', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => this.completeRound(aiMsg.id),
@@ -273,7 +273,7 @@ Page({
       dietProgress: '',
       pendingTongue: null,
       tongueProgress: '',
-      // 票 77：购药两卡就地交互状态随新对话清空
+      // 票 79：购药两卡就地交互状态随新对话清空
       drugConfirmSubmitting: {},
       drugConfirmSubmitted: {},
       drugPayingOrderId: null,
@@ -379,7 +379,7 @@ Page({
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
   },
 
-  /** 票 78 处方选择卡点选：携带所选 prescription_id 发起对话轮，server-py Agent 据此
+  /** 票 80 处方选择卡点选：携带所选 prescription_id 发起对话轮，server-py Agent 据此
    *  直接调 prepare_drug_order(prescription_id=...) 装配 drug_order_prepare 确认卡。 */
   onPrescriptionSelected({ cardId, prescriptionId }) {
     if (this.data.sending) return
@@ -441,7 +441,7 @@ Page({
     )
   },
 
-  // ===== 票 77：购药两段式确认交互（确认卡 -> 下单 -> 结果卡）=====
+  // ===== 票 79：购药两段式确认交互（确认卡 -> 下单 -> 结果卡）=====
   // 确认卡是下单唯一入口（硬边界）：Agent 不直接扣库存，用户点「确认下单」后由 C 端直接调
   // POST /api/c/drug-orders（OTC: prescription_id=null + items；处方药: prescription_id + items）。
   onDrugOrderConfirm({ cardId, card }) {
@@ -460,7 +460,7 @@ Page({
       .then(() => createDrugOrder(card.prescription_id || null, items))
       .then((order) => {
         // 下单成功：确认卡就地转结果态，追加 drug_order 结果卡（OrderView 即卡片 content）。
-        // drug_order 卡不经 Agent，由 server-java 下单成功后本地落库（票 76）。
+        // drug_order 卡不经 Agent，由 server-java 下单成功后本地落库（票 78）。
         // OrderView 无 disclaimer 字段（落库时由 server-java 出口兜底注入），C 端就地补通用免责
         // 声明文案，满足硬约束 1（界面无例外），与 ai-disclaimer 默认文案一致（contracts/disclaimer.json）。
         this.setData({

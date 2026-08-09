@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.AgentCallbackAuthFilter;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.service.PreconsultationService;
+import com.zhiyu.health.service.chat.PreconsultationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 

@@ -15,16 +15,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Conversation;
-import com.zhiyu.health.entity.Message;
-import com.zhiyu.health.service.PillBoxPhotoService.PillBoxPhotoView;
+import com.zhiyu.health.entity.chat.Conversation;
+import com.zhiyu.health.entity.chat.Message;
+import com.zhiyu.health.service.chat.ConversationService;
+import com.zhiyu.health.service.common.MinioStorageService;
+import com.zhiyu.health.service.health.HealthProfileService;
+import com.zhiyu.health.service.vision.PillBoxPhotoService;
+import com.zhiyu.health.service.vision.PillBoxPhotoService.PillBoxPhotoView;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-/** 拍药盒照片编排（票 51，ADR-0028）：图片旁路持久化、vision OCR 提名与失败兜底。 */
+/** 拍药盒照片编排（ADR-0028）：图片旁路持久化、vision OCR 提名与失败兜底。 */
 class PillBoxPhotoServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -63,7 +67,7 @@ class PillBoxPhotoServiceTest {
         assertThat(view.recognized()).isTrue();
         assertThat(view.drugNames()).containsExactly("阿莫西林胶囊", "阿莫西林");
         assertThat(view.hint()).isNull();
-        // 旁路持久化与 vision 并行发起（票 51），返回前两者均已完成
+        // 公共视觉管道保证原图旁路先落库，再发起 vision，返回前两者均已完成。
         verify(minioStorage).persistPhotosAndMessages(eq(7L), anyList());
         verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
         verify(conversations, org.mockito.Mockito.never())

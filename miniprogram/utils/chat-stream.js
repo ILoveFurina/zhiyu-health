@@ -154,7 +154,7 @@ function requestData(params) {
     retry_standard_department_id: params.retryStandardDepartmentId || undefined,
     // 票 55：预问诊对话绑定草稿 id，server-java 校验归属与状态后强制预问诊场景
     preconsultation_draft_id: params.preconsultationDraftId || undefined,
-    // 票 78：处方选择卡点选回传的所选处方 id，server-py Agent 据此直接装配购药确认卡
+    // 票 80：处方选择卡点选回传的所选处方 id，server-py Agent 据此直接装配购药确认卡
     prescription_id: params.prescriptionId || undefined,
     conversation_id: params.conversationId || undefined,
     effort: params.effort,

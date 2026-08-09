@@ -23,7 +23,7 @@ def test_sse_event_protocol_is_complete() -> None:
     # 票 65：ambiguous 科室选择卡由编排代码产出，不进 tool_to_event
     assert "department_options" in events.card_events
     assert "department_options" not in events.tool_to_event.values()
-    # 票 75：购药三工具（查药/已审核处方/购药确认卡）进 tool_to_event
+    # 票 77：购药三工具（查药/已审核处方/购药确认卡）进 tool_to_event
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
@@ -47,7 +47,7 @@ def test_sse_event_protocol_is_complete() -> None:
     # 说明书走流式文本（kind=text），禁忌仅留 B 端开方链路
     assert "medication_info" not in events.message_kinds
     assert "medication_safety" not in events.message_kinds
-    # 票 76：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记
+    # 票 78：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记
     assert "drug_order_confirm" in events.card_events
     assert "drug_order_confirm" in events.message_kinds
     assert "drug_order" in events.card_events

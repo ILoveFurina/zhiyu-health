@@ -155,8 +155,7 @@
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>2.46.1</version>
                 <configuration>
-                    <!-- 只约束相对 main 有改动的文件，避免全仓格式化 churn -->
-                    <ratchetFrom>main</ratchetFrom>
+                    <!-- 全量检查源集：Git worktree 的 .git 指针文件不被当前 Spotless/JGit ratchet 识别。 -->
                     <java>
                         <!-- main 与 test 源集统一格式化 -->
                         <includes>

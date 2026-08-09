@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
-import com.zhiyu.health.entity.OnlineConsultation;
-import com.zhiyu.health.mapper.OnlineConsultationMapper;
+import com.zhiyu.health.entity.consultation.OnlineConsultation;
+import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.OffsetDateTime;

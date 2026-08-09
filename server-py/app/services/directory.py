@@ -1,4 +1,4 @@
-"""标准科室目录与科室号源（票 50）：server-java 只读能力的薄封装。
+"""标准科室目录与科室号源：server-java 只读能力的适配器。
 
 两个端点均由编排代码（services/chat.py）确定性调用，不作为 LLM 工具暴露：
 - GET /api/agent/standard-departments：候选标准科室目录（科室解析的输入）
@@ -6,14 +6,14 @@
 
 坐标是可信设备数据，由调用方从 AgentContext 取用传入，不作为模型入参；
 未授权定位时省略坐标参数。失败语义与业务工具一致：规整为中文错误文本 str，
-成功返回 dict/list，调用方用 isinstance 判定成败（票 33：不得上抛掐断 SSE 流）。
+成功返回 dict/list，调用方用 isinstance 判定成败；失败不得上抛掐断 SSE 流。
 """
 
 from typing import Any, Protocol
 
 import httpx
 
-from app.tools.business import BusinessCallbackClient, _callback_error_text, _forward_get
+from app.tools.callback import BusinessCallbackClient, callback_error_text, forward_get
 
 
 class DepartmentDirectory(Protocol):
@@ -55,7 +55,7 @@ class CallbackDepartmentDirectory:
                 "/api/agent/standard-departments", params=_location_params(longitude, latitude)
             )
         except httpx.HTTPError as e:
-            return _callback_error_text("查询标准科室", e)
+            return callback_error_text("查询标准科室", e)
         # server-java StandardDepartmentCatalog 包装为 {departments: [...]}；裸列表形态容错
         if isinstance(payload, dict):
             items = payload.get("departments", payload.get("standard_departments"))
@@ -71,7 +71,7 @@ class CallbackDepartmentDirectory:
     async def get_slots(
         self, department_id: int, longitude: float | None, latitude: float | None
     ) -> dict[str, Any] | str:
-        return await _forward_get(
+        return await forward_get(
             self._client,
             f"/api/agent/standard-departments/{department_id}/slots",
             params=_location_params(longitude, latitude),

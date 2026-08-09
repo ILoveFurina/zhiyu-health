@@ -13,9 +13,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.PrescriptionTemplateInputMapper;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.PrescriptionTemplateService;
+import com.zhiyu.health.controller.staff.prescription.PrescriptionTemplateController;
+import com.zhiyu.health.controller.staff.prescription.mapping.PrescriptionTemplateInputMapper;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.service.prescription.PrescriptionTemplateService;
 import com.zhiyu.health.support.StaffTokens;
 import java.time.OffsetDateTime;
 import java.util.List;

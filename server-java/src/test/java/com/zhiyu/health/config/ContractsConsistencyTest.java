@@ -2,7 +2,7 @@ package com.zhiyu.health.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhiyu.health.entity.Message;
+import com.zhiyu.health.entity.chat.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
@@ -158,7 +158,7 @@ class ContractsConsistencyTest {
 
     @Test
     void drugOrderCardsAreRegisteredConsistentlyAcrossContractLists() {
-        // 票 76：drug_order_confirm（确认卡，待确认不扣库存）/drug_order（结果卡，已建单）
+        // 票 78：drug_order_confirm（确认卡，待确认不扣库存）/drug_order（结果卡，已建单）
         // 必须四集合一致登记：card_events/message_kinds/ai_card_kinds/event_to_kind，
         // 且与 trace_events 不相交、不与 done 重名（done 是轮次终止信号）。
         Contracts.SseEvents events = contracts.sseEvents();
@@ -431,7 +431,7 @@ class ContractsConsistencyTest {
         // 漂移会让 C 端时间线出现契约外类型（ mapper 无法注入 Contracts，只能在此钉死）。
         String sql = String.join(
                 "\n",
-                com.zhiyu.health.mapper.HealthProfileMapper.class
+                com.zhiyu.health.mapper.health.HealthProfileMapper.class
                         .getMethod("selectTimeline", long.class, long.class)
                         .getAnnotation(org.apache.ibatis.annotations.Select.class)
                         .value());

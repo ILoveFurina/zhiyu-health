@@ -7,8 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.service.PatientMedicalDirectoryService;
-import com.zhiyu.health.service.PatientMedicalDirectoryService.Coordinates;
+import com.zhiyu.health.controller.patient.health.MedicalDirectoryController;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService.Coordinates;
 import com.zhiyu.health.support.StaffTokens;
 import java.math.BigDecimal;
 import java.time.LocalDate;

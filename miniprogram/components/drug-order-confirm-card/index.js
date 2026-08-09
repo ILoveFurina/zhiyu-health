@@ -1,5 +1,5 @@
-/**
- * 购药确认卡（票 77）：server-py 经 prepare_drug_order 工具装配后以 drug_order_confirm
+﻿/**
+ * 购药确认卡（票 79）：server-py 经 prepare_drug_order 工具装配后以 drug_order_confirm
  * 事件下发，展示药品明细/单价/库存/总价/处方来源，待用户在卡片上确认下单，不扣库存不建单。
  *
  * 确认卡是下单唯一入口（硬边界）：Agent 不直接扣库存，用户点「确认下单」后由 C 端直接调

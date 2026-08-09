@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.service.health.HealthObservationMapping;
 import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
 import java.time.LocalDate;

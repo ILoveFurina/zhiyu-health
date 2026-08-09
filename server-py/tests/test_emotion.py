@@ -1,4 +1,4 @@
-"""情绪反馈（票 44，ADR-0019）测试：结构化输出校验、重试、降级 calm、message 事件携带 emotion。
+﻿"""情绪反馈（票 44，ADR-0019）测试：结构化输出校验、重试、降级 calm、message 事件携带 emotion。
 
 覆盖：
 - EmotionJudge 的 json_object + pydantic 校验 + 2 次重试范式（复用 vision interpreter 范式）
@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.agent.emotion import StructuredEmotionJudge
-from app.main import create_app
+from app.testing import create_test_app
 from app.schemas.emotion import EmotionResult, emotion_soothing_text
 
 
@@ -135,7 +135,7 @@ def _post_chat(client, payload: dict) -> list[dict]:
 def test_message_event_carries_anxious_emotion_and_soothing_text() -> None:
     """anxious 情绪：message 事件携带 emotion + soothing_text。"""
     fake_emotion = FakeEmotionJudge(EmotionResult(emotion="anxious", rationale="反复询问"))
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=FakeAgentRunner(),
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -156,7 +156,7 @@ def test_message_event_carries_anxious_emotion_and_soothing_text() -> None:
 def test_message_event_carries_fearful_emotion_and_soothing_text_with_120() -> None:
     """fearful 情绪：安抚语含"建议联系医生或拨打 120"。"""
     fake_emotion = FakeEmotionJudge(EmotionResult(emotion="fearful", rationale="胸痛冷汗"))
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=FakeAgentRunner(),
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -173,7 +173,7 @@ def test_message_event_carries_fearful_emotion_and_soothing_text_with_120() -> N
 def test_message_event_calm_has_no_soothing_text() -> None:
     """calm 情绪：无 soothing_text 字段（映射缺省即无）。"""
     fake_emotion = FakeEmotionJudge(EmotionResult.calm_default())
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=FakeAgentRunner(),
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -190,7 +190,7 @@ def test_message_event_calm_has_no_soothing_text() -> None:
 def test_emotion_judge_receives_last_user_message_in_multi_turn() -> None:
     """多轮对话：emotion 判断输入是最后一条用户消息，不是整段历史。"""
     fake_emotion = FakeEmotionJudge(EmotionResult.calm_default())
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=FakeAgentRunner(),
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -235,7 +235,7 @@ def test_ticket20_acceptance_three_samples_pass_gate() -> None:
         fake_emotion = FakeEmotionJudge(
             EmotionResult(emotion=expected_emotion, rationale="验收样例")
         )
-        app = create_app(
+        app = create_test_app(
             health_service=StubHealthService(),
             agent_runner=FakeAgentRunner(),
             agent_auth_secret=TEST_AGENT_SECRET,

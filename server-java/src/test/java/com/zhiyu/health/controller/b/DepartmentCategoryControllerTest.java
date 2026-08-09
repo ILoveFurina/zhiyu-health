@@ -11,10 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.DepartmentCategoryInputMapperImpl;
-import com.zhiyu.health.entity.DepartmentCategory;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.DepartmentCategoryAdminService;
+import com.zhiyu.health.controller.staff.organization.DepartmentCategoryController;
+import com.zhiyu.health.controller.staff.organization.mapping.DepartmentCategoryInputMapperImpl;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.organization.DepartmentCategory;
+import com.zhiyu.health.service.organization.DepartmentCategoryAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;

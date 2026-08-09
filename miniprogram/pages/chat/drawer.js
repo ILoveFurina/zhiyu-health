@@ -191,7 +191,7 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
-      // 票 77/78：购药卡片回放——无需加工，disclaimer 优先取卡片 JSON 内字段（与 department_options 同构）。
+      // 票 79/78：购药卡片回放——无需加工，disclaimer 优先取卡片 JSON 内字段（与 department_options 同构）。
       // drug_order_prepare/drug_order_confirm 同组件渲染；prescriptions 为处方选择卡。
       if (
         m.kind === 'prescriptions' ||

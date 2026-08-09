@@ -1,4 +1,4 @@
-"""无工具视觉解读模型 seam 与方舟适配（scenario 驱动，票 15 泛化）。
+﻿"""无工具视觉解读模型 seam 与方舟适配。
 
 interpreter 不再写死 ReportInterpretation：按 document.scenario 取 policy，
 用 policy.result_model 动态校验模型输出。scope 拒绝由场景策略驱动--若 result_model
@@ -70,7 +70,7 @@ class StructuredVisionInterpreter:
             try:
                 result = policy.result_model.model_validate_json(raw)
                 # scope 拒绝由场景策略驱动：result_model 含 scope_supported 时统一断言，
-                # report 拒原始医学影像、皮肤拒非皮肤照片，二者共用此点（票 15 泛化）。
+                # 所有场景在同一位置落实各自范围限制，拒绝结果使用场景稳定错误码。
                 if _declares_scope(result) and not _scope_supported(result):
                     raise VisionScopeError("场景范围不受支持")
                 return result
@@ -88,7 +88,7 @@ class StructuredVisionInterpreter:
 class ChatOpenAIVisionModel:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        # 推理档位按场景策略在调用期确定（票 51），模型按档位懒构建并缓存
+        # 推理档位按场景策略在调用期确定（），模型按档位懒构建并缓存
         self._models: dict[str, Runnable] = {}
 
     def _model_for(self, reasoning_effort: Literal["disabled", "low", "high"]) -> Runnable:

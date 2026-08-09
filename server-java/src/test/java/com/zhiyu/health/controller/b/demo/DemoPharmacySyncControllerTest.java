@@ -11,15 +11,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.zhiyu.health.controller.b.MedicationController;
-import com.zhiyu.health.controller.b.mapping.MedicationInputMapperImpl;
-import com.zhiyu.health.entity.Medication;
-import com.zhiyu.health.entity.StaffUser;
-import com.zhiyu.health.service.DemoDashboardService;
-import com.zhiyu.health.service.DemoKnowledgeSourceService;
-import com.zhiyu.health.service.DemoPharmacySyncService;
-import com.zhiyu.health.service.DemoResetService;
-import com.zhiyu.health.service.MedicationAdminService;
+import com.zhiyu.health.controller.staff.demo.DemoController;
+import com.zhiyu.health.controller.staff.prescription.MedicationController;
+import com.zhiyu.health.controller.staff.prescription.mapping.MedicationInputMapperImpl;
+import com.zhiyu.health.entity.common.StaffUser;
+import com.zhiyu.health.entity.prescription.Medication;
+import com.zhiyu.health.service.demo.DemoDashboardService;
+import com.zhiyu.health.service.demo.DemoKnowledgeSourceService;
+import com.zhiyu.health.service.demo.DemoPharmacySyncService;
+import com.zhiyu.health.service.demo.DemoResetService;
+import com.zhiyu.health.service.prescription.MedicationAdminService;
 import com.zhiyu.health.support.StaffTokens;
 import java.math.BigDecimal;
 import java.util.List;

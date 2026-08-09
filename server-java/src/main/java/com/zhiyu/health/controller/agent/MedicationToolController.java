@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * server-py 购药工具回调接口（票 75）：只做参数校验与响应装配，委托 {@link MedicationToolService}。
+ * server-py 购药工具回调接口（票 77）：只做参数校验与响应装配，委托 {@link MedicationToolService}。
  *
  * 三个只读端点为 AI 购药提供数据获取能力，均经 AgentCallbackAuthFilter 鉴权（与 /api/agent/doctors 同一鉴权层）：
  * ① GET /api/agent/medications 按药名模糊查 OTC 药品；② GET /api/agent/prescriptions 查患者已审核处方；

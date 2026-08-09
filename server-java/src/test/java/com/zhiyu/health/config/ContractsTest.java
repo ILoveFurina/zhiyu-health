@@ -55,7 +55,7 @@ class ContractsTest {
                 // 说明书走流式文本，禁忌仅留 B 端开方链路
                 .doesNotContain("medication_info", "medication_safety");
         assertThat(events.aiCardKinds()).hasSize(16);
-        // 票 76：购药确认卡（drug_order_confirm）与结果卡（drug_order）登记进
+        // 票 78：购药确认卡（drug_order_confirm）与结果卡（drug_order）登记进
         // card_events/message_kinds/ai_card_kinds/event_to_kind 四集合
         assertThat(events.cardEvents()).contains("drug_order_confirm", "drug_order");
         assertThat(events.messageKinds()).contains("drug_order_confirm", "drug_order");
@@ -142,7 +142,7 @@ class ContractsTest {
         assertThat(realtime.completedStatus()).isEqualTo("COMPLETED");
         assertThat(realtime.failedStatus()).isEqualTo("FAILED");
         assertThat(realtime.thinkingEvent()).isEqualTo("thinking");
-        // 票 51/票 50/票 55/票 78：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识 / 处方选择卡点选回传）
+        // 票 51/票 50/票 55/票 80：chat 信封可选字段（药品说明书流 / 科室号源失败重试 / 预问诊草稿标识 / 处方选择卡点选回传）
         assertThat(realtime.chatOptionalFields())
                 .containsExactly(
                         "medication_name",
@@ -424,7 +424,7 @@ class ContractsTest {
                 .containsEntry("complete", "COMPLETE");
         // 票 60：message_types(DRUG_ORDER_STATUS) 与 created/cancelled 文案从未接线，已从契约删除
         assertThat(flow.messages()).containsEntry("stock_insufficient", "药品库存不足，下单失败");
-        // 票 74（ADR-0032）：订单来源区分处方药/OTC。
+        // 票 76（ADR-0032）：订单来源区分处方药/OTC。
         assertThat(flow.sources()).containsEntry("prescription", "PRESCRIPTION").containsEntry("otc", "OTC");
         assertThat(flow.sourceLabels()).containsEntry("PRESCRIPTION", "处方药").containsEntry("OTC", "非处方药");
     }

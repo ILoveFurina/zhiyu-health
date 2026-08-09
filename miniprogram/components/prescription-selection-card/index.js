@@ -1,5 +1,5 @@
-/**
- * 处方选择卡（票 78）：list_approved_prescriptions 返回多张 APPROVED 处方时由 server-py
+﻿/**
+ * 处方选择卡（票 80）：list_approved_prescriptions 返回多张 APPROVED 处方时由 server-py
  * 经 prescriptions 事件下发，端侧渲染为可点选的处方列表，每项展示处方来源（开方医生+日期+
  * 来源类型）与药品摘要（药名/规格），用户点选某处方后回传 prescription_id 触发
  * prepare_drug_order -> drug_order_prepare 确认卡（与 77 单处方直通共用后半段）。

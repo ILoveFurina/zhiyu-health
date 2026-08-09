@@ -1,12 +1,13 @@
 """知识检索集成测试（ADR-0010）：连真实 PG+pgvector+方舟 endpoint。
 
 验收标准：固定 10 条典型症状查询，Top-3 命中期望知识块不少于 8 条。
-需真实 .env 凭据（DATABASE_URL + ARK_API_KEY + DOUBAO_EMBEDDING_MODEL）与
-已回填向量的 knowledge_chunks 表；无凭据时自动跳过（不进 CI）。
+必须显式设置 ZHIYU_RUN_KNOWLEDGE_INTEGRATION=1，并提供真实 .env 凭据与已回填向量；
+默认 pytest 即使本机已有凭据也不会访问方舟或 pgvector。
 query 向量缓存：同一查询的 embed 只调一次 endpoint。
 """
 
 import asyncio
+import os
 
 import pytest
 
@@ -33,14 +34,19 @@ _QUERIES: list[tuple[str, str]] = [
 
 
 def _integration_ready() -> bool:
+    if os.getenv("ZHIYU_RUN_KNOWLEDGE_INTEGRATION") != "1":
+        return False
     settings = get_settings()
     return bool(settings.database_url and settings.ark_api_key and settings.doubao_embedding_model)
 
 
-pytestmark = pytest.mark.skipif(
-    not _integration_ready(),
-    reason="集成测试需真实 .env 凭据（DATABASE_URL/ARK_API_KEY/DOUBAO_EMBEDDING_MODEL）",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not _integration_ready(),
+        reason="显式设置 ZHIYU_RUN_KNOWLEDGE_INTEGRATION=1 后才运行真实知识检索",
+    ),
+]
 
 
 @pytest.fixture(scope="module")

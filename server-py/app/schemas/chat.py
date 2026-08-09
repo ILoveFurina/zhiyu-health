@@ -1,4 +1,4 @@
-from typing import Literal, cast
+﻿from typing import Literal, cast
 
 from pydantic import BaseModel, Field, PositiveInt
 
@@ -46,13 +46,13 @@ class AgentChatRequest(BaseModel):
     # 用户授权定位后的经纬度；拒绝授权时不传，按位置的服务端能力据此省略坐标
     longitude: float | None = Field(default=None, ge=_GEO.longitude_min, le=_GEO.longitude_max)
     latitude: float | None = Field(default=None, ge=_GEO.latitude_min, le=_GEO.latitude_max)
-    # 票 50 号源卡重试：复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复。
+    # 号源卡重试：复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复。
     # 字段名与 contracts/guided-registration.json 的 retry_request_field 一致（契约钉值测试钉死）。
     retry_standard_department_id: int | None = None
-    # 票 55 预问诊草稿标识：server-java 校验归属/状态后强制 preconsultation 场景。
+    # 预问诊草稿标识：server-java 校验归属/状态后强制 preconsultation 场景。
     # 透传给编排层供异步摘要 task 回调 server-java 落草稿（摘要不再阻塞 message 事件）。
     preconsultation_draft_id: int | None = None
-    # 票 78 处方药多处方选择卡点选回传：用户在处方选择卡点选某处方后，server-java
+    # 票 80 处方药多处方选择卡点选回传：用户在处方选择卡点选某处方后，server-java
     # 透传所选 prescription_id（归属校验延后到 prepare_drug_order），编排层注入
     # AgentContext.selected_prescription_id，由 SystemMessage 提示模型直接装配确认卡。
     prescription_id: int | None = None

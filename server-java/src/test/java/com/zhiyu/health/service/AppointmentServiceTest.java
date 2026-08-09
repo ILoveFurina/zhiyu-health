@@ -12,15 +12,20 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Appointment;
-import com.zhiyu.health.entity.HealthProfile;
-import com.zhiyu.health.entity.InAppMessage;
-import com.zhiyu.health.entity.Schedule;
-import com.zhiyu.health.mapper.AppointmentMapper;
-import com.zhiyu.health.mapper.InAppMessageMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
-import com.zhiyu.health.mapper.ScheduleRequestMapper;
-import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
+import com.zhiyu.health.entity.appointment.Appointment;
+import com.zhiyu.health.entity.common.InAppMessage;
+import com.zhiyu.health.entity.health.HealthProfile;
+import com.zhiyu.health.entity.scheduling.Schedule;
+import com.zhiyu.health.mapper.appointment.AppointmentMapper;
+import com.zhiyu.health.mapper.common.InAppMessageMapper;
+import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
+import com.zhiyu.health.mapper.scheduling.ScheduleRequestMapper;
+import com.zhiyu.health.service.appointment.AppointmentService;
+import com.zhiyu.health.service.appointment.PaymentService;
+import com.zhiyu.health.service.appointment.mapping.AppointmentDtoMapper;
+import com.zhiyu.health.service.health.HealthProfileService;
+import com.zhiyu.health.service.scheduling.SlotAccounting;
+import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
@@ -364,7 +369,7 @@ class AppointmentServiceTest {
         // 时段截止校验：当天上午已过 11:30（Clock 固定 12:00），有号源也不可挂号，且不扣减 Redis
         Schedule morningSchedule = schedule(3, 3);
         morningSchedule.setScheduleDate(LocalDate.of(2026, 8, 8));
-        morningSchedule.setTimeSlot(com.zhiyu.health.entity.TimeSlot.MORNING);
+        morningSchedule.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(morningSchedule);
         slotCounter.initialize(9L, 3);
         SlotWindowGuard closedGuard = new SlotWindowGuard(
@@ -457,7 +462,7 @@ class AppointmentServiceTest {
         appointment.setDoctorName("周安宁");
         appointment.setDepartmentName("心血管内科");
         appointment.setScheduleDate(java.time.LocalDate.parse("2026-07-29"));
-        appointment.setTimeSlot(com.zhiyu.health.entity.TimeSlot.MORNING);
+        appointment.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
         appointment.setSequenceNumber(sequence);
         appointment.setRegistrationFee(new BigDecimal("30.00"));
         appointment.setPaymentStatus("UNPAID");

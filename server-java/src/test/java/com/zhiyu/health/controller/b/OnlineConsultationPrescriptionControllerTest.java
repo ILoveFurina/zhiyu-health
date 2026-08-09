@@ -8,10 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.controller.b.mapping.PrescriptionInputMapper;
-import com.zhiyu.health.entity.StaffUser;
+import com.zhiyu.health.controller.staff.consultation.OnlineConsultationPrescriptionController;
+import com.zhiyu.health.controller.staff.prescription.DoctorPrescriptionController;
+import com.zhiyu.health.controller.staff.prescription.mapping.PrescriptionInputMapper;
+import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.rule.ContraindicationResult;
-import com.zhiyu.health.service.PrescriptionService;
+import com.zhiyu.health.service.prescription.PrescriptionService;
 import com.zhiyu.health.support.StaffTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;

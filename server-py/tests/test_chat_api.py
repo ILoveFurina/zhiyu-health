@@ -1,4 +1,4 @@
-"""Agent 对话 SSE（HTTP seam，fake Agent 替换 LLM）。
+﻿"""Agent 对话 SSE（HTTP seam，fake Agent 替换 LLM）。
 
 覆盖：SSE 事件序列、免责声明注入、消息历史透传、推理档位映射（auto 不外传）。
 """
@@ -19,8 +19,9 @@ from langchain_core.outputs import ChatResult
 from langchain_core.tools import BaseTool
 
 from app.agent.runner import LangGraphAgentRunner
-from app.main import create_app
-from app.tools.business import BusinessCallbackClient, build_business_tools
+from app.testing import create_test_app
+from app.tools.business import build_business_tools
+from app.tools.callback import BusinessCallbackClient
 
 
 def _post_chat(client, payload: dict) -> list[dict]:
@@ -48,7 +49,7 @@ def _post_chat(client, payload: dict) -> list[dict]:
 def _build_app(agent_runner) -> tuple[TestClient, FakeEmotionJudge]:
     """装配测试 app 并注入 fake emotion judge，避免命中真实方舟调用。"""
     fake_emotion = FakeEmotionJudge()
-    app = create_app(
+    app = create_test_app(
         health_service=StubHealthService(),
         agent_runner=agent_runner,
         agent_auth_secret=TEST_AGENT_SECRET,
@@ -531,7 +532,7 @@ def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_st
 
 
 def test_search_medications_projects_card_and_forwards_name() -> None:
-    """票 75：search_medications 按药名查 OTC，转发 name 参数并投影 medications 卡片。"""
+    """票 77：search_medications 按药名查 OTC，转发 name 参数并投影 medications 卡片。"""
     http_calls: list[tuple[str, str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -574,9 +575,9 @@ def test_search_medications_projects_card_and_forwards_name() -> None:
 
 
 def test_list_approved_prescriptions_uses_hidden_patient_context() -> None:
-    """票 75：list_approved_prescriptions 从可信上下文取 patient_id（模型不可见）。
+    """票 77：list_approved_prescriptions 从可信上下文取 patient_id（模型不可见）。
 
-    票 78：单张处方不再投影 prescriptions 选择卡（spec 要求「单张直通确认卡」），
+    票 80：单张处方不再投影 prescriptions 选择卡（spec 要求「单张直通确认卡」），
     工具结果只回到模型，由模型按提示词直接调 prepare_drug_order（此处 fake 仅回文字验证上下文注入）。
     """
     requests: list[httpx.Request] = []
@@ -623,7 +624,7 @@ def test_list_approved_prescriptions_uses_hidden_patient_context() -> None:
 
 
 def test_prepare_drug_order_otc_projects_card_without_deducting_stock() -> None:
-    """票 75：prepare_drug_order（OTC）只读测算不扣库存，投影 drug_order_prepare 卡片。
+    """票 77：prepare_drug_order（OTC）只读测算不扣库存，投影 drug_order_prepare 卡片。
 
     断言 server-java 被调用一次（prepare），且 medications 库存端点从未被调用扣减；
     返回的确认卡携带单价/数量/小计/库存可用性。
@@ -686,7 +687,7 @@ def test_prepare_drug_order_otc_projects_card_without_deducting_stock() -> None:
 
 
 def test_prepare_drug_order_prescription_branch_forwards_prescription_id() -> None:
-    """票 75：prepare_drug_order 处方药分支传 prescription_id（非 medication_id），投影 drug_order_prepare。"""
+    """票 77：prepare_drug_order 处方药分支传 prescription_id（非 medication_id），投影 drug_order_prepare。"""
     http_calls: list[tuple[str, str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -737,7 +738,7 @@ def test_prepare_drug_order_prescription_branch_forwards_prescription_id() -> No
 
 
 def test_zero_approved_prescriptions_suppresses_card_and_prompts_guidance() -> None:
-    """票 78：list_approved_prescriptions 返回空列表时抑制 prescriptions 卡片不下发，
+    """票 80：list_approved_prescriptions 返回空列表时抑制 prescriptions 卡片不下发，
     让模型按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」。
 
     事件序列不含 prescriptions 卡，但仍含 tool_start/tool_end（查询本身成功，只是无数据）。
@@ -777,7 +778,7 @@ def test_zero_approved_prescriptions_suppresses_card_and_prompts_guidance() -> N
 
 
 def test_multiple_approved_prescriptions_projects_selection_card() -> None:
-    """票 78：list_approved_prescriptions 返回多张 APPROVED 处方时投影 prescriptions 选择卡，
+    """票 80：list_approved_prescriptions 返回多张 APPROVED 处方时投影 prescriptions 选择卡，
     payload 含 doctor_name/date/source_type_label/items 供端侧渲染选择列表。
     """
     def handler(request: httpx.Request) -> httpx.Response:
@@ -834,7 +835,7 @@ def test_multiple_approved_prescriptions_projects_selection_card() -> None:
 
 
 def test_single_approved_prescription_skips_selection_card_and_prepares_confirm() -> None:
-    """票 78：list_approved_prescriptions 返回单张时按 spec「单张直通确认卡」不投影选择卡，
+    """票 80：list_approved_prescriptions 返回单张时按 spec「单张直通确认卡」不投影选择卡，
     模型按提示词直接调 prepare_drug_order(prescription_id=该处方 id) 装配确认卡。
     """
     http_calls: list[tuple[str, str]] = []
@@ -900,7 +901,7 @@ def test_single_approved_prescription_skips_selection_card_and_prepares_confirm(
 
 
 def test_prescription_id_in_request_drives_prepare_drug_order() -> None:
-    """票 78：请求携带 prescription_id 时注入 AgentContext.selected_prescription_id，
+    """票 80：请求携带 prescription_id 时注入 AgentContext.selected_prescription_id，
     经 SystemMessage 提示模型直接调 prepare_drug_order(prescription_id=<该值>) 装配确认卡，
     不再调 list_approved_prescriptions。事件序列含 drug_order_prepare 卡片。
     """

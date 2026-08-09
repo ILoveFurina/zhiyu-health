@@ -1,7 +1,7 @@
 package com.zhiyu.health.controller.agent;
 
-import com.zhiyu.health.service.PatientMedicalDirectoryService;
-import com.zhiyu.health.service.PatientMedicalDirectoryService.Coordinates;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService;
+import com.zhiyu.health.service.health.PatientMedicalDirectoryService.Coordinates;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Positive;

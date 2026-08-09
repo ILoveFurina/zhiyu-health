@@ -81,11 +81,11 @@ async def main() -> int:
         )
         return 1
 
-    # 幂等 UPDATE：向量列写死 vector(1024)，文本已在 seed.sql 入库
+    # 幂等 UPDATE：维度已由上方契约校验，文本已在 seed.sql 入库。
     lines = [
         "-- 由 app.scripts.seed_embeddings 离线产出（连真实方舟），含向量不入库",
         "-- 幂等：重复执行覆盖同值；文本 seed 在 seed.sql，此处只回填 vector 列",
-        "-- 维度路径 B：vector(1024)，与 DDL/契约/配置同源",
+        f"-- 向量维度：vector({contract_dim})，与 DDL/契约/配置同源",
         "",
     ]
     for (chunk_id, _dept, _title, _content), vec in zip(chunks, vectors, strict=True):

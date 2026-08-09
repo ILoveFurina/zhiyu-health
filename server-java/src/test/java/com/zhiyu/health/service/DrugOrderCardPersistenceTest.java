@@ -9,17 +9,19 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.entity.ChatRound;
-import com.zhiyu.health.entity.Message;
-import com.zhiyu.health.mapper.ChatRoundMapper;
-import com.zhiyu.health.mapper.MessageMapper;
+import com.zhiyu.health.entity.chat.ChatRound;
+import com.zhiyu.health.entity.chat.Message;
+import com.zhiyu.health.mapper.chat.ChatRoundMapper;
+import com.zhiyu.health.mapper.chat.MessageMapper;
+import com.zhiyu.health.service.chat.ChatRoundPersistence;
+import com.zhiyu.health.service.chat.ConversationService;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * 票 76：购药两卡落库与回放一致性。drug_order_confirm 经 SSE persistEvent 路径落库（server-py 产出），
+ * 票 78：购药两卡落库与回放一致性。drug_order_confirm 经 SSE persistEvent 路径落库（server-py 产出），
  * drug_order 结果卡由 server-java 下单成功后本地落库（不经 Agent）；两 kind 均走 ai_card_kind 分支，
  * content 存卡片 JSON、kind 列存对应值，message_id 注入、disclaimer 出口兜底。
  */

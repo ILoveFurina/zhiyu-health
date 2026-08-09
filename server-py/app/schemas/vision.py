@@ -1,6 +1,6 @@
-"""视觉场景结构化契约。
+﻿"""视觉场景结构化契约。
 
-报告解读（REPORT）与拍照分析（SKIN/DIET）共用同一 scenario 驱动管道（票 15）：
+报告解读（REPORT）与拍照分析（SKIN/DIET）共用同一 scenario 驱动管道（）：
 每个场景在 scenarios.py 注册自己的 system_prompt 与 result_model，interpreter 按
 policy.result_model 动态校验，document 按场景分发预处理。各 result_model 字段互不
 耦合，新增场景只追加模型与策略，不改动既有 REPORT 结构。
@@ -39,7 +39,7 @@ class ReportInterpretation(BaseModel):
     items: list[ReportItem]
     actions: list[str]
     unreadable: list[str]
-    # 报告日期抄录（票 61，ADR-0031）：LLM 只抄录报告上清晰可见的完整日期，
+    # 报告日期抄录（ADR-0031）：LLM 只抄录报告上清晰可见的完整日期，
     # 看不清、只有年月或没有日期时为 null，禁止猜测或用今天/上传日期补齐。
     sample_or_exam_date: str | None = None
     report_date: str | None = None
@@ -85,7 +85,7 @@ class SkinFinding(BaseModel):
 
 
 class SkinAnalysis(BaseModel):
-    """拍照皮肤分析结果模型（票 15 首个拍照分析场景）。
+    """拍照皮肤分析结果模型（首个拍照分析场景）。
 
     与 ReportInterpretation 平级：scope_supported 为 false 时表示照片不属于可分析
     皮肤照片（如拍到了医学影像/文档），由皮肤场景策略拒绝；为 true 时正常返回。
@@ -118,9 +118,9 @@ class DietFood(BaseModel):
 
 
 class DietAnalysis(BaseModel):
-    """拍照饮食分析结果模型（票 16，照搬 15 皮肤模板的第二个拍照分析场景）。
+    """拍照饮食分析结果：食物识别、营养概览与有限个性化风险提醒。
 
-    差异化点（见票 16）：结合健康档案过敏史给出个性化一句提醒。档案注入由 interpreter
+    结合健康档案过敏史给出个性化一句提醒。档案注入由 interpreter
     的 _content_blocks 统一完成（scenario 无关），饮食 prompt 收到过敏史后在识别出食材
     后比对过敏原，命中则把对应 DietFood.risk_level 置 red 并在 personal_tip 产出风险提示。
     无激活档案时正常分析，仅缺个性化提醒句。scope_supported 为 false 时表示照片不属于
@@ -142,7 +142,7 @@ class DietAnalysis(BaseModel):
 
 
 class TongueAnalysis(BaseModel):
-    """拍舌苔中医辨证结果模型（票 17，照搬 15/16 拍照模板的第三个场景）。
+    """拍舌苔中医辨证结果：只给生活调护方向，不生成方剂、药材或剂量。
 
     差异化合规边界（ADR-0024）：调理建议只讲方向，不出药材/方剂/剂量。constitution 为
     体质辨识结论，care_direction 给作息/运动/饮食原则/通用食材（如山药红枣等日常食物）
@@ -180,7 +180,7 @@ class TongueAnalysis(BaseModel):
         return self
 
 class PillCandidate(BaseModel):
-    """药盒视觉识别的单个候选药名（票 14，ADR-0025）。
+    """药盒视觉识别的单个候选药名（ADR-0025）。
 
     vision 只提候选药名，不做药品分析；药品匹配与禁忌判定全在 server-java 完成。
     name 为商品名或通用名均可，看不清的部分不得猜测。
@@ -192,7 +192,7 @@ class PillCandidate(BaseModel):
 
 
 class PillBoxRecognition(BaseModel):
-    """拍药盒识别结果模型（票 14，ADR-0025）：只提候选药名，不做药品分析。
+    """拍药盒识别结果模型（ADR-0025）：只提候选药名，不做药品分析。
 
     与 Skin/Diet/Tongue 根本不同：视觉只负责 OCR 提名器角色，药品业务查询与禁忌判定
     全在 server-java 完成。server-py 不做药品分析、不给用法用量、不做禁忌判断。
@@ -212,7 +212,7 @@ class PillBoxRecognition(BaseModel):
 class VisionResponse(BaseModel):
     """视觉分析统一出口：result 为分场景的结构化结果，page_count 为预处理页数。
 
-    泛化后 result 不再写死 ReportInterpretation，而是任意已注册场景的 result_model
+    result 不写死 ReportInterpretation，而是使用已注册场景的 result_model
     实例；调用方（server-java）按 scenario 已知结构消费，不在此处做联合类型校验。
     """
 

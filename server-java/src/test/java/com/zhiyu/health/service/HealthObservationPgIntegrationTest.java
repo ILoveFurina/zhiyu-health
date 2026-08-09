@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
-import com.zhiyu.health.entity.HealthObservation;
-import com.zhiyu.health.mapper.HealthObservationMapper;
+import com.zhiyu.health.entity.health.HealthObservation;
+import com.zhiyu.health.mapper.health.HealthObservationMapper;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;

@@ -8,7 +8,7 @@ AsyncClient 显式关闭 trust_env，保证回调直连 server-java。
 
 import asyncio
 
-from app.tools.business import BusinessCallbackClient
+from app.tools.callback import BusinessCallbackClient
 
 
 def test_business_callback_client_disables_trust_env() -> None:

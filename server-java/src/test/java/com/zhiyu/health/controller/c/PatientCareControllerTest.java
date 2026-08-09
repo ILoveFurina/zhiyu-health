@@ -6,7 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.zhiyu.health.service.PatientCareService;
+import com.zhiyu.health.controller.patient.consultation.PatientCareController;
+import com.zhiyu.health.service.consultation.PatientCareService;
 import com.zhiyu.health.support.StaffTokens;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;

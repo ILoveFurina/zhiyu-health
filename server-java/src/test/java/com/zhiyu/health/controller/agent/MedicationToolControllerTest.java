@@ -26,7 +26,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * 购药工具回调接口单测（票 75）：验证 controller 只做参数校验与装配、委托 service，
+ * 购药工具回调接口单测（票 77）：验证 controller 只做参数校验与装配、委托 service，
  * 并覆盖处方药不得走 OTC 路径、prepare 不扣库存等约束。
  */
 class MedicationToolControllerTest {

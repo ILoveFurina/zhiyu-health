@@ -16,7 +16,7 @@
     "drug_order_confirm",
     "drug_order"
   ],
-  "_drug_order_cards_doc": "票 76：购药两段式卡片。drug_order_confirm=购药确认卡，由 server-py Agent 经 prepare_drug_order 工具装配后以 SSE 卡片事件下发，展示药品明细/单价/库存/总价/处方来源，待用户在卡片上确认下单，不扣库存不建单。drug_order=购药结果卡，已建单订单视图，展示订单号/status/total_amount/items/prescription_source；它不经 Agent 工具产出，而是 C 端直接调 POST /api/c/drug-orders 下单成功后由 server-java 本地落库（票 77），不进入 server-py->server-java 的 SSE 透传链路。两 kind 在契约层全部登记（card_events/message_kinds/ai_card_kinds/event_to_kind），保证 messages 表 CHECK 与历史回看覆盖；source 字段区分 prescription/otc（取值见 order-flow.json sources）。",
+  "_drug_order_cards_doc": "票 78：购药两段式卡片。drug_order_confirm=购药确认卡，由 server-py Agent 经 prepare_drug_order 工具装配后以 SSE 卡片事件下发，展示药品明细/单价/库存/总价/处方来源，待用户在卡片上确认下单，不扣库存不建单。drug_order=购药结果卡，已建单订单视图，展示订单号/status/total_amount/items/prescription_source；它不经 Agent 工具产出，而是 C 端直接调 POST /api/c/drug-orders 下单成功后由 server-java 本地落库（票 79），不进入 server-py->server-java 的 SSE 透传链路。两 kind 在契约层全部登记（card_events/message_kinds/ai_card_kinds/event_to_kind），保证 messages 表 CHECK 与历史回看覆盖；source 字段区分 prescription/otc（取值见 order-flow.json sources）。",
   "_trace_events_doc": "工具进度事件（票 24）：无序、可穿插，与有序的 stream_events 并列。两态对齐 LangGraph 工具调用的发起/返回时刻，不插值、不造中间心跳。trace 事件名集合必须与 card_events/ai_card_kinds 严格不相交且不得与 done 重名，由 ContractsConsistencyTest 钉死。tool_end 的 data 可选携带 tool_output_summary（server-py 对工具返回体脱敏+截断后的摘要，仅 B 端 trace 展示用，非本契约白名单字段，不落患者敏感原文）。",
   "trace_events": ["tool_start", "tool_end"],
   "_trace_results_doc": "tool_end 的结果枚举：success/error/skipped（skipped 如定位拒绝时静默降级，对用户不可见）。error_code 只存白名单码，非白名单统一记 TOOL_ERROR_UNKNOWN。",
@@ -33,7 +33,7 @@
   },
   "_department_slots_doc": "department_slots 卡（票50）由编排代码确定性产出，不经 LLM 工具调用，故不在 tool_to_event 中。",
   "_department_options_doc": "department_options 科室选择卡（票65）由编排代码在 triage judge 判 ambiguous 且有候选时确定性产出（候选 id 列表来自 judge 结构化输出、名称取候选目录），不经 LLM 工具调用，故不在 tool_to_event 中。",
-  "_prescriptions_doc": "prescriptions 处方选择卡（票78）：list_approved_prescriptions 工具经 tool_to_event 投影产出，payload 复用 server-java PrescriptionCardView（prescription_id/doctor_name/source_type/source_type_label/date/items[{medication_id,name,specification,dosage,frequency,duration}]）。多处方（>1）时端侧渲染为处方选择卡，每项展示医生+日期+药品摘要，点选经 chat 信封 prescription_id 可选字段回传触发 prepare_drug_order -> drug_order_prepare 确认卡；单处方（=1）直通确认卡（票77）；零处方（空列表）由 server-py runner._tool_output 抑制不下发，Agent 按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」，不出卡不下单。",
+  "_prescriptions_doc": "prescriptions 处方选择卡（票80）：list_approved_prescriptions 工具经 tool_to_event 投影产出，payload 复用 server-java PrescriptionCardView（prescription_id/doctor_name/source_type/source_type_label/date/items[{medication_id,name,specification,dosage,frequency,duration}]）。多处方（>1）时端侧渲染为处方选择卡，每项展示医生+日期+药品摘要，点选经 chat 信封 prescription_id 可选字段回传触发 prepare_drug_order -> drug_order_prepare 确认卡；单处方（=1）直通确认卡（票79）；零处方（空列表）由 server-py runner._tool_output 抑制不下发，Agent 按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」，不出卡不下单。",
   "message_kinds": [
     "text",
     "doctor_recommendations",

@@ -80,7 +80,7 @@ def test_tool_event_mapping_follows_contract() -> None:
 
 
 def test_drug_order_cards_are_registered_consistently() -> None:
-    # 票 76：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记，
+    # 票 78：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记，
     # 且与 trace_events 不相交、不与 done 重名；CardEvent Literal 同步覆盖。
     # drug_order 结果卡 server-py 不产出（C 端下单后 server-java 本地落库），
     # 仍登记在 CardEvent Literal 以保持事件集合完整、与契约字面量一致。
@@ -174,7 +174,7 @@ def test_chat_request_defaults_and_geo_bounds_follow_contract() -> None:
 
 
 def test_prescription_id_optional_field_in_request_schema() -> None:
-    """票 78：处方选择卡点选回传的 prescription_id 是 chat 信封可选字段。
+    """票 80：处方选择卡点选回传的 prescription_id 是 chat 信封可选字段。
 
     AgentChatRequest 字段与契约 chat_realtime.chat_optional_fields 同源：字段存在且默认 None；
     契约 chat_optional_fields 必须列出 prescription_id（与 retry_standard_department_id 同构）。

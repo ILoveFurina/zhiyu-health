@@ -1,4 +1,4 @@
-"""情绪反馈结构化输出契约（票 44，ADR-0019）。
+﻿"""情绪反馈结构化输出契约（ADR-0019）。
 
 server-py 在主回复 token 流完成后发起一次非流式 LLM 调用判断用户消息情绪，
 产出 EmotionResult(emotion, rationale)；emotion 挂 message 事件下发，

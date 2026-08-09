@@ -1,4 +1,4 @@
-/* 购药结果卡（票 77）：与 drug-orders 列表页同族视觉，类名带 dor- 前缀避免组件样式串扰。
+﻿/* 购药结果卡（票 79）：与 drug-orders 列表页同族视觉，类名带 dor- 前缀避免组件样式串扰。
  * 状态色取契约 status 值（UNPAID/PAID/DONE/CANCELLED），与列表页 .status-* 同口径。 */
 .dor-card {
   padding: var(--zy-space-md);

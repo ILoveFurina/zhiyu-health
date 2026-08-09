@@ -11,7 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.service.PreconsultationService;
+import com.zhiyu.health.controller.patient.chat.PreconsultationController;
+import com.zhiyu.health.service.chat.PreconsultationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;

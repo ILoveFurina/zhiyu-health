@@ -17,17 +17,18 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.controller.c.mapping.DrugOrderInputMapper;
-import com.zhiyu.health.entity.DrugOrder;
-import com.zhiyu.health.entity.DrugOrderItem;
-import com.zhiyu.health.entity.Medication;
-import com.zhiyu.health.entity.Prescription;
-import com.zhiyu.health.mapper.DrugOrderItemMapper;
-import com.zhiyu.health.mapper.DrugOrderMapper;
-import com.zhiyu.health.mapper.MedicationMapper;
-import com.zhiyu.health.mapper.PrescriptionMapper;
-import com.zhiyu.health.service.DrugOrderService;
-import com.zhiyu.health.service.mapping.DrugOrderDtoMapper;
+import com.zhiyu.health.controller.patient.prescription.DrugOrderController;
+import com.zhiyu.health.controller.patient.prescription.mapping.DrugOrderInputMapper;
+import com.zhiyu.health.entity.prescription.DrugOrder;
+import com.zhiyu.health.entity.prescription.DrugOrderItem;
+import com.zhiyu.health.entity.prescription.Medication;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.mapper.prescription.DrugOrderItemMapper;
+import com.zhiyu.health.mapper.prescription.DrugOrderMapper;
+import com.zhiyu.health.mapper.prescription.MedicationMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.prescription.DrugOrderService;
+import com.zhiyu.health.service.prescription.mapping.DrugOrderDtoMapper;
 import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
 import java.util.List;
@@ -282,7 +283,7 @@ class DrugOrderControllerTest {
         return medication;
     }
 
-    // 票 74：OTC 下单（prescription_id 为空）走 selectByIdsForUpdate，药品须 is_prescription=FALSE。
+    // 票 76：OTC 下单（prescription_id 为空）走 selectByIdsForUpdate，药品须 is_prescription=FALSE。
     @Test
     void otcOrderWithoutPrescriptionCreatesUnpaidOrderAndDeductsStock() throws Exception {
         Medication otc = medication(2L, "布洛芬缓释胶囊", "22.00");

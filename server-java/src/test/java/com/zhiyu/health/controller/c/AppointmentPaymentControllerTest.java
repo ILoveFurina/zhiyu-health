@@ -14,22 +14,24 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
-import com.zhiyu.health.controller.b.PaymentController;
-import com.zhiyu.health.controller.mapping.AppointmentCardMapper;
-import com.zhiyu.health.entity.Appointment;
-import com.zhiyu.health.entity.HealthProfile;
-import com.zhiyu.health.entity.Payment;
-import com.zhiyu.health.entity.TimeSlot;
-import com.zhiyu.health.mapper.AppointmentMapper;
-import com.zhiyu.health.mapper.PaymentMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
-import com.zhiyu.health.service.AppointmentService;
-import com.zhiyu.health.service.HealthProfileService;
-import com.zhiyu.health.service.PaymentService;
-import com.zhiyu.health.service.SlotAccounting;
-import com.zhiyu.health.service.SlotWindowGuard;
-import com.zhiyu.health.service.mapping.AppointmentDtoMapper;
-import com.zhiyu.health.service.mapping.PaymentDtoMapper;
+import com.zhiyu.health.controller.patient.appointment.AppointmentController;
+import com.zhiyu.health.controller.patient.appointment.AppointmentPaymentController;
+import com.zhiyu.health.controller.patient.appointment.mapping.AppointmentCardMapper;
+import com.zhiyu.health.controller.staff.appointment.PaymentController;
+import com.zhiyu.health.entity.appointment.Appointment;
+import com.zhiyu.health.entity.appointment.Payment;
+import com.zhiyu.health.entity.health.HealthProfile;
+import com.zhiyu.health.entity.scheduling.TimeSlot;
+import com.zhiyu.health.mapper.appointment.AppointmentMapper;
+import com.zhiyu.health.mapper.appointment.PaymentMapper;
+import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
+import com.zhiyu.health.service.appointment.AppointmentService;
+import com.zhiyu.health.service.appointment.PaymentService;
+import com.zhiyu.health.service.appointment.mapping.AppointmentDtoMapper;
+import com.zhiyu.health.service.appointment.mapping.PaymentDtoMapper;
+import com.zhiyu.health.service.health.HealthProfileService;
+import com.zhiyu.health.service.scheduling.SlotAccounting;
+import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
 import java.math.BigDecimal;
@@ -140,8 +142,8 @@ class AppointmentPaymentControllerTest {
         return new AppointmentService(
                 appointments,
                 mock(ScheduleMapper.class),
-                mock(com.zhiyu.health.mapper.ScheduleRequestMapper.class),
-                mock(com.zhiyu.health.mapper.InAppMessageMapper.class),
+                mock(com.zhiyu.health.mapper.scheduling.ScheduleRequestMapper.class),
+                mock(com.zhiyu.health.mapper.common.InAppMessageMapper.class),
                 mock(SlotAccounting.class),
                 transactionTemplate(),
                 healthProfiles,

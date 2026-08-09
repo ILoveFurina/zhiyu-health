@@ -30,8 +30,7 @@ def create_knowledge_clients(settings: Settings) -> KnowledgeClients:
         auth=(settings.neo4j_user, settings.neo4j_password),
         connection_timeout=3,
     )
-    # 维度路径 B（ADR-0010）：settings 维度 == 契约维度，不一致 fail-fast。
-    # DDL 写死 vector(1024)，与契约维度同源，此处校验配置侧防漂移。
+    # 配置、跨栈契约与 schema.sql 必须使用同一向量维度；启动时先钉配置侧漂移。
     contract_dim = get_contracts().knowledge.embedding_dimension
     if settings.knowledge_embedding_dimension != contract_dim:
         raise RuntimeError(

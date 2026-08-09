@@ -1,4 +1,4 @@
-package com.zhiyu.health.controller.c;
+package com.zhiyu.health.controller.patient.chat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,7 +10,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.config.ChatWebSocketHandshakeInterceptor;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.service.ChatRoundService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
+import com.zhiyu.health.service.chat.ChatRoundService;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,8 +33,8 @@ class ChatWebSocketHandlerTest {
     @Test
     void acceptedAndFirstTokenCarrySameRequestIdWithinOneHundredMilliseconds() throws Exception {
         ChatRoundService rounds = mock(ChatRoundService.class);
-        Sinks.Many<ChatRoundService.Event> events = Sinks.many().replay().all();
-        when(rounds.accept(any())).thenReturn(new ChatRoundService.Handle("req-34", 7L, "ACCEPTED", events.asFlux()));
+        Sinks.Many<ChatRoundModels.Event> events = Sinks.many().replay().all();
+        when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-34", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
         ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
         List<String> sent = new ArrayList<>();
@@ -47,7 +48,7 @@ class ChatWebSocketHandlerTest {
                         {"type":"chat","request_id":"req-34","data":{"content":"你好"}}
                         """));
         long started = System.nanoTime();
-        events.tryEmitNext(new ChatRoundService.Event("token", mapper.readTree("{\"text\":\"你\"}")));
+        events.tryEmitNext(new ChatRoundModels.Event("token", mapper.readTree("{\"text\":\"你\"}")));
         long elapsedMs = Duration.ofNanos(System.nanoTime() - started).toMillis();
 
         assertThat(elapsedMs).isLessThanOrEqualTo(100);
@@ -64,7 +65,7 @@ class ChatWebSocketHandlerTest {
     @Test
     void secondRoundIsRejectedWhileFirstIsRunning() throws Exception {
         ChatRoundService rounds = mock(ChatRoundService.class);
-        when(rounds.accept(any())).thenReturn(new ChatRoundService.Handle("req-1", 7L, "ACCEPTED", Flux.never()));
+        when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-1", 7L, "ACCEPTED", Flux.never()));
         ObjectMapper mapper = new ObjectMapper();
         ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
         List<String> sent = new ArrayList<>();
@@ -86,9 +87,9 @@ class ChatWebSocketHandlerTest {
     void medicationNameEnvelopeRoutesToMedicationRound() throws Exception {
         // 票 51：chat 信封携带 medication_name 时走说明书流轮次，token 经 event 信封透传
         ChatRoundService rounds = mock(ChatRoundService.class);
-        Sinks.Many<ChatRoundService.Event> events = Sinks.many().replay().all();
+        Sinks.Many<ChatRoundModels.Event> events = Sinks.many().replay().all();
         when(rounds.acceptMedication(any()))
-                .thenReturn(new ChatRoundService.Handle("req-med", 7L, "ACCEPTED", events.asFlux()));
+                .thenReturn(new ChatRoundModels.Handle("req-med", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
         ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
         List<String> sent = new ArrayList<>();
@@ -101,10 +102,10 @@ class ChatWebSocketHandlerTest {
                         """
                         {"type":"chat","request_id":"req-med","data":{"medication_name":"阿莫西林胶囊"}}
                         """));
-        events.tryEmitNext(new ChatRoundService.Event("token", mapper.readTree("{\"text\":\"【用途】\"}")));
+        events.tryEmitNext(new ChatRoundModels.Event("token", mapper.readTree("{\"text\":\"【用途】\"}")));
 
         org.mockito.Mockito.verify(rounds)
-                .acceptMedication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+                .acceptMedication(new ChatRoundModels.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
         org.mockito.Mockito.verify(rounds, org.mockito.Mockito.never()).accept(any());
         JsonNode accepted = mapper.readTree(sent.get(0));
         JsonNode token = mapper.readTree(sent.get(1));
@@ -166,9 +167,8 @@ class ChatWebSocketHandlerTest {
     void retryStandardDepartmentIdEnvelopeIsForwardedToRoundCommand() throws Exception {
         // 票 50：WS chat 信封携带 retry_standard_department_id 时透传给对话轮次命令
         ChatRoundService rounds = mock(ChatRoundService.class);
-        Sinks.Many<ChatRoundService.Event> events = Sinks.many().replay().all();
-        when(rounds.accept(any()))
-                .thenReturn(new ChatRoundService.Handle("req-retry", 7L, "ACCEPTED", events.asFlux()));
+        Sinks.Many<ChatRoundModels.Event> events = Sinks.many().replay().all();
+        when(rounds.accept(any())).thenReturn(new ChatRoundModels.Handle("req-retry", 7L, "ACCEPTED", events.asFlux()));
         ObjectMapper mapper = new ObjectMapper();
         ChatWebSocketHandler handler = new ChatWebSocketHandler(rounds, mapper, CONTRACTS);
         List<String> sent = new ArrayList<>();
@@ -184,7 +184,7 @@ class ChatWebSocketHandlerTest {
                         """));
 
         org.mockito.Mockito.verify(rounds)
-                .accept(new ChatRoundService.Command(
+                .accept(new ChatRoundModels.Command(
                         12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null, null));
         JsonNode accepted = mapper.readTree(sent.get(0));
         assertThat(accepted.path("type").asText()).isEqualTo("accepted");

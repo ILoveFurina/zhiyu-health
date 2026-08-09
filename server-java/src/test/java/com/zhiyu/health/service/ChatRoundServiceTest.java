@@ -13,8 +13,14 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.health.agentclient.AgentClient;
-import com.zhiyu.health.entity.ChatRound;
+import com.zhiyu.health.entity.chat.ChatRound;
 import com.zhiyu.health.rule.RedFlagRuleEngine;
+import com.zhiyu.health.service.chat.AgentCallLogService;
+import com.zhiyu.health.service.chat.ChatRoundModels;
+import com.zhiyu.health.service.chat.ChatRoundPersistence;
+import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.chat.PreconsultationService;
+import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import java.time.Duration;
 import java.util.List;
@@ -39,8 +45,8 @@ class ChatRoundServiceTest {
         when(fixture.persistence.find(12L, "req-1")).thenReturn(null, round);
         when(fixture.persistence.create(12L, "req-1", null, "你好")).thenReturn(round);
 
-        ChatRoundService.Handle first = fixture.service.accept(fixture.command("req-1"));
-        ChatRoundService.Handle duplicate = fixture.service.accept(fixture.command("req-1"));
+        ChatRoundModels.Handle first = fixture.service.accept(fixture.command("req-1"));
+        ChatRoundModels.Handle duplicate = fixture.service.accept(fixture.command("req-1"));
 
         assertThat(duplicate.conversationId()).isEqualTo(first.conversationId());
         verify(fixture.agentClient).chat(any());
@@ -52,7 +58,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-2")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-2", null, "你好")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-2"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-2"));
         var observer = handle.events().subscribe();
 
         fixture.upstream.tryEmitNext(
@@ -77,7 +83,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-3")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-3", null, "你好")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-3"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-3"));
 
         var future = handle.events()
                 .filter(event -> "token".equals(event.event()))
@@ -96,7 +102,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-cards")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-cards", null, "你好")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-cards"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-cards"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
@@ -121,7 +127,7 @@ class ChatRoundServiceTest {
         fixture.upstream.tryEmitComplete();
 
         List<String> observed =
-                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+                handle.events().map(ChatRoundModels.Event::event).collectList().block(Duration.ofSeconds(1));
         assertThat(observed)
                 .containsExactly(
                         "meta",
@@ -141,7 +147,7 @@ class ChatRoundServiceTest {
     }
 
     /**
-     * 票 76：购药确认卡（drug_order_confirm）由 server-py Agent 经 prepare_drug_order 装配后以
+     * 票 78：购药确认卡（drug_order_confirm）由 server-py Agent 经 prepare_drug_order 装配后以
      * SSE 卡片事件下发，复用现有 card_events 透传路径流经 server-java 到达 C 端，字段不丢失、
      * 经 persistEvent 落库。结果卡 drug_order 不经此链路（C 端下单后 server-java 本地落库）。
      */
@@ -154,7 +160,7 @@ class ChatRoundServiceTest {
         // persistEvent 默认透传输入（真实组件会注入 message_id 与 disclaimer；relay 测试只验中继不丢字段）
         when(fixture.persistence.persistEvent(eq(round), eq("drug_order_confirm"), any()))
                 .thenAnswer(invocation -> invocation.getArgument(2));
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-confirm"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-confirm"));
 
         String confirmJson = "{\"source\":\"otc\",\"items\":[{\"medication_id\":7,\"name\":\"布洛芬\","
                 + "\"specification\":\"0.1g×24片\",\"quantity\":2,\"unit_price\":18.50,"
@@ -167,7 +173,7 @@ class ChatRoundServiceTest {
 
         // drug_order_confirm 是 ai_card_kind，forward 不旁路，能透传到观察者
         List<String> observed =
-                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+                handle.events().map(ChatRoundModels.Event::event).collectList().block(Duration.ofSeconds(1));
         assertThat(observed).containsExactly("drug_order_confirm", "done");
         // 字段不丢失：persistEvent 收到完整 JSON（source/items/total_amount/available 齐全）
         org.mockito.ArgumentCaptor<com.fasterxml.jackson.databind.JsonNode> captor =
@@ -193,7 +199,7 @@ class ChatRoundServiceTest {
         // 模拟票 33 原始故障：卡片落库抛数据访问异常（原样穿透曾掐断整条流）
         when(fixture.persistence.persistEvent(eq(round), eq("doctor_recommendations"), any()))
                 .thenThrow(new DataIntegrityViolationException("value too long for type character varying(20)"));
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-fail"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-fail"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
@@ -205,12 +211,12 @@ class ChatRoundServiceTest {
                 ServerSentEvent.builder("{\"text\":\"你\"}").event("token").build());
         fixture.upstream.tryEmitComplete();
 
-        List<ChatRoundService.Event> received = new CopyOnWriteArrayList<>();
+        List<ChatRoundModels.Event> received = new CopyOnWriteArrayList<>();
         AtomicReference<Throwable> failure = new AtomicReference<>();
         handle.events().subscribe(received::add, failure::set);
 
-        assertThat(received).extracting(ChatRoundService.Event::event).containsExactly("meta");
-        assertThat(failure.get()).isInstanceOf(ChatRoundService.RoundFailedException.class);
+        assertThat(received).extracting(ChatRoundModels.Event::event).containsExactly("meta");
+        assertThat(failure.get()).isInstanceOf(ChatRoundModels.RoundFailedException.class);
         verify(fixture.persistence).markFailed(34L, "AGENT_FAILED");
         verify(fixture.persistence, never()).markCompleted(any());
         verify(fixture.persistence, never()).persistEvent(any(), eq("token"), any());
@@ -223,7 +229,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-trace")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-trace", null, "你好")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-trace"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-trace"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
@@ -239,7 +245,7 @@ class ChatRoundServiceTest {
         fixture.upstream.tryEmitComplete();
 
         List<String> observed =
-                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+                handle.events().map(ChatRoundModels.Event::event).collectList().block(Duration.ofSeconds(1));
         assertThat(observed).containsExactly("meta", "tool_start", "tool_end", "done");
         // trace 事件不进 persistEvent（不走 messages 落库事务）
         verify(fixture.persistence, never()).persistEvent(eq(round), eq("tool_start"), any());
@@ -269,7 +275,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-thinking")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-thinking", null, "你好")).thenReturn(round);
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-thinking"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-thinking"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"effort\":\"high\"}").event("meta").build());
@@ -279,7 +285,7 @@ class ChatRoundServiceTest {
         fixture.upstream.tryEmitComplete();
 
         List<String> observed =
-                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+                handle.events().map(ChatRoundModels.Event::event).collectList().block(Duration.ofSeconds(1));
         assertThat(observed).containsExactly("meta", "thinking", "done");
         verify(fixture.persistence, never()).persistEvent(eq(round), eq("thinking"), any());
         verify(fixture.agentCallLogs, never()).append(any(), eq("thinking"), any());
@@ -297,7 +303,7 @@ class ChatRoundServiceTest {
         doThrow(new DataIntegrityViolationException("connection lost"))
                 .when(fixture.agentCallLogs)
                 .append(any(), anyString(), any());
-        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-trace-fail"));
+        ChatRoundModels.Handle handle = fixture.service.accept(fixture.command("req-trace-fail"));
 
         fixture.upstream.tryEmitNext(
                 ServerSentEvent.builder("{\"effort\":\"quick\"}").event("meta").build());
@@ -309,7 +315,7 @@ class ChatRoundServiceTest {
         fixture.upstream.tryEmitComplete();
 
         List<String> observed =
-                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+                handle.events().map(ChatRoundModels.Event::event).collectList().block(Duration.ofSeconds(1));
         // trace 事件仍透传给 C 端，主对话流正常完成
         assertThat(observed).containsExactly("meta", "tool_start", "done");
         verify(fixture.persistence).markCompleted(34L);
@@ -358,7 +364,7 @@ class ChatRoundServiceTest {
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-retry")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-retry", null, "重新查询号源")).thenReturn(round);
-        ChatRoundService.Command retry = new ChatRoundService.Command(
+        ChatRoundModels.Command retry = new ChatRoundModels.Command(
                 12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L, null, null);
 
         fixture.service.accept(retry);
@@ -381,13 +387,13 @@ class ChatRoundServiceTest {
 
     @Test
     void prescriptionIdIsForwardedToAgentBody() {
-        // 票 78：处方选择卡点选回传的 prescription_id 透传给 server-py agent body；
+        // 票 80：处方选择卡点选回传的 prescription_id 透传给 server-py agent body；
         // 缺省不透传，归属校验延后到 prepare_drug_order（本服务不校验）
         Fixture fixture = new Fixture();
         ChatRound round = fixture.round("ACCEPTED");
         when(fixture.persistence.find(12L, "req-rx")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-rx", null, "按此处方买药")).thenReturn(round);
-        ChatRoundService.Command rx = new ChatRoundService.Command(
+        ChatRoundModels.Command rx = new ChatRoundModels.Command(
                 12L, "req-rx", null, "按此处方买药", "quick", "triage", null, null, null, null, null, 7L);
 
         fixture.service.accept(rx);
@@ -448,8 +454,8 @@ class ChatRoundServiceTest {
             return round;
         }
 
-        private ChatRoundService.Command command(String requestId) {
-            return new ChatRoundService.Command(
+        private ChatRoundModels.Command command(String requestId) {
+            return new ChatRoundModels.Command(
                     12L, requestId, null, "你好", "quick", "triage", null, null, null, null, null, null);
         }
     }

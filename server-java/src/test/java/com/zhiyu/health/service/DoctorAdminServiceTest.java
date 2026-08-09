@@ -8,10 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhiyu.health.config.ApiException;
-import com.zhiyu.health.entity.Doctor;
-import com.zhiyu.health.mapper.DepartmentMapper;
-import com.zhiyu.health.mapper.DoctorMapper;
-import com.zhiyu.health.mapper.ScheduleMapper;
+import com.zhiyu.health.entity.organization.Doctor;
+import com.zhiyu.health.mapper.organization.DepartmentMapper;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
+import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
+import com.zhiyu.health.service.organization.DoctorAdminService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 

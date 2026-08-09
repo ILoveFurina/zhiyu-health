@@ -2,6 +2,7 @@ package com.zhiyu.health.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import org.apache.ibatis.annotations.Select;
 import org.junit.jupiter.api.Test;
 

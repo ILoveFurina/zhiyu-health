@@ -2,12 +2,13 @@ package com.zhiyu.health.service;
 
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
-import com.zhiyu.health.entity.Medication;
-import com.zhiyu.health.entity.Prescription;
-import com.zhiyu.health.entity.PrescriptionItem;
-import com.zhiyu.health.mapper.MedicationMapper;
-import com.zhiyu.health.mapper.PrescriptionItemMapper;
-import com.zhiyu.health.mapper.PrescriptionMapper;
+import com.zhiyu.health.entity.prescription.Medication;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.entity.prescription.PrescriptionItem;
+import com.zhiyu.health.mapper.prescription.MedicationMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.consultation.ClinicalContextService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * Agent 购药工具只读服务（票 75）：为 AI 购药提供数据获取与确认卡装配能力，不扣库存、不建订单。
+ * Agent 购药工具只读服务（票 77）：为 AI 购药提供数据获取与确认卡装配能力，不扣库存、不建订单。
  *
  * 三项能力对应三个 server-py 工具回调：① OTC 药名模糊查询；② 当前患者已审核处方列表；
  * ③ 按 medication_id（OTC）或 prescription_id（处方药）装配购药确认卡数据（实时单价/库存/总价测算）。
@@ -188,7 +189,7 @@ public class MedicationToolService {
                 itemViews);
     }
 
-    /** OTC 查药视图：返回购药所需的药名/规格/单价/库存（票 75）。 */
+    /** OTC 查药视图：返回购药所需的药名/规格/单价/库存（票 77）。 */
     public record MedicationView(
             Long medicationId,
             String name,

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zhiyu.health.config.ApiException;
+import com.zhiyu.health.service.health.ReportUploadStagingService;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
 import org.junit.jupiter.api.Test;

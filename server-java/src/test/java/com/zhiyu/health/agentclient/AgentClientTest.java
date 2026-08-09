@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.sun.net.httpserver.HttpServer;
-import com.zhiyu.health.service.HealthProfileService;
+import com.zhiyu.health.service.health.HealthProfileService;
 import com.zhiyu.health.support.TestContracts;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;

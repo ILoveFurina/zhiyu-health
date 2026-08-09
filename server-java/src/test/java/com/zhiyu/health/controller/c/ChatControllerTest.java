@@ -9,8 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhiyu.health.service.ChatRoundService;
-import com.zhiyu.health.service.ChatService;
+import com.zhiyu.health.controller.patient.chat.ChatController;
+import com.zhiyu.health.service.chat.ChatRoundModels;
+import com.zhiyu.health.service.chat.ChatService;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -19,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-/** 保留的 HTTP SSE 适配器：request_id 必填且只负责装配 ChatRoundService.Command。 */
+/** 保留的 HTTP SSE 适配器：request_id 必填且只负责装配 ChatRoundModels.Command。 */
 class ChatControllerTest {
 
     @Test
@@ -51,7 +52,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-34", null, "你好", "quick", null, null, null, null, null, null, null));
         emitter.complete();
     }
@@ -75,7 +76,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-pre", null, "我咳嗽三天了", null, null, null, null, null, null, 5L, null));
         emitter.complete();
     }
@@ -100,14 +101,14 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null, null));
         emitter.complete();
     }
 
     @Test
     void prescriptionIdIsForwardedToRoundCommand() throws Exception {
-        // 票 78：处方选择卡点选回传的 prescription_id 透传给对话轮次（与 content 并存）
+        // 票 80：处方选择卡点选回传的 prescription_id 透传给对话轮次（与 content 并存）
         ChatService service = mock(ChatService.class);
         SseEmitter emitter = new SseEmitter();
         when(service.chat(any())).thenReturn(emitter);
@@ -124,7 +125,7 @@ class ChatControllerTest {
                 .andExpect(request().asyncStarted());
 
         verify(service)
-                .chat(new ChatRoundService.Command(
+                .chat(new ChatRoundModels.Command(
                         12L, "req-rx", null, "按此处方买药", null, null, null, null, null, null, null, 7L));
         emitter.complete();
     }
@@ -147,7 +148,7 @@ class ChatControllerTest {
                                 """))
                 .andExpect(request().asyncStarted());
 
-        verify(service).medication(new ChatRoundService.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
+        verify(service).medication(new ChatRoundModels.MedicationCommand(12L, "req-med", null, "阿莫西林胶囊"));
         verify(service, org.mockito.Mockito.never()).chat(any());
         emitter.complete();
     }
