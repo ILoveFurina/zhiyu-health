@@ -1,8 +1,8 @@
 {
-  "_doc": "C 端实时对话信封与持久化轮次状态。客户端发送 chat；server-java 返回 accepted、event 或 error。每条信封必须携带 request_id。thinking_event 是 high 档轮次的实时思考增量，仅透传、不落 messages 或 agent_call_logs。chat 信封除 text 外可携带 chat_optional_fields 列出的可选字段：medication_name（票 51，拍药盒识别后请求通用药品说明书流，与 text 互斥）；retry_standard_department_id（票 50，科室号源查询失败后重试，复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复）；preconsultation_draft_id（票 55，预问诊草稿标识，server-java 校验归属与状态后强制 preconsultation 场景并透传给 server-py，供异步摘要 task 回调 server-java 落草稿；客户端不得自由指定该场景）。",
+  "_doc": "C 端实时对话信封与持久化轮次状态。客户端发送 chat；server-java 返回 accepted、event 或 error。每条信封必须携带 request_id。thinking_event 是 high 档轮次的实时思考增量，仅透传、不落 messages 或 agent_call_logs。chat 信封除 text 外可携带 chat_optional_fields 列出的可选字段：medication_name（票 51，拍药盒识别后请求通用药品说明书流，与 text 互斥）；retry_standard_department_id（票 50，科室号源查询失败后重试，复用已确定的标准科室 ID 直查，跳过科室解析与 Agent 回复）；preconsultation_draft_id（票 55，预问诊草稿标识，server-java 校验归属/状态后强制 preconsultation 场景并透传给 server-py，供异步摘要 task 回调 server-java 落草稿；客户端不得自由指定该场景）；prescription_id（票 78，处方药多处方选择卡点选后携带所选 prescription_id，与 content 并存，server-java 仅透传、prepare 时再做归属校验，server-py Agent 据此直接调 prepare_drug_order(prescription_id=...) 装配确认卡，不再 list_approved_prescriptions；零处方不出卡、单处方直通不携带）。",
   "websocket_path": "/api/c/chat/ws",
   "envelope_types": ["chat", "accepted", "event", "error"],
   "round_statuses": ["ACCEPTED", "RUNNING", "COMPLETED", "FAILED"],
   "thinking_event": "thinking",
-  "chat_optional_fields": ["medication_name", "retry_standard_department_id", "preconsultation_draft_id"]
+  "chat_optional_fields": ["medication_name", "retry_standard_department_id", "preconsultation_draft_id", "prescription_id"]
 }
