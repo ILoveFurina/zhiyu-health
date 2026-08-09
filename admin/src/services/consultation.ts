@@ -49,6 +49,8 @@ export interface ConsultationDetail extends PoolItem {
   diagnosis: string | null;
   advice: string | null;
   accepted_at: string | null;
+  // 票 86：固定时长窗结束时刻（accepted_at + 30min），仅 IN_PROGRESS 有值
+  consultation_ends_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
 }
