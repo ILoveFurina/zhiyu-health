@@ -11,6 +11,8 @@
     "tongue-card": "/components/tongue-card/index",
     "registration-card": "/components/registration-card/index",
     "department-slots-card": "/components/department-slots-card/index",
+    "drug-order-confirm-card": "/components/drug-order-confirm-card/index",
+    "drug-order-card": "/components/drug-order-card/index",
     "zy-empty": "/components/zy-empty/index"
   }
 }
