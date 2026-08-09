@@ -147,6 +147,37 @@
         <ai-disclaimer text="{{item.disclaimer}}" />
       </view>
 
+      <!-- 票 77：购药确认卡（drug_order_confirm）。就地确认不跳页，确认下单调 POST /api/c/drug-orders；
+           取消就地隐藏卡片。已下单后 submitted 标记就地转结果态。 -->
+      <view a:elif="{{item.kind === 'drug_order_confirm' && !item.hidden}}" id="msg-{{item.id}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <drug-order-confirm-card
+            card="{{item.card}}"
+            cardId="{{item.id}}"
+            submitting="{{drugConfirmSubmitting[item.id]}}"
+            submitted="{{drugConfirmSubmitted[item.id]}}"
+            onConfirm="onDrugOrderConfirm"
+            onCancel="onDrugOrderConfirmCancel"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
+
+      <!-- 票 77：购药结果卡（drug_order）。已建单订单视图，支付/取消复用 services/drug-orders.js -->
+      <view a:elif="{{item.kind === 'drug_order'}}" id="msg-{{item.id}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <drug-order-card
+            card="{{item.card}}"
+            cardId="{{item.id}}"
+            payingOrderId="{{drugPayingOrderId}}"
+            cancellingOrderId="{{drugCancellingOrderId}}"
+            onPay="onDrugOrderPay"
+            onCancel="onDrugOrderCancel"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
+
       <view a:elif="{{item.kind === 'report_interpretation'}}" class="report-card">
         <view class="report-card-title">报告解读</view>
         <view class="report-summary">{{item.card.summary}}</view>

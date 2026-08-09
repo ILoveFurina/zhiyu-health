@@ -1,0 +1,48 @@
+<view class="dor-card">
+  <view class="dor-head">
+    <view>
+      <view class="dor-kicker">药品订单</view>
+      <view class="dor-title">#{{card.id}}</view>
+    </view>
+    <view class="dor-status dor-status-{{card.status}}">{{card.status_label || card.status}}</view>
+  </view>
+
+  <view class="dor-meta">
+    <view><text class="dor-meta-label">来源</text>{{card.source === 'PRESCRIPTION' ? '处方药' : '非处方药'}}</view>
+    <view a:if="{{card.prescription_id}}"><text class="dor-meta-label">关联处方</text>#{{card.prescription_id}}</view>
+    <view a:if="{{card.created_at}}"><text class="dor-meta-label">创建时间</text>{{card.created_at}}</view>
+  </view>
+
+  <view class="dor-items">
+    <view a:for="{{card.items}}" a:key="medication_id" class="dor-item">
+      <view class="dor-item-name">{{item.name}}</view>
+      <view a:if="{{item.specification}}" class="dor-item-spec">{{item.specification}}</view>
+      <view class="dor-item-price">
+        <text>¥{{item.unit_price}} × {{item.quantity}}</text>
+        <text class="dor-item-subtotal">¥{{item.subtotal}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="dor-total">
+    <text class="dor-total-label">订单合计</text>
+    <text>¥{{card.total_amount}}</text>
+  </view>
+
+  <view a:if="{{card.payable || card.cancellable}}" class="dor-actions">
+    <button
+      a:if="{{card.payable}}"
+      class="dor-btn dor-btn-pay"
+      loading="{{payingOrderId === card.id}}"
+      disabled="{{payingOrderId === card.id || cancellingOrderId === card.id}}"
+      onTap="pay"
+    >模拟支付</button>
+    <button
+      a:if="{{card.cancellable}}"
+      class="dor-btn dor-btn-cancel"
+      loading="{{cancellingOrderId === card.id}}"
+      disabled="{{cancellingOrderId === card.id || payingOrderId === card.id}}"
+      onTap="cancel"
+    >取消订单</button>
+  </view>
+</view>

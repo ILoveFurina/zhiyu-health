@@ -240,6 +240,7 @@ function dispatchEvent(event, data, handlers) {
   else if (event === 'department_options') handlers.onDepartmentOptions(data)
   else if (event === 'appointment') handlers.onAppointment(data)
   else if (event === 'appointments') handlers.onAppointments(data)
+  else if (event === 'drug_order_confirm') handlers.onDrugOrderConfirmCard(data)
   else if (event === 'red_flag') handlers.onRedFlag(data)
   else if (event === 'done') handlers.onDone()
 }
