@@ -1,0 +1,36 @@
+<view class="mc-card">
+  <view class="mc-head">
+    <view class="mc-title-row">
+      <view class="mc-title-icon zy-ico zy-ico-capsule"></view>
+      <view class="mc-title">查药结果</view>
+    </view>
+  </view>
+
+  <!-- 空结果：未匹配到在售 OTC 药品 -->
+  <view a:if="{{!card.medications || card.medications.length === 0}}" class="mc-empty">
+    未找到匹配的在售药品
+  </view>
+
+  <!-- 药品清单：每项展示药名/通用名/规格/单价/库存/在售状态，只读不可点 -->
+  <view a:else class="mc-list">
+    <view
+      a:for="{{card.medications}}"
+      a:for-item="med"
+      a:key="medication_id"
+      class="mc-item"
+    >
+      <view class="mc-item-head">
+        <view class="mc-item-name">{{med.name}}</view>
+        <view class="mc-item-status {{!med.is_active ? 'mc-item-status-inactive' : ''}}">
+          {{med.is_active ? '在售' : '停售'}}
+        </view>
+      </view>
+      <view a:if="{{med.generic_name}}" class="mc-item-generic">通用名：{{med.generic_name}}</view>
+      <view a:if="{{med.specification}}" class="mc-item-spec">{{med.specification}}</view>
+      <view class="mc-item-foot">
+        <text class="mc-item-price">¥{{med.price}}</text>
+        <text class="mc-item-stock">库存 {{med.stock}}</text>
+      </view>
+    </view>
+  </view>
+</view>
