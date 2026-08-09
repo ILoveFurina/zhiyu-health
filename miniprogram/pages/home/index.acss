@@ -118,8 +118,12 @@
   font-size: 20rpx;
 }
 .todo-badge-pay { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); } /* 待支付用琥珀色与就诊绿区分 */
+.todo-badge-warn { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); } /* 处方审核中：进行中的琥珀色 */
+.todo-badge-danger { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); } /* 就诊中：叫号后立即前往，用警示红与即将就诊绿区分 */
+.todo-badge-muted { background: var(--zy-color-fill); color: var(--zy-text-secondary); } /* 处方未通过：灰色终态 */
 .todo-title { margin-top: var(--zy-space-sm); color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
 .todo-meta { margin-top: 6rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
+.todo-hint { margin-top: 6rpx; color: var(--zy-color-danger); font-size: 22rpx; }
 .todo-countdown { margin-top: 10rpx; color: var(--zy-color-warning); font-size: 22rpx; }
 .todo-pay {
   display: inline-flex;

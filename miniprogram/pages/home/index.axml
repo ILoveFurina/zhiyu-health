@@ -32,9 +32,10 @@
           data-key="{{item.key}}"
           onTap="openTodo"
         >
-          <view class="todo-badge {{item.payment_payable ? 'todo-badge-pay' : ''}}">{{item.badge}}</view>
+          <view class="todo-badge {{item.payment_payable ? 'todo-badge-pay' : ''}} {{item.badgeClass}}">{{item.badge}}</view>
           <view class="todo-title">{{item.title}}</view>
           <view class="todo-meta">{{item.meta}}</view>
+          <view a:if="{{item.hint}}" class="todo-hint">{{item.hint}}</view>
           <view a:if="{{item.payment_payable && item.paymentCountdownText}}" class="todo-countdown">支付剩余 {{item.paymentCountdownText}}</view>
           <view a:if="{{item.payment_payable}}" class="todo-pay" data-id="{{item.appointmentId}}" catchTap="payTodo">模拟支付</view>
         </view>
