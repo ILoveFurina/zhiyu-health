@@ -404,6 +404,7 @@ class AgentChatService:
         knowledge_source: str | None = None,
         retry_standard_department_id: int | None = None,
         preconsultation_draft_id: int | None = None,
+        prescription_id: int | None = None,
     ) -> AsyncIterator[dict[str, object]]:
         """对一段消息历史流式生成回复。auto 在此映射为 disabled/high，不外传。"""
         effort = map_reasoning_effort(effort_choice, scenario)
@@ -435,6 +436,7 @@ class AgentChatService:
             latitude=latitude,
             knowledge_source=effective,
             scenario=scenario,
+            selected_prescription_id=prescription_id,
         )
         async for output in self._agent_runner.astream_reply(messages, effort, context):
             projected = _project_agent_output(output, parts, self._disclaimer)

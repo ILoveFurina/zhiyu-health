@@ -173,6 +173,28 @@ def test_chat_request_defaults_and_geo_bounds_follow_contract() -> None:
         AgentChatRequest(**base, latitude=defaults.latitude_min - 1)
 
 
+def test_prescription_id_optional_field_in_request_schema() -> None:
+    """票 78：处方选择卡点选回传的 prescription_id 是 chat 信封可选字段。
+
+    AgentChatRequest 字段与契约 chat_realtime.chat_optional_fields 同源：字段存在且默认 None；
+    契约 chat_optional_fields 必须列出 prescription_id（与 retry_standard_department_id 同构）。
+    """
+    assert "prescription_id" in AgentChatRequest.model_fields
+    minimal = AgentChatRequest(
+        messages=[{"role": "user", "content": "按此处方买药"}], patient_id=1, conversation_id=1
+    )
+    assert minimal.prescription_id is None
+    with_rx = AgentChatRequest(
+        messages=[{"role": "user", "content": "按此处方买药"}],
+        patient_id=1,
+        conversation_id=1,
+        prescription_id=7,
+    )
+    assert with_rx.prescription_id == 7
+    # chat_optional_fields 必须登记 prescription_id
+    assert "prescription_id" in get_contracts().chat_realtime.chat_optional_fields
+
+
 def test_online_consultation_consumption_matches_contract() -> None:
     """票 55：preconsultation 场景值、摘要字段与快照事件字段名全部从契约推导。"""
     online = get_contracts().online_consultation
