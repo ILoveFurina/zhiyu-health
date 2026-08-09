@@ -7,8 +7,9 @@
  * 下单成功后确认卡就地转结果态（或追加 drug_order 结果卡），失败提示库存不足等。
  *
  * content JSON 字段（与 MedicationToolService.PrepareOrderView 对齐）：
- *   source(otc|prescription)/prescription_id/items[{medication_id,name,specification,
- *   quantity,unit_price,subtotal,stock,available}]/total_amount/payable_amount/
+ *   source(PRESCRIPTION|OTC 枚举值,见 contracts/order-flow.json sources)/
+ *   prescription_id/items[{medication_id,name,specification,quantity,unit_price,
+ *   subtotal,stock,available}]/total_amount/payable_amount/
  *   prescription_source_type/doctor_name/prescription_date
  */
 Component({
@@ -29,7 +30,9 @@ Component({
   deriveDataFromProps(nextProps) {
     const card = nextProps.card || {}
     let prescriptionSourceText = ''
-    if (card.source === 'prescription') {
+    // source 取契约枚举值（PRESCRIPTION/OTC，见 contracts/order-flow.json sources），
+    // 非小写键名；处方药路径展示「医生姓名 · 日期」，OTC 路径为空
+    if (card.source === 'PRESCRIPTION') {
       const doctor = card.doctor_name || ''
       const date = card.prescription_date || ''
       prescriptionSourceText = [doctor ? `${doctor}医生` : '', date].filter(Boolean).join(' · ')

@@ -8,7 +8,7 @@
   </view>
 
   <view class="dor-meta">
-    <view><text class="dor-meta-label">来源</text>{{card.source === 'prescription' ? '处方药' : '非处方药'}}</view>
+    <view><text class="dor-meta-label">来源</text>{{card.source === 'PRESCRIPTION' ? '处方药' : '非处方药'}}</view>
     <view a:if="{{card.prescription_id}}"><text class="dor-meta-label">关联处方</text>#{{card.prescription_id}}</view>
     <view a:if="{{card.created_at}}"><text class="dor-meta-label">创建时间</text>{{card.created_at}}</view>
   </view>
@@ -33,7 +33,6 @@
     <button
       a:if="{{card.payable}}"
       class="dor-btn dor-btn-pay"
-      data-id="{{card.id}}"
       loading="{{payingOrderId === card.id}}"
       disabled="{{payingOrderId === card.id || cancellingOrderId === card.id}}"
       onTap="pay"
@@ -41,7 +40,6 @@
     <button
       a:if="{{card.cancellable}}"
       class="dor-btn dor-btn-cancel"
-      data-id="{{card.id}}"
       loading="{{cancellingOrderId === card.id}}"
       disabled="{{cancellingOrderId === card.id || payingOrderId === card.id}}"
       onTap="cancel"

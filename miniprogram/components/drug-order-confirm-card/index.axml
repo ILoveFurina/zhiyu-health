@@ -5,7 +5,7 @@
       <view class="doc-title">购药确认</view>
     </view>
     <view class="doc-source-tag doc-source-tag-{{card.source}}">
-      {{card.source === 'prescription' ? '处方药' : '非处方药'}}
+      {{card.source === 'PRESCRIPTION' ? '处方药' : '非处方药'}}
     </view>
   </view>
 

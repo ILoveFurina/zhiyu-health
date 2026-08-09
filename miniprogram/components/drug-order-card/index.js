@@ -5,7 +5,7 @@
  * 返回 OrderView，C 端追加为 drug_order 卡片；② 历史会话回看时由 messages 表回放还原。
  *
  * content JSON 字段（与 DrugOrderService.OrderView 对齐）：
- *   id(订单号)/status(枚举)/status_label(中文)/total_amount/source(prescription|otc)/
+ *   id(订单号)/status(枚举)/status_label(中文)/total_amount/source(PRESCRIPTION|OTC 枚举值)/
  *   prescription_id/items[{medication_id,name,specification,quantity,unit_price,subtotal}]/
  *   cancellable/payable/created_at
  *
