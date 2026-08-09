@@ -35,7 +35,7 @@ class MedicationControllerTest {
 
     private static final String VALID_BODY =
             """
-            {"price": 25.50, "stock": 120, "is_active": true}
+            {"price": 25.50, "stock": 120, "is_active": true, "is_prescription": true}
             """;
 
     private Medication demoMedication() {
@@ -48,6 +48,7 @@ class MedicationControllerTest {
         medication.setPrice(new BigDecimal("18.50"));
         medication.setStock(320);
         medication.setIsActive(true);
+        medication.setIsPrescription(true);
         return medication;
     }
 
@@ -101,7 +102,7 @@ class MedicationControllerTest {
         mockMvc.perform(put("/api/b/medications/1")
                         .with(StaffTokens.withRole(StaffUser.ROLE_ADMIN))
                         .contentType("application/json")
-                        .content("{\"price\": -1.00, \"stock\": 10, \"is_active\": true}"))
+                        .content("{\"price\": -1.00, \"stock\": 10, \"is_active\": true, \"is_prescription\": true}"))
                 .andExpect(status().isBadRequest());
     }
 

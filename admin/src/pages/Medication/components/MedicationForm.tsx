@@ -50,6 +50,12 @@ export default function MedicationForm({ open, record, onOpenChange, onSuccess }
         rules={[{ required: true, message: '请输入库存' }]}
       />
       <ProFormSwitch name="is_active" label="启用" />
+      <ProFormSwitch
+        name="is_prescription"
+        label="处方药"
+        tooltip="开启表示该药品为处方药，C 端须凭已审核电子处方购买；关闭则为非处方药(OTC)，可直接下单"
+        rules={[{ required: true, message: '请选择是否处方药' }]}
+      />
     </ModalForm>
   );
 }

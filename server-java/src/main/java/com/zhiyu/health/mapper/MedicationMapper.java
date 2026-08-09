@@ -23,6 +23,20 @@ public interface MedicationMapper extends BaseMapper<Medication> {
             """)
     List<Medication> selectForPrescriptionForUpdate(@Param("prescriptionId") long prescriptionId);
 
+    // 票 74：OTC 直接下单按 medication_id 列表加行锁查药，与处方路径同构固定锁顺序。
+    @Select(
+            """
+            <script>
+            SELECT * FROM medications WHERE id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            ORDER BY id
+            FOR UPDATE
+            </script>
+            """)
+    List<Medication> selectByIdsForUpdate(@Param("ids") List<Long> ids);
+
     @Update(
             """
             UPDATE medications SET stock = stock - #{quantity}

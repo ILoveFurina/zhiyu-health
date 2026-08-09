@@ -83,6 +83,7 @@ class DrugOrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(51))
                 .andExpect(jsonPath("$.status").value("UNPAID"))
+                .andExpect(jsonPath("$.source").value("PRESCRIPTION"))
                 .andExpect(jsonPath("$.total_amount").value(37.00));
 
         verify(medicationMapper).deductStock(1L, 2);
@@ -276,7 +277,77 @@ class DrugOrderControllerTest {
         medication.setName(name);
         medication.setSpecification("0.25g*24粒");
         medication.setPrice(new BigDecimal(price));
+        // 处方药路径不读此字段；OTC 路径校验它，默认 TRUE 与 seed 阿莫西林语义一致。
+        medication.setIsPrescription(true);
         return medication;
+    }
+
+    // 票 74：OTC 下单（prescription_id 为空）走 selectByIdsForUpdate，药品须 is_prescription=FALSE。
+    @Test
+    void otcOrderWithoutPrescriptionCreatesUnpaidOrderAndDeductsStock() throws Exception {
+        Medication otc = medication(2L, "布洛芬缓释胶囊", "22.00");
+        otc.setIsPrescription(false);
+        when(medicationMapper.selectByIdsForUpdate(List.of(2L))).thenReturn(List.of(otc));
+        when(medicationMapper.deductStock(2L, 3)).thenReturn(1);
+        doAnswer(invocation -> {
+                    invocation.getArgument(0, DrugOrder.class).setId(61L);
+                    return 1;
+                })
+                .when(orderMapper)
+                .insert(any(DrugOrder.class));
+
+        mvc().perform(
+                        post("/api/c/drug-orders")
+                                .requestAttr("authSubject", 7L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"items":[{"medication_id":2,"quantity":3}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(61))
+                .andExpect(jsonPath("$.status").value("UNPAID"))
+                .andExpect(jsonPath("$.source").value("OTC"))
+                .andExpect(jsonPath("$.prescription_id").doesNotExist())
+                .andExpect(jsonPath("$.total_amount").value(66.00));
+
+        verify(medicationMapper).deductStock(2L, 3);
+        verify(prescriptionMapper, never()).selectForPatient(anyLong(), anyLong());
+    }
+
+    @Test
+    void otcOrderRejectsPrescriptionDrugWithoutApprovedPrescription() throws Exception {
+        // 处方药（is_prescription=TRUE）不得走 OTC 路径，须凭已审核处方（ADR-0032 硬约束）。
+        Medication rx = medication(1L, "阿莫西林胶囊", "18.50");
+        when(medicationMapper.selectByIdsForUpdate(List.of(1L))).thenReturn(List.of(rx));
+
+        mvc().perform(
+                        post("/api/c/drug-orders")
+                                .requestAttr("authSubject", 7L)
+                                .contentType("application/json")
+                                .content(
+                                        """
+                                {"items":[{"medication_id":1,"quantity":2}]}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("处方药须凭已审核电子处方购买"));
+
+        verify(orderMapper, never()).insert(any(DrugOrder.class));
+        verify(medicationMapper, never()).deductStock(anyLong(), anyInt());
+    }
+
+    @Test
+    void otcOrderWithoutItemsIsRejected() throws Exception {
+        mvc().perform(post("/api/c/drug-orders")
+                        .requestAttr("authSubject", 7L)
+                        .contentType("application/json")
+                        .content("""
+                                {}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("OTC 下单必须指定药品与数量"));
+
+        verify(orderMapper, never()).insert(any(DrugOrder.class));
     }
 
     private TransactionTemplate transactionTemplate() {

@@ -44,6 +44,13 @@ export default function MedicationPage() {
     { title: '价格(元)', dataIndex: 'price', search: false, valueType: 'digit', fieldProps: { precision: 2 } },
     { title: '库存', dataIndex: 'stock', search: false },
     {
+      title: '类型',
+      dataIndex: 'is_prescription',
+      search: false,
+      render: (_, row) =>
+        row.is_prescription ? <Tag color="orange">处方药</Tag> : <Tag color="blue">OTC</Tag>,
+    },
+    {
       title: '状态',
       dataIndex: 'is_active',
       search: false,

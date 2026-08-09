@@ -9,12 +9,14 @@ export interface Medication {
   price: number;
   stock: number;
   is_active: boolean;
+  is_prescription: boolean;
 }
 
 export interface MedicationInput {
   price: number;
   stock: number;
   is_active: boolean;
+  is_prescription: boolean;
 }
 
 export const listMedications = () => request<Medication[]>('/api/b/medications');

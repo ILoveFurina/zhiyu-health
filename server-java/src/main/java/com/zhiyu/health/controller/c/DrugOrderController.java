@@ -29,7 +29,7 @@ public class DrugOrderController {
             @JsonProperty("medication_id") @NotNull @Positive Long medicationId, @NotNull @Min(1) Integer quantity) {}
 
     public record CreateInput(
-            @JsonProperty("prescription_id") @NotNull @Positive Long prescriptionId, List<@Valid ItemInput> items) {}
+            @JsonProperty("prescription_id") @Positive Long prescriptionId, List<@Valid ItemInput> items) {}
 
     @GetMapping
     public List<DrugOrderService.OrderView> list(@RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
