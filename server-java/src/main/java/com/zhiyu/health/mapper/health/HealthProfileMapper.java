@@ -37,7 +37,11 @@ public interface HealthProfileMapper extends BaseMapper<HealthProfile> {
                 SELECT 'APPOINTMENT' AS type, a.id AS record_id,
                        dep.name || '挂号' AS title,
                        d.name || ' · ' || CASE a.status
-                           WHEN 'BOOKED' THEN '已约' WHEN 'CANCELLED' THEN '已取消' ELSE '已接诊' END AS summary,
+                           WHEN 'PENDING_PAYMENT' THEN '待支付'
+                           WHEN 'BOOKED' THEN '待就诊'
+                           WHEN 'IN_PROGRESS' THEN '就诊中'
+                           WHEN 'CANCELLED' THEN '已取消'
+                           ELSE '已接诊' END AS summary,
                        a.created_at AS occurred_at, NULL::VARCHAR AS disclaimer
                 FROM appointments a
                 JOIN schedules s ON s.id = a.schedule_id

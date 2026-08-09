@@ -16,6 +16,7 @@ import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
+import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.common.DisclaimerService;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -38,21 +39,25 @@ public class ReceptionService {
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
     private final ObjectMapper objectMapper;
+    private final AppointmentService appointments;
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
+        // 接诊台入口先全局惰性收敛过期待支付单（释放号源），再查可见列表：
+        // 收敛是全局副作用，可见性是医生视角过滤，两者解耦（ADR-0033）。
+        appointments.expireOverdueAppointments();
         LocalDate today = LocalDate.now();
         List<ScheduleView> schedules = receptionMapper.selectSchedules(doctorId, today).stream()
                 .map(this::toScheduleView)
                 .toList();
-        List<AppointmentView> appointments =
-                receptionMapper
-                        .selectAppointments(
-                                doctorId, today, contracts.appointmentFlow().status("cancelled"))
-                        .stream()
-                        .map(this::toAppointmentView)
-                        .toList();
-        return new ReceptionDashboard(today.toString(), schedules, appointments);
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        List<AppointmentView> appointmentsList = receptionMapper
+                .selectAppointments(
+                        doctorId, today, flow.status("booked"), flow.status("in_progress"), flow.status("visited"))
+                .stream()
+                .map(this::toAppointmentView)
+                .toList();
+        return new ReceptionDashboard(today.toString(), schedules, appointmentsList);
     }
 
     public AppointmentDetail detail(long staffId, long appointmentId) {
@@ -156,6 +161,11 @@ public class ReceptionService {
             }
             if (!call.allows(appointment.getStatus())) {
                 throw new ApiException(409, "当前状态不可叫号");
+            }
+            // 单叫号约束（票 81，ADR-0033）：医生维度同时只能一条就诊中，
+            // 既有 IN_PROGRESS 时必须先完成接诊（推进为已接诊）才能叫下一个号。
+            if (receptionMapper.selectInProgressForDoctor(doctorId, inProgressStatus) != null) {
+                throw new ApiException(409, "请先完成当前就诊后再叫下一个号");
             }
             writeCalledNotice(appointment);
             if (receptionMapper.markInProgress(appointmentId, call.from().get(0), call.to()) != 1) {
