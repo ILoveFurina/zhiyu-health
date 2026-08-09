@@ -13,6 +13,20 @@ public interface MedicationMapper extends BaseMapper<Medication> {
     @Select("SELECT * FROM medications WHERE is_active = TRUE ORDER BY name")
     List<Medication> selectActive();
 
+    // 票 75：AI 购药点名查药，只查 OTC（is_prescription=FALSE）且在售药品，按 name ILIKE 模糊匹配。
+    // name 为空时退化为返回全部 OTC 药品（编排/工具层兜底空串），上限由调用方 Java 侧截断。
+    @Select(
+            """
+            <script>
+            SELECT * FROM medications WHERE is_active = TRUE AND is_prescription = FALSE
+            <if test='name != null and name != ""'>
+                AND name ILIKE CONCAT('%', #{name}, '%')
+            </if>
+            ORDER BY name
+            </script>
+            """)
+    List<Medication> searchActiveOtc(@Param("name") String name);
+
     @Select(
             """
             SELECT m.* FROM medications m

@@ -79,6 +79,14 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             + " ORDER BY pr.created_at DESC")
     List<Prescription> selectForProfile(@Param("patientId") long patientId, @Param("profileId") long profileId);
 
+    // 票 75：AI 购药选已审核处方，只查该患者 APPROVED 处方（双来源 COALESCE 归属校验），
+    // 供处方药购药路径选处方；不带 health_profile 维度（购药场景只需患者归属即可）。
+    @Select(DETAIL_COLUMNS
+            + " WHERE COALESCE(a.patient_id, oc.patient_id) = #{patientId}"
+            + " AND pr.status = #{status}"
+            + " ORDER BY pr.created_at DESC")
+    List<Prescription> selectForPatientByStatus(@Param("patientId") long patientId, @Param("status") String status);
+
     @Update(
             """
             UPDATE prescriptions SET status = #{status}, review_reason = #{reason},
