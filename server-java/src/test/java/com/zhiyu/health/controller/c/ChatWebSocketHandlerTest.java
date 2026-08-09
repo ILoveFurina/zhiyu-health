@@ -185,7 +185,7 @@ class ChatWebSocketHandlerTest {
 
         org.mockito.Mockito.verify(rounds)
                 .accept(new ChatRoundService.Command(
-                        12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null));
+                        12L, "req-retry", null, "重新查询号源", null, null, null, null, null, 3L, null, null));
         JsonNode accepted = mapper.readTree(sent.get(0));
         assertThat(accepted.path("type").asText()).isEqualTo("accepted");
         assertThat(accepted.path("request_id").asText()).isEqualTo("req-retry");

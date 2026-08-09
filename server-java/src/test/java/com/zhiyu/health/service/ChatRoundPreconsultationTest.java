@@ -169,8 +169,8 @@ class ChatRoundPreconsultationTest {
         warning.setId(41L);
         when(fixture.persistence.completeRedFlag(eq(round), anyString())).thenReturn(warning);
 
-        fixture.service.accept(
-                new ChatRoundService.Command(12L, "req-red", null, "我突然昏迷了", null, null, null, null, null, null, 5L));
+        fixture.service.accept(new ChatRoundService.Command(
+                12L, "req-red", null, "我突然昏迷了", null, null, null, null, null, null, 5L, null));
 
         // 红线轮次不调 Agent、不更新摘要快照；草稿只承担场景与档案绑定
         verify(fixture.agentClient, never()).chat(any());
@@ -228,7 +228,7 @@ class ChatRoundPreconsultationTest {
 
         private ChatRoundService.Command command(String requestId, Long draftId, String scenario) {
             return new ChatRoundService.Command(
-                    12L, requestId, null, "我咳嗽三天了", null, scenario, null, null, null, null, draftId);
+                    12L, requestId, null, "我咳嗽三天了", null, scenario, null, null, null, null, draftId, null);
         }
 
         private void startPreconsultRound(String requestId) {

@@ -359,7 +359,7 @@ class ChatRoundServiceTest {
         when(fixture.persistence.find(12L, "req-retry")).thenReturn(null);
         when(fixture.persistence.create(12L, "req-retry", null, "重新查询号源")).thenReturn(round);
         ChatRoundService.Command retry = new ChatRoundService.Command(
-                12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L, null);
+                12L, "req-retry", null, "重新查询号源", "quick", "triage", null, null, null, 3L, null, null);
 
         fixture.service.accept(retry);
 
@@ -377,6 +377,35 @@ class ChatRoundServiceTest {
         org.mockito.ArgumentCaptor<Map<String, Object>> plainBody = org.mockito.ArgumentCaptor.forClass(Map.class);
         verify(plain.agentClient).chat(plainBody.capture());
         assertThat(plainBody.getValue()).doesNotContainKey("retry_standard_department_id");
+    }
+
+    @Test
+    void prescriptionIdIsForwardedToAgentBody() {
+        // 票 78：处方选择卡点选回传的 prescription_id 透传给 server-py agent body；
+        // 缺省不透传，归属校验延后到 prepare_drug_order（本服务不校验）
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-rx")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-rx", null, "按此处方买药")).thenReturn(round);
+        ChatRoundService.Command rx = new ChatRoundService.Command(
+                12L, "req-rx", null, "按此处方买药", "quick", "triage", null, null, null, null, null, 7L);
+
+        fixture.service.accept(rx);
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> body = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(fixture.agentClient).chat(body.capture());
+        assertThat(body.getValue()).containsEntry("prescription_id", 7L);
+
+        // 缺省不透传：普通对话轮次 body 不含 prescription_id 字段
+        Fixture plain = new Fixture();
+        ChatRound plainRound = plain.round("ACCEPTED");
+        when(plain.persistence.find(12L, "req-plain")).thenReturn(null);
+        when(plain.persistence.create(12L, "req-plain", null, "你好")).thenReturn(plainRound);
+        plain.service.accept(plain.command("req-plain"));
+
+        org.mockito.ArgumentCaptor<Map<String, Object>> plainBody = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(plain.agentClient).chat(plainBody.capture());
+        assertThat(plainBody.getValue()).doesNotContainKey("prescription_id");
     }
 
     private static final class Fixture {
@@ -421,7 +450,7 @@ class ChatRoundServiceTest {
 
         private ChatRoundService.Command command(String requestId) {
             return new ChatRoundService.Command(
-                    12L, requestId, null, "你好", "quick", "triage", null, null, null, null, null);
+                    12L, requestId, null, "你好", "quick", "triage", null, null, null, null, null, null);
         }
     }
 }

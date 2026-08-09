@@ -42,7 +42,11 @@ public class ChatController {
             // 票 50：科室号源查询失败后重试，复用已确定的标准科室 ID 直查
             @JsonProperty("retry_standard_department_id") Long retryStandardDepartmentId,
             // 票 55：预问诊草稿标识；携带时 server-java 校验归属/状态后强制 preconsultation 场景
-            @JsonProperty("preconsultation_draft_id") Long preconsultationDraftId) {}
+            @JsonProperty("preconsultation_draft_id") Long preconsultationDraftId,
+            // 票 78：处方药多处方选择卡点选回传的所选处方 ID；server-java 仅透传给 server-py，
+            // 归属校验延后到 prepare_drug_order（MedicationToolService.prepareForPrescription），
+            // 不改场景/权限，与 content 并存（点选文案作为 content）
+            @JsonProperty("prescription_id") Long prescriptionId) {}
 
     @PostMapping("/chat")
     public SseEmitter chat(
@@ -69,6 +73,7 @@ public class ChatController {
                 request.longitude(),
                 request.latitude(),
                 request.retryStandardDepartmentId(),
-                request.preconsultationDraftId()));
+                request.preconsultationDraftId(),
+                request.prescriptionId()));
     }
 }
