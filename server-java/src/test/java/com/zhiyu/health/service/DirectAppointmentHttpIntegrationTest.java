@@ -33,6 +33,7 @@ import com.zhiyu.health.service.scheduling.SlotAccounting;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
+import com.zhiyu.health.support.TestSlotWindows;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -78,7 +79,7 @@ class DirectAppointmentHttpIntegrationTest {
                 Mappers.getMapper(AppointmentDtoMapper.class),
                 TestDisclaimers.instance(),
                 new ObjectMapper(),
-                new SlotWindowGuard(TestContracts.instance(), java.time.Clock.systemDefaultZone()));
+                new SlotWindowGuard(java.time.Clock.systemDefaultZone(), TestSlotWindows.contractOnly()));
         mvc = standaloneSetup(new AppointmentController(
                         service, TestDisclaimers.instance(), Mappers.getMapper(AppointmentCardMapper.class)))
                 .setControllerAdvice(new ApiExceptionHandler())

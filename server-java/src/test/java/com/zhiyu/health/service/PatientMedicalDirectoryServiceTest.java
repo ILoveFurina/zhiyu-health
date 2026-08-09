@@ -23,7 +23,7 @@ import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
 import com.zhiyu.health.service.health.PatientMedicalDirectoryService;
 import com.zhiyu.health.service.health.mapping.PatientMedicalDirectoryDtoMapper;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
-import com.zhiyu.health.support.TestContracts;
+import com.zhiyu.health.support.TestSlotWindows;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -43,13 +43,13 @@ class PatientMedicalDirectoryServiceTest {
     // 时段截止判断：默认固定到系统当天 10:00（上午未结束），现有用例以 LocalDate.now() 构造今天
     // 上午/下午号源行，均不会被误判截止；已过时段用例用 12:00 的 guard 单独构造 service。
     private final SlotWindowGuard slotWindowGuard = new SlotWindowGuard(
-            TestContracts.instance(),
             Clock.fixed(
                     LocalDate.now()
                             .atTime(10, 0)
                             .atZone(ZoneId.of("Asia/Shanghai"))
                             .toInstant(),
-                    ZoneId.of("Asia/Shanghai")));
+                    ZoneId.of("Asia/Shanghai")),
+            TestSlotWindows.contractOnly());
     private final PatientMedicalDirectoryService service = new PatientMedicalDirectoryService(
             hospitalCampusMapper,
             departmentMapper,
@@ -290,10 +290,9 @@ class PatientMedicalDirectoryServiceTest {
         when(departmentMapper.selectDoctorSlotRows(anyLong(), anyString(), any(), any(), any(), any()))
                 .thenReturn(List.of(slotRow(1L, today, "上午", 5, 1.0), slotRow(1L, today, "下午", 3, 1.0)));
         SlotWindowGuard closedGuard = new SlotWindowGuard(
-                TestContracts.instance(),
                 Clock.fixed(
-                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(),
-                        ZoneId.of("Asia/Shanghai")));
+                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
         PatientMedicalDirectoryService serviceWithClosedGuard = new PatientMedicalDirectoryService(
                 hospitalCampusMapper,
                 departmentMapper,
@@ -322,10 +321,9 @@ class PatientMedicalDirectoryServiceTest {
         ScheduleMapper scheduleMapper = mock(ScheduleMapper.class);
         when(scheduleMapper.selectBookableByDoctor(2L, today)).thenReturn(List.of(morning, afternoon));
         SlotWindowGuard closedGuard = new SlotWindowGuard(
-                TestContracts.instance(),
                 Clock.fixed(
-                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(),
-                        ZoneId.of("Asia/Shanghai")));
+                        today.atTime(12, 0).atZone(ZoneId.of("Asia/Shanghai")).toInstant(), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
         PatientMedicalDirectoryService serviceWithClosedGuard = new PatientMedicalDirectoryService(
                 hospitalCampusMapper,
                 departmentMapper,

@@ -28,6 +28,7 @@ import com.zhiyu.health.service.scheduling.SlotAccounting;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
 import com.zhiyu.health.support.TestContracts;
 import com.zhiyu.health.support.TestDisclaimers;
+import com.zhiyu.health.support.TestSlotWindows;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -53,8 +54,8 @@ class AppointmentServiceTest {
     // 时段截止判断：默认固定到上午 10:00（上午未结束），现有用例不设 date/timeSlot 不受影响，
     // 设了上午时段的用例也不会被误判截止；已过时段用例用 12:00 的 guard 单独构造。
     private final SlotWindowGuard slotWindowGuard = new SlotWindowGuard(
-            TestContracts.instance(),
-            Clock.fixed(Instant.parse("2026-07-28T10:00:00+08:00"), ZoneId.of("Asia/Shanghai")));
+            Clock.fixed(Instant.parse("2026-07-28T10:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+            TestSlotWindows.contractOnly());
 
     @Test
     void createsAppointmentBeforeConditionSummaryGeneration() {
@@ -431,8 +432,8 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(morningSchedule);
         slotCounter.initialize(9L, 3);
         SlotWindowGuard closedGuard = new SlotWindowGuard(
-                TestContracts.instance(),
-                Clock.fixed(Instant.parse("2026-08-08T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")));
+                Clock.fixed(Instant.parse("2026-08-08T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
 
         assertThatThrownBy(() -> serviceWithGuard(closedGuard).createDirect(12L, 9L))
                 .isInstanceOf(ApiException.class)
