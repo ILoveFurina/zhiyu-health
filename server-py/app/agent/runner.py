@@ -66,6 +66,7 @@ class AgentContext:
 CardEvent = Literal[
     "doctor_recommendations", "doctor_slots", "hospital_recommendations",
     "appointment", "appointments", "department_slots", "department_options",
+    "medications", "prescriptions", "drug_order_prepare",
 ]
 
 # 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。
