@@ -1,0 +1,40 @@
+<view class="psc-card">
+  <view class="psc-head">
+    <view class="psc-title-row">
+      <view class="psc-title-icon zy-ico zy-ico-capsule"></view>
+      <view class="psc-title">选择处方买药</view>
+    </view>
+  </view>
+
+  <view class="psc-hint">您有多张已审核处方，点选一张继续购药：</view>
+
+  <!-- 每项展示处方来源（医生+日期+来源类型）+ 药品摘要（药名/规格），点选回传 prescription_id -->
+  <view class="psc-list">
+    <view
+      a:for="{{card.prescriptions}}"
+      a:for-item="rx"
+      a:key="prescription_id"
+      class="psc-item"
+      data-id="{{rx.prescription_id}}"
+      onTap="select"
+    >
+      <view class="psc-item-head">
+        <view class="psc-item-doctor">{{rx.doctor_name || '未知医生'}}医生</view>
+        <view class="psc-item-source">{{rx.source_type_label}}</view>
+      </view>
+      <view a:if="{{rx.date}}" class="psc-item-date">开方日期：{{rx.date}}</view>
+      <view a:if="{{rx.items && rx.items.length}}" class="psc-item-drugs">
+        <view
+          a:for="{{rx.items}}"
+          a:for-item="drug"
+          a:key="medication_id"
+          class="psc-drug"
+        >
+          <view class="psc-drug-name">{{drug.name}}</view>
+          <view a:if="{{drug.specification}}" class="psc-drug-spec">{{drug.specification}}</view>
+        </view>
+      </view>
+      <view class="psc-item-action">按此处方买药</view>
+    </view>
+  </view>
+</view>

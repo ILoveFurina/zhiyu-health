@@ -214,6 +214,7 @@ Page({
       longitude: location && location.longitude,
       latitude: location && location.latitude,
       retryStandardDepartmentId: options && options.retryStandardDepartmentId,
+      prescriptionId: options && options.prescriptionId,
       handlers: {
         onMeta: (data) => {
           this.setData({ conversationId: data.conversation_id || this.data.conversationId })
@@ -232,10 +233,15 @@ Page({
         onDepartmentOptions: (data) => this.appendCard('department_options', data),
         onAppointment: (data) => this.appendCard('appointment', data),
         onAppointments: (data) => this.appendCard('appointments', data),
-        // 票 77：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页。
+        // 票 77/78：购药确认卡经 SSE 下发（server-py prepare_drug_order 装配），就地确认不跳页。
+        // server-py 经 tool_to_event 下发 drug_order_prepare 事件（实时流），历史回放可能以
+        // drug_order_confirm kind 落库；两 kind 渲染同一组件，handler 各自 appendCard 对应 kind。
         // handler 名 onDrugOrderConfirmCard 描述「卡片到达」，与组件点击回调页方法
         // onDrugOrderConfirm（描述「用户确认下单」）刻意分开，避免同词异义。
         onDrugOrderConfirmCard: (data) => this.appendCard('drug_order_confirm', data),
+        onDrugOrderPrepare: (data) => this.appendCard('drug_order_prepare', data),
+        // 票 78：处方选择卡（多处方点选），payload 含 prescriptions 列表
+        onPrescriptions: (data) => this.appendCard('prescriptions', data),
         onRedFlag: (data) => this.showRedFlag(aiMsg.id, data),
         onDone: () => this.completeRound(aiMsg.id),
         onError: (err) => this.failRound(aiMsg.id, err),
@@ -368,6 +374,23 @@ Page({
           `我选择${name || ''}`,
           { longitude: coords.lng, latitude: coords.lat },
           { retryStandardDepartmentId: id }
+        )
+      })
+      .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))
+  },
+
+  /** 票 78 处方选择卡点选：携带所选 prescription_id 发起对话轮，server-py Agent 据此
+   *  直接调 prepare_drug_order(prescription_id=...) 装配 drug_order_prepare 确认卡。 */
+  onPrescriptionSelected({ cardId, prescriptionId }) {
+    if (this.data.sending) return
+    if (!prescriptionId) return
+    ensureLogin()
+      .then(() => {
+        const coords = getCoords()
+        this.startRound(
+          '按此处方买药',
+          { longitude: coords.lng, latitude: coords.lat },
+          { prescriptionId }
         )
       })
       .catch(() => my.showToast({ content: '登录失败，请稍后重试', type: 'fail' }))

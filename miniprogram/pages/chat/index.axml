@@ -147,9 +147,24 @@
         <ai-disclaimer text="{{item.disclaimer}}" />
       </view>
 
-      <!-- 票 77：购药确认卡（drug_order_confirm）。就地确认不跳页，确认下单调 POST /api/c/drug-orders；
-           取消就地隐藏卡片。已下单后 submitted 标记就地转结果态。 -->
-      <view a:elif="{{item.kind === 'drug_order_confirm' && !item.hidden}}" id="msg-{{item.id}}">
+      <!-- 票 78：处方选择卡（prescriptions）。list_approved_prescriptions 返回多张 APPROVED 处方时
+           下发，每项展示医生+日期+药品摘要，点选经 prescription_id 可选字段回传触发
+           prepare_drug_order -> drug_order_prepare 确认卡（与 77 单处方直通共用后半段） -->
+      <view a:elif="{{item.kind === 'prescriptions'}}" id="msg-{{item.id}}">
+        <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
+          <prescription-selection-card
+            card="{{item.card}}"
+            cardId="{{item.id}}"
+            onSelect="onPrescriptionSelected"
+          />
+        </view>
+        <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
+      </view>
+
+      <!-- 票 77/78：购药确认卡。server-py 经 prepare_drug_order 工具装配后以 drug_order_prepare
+           事件下发（tool_to_event 映射）；历史回放可能以 drug_order_confirm kind 落库，两 kind
+           共用同一组件渲染。就地确认不跳页，确认下单调 POST /api/c/drug-orders；取消就地隐藏卡片。 -->
+      <view a:elif="{{(item.kind === 'drug_order_prepare' || item.kind === 'drug_order_confirm') && !item.hidden}}" id="msg-{{item.id}}">
         <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
           <drug-order-confirm-card
             card="{{item.card}}"

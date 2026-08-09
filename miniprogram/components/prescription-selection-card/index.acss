@@ -1,0 +1,62 @@
+/* 处方选择卡（票 78）：多处方点选列表，每项展示医生+日期+来源类型+药品摘要。
+ * 类名带 psc- 前缀--支付宝组件样式不隔离，与 drug-order-confirm-card/doc-* 等裸类名会串扰。
+ * 视觉层级对齐 drug-order-confirm-card：卡片化可点选项 + :active 缩放反馈。 */
+.psc-card {
+  padding: var(--zy-space-md);
+  border-radius: var(--zy-radius-card);
+  background: #fff;
+  box-shadow: var(--zy-shadow-card);
+}
+
+.psc-head { display: flex; align-items: center; }
+.psc-title-row { display: flex; align-items: center; gap: var(--zy-space-sm); }
+.psc-title { color: var(--zy-text-title); font-size: 32rpx; font-weight: 700; }
+/* 字体图标：尺寸/颜色由容器 font-size/color 控制（见 app.acss .zy-ico 注释） */
+.psc-title-icon { color: var(--zy-color-primary); font-size: 36rpx; }
+
+.psc-hint { margin-top: var(--zy-space-xs); color: var(--zy-text-weak); font-size: 24rpx; }
+
+.psc-list { margin-top: var(--zy-space-sm); }
+
+/* 单张处方可点选项：卡片化 + 边框，点选反馈用缩放（与 dep-option-chip 同套路） */
+.psc-item {
+  margin-top: var(--zy-space-sm);
+  padding: var(--zy-space-sm);
+  border-radius: var(--zy-radius-sm);
+  border: 1rpx solid var(--zy-color-border);
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+.psc-item:first-child { margin-top: 0; }
+.psc-item:active { transform: scale(0.98); }
+
+.psc-item-head { display: flex; align-items: center; justify-content: space-between; }
+.psc-item-doctor { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.psc-item-source {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-warning-soft);
+  color: var(--zy-color-warning);
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.psc-item-date { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+
+/* 药品摘要：每药一行（名+规格），可多行，与确认卡药品明细视觉层级一致但更紧凑 */
+.psc-item-drugs { margin-top: var(--zy-space-xs); }
+.psc-drug {
+  padding: var(--zy-space-xs) 0;
+  border-top: 1rpx solid var(--zy-color-border);
+}
+.psc-drug:first-child { border-top: none; }
+.psc-drug-name { color: var(--zy-text-title); font-size: 26rpx; }
+.psc-drug-spec { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+
+/* 点选入口文案，作为该项的视觉 CTA，与可点整项一体 */
+.psc-item-action {
+  margin-top: var(--zy-space-xs);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+  font-weight: 600;
+  text-align: right;
+}
