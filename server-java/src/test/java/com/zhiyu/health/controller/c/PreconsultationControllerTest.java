@@ -88,7 +88,18 @@ class PreconsultationControllerTest {
         PatientConsultationProgressService progress = mock(PatientConsultationProgressService.class);
         when(progress.list(12L))
                 .thenReturn(List.of(new PatientConsultationProgressService.ProgressItem(
-                        "DRAFT", 5L, "COLLECTING", "预问诊进行中", 3L, "林小满", "2026-08-09T10:00:00+08:00")));
+                        "DRAFT",
+                        5L,
+                        "COLLECTING",
+                        "预问诊进行中",
+                        3L,
+                        "林小满",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "2026-08-09T10:00:00+08:00")));
         MockMvc mvc = standalone(service, progress);
 
         mvc.perform(get("/api/c/preconsultation-drafts/progress").requestAttr("authSubject", 12L))

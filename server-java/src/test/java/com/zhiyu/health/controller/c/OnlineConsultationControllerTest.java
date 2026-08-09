@@ -290,6 +290,7 @@ class OnlineConsultationControllerTest {
                 "2026-08-07T10:10:00+08:00",
                 null,
                 null,
+                null,
                 cancelled ? "2026-08-07T10:05:00+08:00" : null,
                 "2026-08-07T10:00:00+08:00",
                 cancelled ? "问诊已取消。可复用原病情摘要重新提交，无需重复预问诊。" : null);

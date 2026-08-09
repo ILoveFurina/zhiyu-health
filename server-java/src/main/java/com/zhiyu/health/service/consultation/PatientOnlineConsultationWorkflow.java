@@ -135,12 +135,33 @@ final class PatientOnlineConsultationWorkflow {
         }
     }
 
+    /** 患者主动结束（票 86）：进行中 → CANCELLED，状态翻转与系统消息同事务；已取消幂等返回。 */
+    ConsultationDetail end(long patientId, long id) {
+        // 先惰性收敛：已超时时长窗的单子在此翻 EXPIRED，随后的结束请求得到 409 而非成功
+        access.expireOverdue();
+        OnlineConsultation consultation = access.requireOwnedByPatient(id, patientId);
+        if (access.cancelled().equals(consultation.getStatus())) {
+            return access.patientDetail(consultation);
+        }
+        return transactions.execute(status -> {
+            if (mapper.endByPatient(id, patientId, access.inProgress(), access.cancelled()) != 1) {
+                throw new ApiException(409, access.text("not_in_progress"));
+            }
+            messaging.append(
+                    id, access.senderType("system"), OnlineConsultationMessage.KIND_TEXT, access.text("patient_ended"));
+            logDecision("end", id);
+            return access.patientDetail(mapper.selectDetailedById(id));
+        });
+    }
+
     List<MessageView> listMessages(long patientId, long id, long afterId) {
+        access.expireOverdue();
         access.requireOwnedByPatient(id, patientId);
         return messaging.list(id, afterId);
     }
 
     MessageView sendMessage(long patientId, long id, String content) {
+        access.expireOverdue();
         OnlineConsultation consultation = access.requireOwnedByPatient(id, patientId);
         access.requireInProgress(consultation);
         access.requireMethodInitiated(consultation);
@@ -148,6 +169,7 @@ final class PatientOnlineConsultationWorkflow {
     }
 
     MessageView sendImage(long patientId, long id, MultipartFile file) {
+        access.expireOverdue();
         OnlineConsultation consultation = access.requireOwnedByPatient(id, patientId);
         access.requireInProgress(consultation);
         access.requireMethodInitiated(consultation);

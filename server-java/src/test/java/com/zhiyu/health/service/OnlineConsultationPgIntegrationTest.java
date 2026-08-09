@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import com.zhiyu.health.entity.consultation.OnlineConsultation;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
 import org.apache.ibatis.exceptions.PersistenceException;
@@ -45,6 +46,7 @@ class OnlineConsultationPgIntegrationTest {
     private static final long DOCTOR_B = 990002L;
     private static final long PATIENT = 990001L;
     private static final long PROFILE = 990001L;
+    private static final long PROFILE_B = 990002L;
     private static final long DRAFT = 990001L;
 
     private static PGSimpleDataSource dataSource;
@@ -74,6 +76,9 @@ class OnlineConsultationPgIntegrationTest {
     void cleanTicketTables() throws Exception {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM drug_orders WHERE patient_id = " + PATIENT);
+            statement.execute("DELETE FROM prescriptions WHERE online_consultation_id IN"
+                    + " (SELECT id FROM online_consultations WHERE patient_id = " + PATIENT + ")");
             statement.execute("DELETE FROM online_consultation_messages WHERE consultation_id IN"
                     + " (SELECT id FROM online_consultations WHERE patient_id = " + PATIENT + ")");
             statement.execute("DELETE FROM online_consultations WHERE patient_id = " + PATIENT);
@@ -91,6 +96,9 @@ class OnlineConsultationPgIntegrationTest {
     static void removeFixtures() throws Exception {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM drug_orders WHERE patient_id = " + PATIENT);
+            statement.execute("DELETE FROM prescriptions WHERE online_consultation_id IN"
+                    + " (SELECT id FROM online_consultations WHERE patient_id = " + PATIENT + ")");
             statement.execute("DELETE FROM online_consultation_messages WHERE consultation_id IN"
                     + " (SELECT id FROM online_consultations WHERE patient_id = " + PATIENT + ")");
             statement.execute("DELETE FROM online_consultations WHERE patient_id = " + PATIENT);
@@ -167,6 +175,157 @@ class OnlineConsultationPgIntegrationTest {
         }
     }
 
+    /** 时长窗惰性收敛（票 86）：到期 IN_PROGRESS 翻 EXPIRED 且系统消息恰好一条；二次 sweep 幂等；未到期不误触。 */
+    @Test
+    void expireInProgressOverdueFlipsDueOnceWithSingleSystemMessage() throws Exception {
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
+            OnlineConsultationMapper mapper = session.getMapper(OnlineConsultationMapper.class);
+            OnlineConsultation due = waitingConsultation();
+            mapper.insert(due);
+            assertThat(mapper.accept(due.getId(), DOCTOR_A, "WAITING_DOCTOR", "IN_PROGRESS"))
+                    .isEqualTo(1);
+            // accepted_at 拨回 31 分钟前，越过 1800s 时长窗
+            try (Connection connection = dataSource.getConnection();
+                    Statement statement = connection.createStatement()) {
+                statement.execute("UPDATE online_consultations SET accepted_at = now() - interval '31 minutes'"
+                        + " WHERE id = " + due.getId());
+            }
+            // 同患者另一档案的未到期进行中单：不得误触（同档案受部分唯一索引限制只能一条活跃单）
+            OnlineConsultation fresh = waitingConsultation();
+            fresh.setHealthProfileId(PROFILE_B);
+            mapper.insert(fresh);
+            assertThat(mapper.accept(fresh.getId(), DOCTOR_B, "WAITING_DOCTOR", "IN_PROGRESS"))
+                    .isEqualTo(1);
+
+            // 全表 sweep：共享演示库可能已有其他到期 IN_PROGRESS 行，断言至少命中本例行
+            assertThat(mapper.expireInProgressOverdue(
+                            "IN_PROGRESS", "EXPIRED", 1800, "SYSTEM", "text", "问诊时间已到，本次问诊已自动结束"))
+                    .isGreaterThanOrEqualTo(1);
+            assertThat(mapper.selectDetailedById(due.getId()).getStatus()).isEqualTo("EXPIRED");
+            assertThat(mapper.selectDetailedById(fresh.getId()).getStatus()).isEqualTo("IN_PROGRESS");
+            // 条件 UPDATE 行守卫：二次 sweep 不再翻行，系统消息不重复
+            assertThat(mapper.expireInProgressOverdue(
+                            "IN_PROGRESS", "EXPIRED", 1800, "SYSTEM", "text", "问诊时间已到，本次问诊已自动结束"))
+                    .isZero();
+            try (Connection connection = dataSource.getConnection();
+                    Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery("SELECT sender_type, kind, content"
+                            + " FROM online_consultation_messages WHERE consultation_id = " + due.getId())) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString(1)).isEqualTo("SYSTEM");
+                assertThat(rs.getString(2)).isEqualTo("text");
+                assertThat(rs.getString(3)).isEqualTo("问诊时间已到，本次问诊已自动结束");
+                assertThat(rs.next()).isFalse();
+            }
+        }
+    }
+
+    /** 患者主动结束（票 86）：进行中单条件更新一次成功；待接诊/重复结束均 0 行。 */
+    @Test
+    void endByPatientTransitionsInProgressOnlyOnce() {
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
+            OnlineConsultationMapper mapper = session.getMapper(OnlineConsultationMapper.class);
+            OnlineConsultation consultation = waitingConsultation();
+            mapper.insert(consultation);
+            // 待接诊不可结束（应走 cancel）
+            assertThat(mapper.endByPatient(consultation.getId(), PATIENT, "IN_PROGRESS", "CANCELLED"))
+                    .isZero();
+            assertThat(mapper.accept(consultation.getId(), DOCTOR_A, "WAITING_DOCTOR", "IN_PROGRESS"))
+                    .isEqualTo(1);
+            assertThat(mapper.endByPatient(consultation.getId(), PATIENT, "IN_PROGRESS", "CANCELLED"))
+                    .isEqualTo(1);
+            OnlineConsultation ended = mapper.selectDetailedById(consultation.getId());
+            assertThat(ended.getStatus()).isEqualTo("CANCELLED");
+            assertThat(ended.getCancelledAt()).isNotNull();
+            // 重复结束与越权 patient_id 都不再命中
+            assertThat(mapper.endByPatient(consultation.getId(), PATIENT, "IN_PROGRESS", "CANCELLED"))
+                    .isZero();
+            assertThat(mapper.endByPatient(consultation.getId(), PATIENT + 100, "IN_PROGRESS", "CANCELLED"))
+                    .isZero();
+        }
+    }
+
+    /** 处方追踪覆盖规则（票 86）：每档案只投影最近一次问诊链路，新问诊发起后旧 REJECTED 卡消失。 */
+    @Test
+    void prescriptionTrackingProjectsOnlyLatestChainPerProfile() throws Exception {
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
+            OnlineConsultationMapper mapper = session.getMapper(OnlineConsultationMapper.class);
+            OnlineConsultation completed = waitingConsultation();
+            mapper.insert(completed);
+            markCompleted(completed.getId());
+            insertPrescription(completed.getId(), "REJECTED");
+
+            assertThat(mapper.selectUnresolvedPrescriptionTracking(
+                            PATIENT, "COMPLETED", "PENDING", "APPROVED", "REJECTED"))
+                    .singleElement()
+                    .satisfies(row -> {
+                        assertThat(row.onlineConsultationId()).isEqualTo(completed.getId());
+                        assertThat(row.prescriptionStatus()).isEqualTo("REJECTED");
+                        assertThat(row.hasDrugOrder()).isFalse();
+                        assertThat(row.doctorName()).isEqualTo("IT医生甲");
+                        assertThat(row.departmentName()).isEqualTo("IT呼吸内科门诊");
+                    });
+            // 同档案发起新问诊（WAITING）：最新链路非 COMPLETED，旧链路的未终结处方不再投影
+            mapper.insert(waitingConsultation());
+            assertThat(mapper.selectUnresolvedPrescriptionTracking(
+                            PATIENT, "COMPLETED", "PENDING", "APPROVED", "REJECTED"))
+                    .isEmpty();
+        }
+    }
+
+    /** 已下单标记（票 86）：APPROVED 处方存在药品订单时 has_drug_order=true，由调用方交接给待支付卡。 */
+    @Test
+    void prescriptionTrackingFlagsApprovedWithExistingDrugOrder() throws Exception {
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
+            OnlineConsultationMapper mapper = session.getMapper(OnlineConsultationMapper.class);
+            OnlineConsultation withOrder = waitingConsultation();
+            mapper.insert(withOrder);
+            markCompleted(withOrder.getId());
+            long rxWithOrder = insertPrescription(withOrder.getId(), "APPROVED");
+            try (Connection connection = dataSource.getConnection();
+                    Statement statement = connection.createStatement()) {
+                statement.execute("INSERT INTO drug_orders(patient_id, prescription_id, status, total_amount)"
+                        + " VALUES (" + PATIENT + ", " + rxWithOrder + ", 'UNPAID', 10.00)");
+            }
+            OnlineConsultation withoutOrder = waitingConsultation();
+            withoutOrder.setHealthProfileId(PROFILE_B);
+            mapper.insert(withoutOrder);
+            markCompleted(withoutOrder.getId());
+            insertPrescription(withoutOrder.getId(), "APPROVED");
+
+            assertThat(mapper.selectUnresolvedPrescriptionTracking(
+                            PATIENT, "COMPLETED", "PENDING", "APPROVED", "REJECTED"))
+                    .hasSize(2)
+                    .anySatisfy(row -> {
+                        assertThat(row.prescriptionId()).isEqualTo(rxWithOrder);
+                        assertThat(row.hasDrugOrder()).isTrue();
+                    })
+                    .anySatisfy(row -> assertThat(row.hasDrugOrder()).isFalse());
+        }
+    }
+
+    /** 把插入的 WAITING 单直接置为 COMPLETED 终态（投影测试只关心链路形状，不走完整状态机）。 */
+    private void markCompleted(long consultationId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement()) {
+            statement.execute("UPDATE online_consultations SET status = 'COMPLETED', doctor_id = " + DOCTOR_A
+                    + ", accepted_at = now(), completed_at = now() WHERE id = " + consultationId);
+        }
+    }
+
+    /** 插一条处方并返回 id；APPROVED 需满足 ck_prescriptions_patient_visibility（解读+免责声明非空）。 */
+    private long insertPrescription(long consultationId, String status) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "INSERT INTO prescriptions(online_consultation_id, doctor_id, status, interpretation,"
+                                + " disclaimer) VALUES (" + consultationId + ", " + DOCTOR_A + ", '" + status + "',"
+                                + " '用药解读', '仅供参考，不替代医生诊断') RETURNING id")) {
+            assertThat(rs.next()).isTrue();
+            return rs.getLong(1);
+        }
+    }
+
     private static OnlineConsultation waitingConsultation() {
         OnlineConsultation consultation = new OnlineConsultation();
         consultation.setPatientId(PATIENT);
@@ -215,7 +374,8 @@ class OnlineConsultationPgIntegrationTest {
             statement.execute("INSERT INTO patients(id, nickname) VALUES (" + PATIENT + ", 'it患者甲')");
             statement.execute("INSERT INTO health_profiles(id, patient_id, display_name, gender, birth_date,"
                     + " relationship, active) VALUES (" + PROFILE + ", " + PATIENT
-                    + ", '本人', 'MALE', '1990-01-01', 'SELF', FALSE)");
+                    + ", '本人', 'MALE', '1990-01-01', 'SELF', FALSE), (" + PROFILE_B + ", " + PATIENT
+                    + ", 'IT家属', 'FEMALE', '1965-01-01', 'MOTHER', FALSE)");
         }
     }
 }

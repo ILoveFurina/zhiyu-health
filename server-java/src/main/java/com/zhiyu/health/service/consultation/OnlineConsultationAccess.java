@@ -4,6 +4,7 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.entity.consultation.OnlineConsultation;
+import com.zhiyu.health.entity.consultation.OnlineConsultationMessage;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.health.HealthProfileAllergyMapper;
@@ -97,6 +98,14 @@ final class OnlineConsultationAccess {
 
     void expireOverdue() {
         mapper.expireOverdue(waiting(), expired());
+        // 票 86 时长窗惰性收敛与接诊超时同一入口：所有调用点一次调用两种收敛同时生效
+        mapper.expireInProgressOverdue(
+                inProgress(),
+                expired(),
+                contracts.onlineConsultation().consultationDurationSeconds(),
+                senderType("system"),
+                OnlineConsultationMessage.KIND_TEXT,
+                text("duration_expired"));
     }
 
     OnlineConsultation activeByProfile(long healthProfileId) {
@@ -119,7 +128,8 @@ final class OnlineConsultationAccess {
                 progress,
                 methodLabel(consultation),
                 doctor,
-                terminalHint(status));
+                terminalHint(status),
+                consultationEndsAt(consultation));
     }
 
     DoctorListItem doctorListItem(OnlineConsultation consultation) {
@@ -139,7 +149,19 @@ final class OnlineConsultationAccess {
                 statusLabel(consultation.getStatus()),
                 methodLabel(consultation),
                 dtoMapper.toPatientRef(consultation),
-                profile(consultation));
+                profile(consultation),
+                consultationEndsAt(consultation));
+    }
+
+    /** 双端倒计时截止时间（票 86）：accepted_at + 契约时长窗，仅进行中单有值。 */
+    String consultationEndsAt(OnlineConsultation consultation) {
+        if (!inProgress().equals(consultation.getStatus()) || consultation.getAcceptedAt() == null) {
+            return null;
+        }
+        return consultation
+                .getAcceptedAt()
+                .plusSeconds(contracts.onlineConsultation().consultationDurationSeconds())
+                .toString();
     }
 
     private ProfileRef profile(OnlineConsultation consultation) {

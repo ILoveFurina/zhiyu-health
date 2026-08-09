@@ -36,7 +36,8 @@
     "cancel": "CANCEL",
     "complete": "COMPLETE",
     "resubmit": "RESUBMIT",
-    "abandon": "ABANDON"
+    "abandon": "ABANDON",
+    "end": "END"
   },
   "_decisions_doc": "在线问诊动作决定枚举，用于审计与领域日志；医生接受只有明确动作才生效，查看摘要不推进状态。",
   "progress_steps": [
@@ -66,6 +67,8 @@
   "_message_kinds_doc": "在线问诊医患消息类型（票 58）：text=文字消息（含语音输入经 ASR 转出的文字）；image=患者发送的图片消息，content 存 {\"object_key\",\"media_type\"} JSON（与 messages 表 image kind 同构，ADR-0029）。语音不构成消息类型，问诊记录不留语音。",
   "accept_timeout_seconds": 600,
   "_accept_timeout_seconds_doc": "在线问诊单创建后默认接诊截止时间；超时在列表、详情与接受入口惰性收敛为 EXPIRED，不引入调度中间件，端内不得散落硬编码。",
+  "consultation_duration_seconds": 1800,
+  "_consultation_duration_seconds_doc": "票 86：固定时长窗，自医生接受（accepted_at）起计时；到期在列表、详情、进度聚合与发消息等入口惰性收敛为 EXPIRED 并写一条系统消息（texts.duration_expired），不引入调度中间件；consultation_ends_at=accepted_at+本值随详情/进度响应下发，供双端倒计时。",
   "timeline_types": {
     "online_consultation": "ONLINE_CONSULTATION"
   },
@@ -103,6 +106,8 @@
     "text_started": "医生发起图文问诊",
     "method_already_set": "接诊方式已发起，不可更换",
     "method_required": "医生尚未发起接诊方式",
-    "draft_abandoned": "本次预问诊已放弃"
+    "draft_abandoned": "本次预问诊已放弃",
+    "patient_ended": "患者已结束问诊",
+    "duration_expired": "问诊时间已到，本次问诊已自动结束"
   }
 }

@@ -206,7 +206,8 @@ class ContractsTest {
                 .containsExactlyInAnyOrderEntriesOf(Map.of(
                         "collecting", "COLLECTING",
                         "pending_confirm", "PENDING_CONFIRM",
-                        "submitted", "SUBMITTED"));
+                        "submitted", "SUBMITTED",
+                        "abandoned", "ABANDONED"));
         assertThat(consultation.draftStatusLabels().keySet())
                 .containsExactlyInAnyOrderElementsOf(
                         consultation.draftStatuses().values());
@@ -222,8 +223,13 @@ class ContractsTest {
         // 单一进行中约束：活跃状态集与数据库部分唯一索引的 WHERE 子句一致（ConsistencyTest 另钉 schema）
         assertThat(consultation.activeStatuses()).containsExactly("WAITING_DOCTOR", "IN_PROGRESS");
         assertThat(consultation.decisions())
-                .containsExactlyInAnyOrderEntriesOf(
-                        Map.of("accept", "ACCEPT", "cancel", "CANCEL", "complete", "COMPLETE", "resubmit", "RESUBMIT"));
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "accept", "ACCEPT",
+                        "cancel", "CANCEL",
+                        "complete", "COMPLETE",
+                        "resubmit", "RESUBMIT",
+                        "abandon", "ABANDON",
+                        "end", "END"));
         // C 端固定五步进度：后三步键与问诊状态值同源，终态分支（CANCELLED/EXPIRED）不占步
         assertThat(consultation.progressSteps().stream().map(Contracts.OnlineConsultation.ProgressStep::key))
                 .containsExactly("PRECONSULTATION", "SUMMARY_CONFIRMED", "WAITING_DOCTOR", "IN_PROGRESS", "COMPLETED");
@@ -244,6 +250,8 @@ class ContractsTest {
                 .containsExactlyInAnyOrderEntriesOf(
                         Map.of("patient", "PATIENT", "doctor", "DOCTOR", "system", "SYSTEM"));
         assertThat(consultation.acceptTimeoutSeconds()).isEqualTo(600);
+        // 票 86：固定时长窗自医生接受起计时，到期惰性收敛 EXPIRED（与接诊超时同构）
+        assertThat(consultation.consultationDurationSeconds()).isEqualTo(1800);
         assertThat(consultation.summaryFields())
                 .containsExactly("chief_complaint", "present_illness", "allergy_history");
         assertThat(consultation.summaryFieldLabels().keySet())
@@ -277,7 +285,10 @@ class ContractsTest {
                         "not_in_progress",
                         "text_started",
                         "method_already_set",
-                        "method_required");
+                        "method_required",
+                        "draft_abandoned",
+                        "patient_ended",
+                        "duration_expired");
     }
 
     @Test

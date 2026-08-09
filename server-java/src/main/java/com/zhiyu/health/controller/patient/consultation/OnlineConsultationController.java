@@ -67,6 +67,13 @@ public class OnlineConsultationController {
         return new ConsultationResponse(consultations.cancel(patientId, id));
     }
 
+    /** 患者主动结束（票 86）：二次确认在端侧完成，后端只做进行中 → CANCELLED 状态机流转。 */
+    @PostMapping("/{id}/end")
+    public ConsultationResponse end(
+            @PathVariable long id, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {
+        return new ConsultationResponse(consultations.end(patientId, id));
+    }
+
     @PostMapping("/{id}/resubmit")
     public ConsultationResponse resubmit(
             @PathVariable long id, @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long patientId) {

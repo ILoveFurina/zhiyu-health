@@ -24,6 +24,7 @@ public interface OnlineConsultationDtoMapper {
     @Mapping(target = "consultMethodLabel", source = "consultMethodLabel")
     @Mapping(target = "doctor", source = "doctor")
     @Mapping(target = "terminalHint", source = "terminalHint")
+    @Mapping(target = "consultationEndsAt", source = "consultationEndsAt")
     OnlineConsultationViews.ConsultationDetail toDetail(
             OnlineConsultation consultation,
             OnlineConsultationViews.ConsultationSummaryView summary,
@@ -31,7 +32,8 @@ public interface OnlineConsultationDtoMapper {
             String progressStep,
             String consultMethodLabel,
             OnlineConsultationViews.DoctorView doctor,
-            String terminalHint);
+            String terminalHint,
+            String consultationEndsAt);
 
     @Mapping(target = "summary", source = "summary")
     @Mapping(target = "statusLabel", source = "statusLabel")
@@ -51,13 +53,15 @@ public interface OnlineConsultationDtoMapper {
     @Mapping(target = "consultMethodLabel", source = "consultMethodLabel")
     @Mapping(target = "patient", source = "patient")
     @Mapping(target = "healthProfile", source = "healthProfile")
+    @Mapping(target = "consultationEndsAt", source = "consultationEndsAt")
     OnlineConsultationViews.DoctorConsultationDetail toDoctorDetail(
             OnlineConsultation consultation,
             OnlineConsultationViews.ConsultationSummaryView summary,
             String statusLabel,
             String consultMethodLabel,
             OnlineConsultationViews.PatientRef patient,
-            OnlineConsultationViews.ProfileRef healthProfile);
+            OnlineConsultationViews.ProfileRef healthProfile,
+            String consultationEndsAt);
 
     @Mapping(target = "nickname", source = "patientNickname")
     OnlineConsultationViews.PatientRef toPatientRef(OnlineConsultation consultation);
