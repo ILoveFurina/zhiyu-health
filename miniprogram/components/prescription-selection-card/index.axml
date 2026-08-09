@@ -32,6 +32,14 @@
         >
           <view class="psc-drug-name">{{drug.name}}</view>
           <view a:if="{{drug.specification}}" class="psc-drug-spec">{{drug.specification}}</view>
+          <!-- 用法用量摘要（每次1粒·每日三次·7天），帮助用户识别处方；数量在 prepare 时默认1，此处不展示 -->
+          <view a:if="{{drug.dosage || drug.frequency || drug.duration}}" class="psc-drug-usage">
+            <text a:if="{{drug.dosage}}">{{drug.dosage}}</text>
+            <text a:if="{{drug.dosage && drug.frequency}}"> · </text>
+            <text a:if="{{drug.frequency}}">{{drug.frequency}}</text>
+            <text a:if="{{(drug.dosage || drug.frequency) && drug.duration}}"> · </text>
+            <text a:if="{{drug.duration}}">{{drug.duration}}</text>
+          </view>
         </view>
       </view>
       <view class="psc-item-action">按此处方买药</view>

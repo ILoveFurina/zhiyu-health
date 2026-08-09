@@ -92,6 +92,10 @@ KNOWLEDGE_TOOL = "search_knowledge"
 # 元事件（source="graph"），不在 tool_to_event（不投影成卡片）。
 GRAPH_TOOL = "traverse_graph"
 
+# 查已审核处方工具名（票 78）：投影成 prescriptions 选择卡，但三态有编排层把关：
+# 零张/单张抑制选择卡（ texto 引导或直通 prepare 确认卡），多张才投影选择卡。
+PRESCRIPTIONS_TOOL = "list_approved_prescriptions"
+
 # 预问诊场景值（票 55）：唯一事实源是 contracts/online-consultation.json。
 # 该场景按编排代码隔离业务工具（不暴露医生推荐/号源/挂号工具）并选用专用提示词。
 _PRECONSULT_SCENARIO = get_contracts().online_consultation.scenario
@@ -334,10 +338,6 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
 
     search_knowledge / traverse_graph 不在 tool_to_event（不投影成卡片），其结果投影成
     knowledge 元事件，携带 source/status/count（空召回标 degraded，ADR-0010/0013）。
-
-    票 78：list_approved_prescriptions 返回空处方列表时抑制 prescriptions 卡片不下发，
-    让模型按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」。
-    工具调用本身成功（查询有结果只是无数据），_classify_tool_result 仍记 success。
     """
     payload = _parse_tool_payload(message)
     if payload is None:
@@ -358,10 +358,16 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
             "status": "ok" if count > 0 else "degraded",
             "count": count,
         })
-    # 票 78：零处方不下发空选择卡，由模型按提示词文字引导用户开方
-    if message.name == "list_approved_prescriptions":
-        prescriptions = payload.get("prescriptions")
-        if isinstance(prescriptions, list) and not prescriptions:
+    # 票 78：处方药购药三态由编排代码而非模型决定是否产选择卡
+    # - 零处方：抑制选择卡，让模型按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」
+    # - 单处方：抑制选择卡，让模型直接调 prepare_drug_order(prescription_id=...) 走 77 直通确认卡
+    # - 多处方：投影 prescriptions 选择卡供用户点选（点选经 prescription_id 上下文注入触发 prepare）
+    # 工具调用本身成功（查询有结果只是无数据/单张），_classify_tool_result 仍记 success。
+    if message.name == PRESCRIPTIONS_TOOL:
+        count = len(payload.get("prescriptions") or []) if isinstance(
+            payload.get("prescriptions"), list
+        ) else 0
+        if count <= 1:
             return None
     event = _tool_event(message.name)
     if event is None:
