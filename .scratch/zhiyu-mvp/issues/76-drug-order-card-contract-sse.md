@@ -4,12 +4,12 @@
 
 **Blocked by:** 74 - 药品处方属性与订单处方可空（schema 与 service 基线）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] contracts/sse-events.json：message_kinds + ai_card_kinds 加 drug_order_confirm、drug_order；card_events 加两事件名；event_to_kind 加映射；附 _doc 说明两 kind 语义（确认卡不扣库存/结果卡已建单、source 字段区分 otc/prescription）
-- [ ] ContractsConsistencyTest 同步断言新 kind 一致性、与 trace_events 不相交、不重名 done
-- [ ] server-java SSE 透传：两个新卡片事件能从 server-py 流经 server-java 透传到 C 端（复用现有 card_events 透传路径，不新增 SSE 机制）
-- [ ] server-java messages 表持久化：两 kind 能落库与回放（content 存卡片 JSON，kind 列存对应值）；历史会话回看能还原两卡片
-- [ ] contracts/order-flow.json 已在 74 加 source 字段；此票确认 drug_order kind 的卡片 schema 字段清单（订单号/status/total_amount/items/prescription_source?）写入契约或 _doc
-- [ ] server-java 单测：两 kind 事件透传不丢字段；落库后回放 kind/content 一致
-- [ ] README.md 依赖关系图新增节点 T76（未完成不加 [x]）
+- [x] contracts/sse-events.json：message_kinds + ai_card_kinds 加 drug_order_confirm、drug_order；card_events 加两事件名；event_to_kind 加映射；附 _doc 说明两 kind 语义（确认卡不扣库存/结果卡已建单、source 字段区分 otc/prescription）
+- [x] ContractsConsistencyTest 同步断言新 kind 一致性、与 trace_events 不相交、不重名 done
+- [x] server-java SSE 透传：两个新卡片事件能从 server-py 流经 server-java 透传到 C 端（复用现有 card_events 透传路径，不新增 SSE 机制）
+- [x] server-java messages 表持久化：两 kind 能落库与回放（content 存卡片 JSON，kind 列存对应值）；历史会话回看能还原两卡片
+- [x] contracts/order-flow.json 已在 74 加 source 字段；此票确认 drug_order kind 的卡片 schema 字段清单（订单号/status/total_amount/items/prescription_source?）写入契约或 _doc
+- [x] server-java 单测：两 kind 事件透传不丢字段；落库后回放 kind/content 一致
+- [x] README.md 依赖关系图新增节点 T76（未完成不加 [x]）
