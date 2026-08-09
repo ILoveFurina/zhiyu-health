@@ -277,7 +277,8 @@ CREATE TABLE IF NOT EXISTS messages (
         'appointment', 'appointments', 'report_upload', 'report_interpretation',
         'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
         'department_slots', 'department_options', 'red_flag',
-        'medications', 'prescriptions', 'drug_order_prepare'))
+        'medications', 'prescriptions', 'drug_order_prepare',
+        'drug_order_confirm', 'drug_order'))
 );
 
 -- messages.kind CHECK 幂等重建：CREATE TABLE IF NOT EXISTS 对旧库不会补建约束，
@@ -290,7 +291,8 @@ ALTER TABLE messages
         'appointment', 'appointments', 'report_upload', 'report_interpretation',
         'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
         'department_slots', 'department_options', 'red_flag',
-        'medications', 'prescriptions', 'drug_order_prepare'));
+        'medications', 'prescriptions', 'drug_order_prepare',
+        'drug_order_confirm', 'drug_order'));
 
 -- messages.emotion 列幂等补齐：CREATE TABLE IF NOT EXISTS 对已存在的表不会 ADD COLUMN，
 -- 云库若停留在票 44 之前的版本会缺该列，导致后续 COMMENT ON COLUMN 引用失败并阻断启动。

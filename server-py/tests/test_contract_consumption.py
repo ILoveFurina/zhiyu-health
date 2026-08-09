@@ -79,6 +79,25 @@ def test_tool_event_mapping_follows_contract() -> None:
     assert _tool_event("find_hospitals") is None
 
 
+def test_drug_order_cards_are_registered_consistently() -> None:
+    # 票 76：购药确认卡（drug_order_confirm）/结果卡（drug_order）四集合一致登记，
+    # 且与 trace_events 不相交、不与 done 重名；CardEvent Literal 同步覆盖。
+    # drug_order 结果卡 server-py 不产出（C 端下单后 server-java 本地落库），
+    # 仍登记在 CardEvent Literal 以保持事件集合完整、与契约字面量一致。
+    sse = get_contracts().sse_events
+    for kind in ("drug_order_confirm", "drug_order"):
+        assert kind in sse.card_events
+        assert kind in sse.message_kinds
+        assert kind in sse.ai_card_kinds
+        assert sse.event_to_kind[kind] == kind
+        assert kind not in sse.trace_events
+        assert kind != sse.stream_events[-1]  # done 是轮次终止信号，不得重名
+    # CardEvent Literal 与 card_events 一致（test_agent_output_event_literal_matches_contract 已钉），
+    # 此处显式断言两 kind 已进 Literal，避免字面量漏更
+    event_type = AgentOutput.__dataclass_fields__["event"].type
+    assert {"drug_order_confirm", "drug_order"}.issubset(_literal_values(event_type))
+
+
 def test_guided_registration_consumption_matches_contract() -> None:
     guided = get_contracts().guided_registration
     sse = get_contracts().sse_events

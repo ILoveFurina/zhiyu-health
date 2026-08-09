@@ -60,7 +60,9 @@ class ContractsConsistencyTest {
                         "department_options",
                         "medications",
                         "prescriptions",
-                        "drug_order_prepare");
+                        "drug_order_prepare",
+                        "drug_order_confirm",
+                        "drug_order");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -155,6 +157,35 @@ class ContractsConsistencyTest {
     }
 
     @Test
+    void drugOrderCardsAreRegisteredConsistentlyAcrossContractLists() {
+        // 票 76：drug_order_confirm（确认卡，待确认不扣库存）/drug_order（结果卡，已建单）
+        // 必须四集合一致登记：card_events/message_kinds/ai_card_kinds/event_to_kind，
+        // 且与 trace_events 不相交、不与 done 重名（done 是轮次终止信号）。
+        Contracts.SseEvents events = contracts.sseEvents();
+        for (String kind : new String[] {"drug_order_confirm", "drug_order"}) {
+            assertThat(events.cardEvents()).as("card_events 必须包含 %s", kind).contains(kind);
+            assertThat(events.messageKinds()).as("message_kinds 必须包含 %s", kind).contains(kind);
+            assertThat(events.aiCardKinds()).as("ai_card_kinds 必须包含 %s", kind).contains(kind);
+            assertThat(events.eventToKind())
+                    .as("event_to_kind 必须把 %s 映射到自身", kind)
+                    .containsEntry(kind, kind);
+            assertThat(events.traceEvents())
+                    .as("购药卡片 kind %s 不得与 trace_events 重名", kind)
+                    .doesNotContain(kind);
+            assertThat(kind).as("购药卡片 kind %s 不得与 done 重名", kind).isNotEqualTo("done");
+        }
+        // 两 kind 长度须装进 messages.kind VARCHAR(20)（票 33 同类故障纪律）
+        for (String kind : new String[] {"drug_order_confirm", "drug_order"}) {
+            assertThat(kind.length())
+                    .as("购药卡片 kind %s 长度须装进 messages.kind VARCHAR(20)", kind)
+                    .isLessThanOrEqualTo(20);
+        }
+        // Message.isAiCardKind 与契约同步：两 kind 均为 AI 卡片
+        assertThat(Message.isAiCardKind("drug_order_confirm")).isTrue();
+        assertThat(Message.isAiCardKind("drug_order")).isTrue();
+    }
+
+    @Test
     void llmContextExclusionIsAiCardKindsPlusReportUploadAndImage() {
         // ConversationService.recentContext 的排除集 = 契约 ai_card_kinds + report_upload + image。
         // 卡片 JSON 与图片路径用于历史渲染，不是自然语言，避免重复塞回 LLM 上下文（ADR-0023）。
@@ -177,6 +208,8 @@ class ContractsConsistencyTest {
                         "medications",
                         "prescriptions",
                         "drug_order_prepare",
+                        "drug_order_confirm",
+                        "drug_order",
                         "report_upload",
                         "image");
     }

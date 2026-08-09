@@ -27,5 +27,6 @@
   },
   "messages": {
     "stock_insufficient": "药品库存不足，下单失败"
-  }
+  },
+  "_drug_order_card_schema_doc": "票 76：drug_order 结果卡 content JSON 字段清单（与 DrugOrderService.OrderView 对齐）：order_no(id 订单号)/status(订单状态枚举值)/status_label(状态中文)/total_amount(总价)/source(prescription|otc)/prescription_id(处方药时非空)/items[{medication_id,name,specification,quantity,unit_price,subtotal}]/cancellable/payable/created_at。drug_order_confirm 确认卡 content JSON 字段清单（与 MedicationToolService.PrepareOrderView 对齐）：source/prescription_id/items[{medication_id,name,specification,quantity,unit_price,subtotal,stock,available}]/total_amount/payable_amount/prescription_source_type/doctor_name/prescription_date。两卡 content 均为 server-java 序列化的 JSON 字符串，落 messages.content 列，kind 列存对应 kind 值。"
 }

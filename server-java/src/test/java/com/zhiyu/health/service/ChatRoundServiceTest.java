@@ -140,6 +140,49 @@ class ChatRoundServiceTest {
         order.verify(fixture.persistence).markCompleted(34L);
     }
 
+    /**
+     * 票 76：购药确认卡（drug_order_confirm）由 server-py Agent 经 prepare_drug_order 装配后以
+     * SSE 卡片事件下发，复用现有 card_events 透传路径流经 server-java 到达 C 端，字段不丢失、
+     * 经 persistEvent 落库。结果卡 drug_order 不经此链路（C 端下单后 server-java 本地落库）。
+     */
+    @Test
+    void drugOrderConfirmCardRelaysThroughForwardWithoutFieldLoss() throws Exception {
+        Fixture fixture = new Fixture();
+        ChatRound round = fixture.round("ACCEPTED");
+        when(fixture.persistence.find(12L, "req-confirm")).thenReturn(null);
+        when(fixture.persistence.create(12L, "req-confirm", null, "你好")).thenReturn(round);
+        // persistEvent 默认透传输入（真实组件会注入 message_id 与 disclaimer；relay 测试只验中继不丢字段）
+        when(fixture.persistence.persistEvent(eq(round), eq("drug_order_confirm"), any()))
+                .thenAnswer(invocation -> invocation.getArgument(2));
+        ChatRoundService.Handle handle = fixture.service.accept(fixture.command("req-confirm"));
+
+        String confirmJson = "{\"source\":\"otc\",\"items\":[{\"medication_id\":7,\"name\":\"布洛芬\","
+                + "\"specification\":\"0.1g×24片\",\"quantity\":2,\"unit_price\":18.50,"
+                + "\"subtotal\":37.00,\"stock\":50,\"available\":true}],\"total_amount\":37.00,"
+                + "\"payable_amount\":37.00}";
+        fixture.upstream.tryEmitNext(
+                ServerSentEvent.builder(confirmJson).event("drug_order_confirm").build());
+        fixture.upstream.tryEmitNext(ServerSentEvent.builder("{}").event("done").build());
+        fixture.upstream.tryEmitComplete();
+
+        // drug_order_confirm 是 ai_card_kind，forward 不旁路，能透传到观察者
+        List<String> observed =
+                handle.events().map(ChatRoundService.Event::event).collectList().block(Duration.ofSeconds(1));
+        assertThat(observed).containsExactly("drug_order_confirm", "done");
+        // 字段不丢失：persistEvent 收到完整 JSON（source/items/total_amount/available 齐全）
+        org.mockito.ArgumentCaptor<com.fasterxml.jackson.databind.JsonNode> captor =
+                org.mockito.ArgumentCaptor.forClass(com.fasterxml.jackson.databind.JsonNode.class);
+        verify(fixture.persistence).persistEvent(eq(round), eq("drug_order_confirm"), captor.capture());
+        com.fasterxml.jackson.databind.JsonNode persisted = captor.getValue();
+        assertThat(persisted.path("source").asText()).isEqualTo("otc");
+        assertThat(persisted.path("total_amount").asDouble()).isEqualTo(37.00);
+        assertThat(persisted.path("payable_amount").asDouble()).isEqualTo(37.00);
+        assertThat(persisted.path("items").get(0).path("medication_id").asInt()).isEqualTo(7);
+        assertThat(persisted.path("items").get(0).path("name").asText()).isEqualTo("布洛芬");
+        assertThat(persisted.path("items").get(0).path("available").asBoolean()).isTrue();
+        verify(fixture.persistence).markCompleted(34L);
+    }
+
     /** 票 33 主根因回归：卡片落库失败不再悬空掐流——轮次显式失败，观察者保留已发事件并收到错误信号。 */
     @Test
     void cardPersistenceFailureMarksRoundFailedAndSignalsObserver() {
