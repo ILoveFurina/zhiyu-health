@@ -1,0 +1,57 @@
+<view class="doc-card">
+  <view class="doc-head">
+    <view class="doc-title-row">
+      <view class="doc-title-icon zy-ico zy-ico-capsule"></view>
+      <view class="doc-title">购药确认</view>
+    </view>
+    <view class="doc-source-tag doc-source-tag-{{card.source}}">
+      {{card.source === 'prescription' ? '处方药' : '非处方药'}}
+    </view>
+  </view>
+
+  <!-- 处方药路径：处方来源（开方医生 + 日期），OTC 路径不渲染 -->
+  <view a:if="{{prescriptionSourceText}}" class="doc-rx-source">
+    <view class="doc-rx-label">处方来源</view>
+    <view class="doc-rx-text">{{prescriptionSourceText}}</view>
+  </view>
+
+  <!-- 药品明细：名/规格/单价 × 数量 = 小计，库存可用性右侧标注 -->
+  <view class="doc-items">
+    <view
+      a:for="{{card.items}}"
+      a:key="medication_id"
+      class="doc-item {{!item.available ? 'doc-item-unavailable' : ''}}"
+    >
+      <view class="doc-item-head">
+        <view class="doc-item-name">{{item.name}}</view>
+        <view class="doc-item-stock {{!item.available ? 'doc-item-stock-none' : ''}}">
+          {{item.available ? '库存 ' + item.stock : '库存不足'}}
+        </view>
+      </view>
+      <view a:if="{{item.specification}}" class="doc-item-spec">{{item.specification}}</view>
+      <view class="doc-item-price">
+        <text class="doc-item-unit">¥{{item.unit_price}} × {{item.quantity}}</text>
+        <text class="doc-item-subtotal">¥{{item.subtotal}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 总价测算（不扣库存，待确认） -->
+  <view class="doc-total">
+    <text class="doc-total-label">合计</text>
+    <text class="doc-total-amount">¥{{card.total_amount}}</text>
+  </view>
+
+  <!-- 就地确认不跳页：确认下单（唯一入口）/ 取消；下单中或已成功后置灰隐藏 -->
+  <view a:if="{{!submitted}}" class="doc-actions">
+    <view
+      class="doc-btn doc-btn-cancel {{submitting ? 'doc-btn-disabled' : ''}}"
+      onTap="cancel"
+    >取消</view>
+    <view
+      class="doc-btn doc-btn-confirm {{submitting ? 'doc-btn-disabled' : ''}}"
+      onTap="confirm"
+    >{{submitting ? '提交中…' : '确认下单'}}</view>
+  </view>
+  <view a:else class="doc-submitted">已下单，请见下方订单卡</view>
+</view>
