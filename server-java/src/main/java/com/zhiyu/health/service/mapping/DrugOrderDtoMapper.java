@@ -34,6 +34,7 @@ public interface DrugOrderDtoMapper {
     @Mapping(target = "id", source = "order.id")
     @Mapping(target = "patientId", source = "order.patientId")
     @Mapping(target = "prescriptionId", source = "order.prescriptionId")
+    @Mapping(target = "source", source = "source")
     @Mapping(target = "status", source = "order.status")
     @Mapping(target = "statusLabel", source = "statusLabel")
     @Mapping(target = "totalAmount", source = "order.totalAmount")
@@ -43,6 +44,7 @@ public interface DrugOrderDtoMapper {
     @Mapping(target = "items", source = "items")
     DrugOrderService.OrderView toView(
             DrugOrder order,
+            String source,
             String statusLabel,
             boolean cancellable,
             boolean payable,

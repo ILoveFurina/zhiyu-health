@@ -33,7 +33,8 @@ public class MedicationController {
     public record MedicationInput(
             @NotNull @DecimalMin("0.00") @DecimalMax("99999999.99") java.math.BigDecimal price,
             @NotNull @Min(0) Integer stock,
-            @NotNull @JsonProperty("is_active") Boolean isActive) {}
+            @NotNull @JsonProperty("is_active") Boolean isActive,
+            @NotNull @JsonProperty("is_prescription") Boolean isPrescription) {}
 
     @GetMapping
     public List<Medication> list() {

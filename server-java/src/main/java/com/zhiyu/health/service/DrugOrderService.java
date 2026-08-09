@@ -80,21 +80,41 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
     }
 
     private OrderView createInTransaction(CreateCommand command) {
-        Prescription prescription = prescriptionMapper.selectForPatient(command.prescriptionId(), command.patientId());
-        String approved = contracts.prescriptionFlow().statuses().get("approved");
-        if (prescription == null) {
-            throw new ApiException(404, "电子处方不存在");
+        // 票 74（ADR-0032）：双分支--prescriptionId 非空走处方药（须 APPROVED 且药品属处方明细），
+        // prescriptionId 为空走 OTC（药品须 is_prescription=FALSE、数量由用户给出）。两条路径共用库存预扣与订单插入。
+        List<Medication> medications;
+        List<Line> lines;
+        if (command.prescriptionId() != null) {
+            Prescription prescription =
+                    prescriptionMapper.selectForPatient(command.prescriptionId(), command.patientId());
+            String approved = contracts.prescriptionFlow().statuses().get("approved");
+            if (prescription == null) {
+                throw new ApiException(404, "电子处方不存在");
+            }
+            if (!approved.equals(prescription.getStatus())) {
+                throw new ApiException(409, "仅已审核通过的电子处方可购药");
+            }
+            // 统一按 medication_id 加行锁，既固定并发锁顺序防死锁，也保证本单采用的价格快照稳定。
+            medications = medicationMapper.selectForPrescriptionForUpdate(command.prescriptionId());
+            if (medications.isEmpty()) {
+                throw new ApiException(409, "电子处方没有可购买的药品");
+            }
+            lines = linesForPrescription(command.items(), medications);
+        } else {
+            // OTC 路径：必须有 items 且每个药品须 is_prescription=FALSE；行锁按 medication_id 加载。
+            if (command.items() == null || command.items().isEmpty()) {
+                throw new ApiException(400, "OTC 下单必须指定药品与数量");
+            }
+            List<Long> medicationIds = command.items().stream()
+                    .map(QuantityInput::medicationId)
+                    .distinct()
+                    .toList();
+            medications = medicationMapper.selectByIdsForUpdate(medicationIds);
+            if (medications.size() != medicationIds.size()) {
+                throw new ApiException(404, "部分药品不存在");
+            }
+            lines = linesForOtc(command.items(), medications);
         }
-        if (!approved.equals(prescription.getStatus())) {
-            throw new ApiException(409, "仅已审核通过的电子处方可购药");
-        }
-
-        // 统一按 medication_id 加行锁，既固定并发锁顺序防死锁，也保证本单采用的价格快照稳定。
-        List<Medication> medications = medicationMapper.selectForPrescriptionForUpdate(command.prescriptionId());
-        if (medications.isEmpty()) {
-            throw new ApiException(409, "电子处方没有可购买的药品");
-        }
-        List<Line> lines = lines(command.items(), medications);
 
         // 库存只能由带 stock >= n 条件的 UPDATE 预扣；任一药品不足即抛错，PG 事务回滚此前扣减。
         for (Line line : lines) {
@@ -111,11 +131,12 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
                 .map(line -> dtoMapper.toItem(order.getId(), line.medication(), line.quantity(), line.subtotal()))
                 .toList();
         items.forEach(itemMapper::insert);
-        return dtoMapper.toView(
-                order, contracts.orderFlow().statusLabels().get(unpaid), true, true, dtoMapper.toItemViews(items));
+        // source 由 toView 从 prescriptionId 是否为空派生（与读取路径同源，避免重复派生逻辑）。
+        return toView(order, items);
     }
 
-    private List<Line> lines(List<QuantityInput> inputs, List<Medication> medications) {
+    // 处方药明细组装：药品须属处方明细，未指定数量的处方明细默认 1（复用原 lines 逻辑）。
+    private List<Line> linesForPrescription(List<QuantityInput> inputs, List<Medication> medications) {
         Set<Long> prescriptionMedicationIds = new HashSet<>();
         medications.forEach(medication -> prescriptionMedicationIds.add(medication.getId()));
         Map<Long, ArrayDeque<Integer>> submittedQuantities = new HashMap<>();
@@ -138,6 +159,35 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
         }
         if (submittedQuantities.values().stream().anyMatch(quantities -> !quantities.isEmpty())) {
             throw new ApiException(400, "提交的药品数量明细多于电子处方明细");
+        }
+        return lines;
+    }
+
+    // OTC 明细组装：每个药品须 is_prescription=FALSE，数量由用户明确给出（不允许默认）。
+    private List<Line> linesForOtc(List<QuantityInput> inputs, List<Medication> medications) {
+        Map<Long, Medication> medicationById = new HashMap<>();
+        medications.forEach(medication -> medicationById.put(medication.getId(), medication));
+        List<Line> lines = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (QuantityInput input : inputs) {
+            if (input.quantity() == null || input.quantity() < 1) {
+                throw new ApiException(400, "OTC 下单数量必须为正整数");
+            }
+            Medication medication = medicationById.get(input.medicationId());
+            if (medication == null) {
+                throw new ApiException(404, "药品不存在");
+            }
+            // 处方药不得走 OTC 路径（ADR-0032 硬约束）：须凭已审核处方。
+            if (Boolean.TRUE.equals(medication.getIsPrescription())) {
+                throw new ApiException(409, "处方药须凭已审核电子处方购买");
+            }
+            if (!seen.add(input.medicationId())) {
+                throw new ApiException(400, "同一药品重复下单，请合并数量");
+            }
+            lines.add(new Line(
+                    medication,
+                    input.quantity(),
+                    medication.getPrice().multiply(BigDecimal.valueOf(input.quantity()))));
         }
         return lines;
     }
@@ -211,8 +261,13 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
 
     private OrderView toView(DrugOrder order, List<DrugOrderItem> items) {
         boolean unpaid = contracts.orderFlow().statuses().get("unpaid").equals(order.getStatus());
+        // source 从 prescriptionId 是否为空派生：非空=处方药订单，空=OTC 订单。
+        String source = order.getPrescriptionId() != null
+                ? contracts.orderFlow().sources().get("prescription")
+                : contracts.orderFlow().sources().get("otc");
         return dtoMapper.toView(
                 order,
+                source,
                 contracts.orderFlow().statusLabels().get(order.getStatus()),
                 unpaid,
                 unpaid,
@@ -223,7 +278,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
 
     public record QuantityInput(Long medicationId, Integer quantity) {}
 
-    public record CreateCommand(long patientId, long prescriptionId, List<QuantityInput> items) {}
+    public record CreateCommand(long patientId, Long prescriptionId, List<QuantityInput> items) {}
 
     public record ItemView(
             Long medicationId,
@@ -237,6 +292,7 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
             Long id,
             Long patientId,
             Long prescriptionId,
+            String source,
             String status,
             String statusLabel,
             BigDecimal totalAmount,

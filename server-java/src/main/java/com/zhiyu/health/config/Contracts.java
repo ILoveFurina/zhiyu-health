@@ -453,12 +453,16 @@ public class Contracts {
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, String> decisions,
-            Map<String, String> messages) {
+            Map<String, String> messages,
+            Map<String, String> sources,
+            Map<String, String> sourceLabels) {
         public OrderFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
             decisions = Map.copyOf(decisions);
             messages = Map.copyOf(messages);
+            sources = Map.copyOf(sources);
+            sourceLabels = Map.copyOf(sourceLabels);
         }
     }
 

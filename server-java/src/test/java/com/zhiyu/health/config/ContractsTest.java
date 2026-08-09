@@ -404,6 +404,9 @@ class ContractsTest {
                 .containsEntry("complete", "COMPLETE");
         // 票 60：message_types(DRUG_ORDER_STATUS) 与 created/cancelled 文案从未接线，已从契约删除
         assertThat(flow.messages()).containsEntry("stock_insufficient", "药品库存不足，下单失败");
+        // 票 74（ADR-0032）：订单来源区分处方药/OTC。
+        assertThat(flow.sources()).containsEntry("prescription", "PRESCRIPTION").containsEntry("otc", "OTC");
+        assertThat(flow.sourceLabels()).containsEntry("PRESCRIPTION", "处方药").containsEntry("OTC", "非处方药");
     }
 
     @Test

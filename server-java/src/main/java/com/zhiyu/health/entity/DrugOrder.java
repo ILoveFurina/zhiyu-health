@@ -16,6 +16,7 @@ public class DrugOrder {
     private Long id;
 
     private Long patientId;
+    // 票 74（ADR-0032）：可空。处方药订单非空（须属该处方明细），OTC 订单为空，由 service 层强校验。
     private Long prescriptionId;
     private String status;
     private BigDecimal totalAmount;

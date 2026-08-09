@@ -21,4 +21,6 @@ public class Medication {
     private BigDecimal price;
     private Integer stock;
     private Boolean isActive;
+    // 票 74（ADR-0032）：处方药 TRUE 须凭已审核处方，OTC FALSE 可直接下单；DEFAULT TRUE 偏安全。
+    private Boolean isPrescription;
 }
