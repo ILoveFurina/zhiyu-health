@@ -555,16 +555,19 @@ public class Contracts {
         }
     }
 
-    /** 线下挂号状态机与叫号通知（票 71）。 */
+    /** 线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束）。 */
     public record AppointmentFlow(
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, Transition> transitions,
+            @JsonProperty("payment_timeout_seconds") int paymentTimeoutSeconds,
+            @JsonProperty("reception_visible_statuses") List<String> receptionVisibleStatuses,
             CalledNotice calledNotice) {
         public AppointmentFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
             transitions = Map.copyOf(transitions);
+            receptionVisibleStatuses = List.copyOf(receptionVisibleStatuses);
         }
 
         public String status(String key) {
