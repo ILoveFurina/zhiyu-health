@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { Column } from '@ant-design/charts';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   Alert,
   App,
@@ -14,16 +15,20 @@ import {
   Space,
   Statistic,
   Tag,
+  TimePicker,
   Typography,
 } from 'antd';
 import {
   fetchDashboard,
   fetchKnowledgeSource,
+  fetchTimeSlotWindows,
+  putTimeSlotWindows,
   putKnowledgeSource,
   resetDemo,
   type DashboardView,
   type KnowledgeSourceView,
   type ResetResult,
+  type TimeSlotWindow,
 } from '@/services/demo';
 import { knowledgeSourceValues as KS_VALUES } from '@/contracts/demoArsenal';
 import PageHead from '@/components/PageHead';
@@ -59,6 +64,9 @@ export default function DemoPage() {
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetting, setResetting] = useState(false);
   const [resetResult, setResetResult] = useState<ResetResult>();
+  const [slotWindows, setSlotWindows] = useState<Record<string, TimeSlotWindow> | null>(null);
+  const [slotEnabled, setSlotEnabled] = useState<boolean | null>(null);
+  const [slotSaving, setSlotSaving] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -76,10 +84,27 @@ export default function DemoPage() {
     }
   }, [message]);
 
+  const loadSlotWindows = useCallback(async () => {
+    try {
+      const view = await fetchTimeSlotWindows();
+      setSlotWindows(view.time_slot_windows);
+      setSlotEnabled(true);
+    } catch (e: any) {
+      // env 未开启：整个能力 403 不可用，前端展示未开启态而非报错
+      if (e?.response?.status === 403) {
+        setSlotEnabled(false);
+        setSlotWindows(null);
+      } else {
+        message.error('时段设置加载失败');
+      }
+    }
+  }, [message]);
+
   useEffect(() => {
     loadDashboard().catch(() => {});
     loadKs().catch(() => {});
-  }, [loadDashboard, loadKs]);
+    loadSlotWindows().catch(() => {});
+  }, [loadDashboard, loadKs, loadSlotWindows]);
 
   const switchKs = async (value: string) => {
     setKsLoading(true);
@@ -110,6 +135,31 @@ export default function DemoPage() {
       message.error(typeof detail === 'string' ? detail : '重置请求失败');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const changeSlotWindow = (key: string, times: [Dayjs | null, Dayjs | null] | null) => {
+    setSlotWindows((prev) => {
+      const next = { ...(prev ?? {}) };
+      if (times && times[0] && times[1]) {
+        next[key] = { start: times[0].format('HH:mm'), end: times[1].format('HH:mm') };
+      }
+      return next;
+    });
+  };
+
+  const saveSlotWindows = async () => {
+    if (!slotWindows) return;
+    setSlotSaving(true);
+    try {
+      const view = await putTimeSlotWindows(slotWindows);
+      setSlotWindows(view.time_slot_windows);
+      message.success('时段设置已保存，C 端挂号截止与 B 端叫号即时生效');
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      message.error(typeof detail === 'string' ? detail : '时段设置保存失败');
+    } finally {
+      setSlotSaving(false);
     }
   };
 
@@ -177,6 +227,51 @@ export default function DemoPage() {
               </Radio.Button>
             ))}
           </Radio.Group>
+        </Card>
+
+        {/* 时段设置（票 86，ADR-0022 模式） */}
+        <Card
+          title="时段设置"
+          extra={
+            slotEnabled === false ? (
+              <Tag>未开启</Tag>
+            ) : (
+              <Button onClick={loadSlotWindows} disabled={!slotEnabled}>刷新</Button>
+            )
+          }
+        >
+          {slotEnabled === false ? (
+            <Alert
+              type="info"
+              showIcon
+              message="演示时段设置未开启（DEMO_TIME_SLOT_ENABLED=false）"
+              description="开启后即可覆盖上午/下午起止，C 端挂号截止与 B 端叫号统一走有效时段窗口。"
+            />
+          ) : (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Row gutter={16}>
+                {['上午', '下午'].map((key) => {
+                  const window = slotWindows?.[key];
+                  return (
+                    <Col key={key} span={12}>
+                      <div style={{ marginBottom: 8 }}>{key}</div>
+                      <TimePicker.RangePicker
+                        format="HH:mm"
+                        minuteStep={5}
+                        value={window ? [dayjs(window.start, 'HH:mm'), dayjs(window.end, 'HH:mm')] : [null, null]}
+                        onChange={(times) => changeSlotWindow(key, times)}
+                        disabled={slotSaving || !slotEnabled}
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                  );
+                })}
+              </Row>
+              <Button type="primary" onClick={saveSlotWindows} loading={slotSaving} disabled={!slotEnabled}>
+                保存时段
+              </Button>
+            </Space>
+          )}
         </Card>
 
         {/* 演示重置 */}
