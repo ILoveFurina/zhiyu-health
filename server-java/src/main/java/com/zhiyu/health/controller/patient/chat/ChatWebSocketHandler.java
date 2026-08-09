@@ -8,11 +8,11 @@ import com.zhiyu.health.config.ChatWebSocketHandshakeInterceptor;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.chat.ChatRoundModels;
 import com.zhiyu.health.service.chat.ChatRoundService;
+import com.zhiyu.health.service.common.PatientTokenService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -23,7 +23,6 @@ import reactor.core.Disposable;
 
 /** C 端页面级 WebSocket 传输适配器；只收发契约信封，不拥有对话轮次。 */
 @Component
-@RequiredArgsConstructor
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private static final int SEND_TIME_LIMIT_MS = 10_000;
@@ -32,16 +31,31 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ChatRoundService rounds;
     private final ObjectMapper objectMapper;
     private final Contracts contracts;
+    private final PatientTokenService patientTokens;
     private final Map<String, SessionState> sessions = new ConcurrentHashMap<>();
+
+    public ChatWebSocketHandler(
+            ChatRoundService rounds,
+            ObjectMapper objectMapper,
+            Contracts contracts,
+            PatientTokenService patientTokens) {
+        this.rounds = rounds;
+        this.objectMapper = objectMapper;
+        this.contracts = contracts;
+        this.patientTokens = patientTokens;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         // 轮次事件由反应堆线程推送、容器写锁不归我们持有：装饰器把并发写串行化并限时，
         // 防止慢客户端阻塞上游；只作写通道，不缓冲业务数据。
+        Object trustedPatientId = session.getAttributes().get(ChatWebSocketHandshakeInterceptor.ATTR_PATIENT_ID);
+        Long patientId = trustedPatientId instanceof Number number ? number.longValue() : null;
         sessions.put(
                 session.getId(),
                 new SessionState(
-                        new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, BUFFER_SIZE_BYTES)));
+                        new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, BUFFER_SIZE_BYTES),
+                        patientId));
     }
 
     @Override
@@ -58,6 +72,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             sendError(state.session, null, "INVALID_ENVELOPE", "消息信封格式无效");
             return;
         }
+        if (state.patientId == null) {
+            authenticate(rawSession, state, envelope);
+            return;
+        }
+        if (contracts.chatRealtime().authEnvelope().equals(envelope.type())) {
+            sendError(state.session, null, "ALREADY_AUTHENTICATED", "WebSocket 会话已完成认证");
+            return;
+        }
         if (!contracts.chatRealtime().chatEnvelope().equals(envelope.type())
                 || envelope.requestId() == null
                 || envelope.data() == null) {
@@ -71,7 +93,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         try {
-            Long patientId = (Long) rawSession.getAttributes().get(ChatWebSocketHandshakeInterceptor.ATTR_PATIENT_ID);
             ChatPayload data = objectMapper.treeToValue(envelope.data(), ChatPayload.class);
             boolean hasMedication =
                     data.medicationName() != null && !data.medicationName().isBlank();
@@ -82,9 +103,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             }
             ChatRoundModels.Handle handle = hasMedication
                     ? rounds.acceptMedication(new ChatRoundModels.MedicationCommand(
-                            patientId, envelope.requestId(), data.conversationId(), data.medicationName()))
+                            state.patientId, envelope.requestId(), data.conversationId(), data.medicationName()))
                     : rounds.accept(new ChatRoundModels.Command(
-                            patientId,
+                            state.patientId,
                             envelope.requestId(),
                             data.conversationId(),
                             data.content(),
@@ -101,14 +122,47 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     .subscribe(
                             event -> sendEvent(state.session, handle.requestId(), event),
                             error -> {
-                                sendError(state.session, handle.requestId(), "ROUND_FAILED", error.getMessage());
+                                sendError(state.session, handle.requestId(), "ROUND_FAILED", "对话处理失败，请稍后重试");
                                 state.busy.set(false);
                             },
                             () -> state.busy.set(false));
         } catch (Exception error) {
             // 与解析分支同理：accept 的校验/装配异常不经 @ControllerAdvice，就地转为 error 信封并释放占用
             state.busy.set(false);
-            sendError(state.session, envelope.requestId(), "CHAT_REJECTED", error.getMessage());
+            sendError(state.session, envelope.requestId(), "CHAT_REJECTED", "消息未能受理，请检查后重试");
+        }
+    }
+
+    private void authenticate(WebSocketSession rawSession, SessionState state, IncomingEnvelope envelope) {
+        if (!contracts.chatRealtime().authEnvelope().equals(envelope.type()) || envelope.data() == null) {
+            sendError(state.session, null, "AUTH_REQUIRED", "请先完成 WebSocket 会话认证");
+            closePolicyViolation(rawSession);
+            return;
+        }
+        try {
+            AuthPayload data = objectMapper.treeToValue(envelope.data(), AuthPayload.class);
+            if (patientTokens == null) {
+                throw new IllegalStateException("患者令牌校验器不可用");
+            }
+            state.patientId = patientTokens.verify(data.token());
+            send(
+                    state.session,
+                    new OutgoingEnvelope(
+                            contracts.chatRealtime().authenticatedEnvelope(),
+                            null,
+                            null,
+                            objectMapper.createObjectNode().put("status", "ok")));
+        } catch (Exception error) {
+            sendError(state.session, null, "AUTH_INVALID", "WebSocket 认证失败");
+            closePolicyViolation(rawSession);
+        }
+    }
+
+    private void closePolicyViolation(WebSocketSession session) {
+        try {
+            session.close(CloseStatus.POLICY_VIOLATION);
+        } catch (IOException ignored) {
+            // 认证失败后的关闭仅负责回收观察通道，无业务状态需要补偿。
         }
     }
 
@@ -164,6 +218,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private record IncomingEnvelope(String type, @JsonProperty("request_id") String requestId, JsonNode data) {}
 
+    private record AuthPayload(String token) {}
+
     private record OutgoingEnvelope(
             String type, @JsonProperty("request_id") String requestId, String event, JsonNode data) {}
 
@@ -186,10 +242,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private static final class SessionState {
         private final WebSocketSession session;
         private final AtomicBoolean busy = new AtomicBoolean();
+        private volatile Long patientId;
         private Disposable observer;
 
-        private SessionState(WebSocketSession session) {
+        private SessionState(WebSocketSession session, Long patientId) {
             this.session = session;
+            this.patientId = patientId;
         }
     }
 }

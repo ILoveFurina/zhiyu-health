@@ -1,10 +1,7 @@
 const { apiBaseUrl } = require('./config')
 const { ensureLogin, getToken } = require('./auth')
 
-// SSE 降级整段响应一次性到达，token/thinking 按节奏重放以恢复逐字体感：
-// token 对齐实测 LLM 自然流速（约 20ms/片），thinking 增量更小故节奏加快，避免拖长思考区。
-const SSE_REPLAY_TOKEN_TICK_MS = 20
-const SSE_REPLAY_THINKING_TICK_MS = 8
+const WS_AUTH_TIMEOUT_MS = 5000
 
 function websocketUrl() {
   return `${apiBaseUrl.replace(/^http/, 'ws')}/c/chat/ws`
@@ -13,18 +10,28 @@ function websocketUrl() {
 /** 页面级实时通道：一页一条 WebSocket；建连失败后同 request_id 降级到 SSE。 */
 function createChatChannel() {
   let open = false
+  let authenticated = false
+  let authTimer = null
   let closed = false
   let connectPromise = null
   let connectResolve = null
   let connectReject = null
   let current = null
-  let websocketUnavailable = false
 
   const onOpen = () => {
     open = true
-    if (connectResolve) connectResolve()
-    connectResolve = null
-    connectReject = null
+    // 隧道可能重建 upgrade 并剥掉自定义 header；JWT 改在连接建立后的首帧传输，
+    // authenticated 到达前 connect Promise 不完成，chat 不会抢在认证前发送。
+    authTimer = setTimeout(() => {
+      authTimer = null
+      const shouldClose = open
+      onError({ message: 'WebSocket 认证超时' })
+      if (shouldClose) my.closeSocket()
+    }, WS_AUTH_TIMEOUT_MS)
+    my.sendSocketMessage({
+      data: JSON.stringify({ type: 'auth', data: { token: getToken() } }),
+      fail: (detail) => onError(detail),
+    })
   }
   const onMessage = (res) => {
     let envelope
@@ -32,6 +39,25 @@ function createChatChannel() {
       envelope = JSON.parse(String(res.data || ''))
     } catch (err) {
       failCurrent(new Error('实时消息格式无效'))
+      return
+    }
+    if (envelope.type === 'authenticated') {
+      if (!open) return
+      clearAuthTimer()
+      authenticated = true
+      if (connectResolve) connectResolve()
+      connectResolve = null
+      connectReject = null
+      return
+    }
+    if (envelope.type === 'error' && !authenticated) {
+      clearAuthTimer()
+      const error = new Error((envelope.data && envelope.data.message) || 'WebSocket 认证失败')
+      if (connectReject) connectReject(error)
+      connectResolve = null
+      connectReject = null
+      if (open) my.closeSocket()
+      if (current) fallbackCurrent()
       return
     }
     if (!current || envelope.request_id !== current.requestId) return
@@ -42,16 +68,24 @@ function createChatChannel() {
     }
   }
   const onError = (detail) => {
+    clearAuthTimer()
     open = false
-    websocketUnavailable = true
-    console.warn('WebSocket 建连失败', detail)
+    authenticated = false
+    console.warn('WebSocket 建连失败，本轮降级且下轮重试', detail)
     if (connectReject) connectReject(new Error(socketErrorMessage(detail)))
     connectResolve = null
     connectReject = null
+    connectPromise = null
     if (current) fallbackCurrent()
   }
   const onClose = () => {
+    clearAuthTimer()
     open = false
+    authenticated = false
+    if (connectReject) connectReject(new Error('WebSocket 认证未完成'))
+    connectResolve = null
+    connectReject = null
+    connectPromise = null
     if (!closed && current) fallbackCurrent()
   }
 
@@ -60,9 +94,13 @@ function createChatChannel() {
   my.onSocketError(onError)
   my.onSocketClose(onClose)
 
+  function clearAuthTimer() {
+    if (authTimer !== null) clearTimeout(authTimer)
+    authTimer = null
+  }
+
   function connect() {
-    if (websocketUnavailable) return Promise.reject(new Error('WebSocket 建连失败'))
-    if (open) return Promise.resolve()
+    if (open && authenticated) return Promise.resolve()
     if (connectPromise) return connectPromise
     // 先等登录态就绪再握手，避免启动期 token 尚未落 storage 导致握手 401
     connectPromise = ensureLogin()
@@ -72,15 +110,12 @@ function createChatChannel() {
           connectReject = reject
           my.connectSocket({
             url: websocketUrl(),
-            // 票 34 设计：握手仅经 Authorization 头携带患者 JWT（禁入 URL）；
-            // devtools 会给 header 值包一层双引号，server-java 已兼容剥离。
-            header: { Authorization: `Bearer ${getToken()}` },
+            // JWT 不进 URL/upgrade header；cpolar 重建握手后仍能透传连接内 auth 首帧。
             fail: () => reject(new Error('WebSocket 建连失败')),
           })
         })
       })
       .catch((error) => {
-        websocketUnavailable = true
         connectPromise = null
         throw error
       })
@@ -111,7 +146,7 @@ function createChatChannel() {
     if (!current || current.fallbackStarted) return
     current.fallbackStarted = true
     if (current.handlers.onFallback) current.handlers.onFallback()
-    // isAlive 闭包钉住本轮对象：done/error/页面卸载置空 current 后，重放即停
+    // isAlive 闭包钉住本轮对象：响应迟到时不得更新已结束轮次或已卸载页面。
     const round = current
     streamSse(round, () => current === round)
   }
@@ -130,6 +165,7 @@ function createChatChannel() {
   function close() {
     closed = true
     current = null
+    clearAuthTimer()
     if (open) my.closeSocket()
     if (my.offSocketOpen) my.offSocketOpen(onOpen)
     if (my.offSocketMessage) my.offSocketMessage(onMessage)
@@ -164,25 +200,15 @@ function requestData(params) {
   }
 }
 
-// SSE 降级是整段响应（my.request 不支持增量读取），一次性同步派发全部事件会让
-// 气泡从等待态直接跳到全文（失去流式体感）。改为按序重放：token/thinking 逐片
-// 定时下发，其余事件即时下发；isAlive 为假（轮次 done/error/页面卸载）即停，
-// 避免迟到 token 覆盖错误/完成终态。
-function replaySseEvents(events, handlers, isAlive) {
-  let index = 0
-  const step = () => {
+// my.request 只能在完整 SSE 响应结束后返回。降级时跳过已经失去实时语义的
+// token/thinking 快照，只投影 meta、最终 message、卡片与 done：不伪造逐字节奏，
+// 也不把完成后的 thinking 重放成“正在思考”或据此计算虚假耗时。
+function dispatchSseSnapshot(events, handlers, isAlive) {
+  for (const { event, data } of events) {
     if (!isAlive()) return
-    while (index < events.length) {
-      const { event, data } = events[index++]
-      if (event === 'token' || event === 'thinking') {
-        dispatchEvent(event, data, handlers)
-        setTimeout(step, event === 'token' ? SSE_REPLAY_TOKEN_TICK_MS : SSE_REPLAY_THINKING_TICK_MS)
-        return
-      }
-      dispatchEvent(event, data, handlers)
-    }
+    if (event === 'token' || event === 'thinking') continue
+    dispatchEvent(event, data, handlers)
   }
-  step()
 }
 
 function streamSse(params, isAlive) {
@@ -205,7 +231,7 @@ function streamSse(params, isAlive) {
           return
         }
         try {
-          replaySseEvents(parseSse(String(res.data || '')), params.handlers, isAlive)
+          dispatchSseSnapshot(parseSse(String(res.data || '')), params.handlers, isAlive)
         } catch (err) {
           params.handlers.onError(err)
         }

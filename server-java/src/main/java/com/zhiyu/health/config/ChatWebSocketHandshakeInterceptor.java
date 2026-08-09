@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-/** 将 AuthFilter 已验证的 C 端身份传入 WebSocket 会话属性。 */
+/** 允许 WebSocket upgrade；若直连请求已有可信身份则兼容传入，隧道场景改由首帧认证。 */
 @Component
 public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
@@ -24,11 +24,14 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
         Object subject = servletRequest.getServletRequest().getAttribute(AuthFilter.ATTR_AUTH_SUBJECT);
+        if (subject == null) {
+            return true;
+        }
         Long patientId;
         try {
             patientId = subject instanceof Number number ? number.longValue() : Long.valueOf(String.valueOf(subject));
         } catch (NumberFormatException invalidSubject) {
-            return false;
+            return true;
         }
         attributes.put(ATTR_PATIENT_ID, patientId);
         return true;

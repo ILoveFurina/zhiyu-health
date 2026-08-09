@@ -76,21 +76,25 @@ class AuthFilterTest {
     }
 
     @Test
-    void websocketStillRejectsQueryToken() throws Exception {
+    void websocketHandshakePassesWithoutHttpAuthorizationAndIgnoresQueryToken() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/chat/ws");
         request.setQueryString("token=" + token(Map.of("scope", "c_patient")));
         MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, new MockFilterChain());
+        filter.doFilter(request, response, chain);
 
-        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(chain.getRequest().getAttribute(AuthFilter.ATTR_AUTH_SUBJECT))
+                .isNull();
     }
 
     /** 支付宝开发者工具会把 header 值包一层双引号，剥引号后应等价于标准头 */
     @Test
-    void quotedAuthorizationHeaderPassesAsStandardBearer() throws Exception {
+    void quotedAuthorizationHeaderPassesAsStandardBearerOnProtectedPatientApi() throws Exception {
         String bearer = token(Map.of("scope", "c_patient"));
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/chat/ws");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/c/conversations");
         request.addHeader("Authorization", "\"Bearer " + bearer + "\"");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();

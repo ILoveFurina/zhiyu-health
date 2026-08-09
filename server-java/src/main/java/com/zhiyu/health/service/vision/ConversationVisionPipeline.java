@@ -12,6 +12,7 @@ import com.zhiyu.health.service.common.DisclaimerService;
 import com.zhiyu.health.service.common.MinioStorageService;
 import com.zhiyu.health.service.health.HealthProfileService;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -86,8 +87,14 @@ final class ConversationVisionPipeline {
         HealthProfileService.AgentProfileContext profile = healthProfiles.agentContext(patientId);
         Conversation conversation = conversations.getOrCreateForPatient(patientId, conversationId, scenario.title());
 
-        // 旁路持久化失败由 MinioStorageService 自己降级；这里不让对象存储决定分析事务的成败。
-        minioStorage.persistPhotosAndMessages(conversation.getId(), files);
+        // 药盒链路保留既有并行语义，避免对象存储上传与 vision 网络调用串行累加延迟；
+        // 其他场景保持先留原图再分析的顺序。两种路径都在成功返回前等待旁路任务完成。
+        CompletableFuture<Void> parallelPersistence = scenario.parallelStorage()
+                ? CompletableFuture.runAsync(() -> minioStorage.persistPhotosAndMessages(conversation.getId(), files))
+                : null;
+        if (parallelPersistence == null) {
+            minioStorage.persistPhotosAndMessages(conversation.getId(), files);
+        }
 
         AgentClient.VisionResponse response;
         try {
@@ -98,6 +105,9 @@ final class ConversationVisionPipeline {
         } catch (RuntimeException e) {
             failureRecorder.record(conversation.getId(), scenario, null);
             throw new ApiException(502, scenario.unavailableMessage());
+        }
+        if (parallelPersistence != null) {
+            parallelPersistence.join();
         }
         return new RawOutcome(conversation, response);
     }

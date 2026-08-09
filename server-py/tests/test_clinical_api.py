@@ -1,4 +1,4 @@
-﻿"""处方解读与就诊小结 HTTP seam；fake 替换真实方舟模型。"""
+"""处方解读与就诊小结 HTTP seam；fake 替换真实方舟模型。"""
 
 from conftest import TEST_AGENT_SECRET, StubHealthService
 from fastapi.testclient import TestClient

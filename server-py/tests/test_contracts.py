@@ -20,22 +20,24 @@ def test_sse_event_protocol_is_complete() -> None:
     assert events.red_flag_event == "red_flag"
     assert len(events.card_events) == 12
     assert "department_slots" in events.card_events
-    # 票 65：ambiguous 科室选择卡由编排代码产出，不进 tool_to_event
+    # 标准科室两类卡由主 Agent 的受控工具产出
     assert "department_options" in events.card_events
-    assert "department_options" not in events.tool_to_event.values()
+    assert events.tool_to_event["get_standard_department_slots"] == "department_slots"
+    assert events.tool_to_event["suggest_standard_departments"] == "department_options"
     # 票 77：购药三工具（查药/已审核处方/购药确认卡）进 tool_to_event
     assert events.tool_to_event == {
         "recommend_doctors": "doctor_recommendations",
         "get_doctor_slots": "doctor_slots",
         "create_appointment": "appointment",
         "get_appointment": "appointments",
+        "get_standard_department_slots": "department_slots",
+        "suggest_standard_departments": "department_options",
         "search_medications": "medications",
         "list_approved_prescriptions": "prescriptions",
         "prepare_drug_order": "drug_order_prepare",
     }
-    # 票 50：find_hospitals 已移除，department_slots 由编排代码产出故不在 tool_to_event
+    # find_hospitals 已移除
     assert "find_hospitals" not in events.tool_to_event
-    assert "department_slots" not in events.tool_to_event.values()
     assert len(events.message_kinds) == 20
     assert "text" in events.message_kinds
     assert "report_interpretation" in events.message_kinds
@@ -59,9 +61,8 @@ def test_sse_event_protocol_is_complete() -> None:
 
 
 def test_guided_registration_contract_is_loaded() -> None:
-    # 票 50：标准科室解析结果、卡事件/状态、确定性摘要模板与重试字段钉死
+    # 标准科室工具、卡事件/状态、确定性摘要模板与重试字段钉死
     guided = get_contracts().guided_registration
-    assert guided.resolution_statuses == ["explicit_booking", "resolved", "ambiguous", "none"]
     assert guided.card_event == "department_slots"
     assert guided.card_statuses == ["ok", "failed"]
     assert guided.retry_request_field == "retry_standard_department_id"

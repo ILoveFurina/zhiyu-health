@@ -15,7 +15,12 @@ from app.core.contracts import get_contracts
 from app.db.clients import acquire_pg_connection
 from app.tools.knowledge import KnowledgeChunk, KnowledgeRetriever
 
-__all__ = ["KnowledgeChunk", "KnowledgeRetriever", "PgvectorKnowledgeRetriever", "build_knowledge_retriever"]
+__all__ = [
+    "KnowledgeChunk",
+    "KnowledgeRetriever",
+    "PgvectorKnowledgeRetriever",
+    "build_knowledge_retriever",
+]
 
 
 def _format(title: str, department: str, content: str) -> str:

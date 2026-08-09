@@ -64,8 +64,13 @@ class PreconsultationSummaryScheduler:
                 payload = await self._build(messages, assistant_text, longitude, latitude)
                 if payload is not None and self._callback is not None:
                     await self._callback.apply(draft_id, payload)
-            except Exception:
-                logger.warning("preconsult summary task failed draftId=%s", draft_id, exc_info=True)
+            except Exception as error:
+                # 回调异常可能携带下游响应或摘要片段；只记录类型，不输出消息和 traceback。
+                logger.warning(
+                    "preconsult summary task failed draftId=%s error=%s",
+                    draft_id,
+                    error.__class__.__name__,
+                )
 
         self.last_task = asyncio.create_task(run())
         return self.last_task

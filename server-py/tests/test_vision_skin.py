@@ -1,4 +1,4 @@
-﻿"""皮肤拍照分析场景。"""
+"""皮肤拍照分析场景。"""
 
 from fastapi.testclient import TestClient
 
@@ -110,5 +110,3 @@ def test_unknown_scenario_is_rejected() -> None:
         )
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "VISION_SCENARIO_UNSUPPORTED"
-
-

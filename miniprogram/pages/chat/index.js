@@ -12,7 +12,6 @@ const { visibleBubbles } = require('./feature-bubbles')
 const { currentProfile } = require('../../services/health-profiles')
 const { featureGuideMethods } = require('./feature-guide')
 const { isAsrEnabled, isTtsEnabled, recognizeSpeech, synthesizeSpeech } = require('../../utils/voice')
-const { loadRegistrationSummary } = require('../../services/registration')
 const { getCoords } = require('../../utils/location')
 const { parseMarkdown } = require('../../utils/markdown')
 const { defaultSelectedDate } = require('../../utils/department-slots')
@@ -32,14 +31,14 @@ const GEARS = [
 
 // 开场推荐提示词：导诊/用药注意/健康管理各一
 const PROMPTS = [
-  '我头疼两天了，该挂什么科',
-  '高血压老人用药应该注意什么',
-  '为我推荐 28 天健康减肥食谱计划',
+  { text: '我头疼两天了，该挂什么科', icon: 'consult' },
+  { text: '高血压老人用药应该注意什么', icon: 'capsule' },
+  { text: '为我推荐 28 天健康减肥食谱计划', icon: 'diet' },
 ]
 
 function conversationTitleFor(content) {
   const compact = String(content || '').replace(/\s+/g, ' ').trim()
-  return compact ? compact.slice(0, 16) : '智能导诊'
+  return compact ? compact.slice(0, 16) : ''
 }
 
 Page({
@@ -53,7 +52,8 @@ Page({
     gearIndex: 0,
     gearLabel: GEARS[0].label,
     conversationId: null,
-    conversationTitle: '智能导诊',
+    // 空会话不预设业务场景标题；用户发出首条消息后再从内容生成标题。
+    conversationTitle: '',
     redFlag: null,
     anchorId: '',
     // 对话记录抽屉
@@ -72,9 +72,6 @@ Page({
     pillboxProgress: '',
     profileLoaded: false,
     currentProfile: null,
-    // AI挂号助手精简主卡（空态展示）：与首页同一组件、同一份装配 service
-    regCityName: '',
-    regTotal: 0,
     // 票 45：语音双向 UI 状态。asr/tts 入口可见性由契约开关控制（开通前隐藏，降级文字）。
     asrEnabled: isAsrEnabled(),
     ttsEnabled: isTtsEnabled(),
@@ -125,27 +122,6 @@ Page({
     this.consumeReportEntry()
     this.consumeOpenConversation()
     this.consumeTriageEntry()
-    // 空态 AI挂号助手主卡数据：失败静默降级为空主卡，不影响对话
-    this.loadRegistrationCard()
-  },
-
-  loadRegistrationCard() {
-    return loadRegistrationSummary()
-      .then(({ cityName, total }) => this.setData({ regCityName: cityName, regTotal: total }))
-      .catch(() => {})
-  },
-
-  onDepartmentEntry() {
-    my.navigateTo({ url: '/pages/booking/standard-departments/index' })
-  },
-
-  /** 智能导诊入口：复用功能气泡的导诊引导流程（feature-guide.js 混入）。 */
-  onGuideEntry() {
-    this.enterTriage()
-  },
-
-  onMoreHospitals() {
-    my.navigateTo({ url: '/pages/booking/hospitals/index' })
   },
 
   // 点击对话中的图片消息全屏预览（ADR-0023 回拉链路）
@@ -193,10 +169,7 @@ Page({
     this._cardEnterSeq = 0
     this.setData({
       messages: [...this.data.messages, userMsg, aiMsg],
-      conversationTitle:
-        this.data.conversationTitle === '智能导诊'
-          ? conversationTitleFor(content)
-          : this.data.conversationTitle,
+      conversationTitle: this.data.conversationTitle || conversationTitleFor(content),
       inputValue: '',
       canSend: false,
       sending: true,
@@ -220,7 +193,7 @@ Page({
           this.setData({ conversationId: data.conversation_id || this.data.conversationId })
           this._aiBubbleState.onMeta(aiMsg.id, data)
         },
-        onFallback: () => this.patchMessage(aiMsg.id, (msg) => ({ ...msg, content: '', blocks: [] })),
+        onFallback: () => this._aiBubbleState.onFallback(aiMsg.id),
         onThinking: (data) => this._aiBubbleState.onThinking(aiMsg.id, data),
         onToken: (data) => this.streamAssistantToken(aiMsg.id, data.text),
         onAssistant: (data) => this.finishAssistant(aiMsg.id, data),
@@ -259,7 +232,7 @@ Page({
     this.setData({
       messages: [],
       conversationId: null,
-      conversationTitle: '智能导诊',
+      conversationTitle: '',
       inputValue: '',
       canSend: false,
       sending: false,

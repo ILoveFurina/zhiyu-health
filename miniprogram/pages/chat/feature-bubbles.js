@@ -1,7 +1,7 @@
 /**
  * 功能入口气泡配置（票 19 决策 D5）。
  *
- * 气泡栏是 C 端聊天的唯一功能入口（输入栏 `+` 已拆除）。每项含 enabled 开关，
+ * 气泡栏是 C 端聊天的场景功能入口；输入栏 `+` 另作统一图片入口。每项含 enabled 开关，
  * 后续拍照票（14/15/16/17）落地时只改对应项 enabled:true 并接上 action 即可，
  * 不动气泡栏本体与渲染逻辑。action 为字符串标识，由 chat 页 dispatch 分发。
  *
@@ -15,6 +15,13 @@ const FEATURE_BUBBLES = [
     icon: 'plus',
     enabled: true,
     action: 'triage',
+  },
+  {
+    key: 'consult',
+    label: '在线问诊',
+    icon: 'consult',
+    enabled: true,
+    action: 'consult',
   },
   // 「找医院」气泡已于票 49 移除：自助挂号收敛到 AI挂号助手主卡与首页宫格，
   // 不再作为对话内自助入口；Agent 侧医院推荐卡（hospital-card）由票 50 接管

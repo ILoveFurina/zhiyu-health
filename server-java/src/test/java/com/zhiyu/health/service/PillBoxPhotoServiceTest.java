@@ -7,7 +7,9 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,6 +26,8 @@ import com.zhiyu.health.service.vision.PillBoxPhotoService;
 import com.zhiyu.health.service.vision.PillBoxPhotoService.PillBoxPhotoView;
 import com.zhiyu.health.support.TestContracts;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,8 +38,8 @@ class PillBoxPhotoServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void analyzePersistsPhotosThenVisionThenReturnsDrugNames() throws Exception {
-        // 链路：MinIO 旁路 -> vision(PILL_BOX) 提候选药名 -> 响应药名列表（不再查库/规则引擎）
+    void analyzeRunsPhotoPersistenceAlongsideVisionAndReturnsDrugNames() throws Exception {
+        // 药盒链路并行发起 MinIO 旁路与 vision(PILL_BOX)，返回前等待两者完成。
         ConversationService conversations = mock(ConversationService.class);
         Conversation conversation = new Conversation();
         conversation.setId(7L);
@@ -49,6 +53,15 @@ class PillBoxPhotoServiceTest {
         when(agentClient.interpretVision(anyList(), any(), eq("PILL_BOX")))
                 .thenReturn(new AgentClient.VisionResponse(visionResult, "仅供参考，不替代医生诊断", "", 1));
         MinioStorageService minioStorage = mock(MinioStorageService.class);
+        CountDownLatch persistenceStarted = new CountDownLatch(1);
+        CountDownLatch releasePersistence = new CountDownLatch(1);
+        doAnswer(invocation -> {
+                    persistenceStarted.countDown();
+                    assertThat(releasePersistence.await(2, TimeUnit.SECONDS)).isTrue();
+                    return null;
+                })
+                .when(minioStorage)
+                .persistPhotosAndMessages(eq(7L), anyList());
         HealthProfileService healthProfiles = mock(HealthProfileService.class);
         when(healthProfiles.agentContext(12L))
                 .thenReturn(new HealthProfileService.AgentProfileContext(
@@ -60,14 +73,20 @@ class PillBoxPhotoServiceTest {
         when(file.getContentType()).thenReturn("image/jpeg");
         when(file.getSize()).thenReturn(100L);
         when(file.isEmpty()).thenReturn(false);
-        PillBoxPhotoView view = service.analyze(12L, null, "pill-001", List.of(file));
+        var result = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> service.analyze(12L, null, "pill-001", List.of(file)));
+        assertThat(persistenceStarted.await(2, TimeUnit.SECONDS)).isTrue();
+        verify(agentClient, timeout(1000)).interpretVision(anyList(), any(), eq("PILL_BOX"));
+        assertThat(result).isNotDone();
+        releasePersistence.countDown();
+        PillBoxPhotoView view = result.get(2, TimeUnit.SECONDS);
 
         assertThat(view.requestId()).isEqualTo("pill-001");
         assertThat(view.conversationId()).isEqualTo(7L);
         assertThat(view.recognized()).isTrue();
         assertThat(view.drugNames()).containsExactly("阿莫西林胶囊", "阿莫西林");
         assertThat(view.hint()).isNull();
-        // 公共视觉管道保证原图旁路先落库，再发起 vision，返回前两者均已完成。
+        // 返回前两条并行支路均已完成。
         verify(minioStorage).persistPhotosAndMessages(eq(7L), anyList());
         verify(agentClient).interpretVision(anyList(), any(), eq("PILL_BOX"));
         verify(conversations, org.mockito.Mockito.never())

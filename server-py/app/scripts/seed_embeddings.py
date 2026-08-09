@@ -90,8 +90,7 @@ async def main() -> int:
     ]
     for (chunk_id, _dept, _title, _content), vec in zip(chunks, vectors, strict=True):
         lines.append(
-            f"UPDATE knowledge_chunks SET vector = '{_vector_literal(vec)}' "
-            f"WHERE id = {chunk_id};"
+            f"UPDATE knowledge_chunks SET vector = '{_vector_literal(vec)}' WHERE id = {chunk_id};"
         )
     _OUTPUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"已写出 {_OUTPUT}（{len(chunks)} 条向量回填）")

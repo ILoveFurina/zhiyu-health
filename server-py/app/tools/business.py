@@ -1,4 +1,4 @@
-﻿"""提供给 LLM 的业务工具。
+"""提供给 LLM 的业务工具。
 
 患者与会话身份来自可信运行上下文，不是模型参数。工具只做业务参数校验并回调
 server-java；售罄、网络失败或模型臆造参数会变成可解释文本，让模型继续回复而不是
@@ -53,6 +53,8 @@ def _drug_order_prepare_params(
     params["medication_id"] = medication_id
     params["quantity"] = quantity
     return params
+
+
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
     """装配 Agent 可调用的业务工具；函数本身只校验参数并转发到业务后端。"""
 
@@ -60,7 +62,9 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
     async def recommend_doctors(department_name: str) -> dict[str, Any] | str:
         """按科室名称查询当前仍有号源的医生，用于导诊后的医生推荐。"""
         return await forward_get(
-            client, "/api/agent/doctors/recommend", {"department_name": department_name},
+            client,
+            "/api/agent/doctors/recommend",
+            {"department_name": department_name},
             action="查询医生推荐",
         )
 

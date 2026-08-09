@@ -1,4 +1,4 @@
-﻿"""通用药品说明书流的内部 HTTP 契约（ADR-0028）。"""
+"""通用药品说明书流的内部 HTTP 契约（ADR-0028）。"""
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

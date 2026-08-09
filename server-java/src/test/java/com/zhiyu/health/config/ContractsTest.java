@@ -26,13 +26,15 @@ class ContractsTest {
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
         assertThat(events.cardEvents()).hasSize(12);
-        // 票 50：find_hospitals 工具移除，department_slots 卡由编排代码确定性产出、不经 LLM 工具调用
+        // 两类标准科室卡由主 Agent 的受控工具产出；find_hospitals 仍保持移除
         assertThat(events.toolToEvent())
-                .hasSize(7)
+                .hasSize(9)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments")
+                .containsEntry("get_standard_department_slots", "department_slots")
+                .containsEntry("suggest_standard_departments", "department_options")
                 .containsEntry("search_medications", "medications")
                 .containsEntry("list_approved_prescriptions", "prescriptions")
                 .containsEntry("prepare_drug_order", "drug_order_prepare")
@@ -128,11 +130,14 @@ class ContractsTest {
     @Test
     void realtimeEnvelopeAndRoundStatusesAreLoaded() {
         assertThat(contracts.chatRealtime().websocketPath()).isEqualTo("/api/c/chat/ws");
-        assertThat(contracts.chatRealtime().envelopeTypes()).containsExactly("chat", "accepted", "event", "error");
+        assertThat(contracts.chatRealtime().envelopeTypes())
+                .containsExactly("auth", "authenticated", "chat", "accepted", "event", "error");
         assertThat(contracts.chatRealtime().roundStatuses())
                 .containsExactly("ACCEPTED", "RUNNING", "COMPLETED", "FAILED");
         // 命名访问器与契约顺序的映射钉死：消费侧一律经访问器取契约值，不得再硬编码字面量
         Contracts.ChatRealtime realtime = contracts.chatRealtime();
+        assertThat(realtime.authEnvelope()).isEqualTo("auth");
+        assertThat(realtime.authenticatedEnvelope()).isEqualTo("authenticated");
         assertThat(realtime.chatEnvelope()).isEqualTo("chat");
         assertThat(realtime.acceptedEnvelope()).isEqualTo("accepted");
         assertThat(realtime.eventEnvelope()).isEqualTo("event");
@@ -164,9 +169,8 @@ class ContractsTest {
 
     @Test
     void guidedRegistrationContractIsLoaded() {
-        // 票 50：智能导诊标准科室解析与科室号源卡常量来自契约单一事实源
+        // 标准科室工具、两类卡片与点选直查常量来自契约单一事实源
         Contracts.GuidedRegistration guided = contracts.guidedRegistration();
-        assertThat(guided.resolutionStatuses()).containsExactly("explicit_booking", "resolved", "ambiguous", "none");
         assertThat(guided.cardEvent()).isEqualTo("department_slots");
         assertThat(guided.cardStatuses()).containsExactly("ok", "failed");
         assertThat(guided.retryRequestField()).isEqualTo("retry_standard_department_id");
@@ -180,7 +184,7 @@ class ContractsTest {
                 .contains("{doctor_specialty}");
         assertThat(guided.timeSlotLabels()).containsEntry("AM", "上午").containsEntry("PM", "下午");
         assertThat(guided.retryUserText()).isEqualTo("重新查询号源");
-        // 票 65：ambiguous 科室选择卡事件、候选上限与点选直查文案模板钉死
+        // 候选科室工具的卡事件、候选上限与点选直查文案模板钉死
         assertThat(guided.optionsCardEvent()).isEqualTo("department_options");
         assertThat(guided.optionsMaxCandidates()).isEqualTo(3);
         assertThat(guided.optionsSelectUserText()).contains("{department}");
@@ -438,6 +442,8 @@ class ContractsTest {
                         "get_doctor_slots", "doctor_slots",
                         "create_appointment", "appointment",
                         "get_appointment", "appointments",
+                        "get_standard_department_slots", "department_slots",
+                        "suggest_standard_departments", "department_options",
                         "search_medications", "medications",
                         "list_approved_prescriptions", "prescriptions",
                         "prepare_drug_order", "drug_order_prepare"));

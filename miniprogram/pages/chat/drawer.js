@@ -10,7 +10,7 @@ const { apiBaseUrl } = require('../../utils/config')
 function titleFromMessages(messages) {
   const firstUser = messages.find((message) => message.role === 'user' && message.content)
   const compact = firstUser ? String(firstUser.content).replace(/\s+/g, ' ').trim() : ''
-  return compact ? compact.slice(0, 16) : '智能导诊'
+  return compact ? compact.slice(0, 16) : ''
 }
 
 /**

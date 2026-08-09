@@ -12,35 +12,59 @@ const TRIAGE_GUIDE = {
   ],
 }
 
+const IMAGE_ATTACHMENTS = [
+  { label: '报告或检查单', action: 'report' },
+  { label: '药盒照片', action: 'pillbox' },
+  { label: '皮肤照片', action: 'skin' },
+  { label: '饮食照片', action: 'diet' },
+  { label: '舌苔照片', action: 'tongue' },
+]
+
+function dispatchFeature(page, action) {
+  if (action === 'triage') page.enterTriage()
+  else if (action === 'consult') my.navigateTo({ url: '/pages/consult/entry/index' })
+  else if (action === 'report') {
+    if (!page.data.currentProfile) {
+      my.showToast({ content: '请先创建健康档案', type: 'none' })
+      page.startHealthProfile()
+    } else page.openReportPicker()
+  }
+  else if (action === 'skin') {
+    if (!page.data.currentProfile) {
+      my.showToast({ content: '请先创建健康档案', type: 'none' })
+      page.startHealthProfile()
+    } else page.openSkinPicker()
+  }
+  else if (action === 'diet') {
+    // 饮食场景差异化（票 16）：无激活档案时仍可分析，仅缺个性化提醒句，故不强制建档。
+    page.openDietPicker()
+  }
+  else if (action === 'tongue') {
+    // 舌苔中医辨证（票 17，ADR-0024）：无档案差异化需求，调理不出药材，不强制建档。
+    page.openTonguePicker()
+  }
+  else if (action === 'pillbox') {
+    // 拍药盒（票 51，ADR-0028）：说明书为通用药品知识流，不读档案不做个性化禁忌，不强制建档。
+    page.openPillboxPicker()
+  }
+}
+
 const featureGuideMethods = {
   onBubbleTap(e) {
     if (this.data.sending) return
-    const action = e.currentTarget.dataset.action
-    if (action === 'triage') this.enterTriage()
-    else if (action === 'report') {
-      if (!this.data.currentProfile) {
-        my.showToast({ content: '请先创建健康档案', type: 'none' })
-        this.startHealthProfile()
-      } else this.openReportPicker()
-    }
-    else if (action === 'skin') {
-      if (!this.data.currentProfile) {
-        my.showToast({ content: '请先创建健康档案', type: 'none' })
-        this.startHealthProfile()
-      } else this.openSkinPicker()
-    }
-    else if (action === 'diet') {
-      // 饮食场景差异化（票 16）：无激活档案时仍可分析，仅缺个性化提醒句，故不强制建档。
-      this.openDietPicker()
-    }
-    else if (action === 'tongue') {
-      // 舌苔中医辨证（票 17，ADR-0024）：无档案差异化需求，调理不出药材，不强制建档。
-      this.openTonguePicker()
-    }
-    else if (action === 'pillbox') {
-      // 拍药盒（票 51，ADR-0028）：说明书为通用药品知识流，不读档案不做个性化禁忌，不强制建档。
-      this.openPillboxPicker()
-    }
+    dispatchFeature(this, e.currentTarget.dataset.action)
+  },
+
+  /** 输入框旁统一图片入口：先明确用途，再复用对应场景既有的知情同意与拍照/相册流程。 */
+  openImageAttachment() {
+    if (this.data.sending) return
+    my.showActionSheet({
+      items: IMAGE_ATTACHMENTS.map((item) => item.label),
+      success: (result) => {
+        const attachment = IMAGE_ATTACHMENTS[result.index]
+        if (attachment) dispatchFeature(this, attachment.action)
+      },
+    })
   },
 
   enterTriage() {

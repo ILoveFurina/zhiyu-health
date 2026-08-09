@@ -1,4 +1,4 @@
-﻿"""药盒候选药名识别场景。"""
+"""药盒候选药名识别场景。"""
 
 from fastapi.testclient import TestClient
 
@@ -166,5 +166,3 @@ def test_non_pill_box_scenario_has_empty_tcm_disclaimer() -> None:
         )
     assert response.status_code == 200
     assert response.json()["tcm_disclaimer"] == ""
-
-

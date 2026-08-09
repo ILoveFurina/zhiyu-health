@@ -24,6 +24,7 @@ from app.services.knowledge import build_knowledge_retriever
 from app.services.voice import LazyVoiceService
 from app.tools.business import build_business_tools
 from app.tools.callback import BusinessCallbackClient
+from app.tools.department import build_department_tools
 from app.tools.preconsult_callback import PreconsultationSummaryCallback
 
 
@@ -36,8 +37,11 @@ async def production_lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     knowledge_retriever = build_knowledge_retriever(settings)
     graph_traverser = build_graph_traverser(clients)
+    directory = CallbackDepartmentDirectory(business_client)
     runner = LazySettingsAgentRunner(
-        build_business_tools(business_client), knowledge_retriever, graph_traverser
+        [*build_business_tools(business_client), *build_department_tools(directory)],
+        knowledge_retriever,
+        graph_traverser,
     )
     install_runtime(
         app,
@@ -46,7 +50,7 @@ async def production_lifespan(app: FastAPI) -> AsyncIterator[None]:
                 runner,
                 rag_available=knowledge_retriever is not None,
                 graph_available=graph_traverser is not None,
-                directory=CallbackDepartmentDirectory(business_client),
+                directory=directory,
                 summary_callback=PreconsultationSummaryCallback(business_client),
             ),
             health_service=HealthService(clients),

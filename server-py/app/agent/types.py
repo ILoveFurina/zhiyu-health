@@ -37,6 +37,10 @@ class AgentContext:
     # 非空时由 runner._to_lc_messages 注入一条 SystemMessage 提示模型直接调用
     # prepare_drug_order(prescription_id=<该值>)，避免模型誊抄 id 出错或重复查处方。
     selected_prescription_id: int | None = None
+    # 明确挂号/导诊请求可约束首个模型调用使用科室工具；工具返回后 runner 自动解除。
+    department_tool_choice: str | None = None
+    # server-java 可信标准科室目录，供模型选名与工具按 id 解析，避免重复查询和编造名称。
+    standard_departments: tuple[tuple[int, str], ...] = ()
 
 
 # Literal 无法从 JSON 动态生成；契约一致性由 test_contract_consumption.py 钉死。

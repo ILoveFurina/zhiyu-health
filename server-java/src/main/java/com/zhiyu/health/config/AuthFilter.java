@@ -35,6 +35,11 @@ public class AuthFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/c/auth/") || path.startsWith("/api/b/auth/login")) {
             return true;
         }
+        // WebSocket upgrade 可能被 cpolar 等隧道重建并剥离 Authorization；只放行 HTTP
+        // 握手，患者 JWT 必须在连接后的首个 auth 信封中校验，未认证会话不能发送 chat。
+        if ("/api/c/chat/ws".equals(path)) {
+            return true;
+        }
         // 图片代理端点放行：支付宝 <image src> 组件不带 Authorization header，
         // 以 object_key 的 UUID 不可猜测性作为取图凭证（ADR-0023 demo 场景）。
         if (path.startsWith("/api/c/photos")) {
