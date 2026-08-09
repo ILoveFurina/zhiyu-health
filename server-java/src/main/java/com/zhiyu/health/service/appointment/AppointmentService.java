@@ -81,10 +81,10 @@ public class AppointmentService {
                     if (slotWindowGuard.isClosed(schedule)) {
                         throw new ApiException(409, "该出诊时段已结束，不可再挂号");
                     }
-                    // 停诊审核冻结：排班存在待审核的停诊申请时冻结挂号，符合"只有可出诊才可挂号"。
-                    // 审核通过则 is_active=false 正式停诊，驳回则恢复可挂号，期间不允许新增挂号。
-                    if (scheduleRequestMapper.countPendingDisableBySchedule(scheduleId) > 0) {
-                        throw new ApiException(409, "该排班正在停诊审核中，暂不可挂号");
+                    // 停诊/调整号源审核冻结：排班存在待审核的停诊或调整号源申请时冻结挂号，
+                    // 符合"只有可出诊才可挂号"。审核通过则落盘，驳回则恢复可挂号，期间不允许新增挂号。
+                    if (scheduleRequestMapper.countPendingBlockingBySchedule(scheduleId) > 0) {
+                        throw new ApiException(409, "该排班正在调整号源或停诊审核中，暂不可挂号");
                     }
                     String cancelledStatus = contracts.appointmentFlow().status("cancelled");
                     Appointment existing = appointmentMapper.selectForProfileAndSchedule(
