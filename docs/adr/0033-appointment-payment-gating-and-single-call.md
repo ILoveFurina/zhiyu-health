@@ -11,6 +11,6 @@
 
 ## Consequences
 
-- `complete` 保留 `BOOKED -> VISITED` 直通兜底（叫号系统故障时医生可直接完成接诊），不强制必须经就诊中。
+- `complete` 只接受 `IN_PROGRESS -> VISITED`，废弃原 `BOOKED -> VISITED` 直通兜底（票 86 修订）：叫号是进入就诊中的唯一入口，跳过叫号直接完成接诊会绕过时段窗口校验与就诊中占位，破坏单叫号约束；代码侧由 `complete.from` 收敛为 `["IN_PROGRESS"]` 强制（契约 + `ContractsTest` 钉死）。
 - 支付超时取消的单在「我的挂号」显示已取消、可重挂同一排班（沿用 `uq_appointments_profile_schedule_active` 偏唯一索引排除 CANCELLED 的语义），不发站内消息（与在线问诊 EXPIRED 先例一致）。
 - 接诊台可见性白名单为 `status IN (BOOKED, IN_PROGRESS, VISITED)`，待支付对医生不可见；收敛查询与可见查询分离--接诊台入口先全局 expireOverdueAppointments() 再查可见列表。
