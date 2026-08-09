@@ -7,6 +7,7 @@ export interface ReceptionSchedule {
   total_slots: number;
   remaining_slots: number;
   active: boolean;
+  status: 'AVAILABLE' | 'FULL' | 'INACTIVE';
 }
 
 export interface ReceptionAppointment {

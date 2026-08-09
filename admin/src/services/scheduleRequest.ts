@@ -48,7 +48,7 @@ export interface Schedule {
   total_slots: number;
   remaining_slots: number;
   is_active: boolean;
-  // 联查投影：该排班是否存在待审核的 DISABLE/ENABLE 申请（null 表示无待审核申请）
+  // 联查投影：该排班是否存在待审核的 MODIFY/DISABLE/ENABLE 申请（null 表示无待审核申请）
   pending_action?: string | null;
 }
 
