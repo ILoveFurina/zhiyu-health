@@ -1,5 +1,7 @@
 const { ensureLogin } = require('../../../utils/auth')
 const { createChatChannel } = require('../../../utils/chat-stream')
+const { voiceInput } = require('../../../utils/voice-input')
+const { isAsrEnabled } = require('../../../utils/voice')
 const { getDraft } = require('../../../services/consultation')
 const { listMessages } = require('../../../services/conversations')
 const { parseMarkdown } = require('../../../utils/markdown')
@@ -19,6 +21,7 @@ const NOOP = () => {}
  * 轮询回拉草稿，摘要快照就绪后亮底部「查看病情摘要并确认」CTA。
  */
 Page({
+  ...voiceInput,
   data: {
     draftId: null,
     profileName: '', // 就诊人（锁定档案，由入口页传入；锁定语义在 server-java）
@@ -26,6 +29,11 @@ Page({
     messages: [],
     inputValue: '',
     canSend: false,
+    // 语音输入（voice-input mixin）：asr_enabled=false 时按钮不渲染，纯文字输入
+    asrEnabled: isAsrEnabled(),
+    recording: false,
+    voiceHint: '',
+    voiceHintError: false,
     sending: false,
     conversationId: null,
     redFlag: null,
@@ -60,6 +68,7 @@ Page({
   onUnload() {
     this._unloaded = true
     this._clearSummaryPoll()
+    this.clearVoiceTimers()
     if (this._aiBubbleState) this._aiBubbleState.dispose()
     if (this._chatChannel) this._chatChannel.close()
   },

@@ -219,6 +219,7 @@
 
 /* ===== 输入栏 ===== */
 .composer {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14rpx;
@@ -249,5 +250,82 @@
 }
 
 .send-btn.send-disabled {
+  opacity: 0.45;
+}
+
+/* ===== 语音输入（voice-input mixin，与 consult/doctor 同款） ===== */
+/* 提示条绝对定位浮于输入栏正上方：出现/消失不推位布局（真机按住说话手势保活） */
+.voice-hint {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 8rpx 0;
+  background: var(--zy-color-primary-soft);
+  color: var(--zy-color-primary);
+  font-size: 24rpx;
+}
+
+.voice-hint-error {
+  background: var(--zy-color-warning-soft);
+  color: var(--zy-color-warning);
+}
+
+.voice-hint-spinner {
+  width: 24rpx;
+  height: 24rpx;
+  border: 3rpx solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--zy-color-primary);
+  border-radius: 50%;
+  animation: zy-rotate 0.8s linear infinite;
+}
+
+@keyframes zy-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 静态触摸外壳：布局上顶替 voice-btn 的 flex 子项位置，属性不随手势变化（保住 touchend）。
+   padding+负 margin 扩大命中热区但不占布局：真机原生 input 命中框小偏移会截获按钮中心
+   的触摸（实测"角落可按、中心不可按"，票 45），放大热区抵消偏移 */
+.voice-btn-touch {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  margin: -24rpx;
+}
+
+/* 按住说话：录音中转圆形高亮 */
+.voice-btn {
+  flex: 0 0 auto;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--zy-color-fill);
+  color: var(--zy-text-title);
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
+}
+
+.voice-btn:active {
+  transform: scale(0.98);
+}
+
+.voice-btn-active {
+  background: var(--zy-color-primary);
+  color: #fff;
+}
+
+.voice-btn-disabled {
   opacity: 0.45;
 }
