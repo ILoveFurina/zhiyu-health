@@ -25,7 +25,7 @@ class ContractsTest {
         assertThat(events.streamEvents()).containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
-        assertThat(events.cardEvents()).hasSize(10);
+        assertThat(events.cardEvents()).hasSize(12);
         // 票 50：find_hospitals 工具移除，department_slots 卡由编排代码确定性产出、不经 LLM 工具调用
         assertThat(events.toolToEvent())
                 .hasSize(7)
@@ -38,7 +38,7 @@ class ContractsTest {
                 .containsEntry("prepare_drug_order", "drug_order_prepare")
                 .doesNotContainKey("find_hospitals");
         assertThat(events.messageKinds())
-                .hasSize(18)
+                .hasSize(20)
                 .contains(
                         "text",
                         "report_interpretation",
@@ -54,15 +54,22 @@ class ContractsTest {
                 // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
                 // 说明书走流式文本，禁忌仅留 B 端开方链路
                 .doesNotContain("medication_info", "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(14);
+        assertThat(events.aiCardKinds()).hasSize(16);
+        // 票 76：购药确认卡（drug_order_confirm）与结果卡（drug_order）登记进
+        // card_events/message_kinds/ai_card_kinds/event_to_kind 四集合
+        assertThat(events.cardEvents()).contains("drug_order_confirm", "drug_order");
+        assertThat(events.messageKinds()).contains("drug_order_confirm", "drug_order");
+        assertThat(events.aiCardKinds()).contains("drug_order_confirm", "drug_order");
         assertThat(events.eventToKind())
-                .hasSize(11)
+                .hasSize(13)
                 .containsEntry("hospital_recommendations", "hospital_recommendations")
                 .containsEntry("department_slots", "department_slots")
                 .containsEntry("department_options", "department_options")
                 .containsEntry("medications", "medications")
                 .containsEntry("prescriptions", "prescriptions")
-                .containsEntry("drug_order_prepare", "drug_order_prepare");
+                .containsEntry("drug_order_prepare", "drug_order_prepare")
+                .containsEntry("drug_order_confirm", "drug_order_confirm")
+                .containsEntry("drug_order", "drug_order");
     }
 
     @Test
