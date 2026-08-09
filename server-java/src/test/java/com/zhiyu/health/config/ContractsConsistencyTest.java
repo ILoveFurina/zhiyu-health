@@ -57,7 +57,10 @@ class ContractsConsistencyTest {
                         "diet_analysis",
                         "tongue_analysis",
                         "department_slots",
-                        "department_options");
+                        "department_options",
+                        "medications",
+                        "prescriptions",
+                        "drug_order_prepare");
         assertThat(Message.KIND_TEXT).isEqualTo(events.messageKinds().get(0));
         assertThat(Message.KIND_DOCTOR_RECOMMENDATIONS)
                 .isEqualTo(events.messageKinds().get(1));
@@ -171,6 +174,9 @@ class ContractsConsistencyTest {
                         "tongue_analysis",
                         "department_slots",
                         "department_options",
+                        "medications",
+                        "prescriptions",
+                        "drug_order_prepare",
                         "report_upload",
                         "image");
     }

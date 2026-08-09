@@ -528,3 +528,206 @@ def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_st
     ]
     assert events[-2]["data"]["content"] == "今天上午的号已约满，建议改约下午或其他医生。"
     assert events[-2]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+
+
+def test_search_medications_projects_card_and_forwards_name() -> None:
+    """票 75：search_medications 按药名查 OTC，转发 name 参数并投影 medications 卡片。"""
+    http_calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        http_calls.append((request.url.path, request.url.query.decode()))
+        return httpx.Response(200, json={"medications": [{
+            "medication_id": 2, "name": "布洛芬缓释胶囊", "generic_name": "布洛芬",
+            "specification": "0.3g*20粒", "price": 22.00, "stock": 280, "is_active": True,
+        }]})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test", transport=httpx.MockTransport(handler), callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="search_medications", args={"name": "布洛芬"}, id="call-search")
+        ]),
+        "已为你找到布洛芬缓释胶囊。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        client, _ = _build_app(runner)
+        with client:
+            events = _post_chat(client, {"messages": [{"role": "user", "content": "我想买布洛芬"}]})
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert [event["event"] for event in events] == [
+        "meta", "tool_start", "tool_end", "medications", "token", "message", "done"
+    ]
+    assert http_calls == [("/api/agent/medications", "name=%E5%B8%83%E6%B4%9B%E8%8A%AC")]
+    assert events[3]["data"]["medications"][0]["name"] == "布洛芬缓释胶囊"
+    assert events[3]["data"]["disclaimer"] == "仅供参考，不替代医生诊断"
+    assert events[-2]["data"]["content"] == "已为你找到布洛芬缓释胶囊。"
+
+
+def test_list_approved_prescriptions_uses_hidden_patient_context() -> None:
+    """票 75：list_approved_prescriptions 从可信上下文取 patient_id（模型不可见），投影 prescriptions 卡片。"""
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"prescriptions": [{
+            "prescription_id": 5, "doctor_name": "周安宁",
+            "source_type": "APPOINTMENT", "source_type_label": "线下接诊", "date": "2026-07-29",
+            "items": [{"medication_id": 1, "name": "阿莫西林胶囊", "specification": "0.25g*24粒",
+                       "dosage": "每次1粒", "frequency": "每日三次", "duration": "7天"}],
+        }]})
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test", transport=httpx.MockTransport(handler), callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="list_approved_prescriptions", args={}, id="call-list")
+        ]),
+        "你有一张已审核的处方。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        client, _ = _build_app(runner)
+        with client:
+            events = _post_chat(client, {"messages": [{"role": "user", "content": "我有哪些处方可以买药"}]})
+    finally:
+        asyncio.run(callback.aclose())
+
+    # 患者身份来自上下文 patient_id=12，非模型参数
+    assert requests[0].url.path == "/api/agent/prescriptions"
+    assert requests[0].url.params["patient_id"] == "12"
+    assert [event["event"] for event in events] == [
+        "meta", "tool_start", "tool_end", "prescriptions", "token", "message", "done"
+    ]
+    assert events[3]["data"]["prescriptions"][0]["items"][0]["dosage"] == "每次1粒"
+
+
+def test_prepare_drug_order_otc_projects_card_without_deducting_stock() -> None:
+    """票 75：prepare_drug_order（OTC）只读测算不扣库存，投影 drug_order_prepare 卡片。
+
+    断言 server-java 被调用一次（prepare），且 medications 库存端点从未被调用扣减；
+    返回的确认卡携带单价/数量/小计/库存可用性。
+    """
+    http_calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        http_calls.append((request.url.path, request.url.query.decode()))
+        return httpx.Response(200, json={
+            "source": "OTC", "prescription_id": None,
+            "items": [{
+                "medication_id": 2, "name": "布洛芬缓释胶囊", "specification": "0.3g*20粒",
+                "quantity": 3, "unit_price": 22.00, "subtotal": 66.00,
+                "stock": 280, "available": True,
+            }],
+            "total_amount": 66.00, "payable_amount": 66.00,
+            "prescription_source_type": None, "doctor_name": None, "prescription_date": None,
+        })
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test", transport=httpx.MockTransport(handler), callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="prepare_drug_order",
+                     args={"medication_id": 2, "quantity": 3}, id="call-prepare")
+        ]),
+        "已为你准备好购药确认，3 盒布洛芬缓释胶囊共 66 元。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        client, _ = _build_app(runner)
+        with client:
+            events = _post_chat(client, {"messages": [{"role": "user", "content": "帮我确认买3盒布洛芬"}]})
+    finally:
+        asyncio.run(callback.aclose())
+
+    # 只读 prepare：仅一次 GET，无扣库存/建订单的后续调用
+    assert len(http_calls) == 1
+    assert http_calls[0][0] == "/api/agent/drug-orders/prepare"
+    # patient_id 从上下文注入，medication_id + quantity 由模型传入
+    assert "medication_id=2" in http_calls[0][1]
+    assert "quantity=3" in http_calls[0][1]
+    assert "patient_id=12" in http_calls[0][1]
+    assert [event["event"] for event in events] == [
+        "meta", "tool_start", "tool_end", "drug_order_prepare", "token", "message", "done"
+    ]
+    card = events[3]["data"]
+    assert card["source"] == "OTC"
+    assert card["items"][0]["quantity"] == 3
+    assert card["items"][0]["subtotal"] == 66.00
+    assert card["items"][0]["available"] is True
+    assert card["total_amount"] == 66.00
+
+
+def test_prepare_drug_order_prescription_branch_forwards_prescription_id() -> None:
+    """票 75：prepare_drug_order 处方药分支传 prescription_id（非 medication_id），投影 drug_order_prepare。"""
+    http_calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        http_calls.append((request.url.path, request.url.query.decode()))
+        return httpx.Response(200, json={
+            "source": "PRESCRIPTION", "prescription_id": 5,
+            "items": [{
+                "medication_id": 1, "name": "阿莫西林胶囊", "specification": "0.25g*24粒",
+                "quantity": 1, "unit_price": 18.50, "subtotal": 18.50,
+                "stock": 320, "available": True,
+            }],
+            "total_amount": 18.50, "payable_amount": 18.50,
+            "prescription_source_type": "APPOINTMENT", "doctor_name": "周安宁", "prescription_date": "2026-07-29",
+        })
+
+    callback = BusinessCallbackClient(
+        "http://server-java.test", transport=httpx.MockTransport(handler), callback_secret="shared-secret",
+    )
+
+    class ToolCallingFake(GenericFakeChatModel):
+        def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+            return self
+
+    fake = ToolCallingFake(disable_streaming=True, messages=iter([
+        AIMessage(content="", tool_calls=[
+            ToolCall(name="prepare_drug_order", args={"prescription_id": 5}, id="call-prepare-rx")
+        ]),
+        "已按处方为你准备好购药确认。",
+    ]))
+    runner = LangGraphAgentRunner(lambda effort: fake, tools=build_business_tools(callback))
+
+    try:
+        client, _ = _build_app(runner)
+        with client:
+            events = _post_chat(client, {"messages": [{"role": "user", "content": "按处方帮我准备买药"}]})
+    finally:
+        asyncio.run(callback.aclose())
+
+    assert http_calls[0][0] == "/api/agent/drug-orders/prepare"
+    assert "prescription_id=5" in http_calls[0][1]
+    # 处方药分支不带 medication_id / quantity
+    assert "medication_id" not in http_calls[0][1]
+    assert [event["event"] for event in events] == [
+        "meta", "tool_start", "tool_end", "drug_order_prepare", "token", "message", "done"
+    ]
+    assert events[3]["data"]["source"] == "PRESCRIPTION"
+    assert events[3]["data"]["prescription_id"] == 5
+

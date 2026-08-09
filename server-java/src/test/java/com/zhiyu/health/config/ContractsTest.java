@@ -25,17 +25,20 @@ class ContractsTest {
         assertThat(events.streamEvents()).containsExactly("meta", "knowledge", "token", "message", "done");
         assertThat(events.redFlagEvent()).isEqualTo("red_flag");
         assertThat(events.knowledgeEvent()).isEqualTo("knowledge");
-        assertThat(events.cardEvents()).hasSize(7);
+        assertThat(events.cardEvents()).hasSize(10);
         // 票 50：find_hospitals 工具移除，department_slots 卡由编排代码确定性产出、不经 LLM 工具调用
         assertThat(events.toolToEvent())
-                .hasSize(4)
+                .hasSize(7)
                 .containsEntry("recommend_doctors", "doctor_recommendations")
                 .containsEntry("get_doctor_slots", "doctor_slots")
                 .containsEntry("create_appointment", "appointment")
                 .containsEntry("get_appointment", "appointments")
+                .containsEntry("search_medications", "medications")
+                .containsEntry("list_approved_prescriptions", "prescriptions")
+                .containsEntry("prepare_drug_order", "drug_order_prepare")
                 .doesNotContainKey("find_hospitals");
         assertThat(events.messageKinds())
-                .hasSize(15)
+                .hasSize(18)
                 .contains(
                         "text",
                         "report_interpretation",
@@ -44,16 +47,22 @@ class ContractsTest {
                         "diet_analysis",
                         "tongue_analysis",
                         "department_slots",
-                        "department_options")
+                        "department_options",
+                        "medications",
+                        "prescriptions",
+                        "drug_order_prepare")
                 // 票 51（ADR-0028）：C 端 medication_info/medication_safety 双卡片出口已删除，
                 // 说明书走流式文本，禁忌仅留 B 端开方链路
                 .doesNotContain("medication_info", "medication_safety");
-        assertThat(events.aiCardKinds()).hasSize(11);
+        assertThat(events.aiCardKinds()).hasSize(14);
         assertThat(events.eventToKind())
-                .hasSize(8)
+                .hasSize(11)
                 .containsEntry("hospital_recommendations", "hospital_recommendations")
                 .containsEntry("department_slots", "department_slots")
-                .containsEntry("department_options", "department_options");
+                .containsEntry("department_options", "department_options")
+                .containsEntry("medications", "medications")
+                .containsEntry("prescriptions", "prescriptions")
+                .containsEntry("drug_order_prepare", "drug_order_prepare");
     }
 
     @Test
@@ -417,7 +426,10 @@ class ContractsTest {
                         "recommend_doctors", "doctor_recommendations",
                         "get_doctor_slots", "doctor_slots",
                         "create_appointment", "appointment",
-                        "get_appointment", "appointments"));
+                        "get_appointment", "appointments",
+                        "search_medications", "medications",
+                        "list_approved_prescriptions", "prescriptions",
+                        "prepare_drug_order", "drug_order_prepare"));
         assertThat(contracts.chatDefaults().effortChoices()).isEqualTo(List.of("auto", "quick", "deep"));
     }
 
