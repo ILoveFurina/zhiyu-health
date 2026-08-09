@@ -61,7 +61,7 @@
       <view class="voucher-row"><text>地址</text><text>{{item.campus_address}}</text></view>
     </view>
     <view
-      a:if="{{(item.isPendingPayment || item.isBooked) && !item.paymentExpired}}"
+      a:if="{{item.isPendingPayment && !item.paymentExpired}}"
       class="cancel"
       data-id="{{item.appointment_id}}"
       onTap="cancel"
