@@ -32,7 +32,7 @@ class ReceptionControllerTest {
         ReceptionService.ReceptionDashboard dashboard = new ReceptionService.ReceptionDashboard(
                 "2026-07-28",
                 List.of(new ReceptionService.ScheduleView(3L, "上午", 10, 4, true)),
-                List.of(appointment("已约", null)));
+                List.of(appointment("待就诊", null)));
         when(receptionService.today(8L)).thenReturn(dashboard);
 
         mockMvc.perform(get("/api/b/reception").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
