@@ -63,10 +63,14 @@ class AgentContext:
 
 # 卡片事件名：Literal 无法从契约 JSON 动态生成，保留显式字面量，
 # 与 contracts/sse-events.json 的一致性由 tests/test_contract_consumption.py 钉死。
+# 票 76：drug_order_confirm 由 prepare_drug_order 工具装配后下发；
+# drug_order 结果卡不经 Agent（C 端直接调 POST /api/c/drug-orders 后由 server-java
+# 本地落库），server-py 不会产出该事件，但仍登记在契约 Literal 以保持事件集合完整。
 CardEvent = Literal[
     "doctor_recommendations", "doctor_slots", "hospital_recommendations",
     "appointment", "appointments", "department_slots", "department_options",
     "medications", "prescriptions", "drug_order_prepare",
+    "drug_order_confirm", "drug_order",
 ]
 
 # 工具进度事件两态（票 24）：tool_start/tool_end，无序、可穿插。
