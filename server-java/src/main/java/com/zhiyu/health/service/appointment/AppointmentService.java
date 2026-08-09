@@ -308,8 +308,9 @@ public class AppointmentService {
                 paymentStatusLabel);
     }
 
-    public boolean isPaymentPayable(String paymentStatus) {
-        return contracts.paymentFlow().statuses().get("unpaid").equals(paymentStatus);
+    public boolean isPaymentPayable(String paymentStatus, String appointmentStatus) {
+        return contracts.paymentFlow().statuses().get("unpaid").equals(paymentStatus)
+                && contracts.appointmentFlow().status("pending_payment").equals(appointmentStatus);
     }
 
     public record AppointmentView(
@@ -330,7 +331,8 @@ public class AppointmentService {
             String hospitalName,
             String campusName,
             String campusAddress,
-            String createdAt) {}
+            String createdAt,
+            String paymentDeadline) {}
 
     private record CreatedAppointment(Long id, BigDecimal registrationFee) {}
 

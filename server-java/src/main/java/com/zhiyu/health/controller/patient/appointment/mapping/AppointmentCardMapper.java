@@ -17,6 +17,7 @@ public interface AppointmentCardMapper {
     @Mapping(target = "appointmentId", source = "value.id")
     @Mapping(target = "summaryDisclaimer", source = "summaryDisclaimer")
     @Mapping(target = "createdAt", source = "value.createdAt")
+    @Mapping(target = "paymentDeadline", source = "value.paymentDeadline")
     AppointmentController.AppointmentOut toPatientOut(
             AppointmentService.AppointmentView value, String summaryDisclaimer, boolean paymentPayable);
 
