@@ -32,6 +32,7 @@
       </view>
     </view>
     <view a:if="{{confirmHint}}" class="confirm-hint">{{confirmHint}}</view>
-    <view class="abandon-link" onTap="abandon">放弃本次预问诊</view>
+    <!-- 放弃入口（票 86）：与预问诊页同款次级描边按钮，全宽置于页面底部安全区上方 -->
+    <view class="btn-abandon" onTap="abandon">放弃本次预问诊</view>
   </block>
 </view>
