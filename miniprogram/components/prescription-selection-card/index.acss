@@ -51,6 +51,8 @@
 .psc-drug:first-child { border-top: none; }
 .psc-drug-name { color: var(--zy-text-title); font-size: 26rpx; }
 .psc-drug-spec { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+/* 用法用量摘要：与规格同色弱化，帮助用户识别处方而非下单信息 */
+.psc-drug-usage { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 
 /* 点选入口文案，作为该项的视觉 CTA，与可点整项一体 */
 .psc-item-action {
