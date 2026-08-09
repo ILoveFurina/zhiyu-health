@@ -215,12 +215,21 @@ public class ReceptionService {
     }
 
     private ScheduleView toScheduleView(Schedule schedule) {
+        String status;
+        if (!Boolean.TRUE.equals(schedule.getIsActive())) {
+            status = "INACTIVE";
+        } else if (schedule.getRemainingSlots() != null && schedule.getRemainingSlots() <= 0) {
+            status = "FULL";
+        } else {
+            status = "AVAILABLE";
+        }
         return new ScheduleView(
                 schedule.getId(),
                 schedule.getTimeSlot().getValue(),
                 schedule.getTotalSlots(),
                 schedule.getRemainingSlots(),
-                Boolean.TRUE.equals(schedule.getIsActive()));
+                Boolean.TRUE.equals(schedule.getIsActive()),
+                status);
     }
 
     private AppointmentView toAppointmentView(Appointment appointment) {
@@ -248,7 +257,8 @@ public class ReceptionService {
 
     public record ReceptionDashboard(String date, List<ScheduleView> schedules, List<AppointmentView> appointments) {}
 
-    public record ScheduleView(Long id, String timeSlot, Integer totalSlots, Integer remainingSlots, boolean active) {}
+    public record ScheduleView(
+            Long id, String timeSlot, Integer totalSlots, Integer remainingSlots, boolean active, String status) {}
 
     public record AppointmentView(
             Long id,
