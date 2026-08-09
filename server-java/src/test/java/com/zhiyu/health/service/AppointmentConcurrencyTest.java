@@ -60,7 +60,7 @@ class AppointmentConcurrencyTest {
                         "门诊楼 1 层导诊台",
                         "身份证或医保卡",
                         "建议提前 30 分钟到达"));
-        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
+        when(scheduleRequests.countPendingBlockingBySchedule(9L)).thenReturn(0);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);

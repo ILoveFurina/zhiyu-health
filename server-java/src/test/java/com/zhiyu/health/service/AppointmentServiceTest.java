@@ -289,7 +289,7 @@ class AppointmentServiceTest {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 1));
         when(scheduleMapper.decrementRemainingSlots(9L)).thenReturn(1);
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
-        when(scheduleRequestMapper.countPendingDisableBySchedule(9L)).thenReturn(0);
+        when(scheduleRequestMapper.countPendingBlockingBySchedule(9L)).thenReturn(0);
         when(appointmentMapper.nextSequenceNumber(9L)).thenReturn(1);
         when(appointmentMapper.insert(any(Appointment.class))).thenAnswer(invocation -> {
             invocation.<Appointment>getArgument(0).setId(21L);
@@ -406,6 +406,23 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void modifyPendingScheduleBlocksNewAppointmentWithoutDeducting() {
+        // 调整号源待审核期间 C 端不可再预约：服务端确定性拦截，且不扣减 Redis/PG 号源。
+        when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(3, 3));
+        slotCounter.initialize(9L, 3);
+
+        AppointmentService service = service();
+        when(scheduleRequestMapper.countPendingBlockingBySchedule(9L)).thenReturn(1);
+
+        assertThatThrownBy(() -> service.createDirect(12L, 9L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("该排班正在调整号源或停诊审核中，暂不可挂号");
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+        verify(scheduleMapper, never()).decrementRemainingSlots(9L);
+        verify(payments, never()).createUnpaid(anyLong(), any());
+    }
+
+    @Test
     void closedTimeWindowAppointmentReturnsConflictWithoutDeducting() {
         // 时段截止校验：当天上午已过 11:30（Clock 固定 12:00），有号源也不可挂号，且不扣减 Redis
         Schedule morningSchedule = schedule(3, 3);
@@ -432,8 +449,8 @@ class AppointmentServiceTest {
     private AppointmentService serviceWithGuard(SlotWindowGuard guard) {
         // 关怀消息上下文：默认提供一份联查结果，覆盖正常挂号路径
         when(scheduleMapper.selectCareContextBySchedule(9L)).thenReturn(careContext());
-        // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
-        when(scheduleRequestMapper.countPendingDisableBySchedule(9L)).thenReturn(0);
+        // 停诊/调整号源审核冻结校验：默认无待审核申请，挂号不被冻结
+        when(scheduleRequestMapper.countPendingBlockingBySchedule(9L)).thenReturn(0);
         // 支付超时惰性收敛（票 81）：默认无过期待支付单，list/cancel 入口收敛为空操作。
         when(appointmentMapper.selectOverduePending(any())).thenReturn(java.util.List.of());
         TransactionTemplate transaction = mock(TransactionTemplate.class);

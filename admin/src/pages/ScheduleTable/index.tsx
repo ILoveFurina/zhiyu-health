@@ -149,6 +149,9 @@ export default function ScheduleTablePage() {
       title: '状态',
       width: 110,
       render: (_, row) => {
+        if (row.pending_action === 'MODIFY') {
+          return <Tag color="gold">待审核（调整号源）</Tag>;
+        }
         if (row.pending_action === 'DISABLE') {
           return <Tag color="gold">待审核（停诊）</Tag>;
         }

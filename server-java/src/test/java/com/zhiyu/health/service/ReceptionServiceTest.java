@@ -18,6 +18,7 @@ import com.zhiyu.health.entity.appointment.Appointment;
 import com.zhiyu.health.entity.common.InAppMessage;
 import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.entity.consultation.ConsultationRecord;
+import com.zhiyu.health.entity.scheduling.Schedule;
 import com.zhiyu.health.entity.scheduling.TimeSlot;
 import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
@@ -88,6 +89,25 @@ class ReceptionServiceTest {
         verify(appointments).expireOverdueAppointments();
         verify(receptionMapper).selectSchedules(7L, LocalDate.now());
         verify(receptionMapper).selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED");
+    }
+
+    @Test
+    void dashboardMarksSoldOutScheduleAsFull() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        Schedule schedule = new Schedule();
+        schedule.setId(3L);
+        schedule.setTimeSlot(TimeSlot.MORNING);
+        schedule.setTotalSlots(5);
+        schedule.setRemainingSlots(0);
+        schedule.setIsActive(true);
+        when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of(schedule));
+        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
+                .thenReturn(List.of());
+
+        ReceptionService.ReceptionDashboard dashboard = service.today(8L);
+
+        assertEquals(1, dashboard.schedules().size());
+        assertEquals("FULL", dashboard.schedules().get(0).status());
     }
 
     @Test

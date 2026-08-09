@@ -62,7 +62,7 @@ class AppointmentPaymentControllerTest {
     void currentPatientPaysUnpaidAppointmentFee() throws Exception {
         Payment payment = payment("UNPAID");
         when(mapper.selectForPatientForUpdate(21L, 12L)).thenReturn(payment);
-        when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
+        when(mapper.markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT")).thenReturn(1);
         // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）。
         when(appointmentMapper.markBooked(21L, "PENDING_PAYMENT", "BOOKED")).thenReturn(1);
 
@@ -75,10 +75,24 @@ class AppointmentPaymentControllerTest {
     }
 
     @Test
+    void cancelledAppointmentPayRefusedByAppointmentStateGuard() throws Exception {
+        Payment payment = payment("UNPAID");
+        when(mapper.selectForPatientForUpdate(21L, 12L)).thenReturn(payment);
+        when(mapper.markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT")).thenReturn(0);
+
+        mvc().perform(post("/api/c/appointments/21/payment/pay").requestAttr("authSubject", 12L))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("挂号已取消或状态已变化，无法支付"));
+
+        verify(mapper).markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT");
+        verify(appointmentMapper, never()).markBooked(any(), any(), any());
+    }
+
+    @Test
     void paymentImmediatelySynchronizesAppointmentCardStatus() throws Exception {
         AtomicReference<Payment> stored = new AtomicReference<>(payment("UNPAID"));
         when(mapper.selectForPatientForUpdate(21L, 12L)).thenAnswer(ignored -> copy(stored.get()));
-        when(mapper.markPaid(21L, "PAID", "UNPAID")).thenAnswer(ignored -> {
+        when(mapper.markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT")).thenAnswer(ignored -> {
             Payment persisted = copy(stored.get());
             persisted.setStatus("PAID");
             persisted.setPaidAt(OffsetDateTime.parse("2026-08-02T10:05:00+08:00"));
@@ -113,7 +127,7 @@ class AppointmentPaymentControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("挂号收费不存在"));
 
-        verify(mapper, never()).markPaid(21L, "PAID", "UNPAID");
+        verify(mapper, never()).markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT");
     }
 
     private Payment payment(String status) {

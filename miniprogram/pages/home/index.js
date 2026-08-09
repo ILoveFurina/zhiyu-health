@@ -1,9 +1,14 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listProfiles, activateProfile } = require('../../services/health-profiles')
-const { listAppointments } = require('../../services/appointments')
+const { listAppointments, payAppointment } = require('../../services/appointments')
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
 const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
+const {
+  decorateAppointment,
+  remainingPaymentSeconds,
+  formatCountdown,
+} = require('../../utils/appointment')
 
 // 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
 let locationPrompted = false
@@ -52,11 +57,29 @@ function todayString() {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-/** 待办横卡数据：即将就诊的挂号单（待就诊且日期不早于今天）+ 待支付药品订单。 */
+/** 待办横卡数据：待支付挂号、即将就诊挂号 + 待支付药品订单。 */
 function buildTodos(appointments, orders) {
   const today = todayString()
-  const upcoming = (appointments || [])
-    .filter((item) => item.status === '待就诊' && item.schedule_date >= today)
+  const decorated = (appointments || []).map(decorateAppointment)
+  const pendingPayments = decorated
+    .filter((item) => item.isPendingPayment)
+    .map((item) => {
+      const seconds = remainingPaymentSeconds(item)
+      return {
+        key: `appointment-${item.appointment_id}`,
+        kind: 'appointment',
+        badge: '待支付',
+        title: `${item.department_name} · ${item.doctor_name}医生`,
+        meta: `${item.schedule_date} ${item.time_slot} · 待支付诊查费 ¥${item.registration_fee || '--'}`,
+        payment_payable: true,
+        appointmentId: item.appointment_id,
+        paymentDeadline: item.payment_deadline,
+        paymentCountdownText: seconds == null ? '' : formatCountdown(seconds),
+        paymentExpired: seconds != null && seconds <= 0,
+      }
+    })
+  const upcoming = decorated
+    .filter((item) => item.isBooked && item.schedule_date >= today)
     .sort((a, b) => `${a.schedule_date} ${a.time_slot}`.localeCompare(`${b.schedule_date} ${b.time_slot}`))
     .map((item) => ({
       key: `appointment-${item.appointment_id}`,
@@ -64,6 +87,7 @@ function buildTodos(appointments, orders) {
       badge: '即将就诊',
       title: `${item.department_name} · ${item.doctor_name}医生`,
       meta: `${item.schedule_date} ${item.time_slot} · 第 ${item.sequence_number} 号`,
+      payment_payable: false,
     }))
   const unpaid = (orders || [])
     .filter((item) => item.status === 'UNPAID')
@@ -74,7 +98,7 @@ function buildTodos(appointments, orders) {
       title: `药品订单 #${item.id}`,
       meta: `合计 ¥${item.total_amount}`,
     }))
-  return [...upcoming, ...unpaid]
+  return [...pendingPayments, ...upcoming, ...unpaid]
 }
 
 Page({
@@ -93,9 +117,14 @@ Page({
   },
 
   onShow() {
+    this.clearTodoCountdown()
     this.load()
     this.loadRegistrationCard()
     this.promptLocationOnce()
+  },
+
+  onHide() {
+    this.clearTodoCountdown()
   },
 
   /**
@@ -151,9 +180,67 @@ Page({
 
   onUnload() {
     clearTimeout(this._entranceTimer)
+    this.clearTodoCountdown()
+  },
+
+  /** 首页待支付挂号的支付倒计时：到期为本页收敛并重新拉数据，避免展示已过期卡。 */
+  startTodoCountdown() {
+    this.clearTodoCountdown()
+    const hasPending = (this.data.todos || []).some((item) => item.payment_payable)
+    if (!hasPending) return
+    this.updateTodoCountdown()
+    this._countdownTimer = setInterval(() => this.updateTodoCountdown(), 1000)
+  },
+
+  clearTodoCountdown() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer)
+      this._countdownTimer = null
+    }
+  },
+
+  updateTodoCountdown() {
+    let shouldReload = false
+    const todos = (this.data.todos || []).map((item) => {
+      if (!item.payment_payable) return item
+      const seconds = remainingPaymentSeconds({
+        status_code: 'PENDING_PAYMENT',
+        payment_deadline: item.paymentDeadline,
+      })
+      if (seconds === null) return item
+      if (seconds <= 0) {
+        shouldReload = true
+        return { ...item, paymentCountdownText: '00:00', paymentExpired: true, payment_payable: false }
+      }
+      return { ...item, paymentCountdownText: formatCountdown(seconds) }
+    })
+    this.setData({ todos })
+    if (shouldReload && !this._countdownTriggered) {
+      this._countdownTriggered = true
+      this.load()
+    }
+  },
+
+  payTodo(e) {
+    const appointmentId = e.currentTarget.dataset.id
+    my.confirm({
+      title: '模拟支付',
+      content: '这是演示支付，不会产生真实扣款。确认支付诊查费吗？',
+      success: (result) => {
+        if (!result.confirm) return
+        payAppointment(appointmentId)
+          .then(() => {
+            my.showToast({ content: '支付成功', type: 'success' })
+            this.load()
+          })
+          .catch(() => my.showToast({ content: '支付失败，请稍后重试', type: 'fail' }))
+      },
+    })
   },
 
   load() {
+    this._countdownTriggered = false
+    this.clearTodoCountdown()
     return ensureLogin()
       .then(() =>
         Promise.all([
@@ -171,7 +258,7 @@ Page({
           activeProfile,
           profileLoaded: true,
           todos: buildTodos(appointments, orders),
-        })
+        }, () => this.startTodoCountdown())
       })
       .catch(() => my.showToast({ content: '加载失败，请稍后重试', type: 'fail' }))
   },

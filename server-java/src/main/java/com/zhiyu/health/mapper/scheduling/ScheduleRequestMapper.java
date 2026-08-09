@@ -29,15 +29,15 @@ public interface ScheduleRequestMapper extends BaseMapper<ScheduleRequest> {
     @Select(DETAIL_COLUMNS + " WHERE sr.id = #{id}")
     ScheduleRequest selectDetailedById(@Param("id") long id);
 
-    /** 挂号冻结校验：某排班是否存在待审核的停诊申请（待审核期间不可挂号）。 */
+    /** 挂号冻结校验：某排班是否存在待审核的停诊或调整号源申请（待审核期间不可挂号）。 */
     @Select(
             """
             SELECT COUNT(*) FROM schedule_requests
             WHERE target_schedule_id = #{scheduleId}
-              AND action = 'DISABLE'
+              AND action IN ('DISABLE','MODIFY')
               AND status = 'PENDING'
             """)
-    int countPendingDisableBySchedule(@Param("scheduleId") long scheduleId);
+    int countPendingBlockingBySchedule(@Param("scheduleId") long scheduleId);
 
     /** 排班申请查重：同医生同日同时段是否已有待审核的新增排班申请。 */
     @Select(

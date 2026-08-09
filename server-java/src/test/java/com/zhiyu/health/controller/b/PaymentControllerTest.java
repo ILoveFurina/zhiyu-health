@@ -66,7 +66,7 @@ class PaymentControllerTest {
     @Test
     void adminPaysUnpaidAppointmentFee() throws Exception {
         when(mapper.selectForUpdate(41L)).thenReturn(payment("UNPAID"));
-        when(mapper.markPaid(21L, "PAID", "UNPAID")).thenReturn(1);
+        when(mapper.markPaid(21L, "PAID", "UNPAID", "PENDING_PAYMENT")).thenReturn(1);
         // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）。
         when(appointmentMapper.markBooked(21L, "PENDING_PAYMENT", "BOOKED")).thenReturn(1);
 

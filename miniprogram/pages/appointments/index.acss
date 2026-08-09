@@ -68,12 +68,18 @@
 
 .meta,
 .number,
+.countdown,
 .payment,
 .summary {
   margin-top: 12rpx;
   color: var(--zy-text-secondary);
   font-size: 24rpx;
   line-height: 1.55;
+}
+
+.countdown {
+  color: var(--zy-color-warning);
+  font-weight: 600;
 }
 
 .payment {

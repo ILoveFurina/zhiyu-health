@@ -61,7 +61,7 @@ class AppointmentHttpIntegrationTest {
         when(schedules.selectByIdForUpdate(9L)).thenReturn(schedule());
         when(schedules.decrementRemainingSlots(9L)).thenReturn(1);
         when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
-        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
+        when(scheduleRequests.countPendingBlockingBySchedule(9L)).thenReturn(0);
         when(appointments.nextSequenceNumber(9L)).thenReturn(1);
         when(appointments.insert(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment appointment = invocation.getArgument(0);

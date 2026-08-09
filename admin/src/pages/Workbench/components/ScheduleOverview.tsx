@@ -13,7 +13,7 @@ export default function ScheduleOverview({ schedules }: { schedules: ReceptionSc
           <Col xs={24} md={12} xl={8} key={schedule.id}>
             <Card size="small">
               <Statistic
-                title={<>{schedule.time_slot} <Tag color={schedule.active ? 'green' : 'default'}>{schedule.active ? '出诊' : '停诊'}</Tag></>}
+                title={<>{schedule.time_slot} <Tag color={schedule.status === 'FULL' ? 'orange' : schedule.active ? 'green' : 'default'}>{schedule.status === 'FULL' ? '已约满' : schedule.active ? '出诊' : '停诊'}</Tag></>}
                 value={schedule.total_slots - schedule.remaining_slots}
                 suffix={`/ ${schedule.total_slots} 人`}
               />

@@ -30,6 +30,7 @@ public interface AppointmentDtoMapper {
     @Mapping(target = "campusName", source = "appointment.campusName")
     @Mapping(target = "campusAddress", source = "appointment.campusAddress")
     @Mapping(target = "createdAt", source = "appointment.createdAt", qualifiedByName = "dateTimeText")
+    @Mapping(target = "paymentDeadline", source = "appointment.paymentDeadline", qualifiedByName = "dateTimeText")
     AppointmentService.AppointmentView toView(
             Appointment appointment, String statusCode, String statusLabel, String paymentStatusLabel);
 

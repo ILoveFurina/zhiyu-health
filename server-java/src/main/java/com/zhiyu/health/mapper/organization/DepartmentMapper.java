@@ -65,6 +65,12 @@ public interface DepartmentMapper extends BaseMapper<Department> {
                  AND s.is_active = TRUE
                  AND s.schedule_date >= #{fromDate}
                  AND s.schedule_date <= #{toDate}
+                 AND NOT EXISTS (
+                     SELECT 1 FROM schedule_requests sr
+                     WHERE sr.target_schedule_id = s.id
+                       AND sr.action IN ('DISABLE','MODIFY')
+                       AND sr.status = 'PENDING'
+                 )
             WHERE dep.standard_department_id = #{standardDepartmentId}
               AND c.city_code = #{cityCode}
             ORDER BY d.id, s.schedule_date,

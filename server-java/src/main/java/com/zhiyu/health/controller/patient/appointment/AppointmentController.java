@@ -53,7 +53,7 @@ public class AppointmentController {
         return appointmentCards.toPatientOut(
                 value,
                 disclaimers.mountIfPresent(value.conditionSummary()),
-                appointmentService.isPaymentPayable(value.paymentStatus()));
+                appointmentService.isPaymentPayable(value.paymentStatus(), value.statusCode()));
     }
 
     public record AppointmentOut(
@@ -76,7 +76,8 @@ public class AppointmentController {
             @JsonProperty("hospital_name") String hospitalName,
             @JsonProperty("campus_name") String campusName,
             @JsonProperty("campus_address") String campusAddress,
-            @JsonProperty("created_at") String createdAt) {}
+            @JsonProperty("created_at") String createdAt,
+            @JsonProperty("payment_deadline") String paymentDeadline) {}
 
     public record CreateAppointmentRequest(@JsonProperty("schedule_id") @NotNull @Positive Long scheduleId) {}
 }

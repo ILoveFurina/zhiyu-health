@@ -62,6 +62,7 @@ miniprogram_npm/
 .scratch/recordings/
 # GUI 测试截图（调试产物，不入库）
 admin/gui-test-screenshots/
+/gui-test-screenshots/
 # 已完成票的验收/诊断一次性产物（t60/perf-vision/diag 脚本与输出、playwright 日志；需要复验时按票文档重建）
 .playwright-mcp/
 .scratch/diag-*.png
@@ -71,3 +72,5 @@ admin/gui-test-screenshots/
 .scratch/t60-*.cjs
 .scratch/t66-playbook.md
 .scratch/verify-report-picker.cjs
+# 临时诊断探针：直连 server-py 拿真实错误（读取 .env token，不入库）
+scripts/_diag_chat.py

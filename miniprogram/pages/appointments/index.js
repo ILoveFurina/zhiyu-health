@@ -1,7 +1,11 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listAppointments, cancelAppointment, payAppointment } = require('../../services/appointments')
 const { currentProfile } = require('../../services/health-profiles')
-const { decorateAppointment } = require('../../utils/appointment')
+const {
+  decorateAppointment,
+  remainingPaymentSeconds,
+  formatCountdown,
+} = require('../../utils/appointment')
 
 const FILTER_TABS = [
   { key: 'all', label: '全部' },
@@ -33,9 +37,19 @@ Page({
     ensureLogin().then(() => this.loadAppointments())
   },
 
+  onHide() {
+    this.clearCountdown()
+  },
+
+  onUnload() {
+    this.clearCountdown()
+  },
+
   loadAppointments() {
+    this._countdownTriggered = false
+    this.clearCountdown()
     this.setData({ loading: true })
-    Promise.all([listAppointments(), currentProfile()])
+    return Promise.all([listAppointments(), currentProfile()])
       .then(([appointments, profileResult]) => {
         const decorated = appointments.map(decorateAppointment)
         this.setData({
@@ -43,9 +57,50 @@ Page({
           appointments: filterAppointments(decorated, this.data.activeFilter),
           currentProfile: profileResult.profile,
         })
+        this.startCountdown()
       })
       .catch(() => my.showToast({ content: '挂号记录加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
+  },
+
+  startCountdown() {
+    this.clearCountdown()
+    const hasPending = this.data.allAppointments.some(
+      (item) => item.isPendingPayment && item.payment_deadline
+    )
+    if (!hasPending) return
+    this.updateCountdown()
+    this._countdownTimer = setInterval(() => this.updateCountdown(), 1000)
+  },
+
+  clearCountdown() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer)
+      this._countdownTimer = null
+    }
+  },
+
+  updateCountdown() {
+    let shouldReload = false
+    const decorate = (item) => {
+      if (!item.isPendingPayment || !item.payment_deadline) return item
+      const seconds = remainingPaymentSeconds(item)
+      if (seconds === null) return item
+      if (seconds <= 0) {
+        shouldReload = true
+        return { ...item, paymentCountdownText: '00:00', paymentExpired: true, payment_payable: false }
+      }
+      return { ...item, paymentCountdownText: formatCountdown(seconds) }
+    }
+    const allAppointments = this.data.allAppointments.map(decorate)
+    this.setData({
+      allAppointments,
+      appointments: filterAppointments(allAppointments, this.data.activeFilter),
+    })
+    if (shouldReload && !this._countdownTriggered) {
+      this._countdownTriggered = true
+      this.loadAppointments()
+    }
   },
 
   onFilterTap(e) {

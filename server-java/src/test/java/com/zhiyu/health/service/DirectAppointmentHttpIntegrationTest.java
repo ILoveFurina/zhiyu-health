@@ -64,7 +64,7 @@ class DirectAppointmentHttpIntegrationTest {
         // B 端直接挂号成功也会写就诊指引卡关怀消息（票 43 覆盖所有入口）
         when(schedules.selectCareContextBySchedule(9L)).thenReturn(careContext());
         // 停诊审核冻结校验：默认无待审核停诊申请，挂号不被冻结
-        when(scheduleRequests.countPendingDisableBySchedule(9L)).thenReturn(0);
+        when(scheduleRequests.countPendingBlockingBySchedule(9L)).thenReturn(0);
         AppointmentService service = new AppointmentService(
                 appointments,
                 schedules,

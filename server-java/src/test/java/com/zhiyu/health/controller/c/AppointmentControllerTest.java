@@ -28,21 +28,22 @@ class AppointmentControllerTest {
     @Test
     void listsCurrentPatientsAppointmentsAndCancelsOne() throws Exception {
         AppointmentService service = mock(AppointmentService.class);
-        AppointmentService.AppointmentView booked = appointment("待就诊");
+        AppointmentService.AppointmentView booked = appointment("待支付");
         AppointmentService.AppointmentView cancelled = appointment("已取消");
         when(service.listForPatient(12L)).thenReturn(List.of(booked));
         when(service.cancel(12L, 21L)).thenReturn(cancelled);
-        when(service.isPaymentPayable("UNPAID")).thenReturn(true);
+        when(service.isPaymentPayable("UNPAID", "PENDING_PAYMENT")).thenReturn(true);
         MockMvc mvc = standaloneSetup(new AppointmentController(service, TestDisclaimers.instance(), appointmentCards))
                 .build();
 
         mvc.perform(get("/api/c/appointments").requestAttr("authSubject", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].doctor_name").value("周安宁"))
-                .andExpect(jsonPath("$[0].status_code").value("BOOKED"))
+                .andExpect(jsonPath("$[0].status_code").value("PENDING_PAYMENT"))
                 .andExpect(jsonPath("$[0].registration_fee").value(30.00))
                 .andExpect(jsonPath("$[0].payment_status").value("UNPAID"))
                 .andExpect(jsonPath("$[0].payment_status_label").value("待支付"))
+                .andExpect(jsonPath("$[0].payment_deadline").value("2026-07-28T10:01:00+08:00"))
                 .andExpect(jsonPath("$[0].payment_payable").value(true))
                 .andExpect(jsonPath("$[0].condition_summary").value("主诉胸闷两天"))
                 .andExpect(jsonPath("$[0].hospital_name").value("智愈第一医院"))
@@ -100,7 +101,7 @@ class AppointmentControllerTest {
                 "2026-07-29",
                 "上午",
                 1,
-                "已取消".equals(status) ? "CANCELLED" : "BOOKED",
+                "已取消".equals(status) ? "CANCELLED" : "PENDING_PAYMENT",
                 status,
                 new BigDecimal("30.00"),
                 "UNPAID",
@@ -109,6 +110,7 @@ class AppointmentControllerTest {
                 "智愈第一医院",
                 "主院区",
                 "郑州市金水区健康路 88 号",
-                "2026-07-28T10:00:00+08:00");
+                "2026-07-28T10:00:00+08:00",
+                "2026-07-28T10:01:00+08:00");
     }
 }

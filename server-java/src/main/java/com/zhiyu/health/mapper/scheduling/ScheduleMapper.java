@@ -22,6 +22,12 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
               AND s.is_active = TRUE
               AND s.schedule_date >= #{fromDate}
               AND s.remaining_slots > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM schedule_requests sr
+                  WHERE sr.target_schedule_id = s.id
+                    AND sr.action IN ('DISABLE','MODIFY')
+                    AND sr.status = 'PENDING'
+              )
             ORDER BY s.doctor_id, s.schedule_date,
                      CASE s.time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END
             """)
@@ -35,6 +41,12 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
               AND is_active = TRUE
               AND schedule_date >= #{fromDate}
               AND remaining_slots > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM schedule_requests sr
+                  WHERE sr.target_schedule_id = id
+                    AND sr.action IN ('DISABLE','MODIFY')
+                    AND sr.status = 'PENDING'
+              )
             ORDER BY schedule_date,
                      CASE time_slot WHEN '上午' THEN 1 WHEN '下午' THEN 2 ELSE 3 END
             """)
@@ -71,7 +83,7 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
               AND NOT EXISTS (
                   SELECT 1 FROM schedule_requests sr
                   WHERE sr.target_schedule_id = s.id
-                    AND sr.action = 'DISABLE'
+                    AND sr.action IN ('DISABLE','MODIFY')
                     AND sr.status = 'PENDING'
               )
             ORDER BY s.schedule_date,
