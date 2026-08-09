@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.appointment.Payment;
+import com.zhiyu.health.mapper.appointment.AppointmentMapper;
 import com.zhiyu.health.mapper.appointment.PaymentMapper;
 import com.zhiyu.health.service.appointment.mapping.PaymentDtoMapper;
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
 
     private final PaymentMapper paymentMapper;
+    private final AppointmentMapper appointmentMapper;
     private final TransactionTemplate transactionTemplate;
     private final Contracts contracts;
     private final PaymentDtoMapper paymentDtos;
@@ -71,6 +73,10 @@ public class PaymentService extends ServiceImpl<PaymentMapper, Payment> {
         if (paymentMapper.markPaid(appointmentId, paid, unpaid) == 0) {
             throw new ApiException(409, "挂号收费状态已变化，请刷新后重试");
         }
+        // 支付完成推进挂号单 PENDING_PAYMENT -> BOOKED（票 81）：CAS 只接受待支付。
+        // 模拟支付下不堆并发防御：返回 0 仅在支付与超时收敛极端竞态时出现，demo 不会触发。
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        appointmentMapper.markBooked(appointmentId, flow.status("pending_payment"), flow.status("booked"));
         payment.setStatus(paid);
         payment.setPaidAt(OffsetDateTime.now());
         return toView(payment);
