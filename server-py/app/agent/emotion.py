@@ -1,4 +1,4 @@
-﻿"""情绪反馈判断器（ADR-0019）。
+"""情绪反馈判断器（ADR-0019）。
 
 主回复 token 流完成后、message 事件发出前，发起一次非流式 LLM 调用判断用户消息
 情绪（calm/anxious/fearful），response_format=json_object + pydantic 校验 + 2 次重试，
@@ -25,7 +25,7 @@ _SYSTEM_PROMPT = (
     "- calm：平静，无明显焦虑或恐惧（常规咨询、健康管理等）\n"
     "- anxious：焦虑，对症状或结果感到担忧（如反复询问、表达不安）\n"
     "- fearful：恐惧，疑似面临紧急危险或极度害怕（如胸痛、呼吸困难、剧烈疼痛）\n"
-    "仅输出 JSON：{\"emotion\": \"<calm|anxious|fearful>\", \"rationale\": \"<简短中文理由>\"}。"
+    '仅输出 JSON：{"emotion": "<calm|anxious|fearful>", "rationale": "<简短中文理由>"}。'
     "不输出其他内容，不结合任何健康档案，不做诊断或用药建议。"
 )
 
@@ -33,13 +33,11 @@ _SYSTEM_PROMPT = (
 class RawEmotionModel(Protocol):
     """返回模型原始文本；调用方负责结构校验。"""
 
-    async def ainvoke(self, user_text: str) -> str:
-        ...
+    async def ainvoke(self, user_text: str) -> str: ...
 
 
 class EmotionJudge(Protocol):
-    async def judge(self, user_text: str) -> EmotionResult:
-        ...
+    async def judge(self, user_text: str) -> EmotionResult: ...
 
 
 class StructuredEmotionJudge:
@@ -57,9 +55,15 @@ class StructuredEmotionJudge:
             return EmotionResult.calm_default()
         validation_hint = ""
         for attempt in range(2):
-            request_text = user_text if not attempt else (
-                user_text + "\n\n上次输出未通过结构校验：" + validation_hint
-                + "。请重新输出严格符合 Schema 的 JSON。"
+            request_text = (
+                user_text
+                if not attempt
+                else (
+                    user_text
+                    + "\n\n上次输出未通过结构校验："
+                    + validation_hint
+                    + "。请重新输出严格符合 Schema 的 JSON。"
+                )
             )
             try:
                 raw = await self._model.ainvoke(request_text)

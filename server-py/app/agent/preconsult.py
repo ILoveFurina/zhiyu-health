@@ -1,4 +1,4 @@
-﻿"""预问诊病情摘要判定器（）。
+"""预问诊病情摘要判定器。
 
 preconsultation 场景主回复 token 流完成后、message 事件发出前，编排层发起一次
 非流式 LLM 调用，把本轮对话整理为结构化病情摘要（主诉/现病史/过敏史 +
@@ -29,8 +29,8 @@ _SYSTEM_PROMPT = (
     "不得编造；尚不能收敛到单一科室时输出 null\n"
     "对话中尚未收集到的字段输出空字符串，不得编造患者未提供的信息；"
     "健康档案中已有的可信信息（如过敏史）直接采用，不视为编造。\n"
-    "仅输出 JSON：{\"chief_complaint\": \"<主诉>\", \"present_illness\": \"<现病史>\", "
-    "\"allergy_history\": \"<过敏史或空字符串>\", \"suggested_standard_department_id\": <int|null>}。"
+    '仅输出 JSON：{"chief_complaint": "<主诉>", "present_illness": "<现病史>", '
+    '"allergy_history": "<过敏史或空字符串>", "suggested_standard_department_id": <int|null>}。'
     "不输出其他内容，不做诊断或用药建议。"
 )
 
@@ -38,15 +38,13 @@ _SYSTEM_PROMPT = (
 class RawPreconsultModel(Protocol):
     """返回模型原始文本；调用方负责结构校验。"""
 
-    async def ainvoke(self, prompt_text: str) -> str:
-        ...
+    async def ainvoke(self, prompt_text: str) -> str: ...
 
 
 class PreconsultJudge(Protocol):
     async def judge(
         self, messages: list[dict[str, str]], candidates: list[dict[str, Any]]
-    ) -> PreconsultationSummary | None:
-        ...
+    ) -> PreconsultationSummary | None: ...
 
 
 def _build_prompt(messages: list[dict[str, str]], candidates: list[dict[str, Any]]) -> str:
@@ -54,16 +52,11 @@ def _build_prompt(messages: list[dict[str, str]], candidates: list[dict[str, Any
         f"{'用户' if m.get('role') == 'user' else '助手'}：{m.get('content', '')}" for m in messages
     )
     return (
-        "候选标准科室："
-        + json.dumps(candidates, ensure_ascii=False)
-        + "\n\n对话历史：\n"
-        + history
+        "候选标准科室：" + json.dumps(candidates, ensure_ascii=False) + "\n\n对话历史：\n" + history
     )
 
 
-def _normalize(
-    summary: PreconsultationSummary, candidate_ids: set[int]
-) -> PreconsultationSummary:
+def _normalize(summary: PreconsultationSummary, candidate_ids: set[int]) -> PreconsultationSummary:
     """科室 ID 越界保护：目录外/臆造的 ID 一律归一化为 None。
 
     只矫正建议科室：摘要文本字段（含早期合法的空字符串）保留 LLM 输出原样，
@@ -93,9 +86,15 @@ class StructuredPreconsultJudge:
         prompt = _build_prompt(messages, candidates)
         validation_hint = ""
         for attempt in range(2):
-            request_text = prompt if not attempt else (
-                prompt + "\n\n上次输出未通过结构校验：" + validation_hint
-                + "。请重新输出严格符合 Schema 的 JSON。"
+            request_text = (
+                prompt
+                if not attempt
+                else (
+                    prompt
+                    + "\n\n上次输出未通过结构校验："
+                    + validation_hint
+                    + "。请重新输出严格符合 Schema 的 JSON。"
+                )
             )
             try:
                 raw = await self._model.ainvoke(request_text)

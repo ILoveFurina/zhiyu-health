@@ -24,7 +24,9 @@ class PreconsultationSummaryCallback:
 
     async def apply(self, draft_id: int, payload: dict[str, Any]) -> None:
         try:
-            await self._client.post(f"/api/agent/preconsultation-drafts/{draft_id}/summary", payload)
+            await self._client.post(
+                f"/api/agent/preconsultation-drafts/{draft_id}/summary", payload
+            )
         except httpx.HTTPError as error:
             logger.warning(
                 "preconsultation summary callback failed draftId=%s error=%s",

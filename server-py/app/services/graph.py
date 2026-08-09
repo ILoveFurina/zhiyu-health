@@ -107,20 +107,24 @@ class Neo4jGraphTraverser:
         for record in records:
             # 出边邻接：种子节点 -> 邻接节点
             if record.get("neighbor_name"):
-                neighbors.append(GraphNeighbor(
-                    name=record["neighbor_name"],
-                    node_type=record["neighbor_type"],
-                    relation=record["out_relation"],
-                    direction="outgoing",
-                ))
+                neighbors.append(
+                    GraphNeighbor(
+                        name=record["neighbor_name"],
+                        node_type=record["neighbor_type"],
+                        relation=record["out_relation"],
+                        direction="outgoing",
+                    )
+                )
             # 入边邻接：邻接节点 -> 种子节点
             if record.get("in_neighbor_name"):
-                neighbors.append(GraphNeighbor(
-                    name=record["in_neighbor_name"],
-                    node_type=record["in_neighbor_type"],
-                    relation=record["in_relation"],
-                    direction="incoming",
-                ))
+                neighbors.append(
+                    GraphNeighbor(
+                        name=record["in_neighbor_name"],
+                        node_type=record["in_neighbor_type"],
+                        relation=record["in_relation"],
+                        direction="incoming",
+                    )
+                )
         return neighbors
 
 
@@ -167,11 +171,13 @@ class Neo4jGraphProjector:
                         "group": record.get(group_key, ""),
                     }
             if source_id and target_id:
-                edges.append({
-                    "source": source_id,
-                    "target": target_id,
-                    "type": record.get("type", ""),
-                })
+                edges.append(
+                    {
+                        "source": source_id,
+                        "target": target_id,
+                        "type": record.get("type", ""),
+                    }
+                )
         return {"nodes": list(nodes.values()), "edges": edges}
 
     async def node_detail(self, node_id: str) -> dict[str, object] | None:

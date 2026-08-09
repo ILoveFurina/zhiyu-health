@@ -30,7 +30,9 @@ def _literal_values(annotation: Any) -> set[str]:
 
 
 def _vision_codes_in(source: Path) -> set[str]:
-    return {m.group(0).strip('"') for m in re.finditer(r'"VISION_[A-Z_]+"', source.read_text("utf-8"))}
+    return {
+        m.group(0).strip('"') for m in re.finditer(r'"VISION_[A-Z_]+"', source.read_text("utf-8"))
+    }
 
 
 def test_stream_event_constants_match_contract() -> None:
@@ -52,7 +54,12 @@ def test_trace_events_are_disjoint_from_card_and_stream_events() -> None:
     assert sse.trace_events == ["tool_start", "tool_end"]
     assert sse.trace_results == ["success", "error", "skipped"]
     assert sse.trace_error_code_unknown == "TOOL_ERROR_UNKNOWN"
-    others = set(sse.card_events) | set(sse.ai_card_kinds) | set(sse.stream_events) | {sse.red_flag_event}
+    others = (
+        set(sse.card_events)
+        | set(sse.ai_card_kinds)
+        | set(sse.stream_events)
+        | {sse.red_flag_event}
+    )
     for trace in sse.trace_events:
         assert trace not in others, f"trace 事件 {trace} 不得与其他事件重名"
 
@@ -63,7 +70,9 @@ def test_agent_output_event_literal_matches_contract() -> None:
     knowledge_event = get_contracts().knowledge.knowledge_meta_event
     event_type = AgentOutput.__dataclass_fields__["event"].type
     assert _literal_values(event_type) == {
-        "token", get_contracts().chat_realtime.thinking_event, knowledge_event,
+        "token",
+        get_contracts().chat_realtime.thinking_event,
+        knowledge_event,
         *get_contracts().sse_events.card_events,
         *get_contracts().sse_events.trace_events,
     }
@@ -150,7 +159,9 @@ def test_upload_limits_constants_match_contract() -> None:
     assert document.MAX_IMAGE_TOTAL_BYTES == limits.max_total_bytes
     assert document._MIN_FILES == limits.min_files
     assert document._MAX_FILES == limits.max_files
-    assert document._IMAGE_TYPES == frozenset(t for t in limits.allowed_types if t != "application/pdf")
+    assert document._IMAGE_TYPES == frozenset(
+        t for t in limits.allowed_types if t != "application/pdf"
+    )
 
 
 def test_chat_request_defaults_and_geo_bounds_follow_contract() -> None:

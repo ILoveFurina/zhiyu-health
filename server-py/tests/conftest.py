@@ -1,4 +1,4 @@
-﻿"""测试基座：fake Agent 替换 LLM。
+"""测试基座：fake Agent 替换 LLM。
 
 seam 纪律：主 seam 为 FastAPI HTTP API 层；LLM 以 FakeAgentRunner 替换，
 断言它对消息历史与推理档位的接收情况。
@@ -168,6 +168,9 @@ def harness() -> Iterator[SimpleNamespace]:
     )
     with TestClient(app) as client:
         yield SimpleNamespace(
-            client=client, agent=fake_agent, emotion=fake_emotion,
-            triage=fake_triage, preconsult=fake_preconsult,
+            client=client,
+            agent=fake_agent,
+            emotion=fake_emotion,
+            triage=fake_triage,
+            preconsult=fake_preconsult,
         )

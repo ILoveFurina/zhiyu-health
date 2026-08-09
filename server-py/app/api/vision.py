@@ -1,4 +1,4 @@
-﻿"""server-java 调用的 scenario 驱动视觉分析接口。"""
+"""server-java 调用的 scenario 驱动视觉分析接口。"""
 
 from dataclasses import replace
 from typing import Annotated
@@ -19,7 +19,7 @@ from app.schemas.vision import VisionResponse
 router = APIRouter(prefix="/agent/vision", tags=["agent-vision"])
 
 # 场景 -> scope 拒绝错误码：report 拒原始医学影像，皮肤拒非皮肤照片，饮食拒非饮食照片，
-# 舌苔拒非舌苔照片（），药盒拒非药盒照片（）。未登记的场景无 scope 概念时
+# 舌苔拒非舌苔照片，药盒拒非药盒照片。未登记的场景无 scope 概念时
 # 不会进此映射，VisionScopeError 仍兜底为 report 码。
 _SCOPE_ERROR_CODES = {
     "REPORT": "VISION_REPORT_SCOPE_UNSUPPORTED",
@@ -57,18 +57,12 @@ async def interpret_vision(
         code = _SCOPE_ERROR_CODES.get(document.scenario, "VISION_REPORT_SCOPE_UNSUPPORTED")
         raise HTTPException(status_code=422, detail=_error_detail(code)) from exc
     except (APITimeoutError, TimeoutError) as exc:
-        raise HTTPException(
-            status_code=504, detail=_error_detail("VISION_MODEL_TIMEOUT")
-        ) from exc
+        raise HTTPException(status_code=504, detail=_error_detail("VISION_MODEL_TIMEOUT")) from exc
     except VisionOutputError as exc:
-        raise HTTPException(
-            status_code=502, detail=_error_detail("VISION_OUTPUT_INVALID")
-        ) from exc
+        raise HTTPException(status_code=502, detail=_error_detail("VISION_OUTPUT_INVALID")) from exc
     # ADR-0024 第 2 条：舌诊场景双栈同步注入中医专属免责（server-py 在此注入，
     # server-java TonguePhotoService 出口兜底），其他场景 tcm_disclaimer 保持空串。
-    tcm_disclaimer = (
-        get_contracts().disclaimer.tcm_text if document.scenario == "TONGUE" else ""
-    )
+    tcm_disclaimer = get_contracts().disclaimer.tcm_text if document.scenario == "TONGUE" else ""
     return VisionResponse(
         result=result, page_count=document.page_count, tcm_disclaimer=tcm_disclaimer
     )

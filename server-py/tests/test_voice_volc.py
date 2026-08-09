@@ -114,7 +114,9 @@ def test_volc_asr_timeout_maps_to_model_timeout() -> None:
 def test_key_ready_accepts_either_credential_pair() -> None:
     assert _volcano_voice_key_ready(_settings()) is True
     assert _volcano_voice_key_ready(_settings(volc_asr_api_key="k")) is True
-    assert _volcano_voice_key_ready(_settings(volc_asr_app_id="", volc_asr_access_token="")) is False
+    assert (
+        _volcano_voice_key_ready(_settings(volc_asr_app_id="", volc_asr_access_token="")) is False
+    )
     # 旧版两项必须齐备，只填其一不就绪
     assert _volcano_voice_key_ready(_settings(volc_asr_access_token="")) is False
 

@@ -64,8 +64,11 @@ class CallbackDepartmentDirectory:
         if not isinstance(items, list):
             return "查询标准科室失败：业务后端返回格式异常"
         return [
-            d for d in items
-            if isinstance(d, dict) and isinstance(d.get("id"), int) and isinstance(d.get("name"), str)
+            d
+            for d in items
+            if isinstance(d, dict)
+            and isinstance(d.get("id"), int)
+            and isinstance(d.get("name"), str)
         ]
 
     async def get_slots(

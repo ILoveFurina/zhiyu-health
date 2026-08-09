@@ -24,7 +24,9 @@ class _RecordingRawModel:
         self, content: list[dict[str, object]], system_prompt: str, reasoning_effort: str
     ) -> str:
         self.efforts.append(reasoning_effort)
-        return '{"candidates":[{"name":"阿莫西林胶囊"}],"unreadable_hint":"","scope_supported":true}'
+        return (
+            '{"candidates":[{"name":"阿莫西林胶囊"}],"unreadable_hint":"","scope_supported":true}'
+        )
 
 
 def test_interpreter_passes_policy_effort_to_model() -> None:

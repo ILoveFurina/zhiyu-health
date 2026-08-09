@@ -1,4 +1,4 @@
-﻿"""舌象中医辨证场景。"""
+"""舌象中医辨证场景。"""
 
 from fastapi.testclient import TestClient
 
@@ -6,6 +6,8 @@ from app.agent.vision.interpreter import StructuredVisionInterpreter
 from app.testing import create_test_app
 from conftest import TEST_AGENT_SECRET, StubHealthService
 from vision_support import FakeRawVisionModel, FakeVisionInterpreter, _mixed_pdf, _png
+
+
 def _diet_result() -> str:
     return """{
       "meal_type":"午餐",
@@ -19,7 +21,6 @@ def _diet_result() -> str:
       "need_doctor":false,
       "scope_supported":true
     }"""
-
 
 
 # ---- 舌苔中医辨证场景（票 17，ADR-0024）：照搬 15/16 拍照模板，验证中医合规边界 ----
@@ -218,5 +219,3 @@ def test_tongue_need_doctor_without_urgency_hint_is_rejected() -> None:
     # model_validator 拒绝 -> 两次重试均失败 -> VisionOutputError -> 502 VISION_OUTPUT_INVALID
     assert response.status_code == 502
     assert response.json()["detail"]["code"] == "VISION_OUTPUT_INVALID"
-
-

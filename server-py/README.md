@@ -16,6 +16,7 @@ uv sync --frozen --dev
 uv run python scripts/run-server-py.py
 uv run pytest
 uv run ruff check server-py
+uv run ruff format --check server-py
 uv run mypy server-py/app
 uv run lint-imports
 ```
@@ -30,7 +31,8 @@ uv run pytest server-py/tests/test_knowledge_integration.py -m integration
 
 ## 目录地图
 
-- `app/main.py`：HTTP 入口、路由清单和生产 lifespan 接入，是阅读起点。
+- `app/main.py`：生产 HTTP 入口与 lifespan 接入，是阅读起点。
+- `app/http.py`：生产与测试共用的无副作用 HTTP 壳和路由清单。
 - `app/bootstrap.py`：真实 settings、存储客户端、server-java 回调和模型适配器装配。
 - `app/runtime.py`：统一安装 FastAPI 运行期依赖，避免散落的 `app.state` 字段清单。
 - `app/api/`：薄 HTTP/SSE 入口，只校验、装配请求并调用下层模块。
