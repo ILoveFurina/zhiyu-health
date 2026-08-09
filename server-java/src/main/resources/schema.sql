@@ -276,19 +276,21 @@ CREATE TABLE IF NOT EXISTS messages (
         'text', 'doctor_recommendations', 'doctor_slots', 'hospital_recommendations',
         'appointment', 'appointments', 'report_upload', 'report_interpretation',
         'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
-        'department_slots', 'department_options', 'red_flag'))
+        'department_slots', 'department_options', 'red_flag',
+        'medications', 'prescriptions', 'drug_order_prepare'))
 );
 
 -- messages.kind CHECK 幂等重建：CREATE TABLE IF NOT EXISTS 对旧库不会补建约束，
--- 与 ck_messages_emotion 同一套路——新建库先 DROP 再 ADD 结果一致，旧库 DROP no-op + ADD 建上；
--- 票 50 新增 department_slots、票 65 新增 department_options 时旧库约束同步扩列。
+-- 与 ck_messages_emotion 同一套路--新建库先 DROP 再 ADD 结果一致，旧库 DROP no-op + ADD 建上；
+-- 票 50 新增 department_slots、票 65 新增 department_options、票 75 新增购药卡片 kind 时旧库约束同步扩列。
 ALTER TABLE messages DROP CONSTRAINT IF EXISTS ck_messages_kind;
 ALTER TABLE messages
     ADD CONSTRAINT ck_messages_kind CHECK (kind IN (
         'text', 'doctor_recommendations', 'doctor_slots', 'hospital_recommendations',
         'appointment', 'appointments', 'report_upload', 'report_interpretation',
         'report_context', 'skin_analysis', 'image', 'diet_analysis', 'tongue_analysis',
-        'department_slots', 'department_options', 'red_flag'));
+        'department_slots', 'department_options', 'red_flag',
+        'medications', 'prescriptions', 'drug_order_prepare'));
 
 -- messages.emotion 列幂等补齐：CREATE TABLE IF NOT EXISTS 对已存在的表不会 ADD COLUMN，
 -- 云库若停留在票 44 之前的版本会缺该列，导致后续 COMMENT ON COLUMN 引用失败并阻断启动。
