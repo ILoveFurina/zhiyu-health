@@ -19,23 +19,19 @@
       <view class="drug-name">{{drug.name}} {{drug.specification}}</view>
       <view>{{drug.dosage}} · {{drug.frequency}} · {{drug.duration}}</view>
       <view a:if="{{drug.notes}}">备注：{{drug.notes}}</view>
-      <view a:if="{{item.is_approved}}" class="quantity-row">
-        <text>购买数量</text>
-        <input class="quantity" type="number" min="1" value="{{drug.quantity}}"
-          data-prescription-id="{{item.id}}" data-medication-id="{{drug.medication_id}}"
-          onInput="changeQuantity" />
-      </view>
+      <!-- 票 88：配药数量由医生开方决定，患者不可修改 -->
+      <view a:if="{{drug.quantity}}" class="quantity-text">配药数量 ×{{drug.quantity}}</view>
     </view>
     <!-- 票 60：按审核状态分支。解读/免责声明/购药仅已通过渲染（服务端也只对 APPROVED 下发） -->
     <block a:if="{{item.is_approved}}">
       <view class="interpretation-title">通俗解读</view>
       <view class="interpretation">{{item.interpretation}}</view>
       <ai-disclaimer text="{{item.disclaimer}}" />
-      <view class="pharmacy">智愈安心药房 · 下单将立即预扣库存</view>
-      <button class="order" data-id="{{item.id}}" loading="{{orderingId === item.id}}"
-        disabled="{{orderingId === item.id}}" onTap="order">
-        立即购药
+      <!-- 票 88：去购药跳统一购药确认页实时校验；已核销处方不可再次购药 -->
+      <button a:if="{{!item.is_redeemed}}" class="order" data-id="{{item.id}}" onTap="goBuy">
+        去购药
       </button>
+      <view a:else class="redeemed-hint">该处方已完成购药核销，不可重复下单</view>
     </block>
     <view a:elif="{{item.is_pending}}" class="pending-hint">处方审核中，审核通过后可在线购药</view>
     <block a:elif="{{item.is_rejected}}">

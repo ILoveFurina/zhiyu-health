@@ -56,8 +56,17 @@
 }
 .dor-item-subtotal { color: var(--zy-text-title); font-weight: 600; }
 
+.dor-amounts { margin-top: var(--zy-space-sm); }
+.dor-amount-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--zy-text-secondary);
+  font-size: 24rpx;
+}
+.dor-amount-label { color: var(--zy-text-weak); }
+
 .dor-total {
-  margin-top: var(--zy-space-sm);
+  margin-top: var(--zy-space-xs);
   padding-top: var(--zy-space-sm);
   border-top: 1rpx solid var(--zy-color-border);
   color: var(--zy-text-title);
@@ -68,13 +77,14 @@
 }
 .dor-total-label { color: var(--zy-text-secondary); font-size: 23rpx; font-weight: 400; }
 
-.dor-actions { display: flex; gap: var(--zy-space-sm); margin-top: var(--zy-space-sm); }
-.dor-actions button {
-  flex: 1;
-  margin: 0;
+.dor-btn {
+  margin-top: var(--zy-space-sm);
+  padding: 18rpx 0;
   border-radius: var(--zy-radius-lg);
-  font-size: 25rpx;
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: transform var(--zy-motion-fast) var(--zy-ease-out);
 }
-.dor-btn-pay { border: 0; background: var(--zy-color-primary); color: #fff; transition: transform var(--zy-motion-fast) var(--zy-ease-out); }
-.dor-btn-pay:active { transform: scale(0.98); }
-.dor-btn-cancel { border: 1rpx solid var(--zy-color-danger); background: #fff; color: var(--zy-color-danger); }
+.dor-btn:active { transform: scale(0.98); }
+.dor-btn-detail { border: 1rpx solid var(--zy-color-primary); color: var(--zy-color-primary); background: var(--zy-color-primary-soft); }

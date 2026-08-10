@@ -42,4 +42,56 @@ const PAYMENT_TIMEOUT_SECONDS = 600
 // 虚构承运方（模拟配送，不接入真实物流）
 const SIMULATED_CARRIER_NAME = '智愈模拟配送'
 
-module.exports = { STATUSES, PICKUP_METHODS, DECISIONS, PAYMENT_TIMEOUT_SECONDS, SIMULATED_CARRIER_NAME }
+// 订单来源（与 contracts/order-flow.json 的 sources 对齐）
+const SOURCES = {
+  prescription: 'PRESCRIPTION',
+  otc: 'OTC',
+}
+
+// 来源/取药方式中文标签：镜像 contracts/order-flow.json 的 source_labels/pickup_method_labels
+const SOURCE_LABELS = {
+  PRESCRIPTION: '处方药',
+  OTC: '非处方药',
+}
+
+const PICKUP_METHOD_LABELS = {
+  PICKUP: '院区自取',
+  DELIVERY: '配送到家',
+}
+
+// 待支付倒计时剩余秒数；非 UNPAID 或 deadline 缺失/非法时返回 null（倒计时不渲染）
+function remainingPaymentSeconds(order) {
+  if (order.status !== STATUSES.unpaid || !order.payment_deadline) return null
+  const deadlineMs = new Date(order.payment_deadline).getTime()
+  if (Number.isNaN(deadlineMs)) return null
+  return Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
+}
+
+// 倒计时 mm:ss（与 utils/appointment.js formatCountdown 同形）
+function formatCountdown(seconds) {
+  if (seconds == null) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${('0' + m).slice(-2)}:${('0' + s).slice(-2)}`
+}
+
+// OTC 候选药房距离格式化：不足 1 公里按米，否则保留一位小数的公里；无定位（null）返回空串
+function formatDistance(meters) {
+  if (meters == null) return ''
+  if (meters < 1000) return `${Math.round(meters)}m`
+  return `${(meters / 1000).toFixed(1)}km`
+}
+
+module.exports = {
+  STATUSES,
+  PICKUP_METHODS,
+  DECISIONS,
+  PAYMENT_TIMEOUT_SECONDS,
+  SIMULATED_CARRIER_NAME,
+  SOURCES,
+  SOURCE_LABELS,
+  PICKUP_METHOD_LABELS,
+  remainingPaymentSeconds,
+  formatCountdown,
+  formatDistance,
+}

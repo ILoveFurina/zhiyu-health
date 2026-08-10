@@ -2,60 +2,36 @@
   <view class="doc-head">
     <view class="doc-title-row">
       <view class="doc-title-icon zy-ico zy-ico-capsule"></view>
-      <view class="doc-title">购药确认</view>
+      <view class="doc-title">购药预览</view>
     </view>
     <view class="doc-source-tag doc-source-tag-{{card.source}}">
       {{card.source === 'PRESCRIPTION' ? '处方药' : '非处方药'}}
     </view>
   </view>
 
-  <!-- 处方药路径：处方来源（开方医生 + 日期），OTC 路径不渲染 -->
-  <view a:if="{{prescriptionSourceText}}" class="doc-rx-source">
-    <view class="doc-rx-label">处方来源</view>
-    <view class="doc-rx-text">{{prescriptionSourceText}}</view>
-  </view>
+  <!-- 处方药路径：处方来源（开方医生 + 日期）与来源医院/院区/锁定药房，OTC 路径不渲染 -->
+  <block a:if="{{card.source === 'PRESCRIPTION'}}">
+    <view a:if="{{prescriptionSourceText}}" class="doc-rx-source">
+      <view class="doc-rx-label">处方来源</view>
+      <view class="doc-rx-text">{{prescriptionSourceText}}</view>
+    </view>
+    <view a:if="{{card.hospital_name || card.campus_name}}" class="doc-rx-line">
+      {{card.hospital_name}}{{card.campus_name ? ' · ' + card.campus_name : ''}}
+    </view>
+    <view a:if="{{card.pharmacy_name}}" class="doc-rx-line">履约药房：{{card.pharmacy_name}}（处方锁定）</view>
+  </block>
 
-  <!-- 药品明细：名/规格/单价 × 数量 = 小计，库存可用性右侧标注 -->
+  <!-- 药品明细：只展示名称/规格/数量，不展示价格库存（以确认页实时校验为准） -->
   <view class="doc-items">
-    <view
-      a:for="{{card.items}}"
-      a:key="medication_id"
-      class="doc-item {{!item.available ? 'doc-item-unavailable' : ''}}"
-    >
+    <view a:for="{{card.items}}" a:key="medication_id" class="doc-item">
       <view class="doc-item-head">
         <view class="doc-item-name">{{item.name}}</view>
-        <view class="doc-item-stock {{!item.available ? 'doc-item-stock-none' : ''}}">
-          {{item.available ? '库存 ' + item.stock : '库存不足'}}
-        </view>
+        <view class="doc-item-qty">× {{item.quantity}}</view>
       </view>
       <view a:if="{{item.specification}}" class="doc-item-spec">{{item.specification}}</view>
-      <view class="doc-item-price">
-        <text class="doc-item-unit">¥{{item.unit_price}} × {{item.quantity}}</text>
-        <text class="doc-item-subtotal">¥{{item.subtotal}}</text>
-      </view>
     </view>
   </view>
 
-  <!-- 总价测算（不扣库存，待确认） -->
-  <view class="doc-total">
-    <text class="doc-total-label">合计</text>
-    <text class="doc-total-amount">¥{{card.total_amount}}</text>
-  </view>
-
-  <!-- 操作区三态：历史回放只读 / 已下单 / 待确认。历史态隐藏确认·取消按钮，改「查看订单」入口。 -->
-  <view a:if="{{history}}" class="doc-actions doc-actions-history">
-    <view class="doc-history-hint">订单已提交，可在订单列表查看状态与支付/取消</view>
-    <view class="doc-btn doc-btn-orders" onTap="goOrders">查看订单</view>
-  </view>
-  <view a:elif="{{!submitted}}" class="doc-actions">
-    <view
-      class="doc-btn doc-btn-cancel {{submitting ? 'doc-btn-disabled' : ''}}"
-      onTap="cancel"
-    >取消</view>
-    <view
-      class="doc-btn doc-btn-confirm {{submitting ? 'doc-btn-disabled' : ''}}"
-      onTap="confirm"
-    >{{submitting ? '提交中…' : '确认下单'}}</view>
-  </view>
-  <view a:else class="doc-submitted">已下单，请见下方订单卡</view>
+  <view class="doc-hint">价格与库存以确认页实时校验为准</view>
+  <view class="doc-btn doc-btn-open" onTap="open">去确认下单</view>
 </view>

@@ -1,0 +1,103 @@
+<view class="page">
+  <view a:if="{{loading && !order}}" class="state">正在加载…</view>
+  <block a:elif="{{order}}">
+    <!-- 状态头：UNPAID 附 10 分钟支付倒计时，倒计时到点本地展示已过期事实 -->
+    <view class="dod-head">
+      <view>
+        <view class="dod-kicker">药品订单</view>
+        <view class="dod-title">#{{order.id}}</view>
+      </view>
+      <view class="dod-status dod-status-{{order.status}}">{{statusLabel}}</view>
+    </view>
+    <view a:if="{{isUnpaid && !locallyExpired && countdownText}}" class="dod-countdown">
+      支付剩余 {{countdownText}}，超时订单将自动过期
+    </view>
+
+    <view class="dod-card">
+      <view class="dod-kv"><text class="dod-k">来源</text><text>{{sourceLabel}}</text></view>
+      <view a:if="{{order.prescription_id}}" class="dod-kv">
+        <text class="dod-k">关联处方</text><text>#{{order.prescription_id}}</text>
+      </view>
+      <view class="dod-kv"><text class="dod-k">取药方式</text><text>{{pickupLabel}}</text></view>
+      <view class="dod-kv"><text class="dod-k">履约药房</text><text>{{order.pharmacy_name}}</text></view>
+      <view class="dod-kv">
+        <text class="dod-k">药房位置</text><text>{{order.hospital_name}} · {{order.campus_name}}</text>
+      </view>
+      <view a:if="{{order.created_at}}" class="dod-kv">
+        <text class="dod-k">创建时间</text><text>{{order.created_at}}</text>
+      </view>
+    </view>
+
+    <!-- 药品明细与价格快照（下单时固化，不随后续药房配置变化） -->
+    <view class="dod-card">
+      <view class="dod-card-title">药品明细</view>
+      <view a:for="{{order.items}}" a:key="medication_id" class="dod-item">
+        <view class="dod-item-head">
+          <view class="dod-item-name">{{item.name}}</view>
+          <view class="dod-item-qty">× {{item.quantity}}</view>
+        </view>
+        <view a:if="{{item.specification}}" class="dod-item-spec">{{item.specification}}</view>
+        <view class="dod-item-price">
+          <text>¥{{item.unit_price}} × {{item.quantity}}</text>
+          <text class="dod-item-subtotal">¥{{item.subtotal}}</text>
+        </view>
+      </view>
+      <view class="dod-kv"><text class="dod-k">药品金额</text><text>¥{{order.medication_amount}}</text></view>
+      <view class="dod-kv"><text class="dod-k">配送费</text><text>¥{{order.delivery_fee}}</text></view>
+      <view class="dod-total"><text class="dod-total-label">合计</text><text class="dod-total-amount">¥{{order.total_amount}}</text></view>
+    </view>
+
+    <!-- 配送订单：虚构承运方与物流单号（模拟履约，非真实物流）；收货信息只展示后端脱敏值 -->
+    <view a:if="{{isDelivery}}" class="dod-card">
+      <view class="dod-card-title">配送信息</view>
+      <view a:if="{{order.carrier_name}}" class="dod-kv">
+        <text class="dod-k">承运方</text><text>{{order.carrier_name}}</text>
+      </view>
+      <view a:if="{{order.tracking_no}}" class="dod-kv">
+        <text class="dod-k">物流单号</text><text>{{order.tracking_no}}</text>
+      </view>
+      <view a:if="{{order.receiver_name}}" class="dod-kv">
+        <text class="dod-k">收货人</text><text>{{order.receiver_name}}</text>
+      </view>
+      <view a:if="{{order.receiver_phone}}" class="dod-kv">
+        <text class="dod-k">手机号</text><text>{{order.receiver_phone}}</text>
+      </view>
+      <view a:if="{{order.receiver_address}}" class="dod-kv">
+        <text class="dod-k">收货地址</text><text>{{order.receiver_address}}</text>
+      </view>
+    </view>
+
+    <!-- 自取订单：院区自取地址快照 -->
+    <view a:if="{{!isDelivery && order.pickup_address}}" class="dod-card">
+      <view class="dod-card-title">自取信息</view>
+      <view class="dod-pickup-address">自取地址：{{order.pickup_address}}</view>
+    </view>
+
+    <!-- 履约时间线（append-only 事件流，由 B 端药师人工推进） -->
+    <view a:if="{{order.events && order.events.length > 0}}" class="dod-card">
+      <view class="dod-card-title">履约进度</view>
+      <view a:for="{{order.events}}" a:key="index" class="dod-event">
+        <view class="dod-event-dot"></view>
+        <view class="dod-event-body">
+          <view class="dod-event-status">{{item.status_label || item.status}}</view>
+          <view class="dod-event-time">{{item.occurred_at}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 处方药交付后展示用药提醒入口（服药打卡由 server-java 幂等生成）；OTC 不展示 -->
+    <view a:if="{{showReminderEntry}}" class="dod-reminder" onTap="openReminder">
+      用药提醒已生成，点击查看服药打卡 ›
+    </view>
+
+    <!-- 仅 UNPAID 展示模拟支付/取消；其他状态不展示伪造操作 -->
+    <view a:if="{{isUnpaid && !locallyExpired}}" class="dod-actions">
+      <button class="dod-btn dod-btn-pay" loading="{{paying}}" disabled="{{paying || cancelling}}" onTap="pay">
+        模拟支付
+      </button>
+      <button class="dod-btn dod-btn-cancel" loading="{{cancelling}}" disabled="{{cancelling || paying}}" onTap="cancel">
+        取消订单
+      </button>
+    </view>
+  </block>
+</view>
