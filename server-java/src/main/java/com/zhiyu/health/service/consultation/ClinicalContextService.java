@@ -66,6 +66,11 @@ public class ClinicalContextService {
         if (contracts.appointmentFlow().status("cancelled").equals(appointment.getStatus())) {
             throw new ApiException(409, "已取消挂号不可开方");
         }
+        // 已接诊为只读终态：开方必须在接诊完成前完成，完成后禁止再开方
+        // （与在线问诊强制 IN_PROGRESS 的语义对齐，票 93）。
+        if (contracts.appointmentFlow().status("visited").equals(appointment.getStatus())) {
+            throw new ApiException(409, "已接诊挂号不可开方");
+        }
         return new ClinicalContext(
                 appointment.getPatientId(),
                 appointment.getHealthProfileId(),

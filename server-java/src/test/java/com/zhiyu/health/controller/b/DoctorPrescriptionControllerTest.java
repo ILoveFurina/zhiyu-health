@@ -115,9 +115,9 @@ class DoctorPrescriptionControllerTest {
                 "BLOCKED",
                 "contraindication_warning",
                 true,
-                List.of("过敏史“青霉素”与药品 1 的成分/禁忌项匹配"),
-                "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
-                "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。");
+                List.of("该患者过敏史“青霉素”与阿莫西林胶囊的成分/禁忌项匹配"),
+                "检测到用药禁忌，已阻止本次电子处方的开具。",
+                "请仔细核查！");
         when(service.checkSafety(command)).thenReturn(result);
         when(inputMapper.toSafetyResponse(result))
                 .thenReturn(new DoctorPrescriptionController.SafetyCheckResponse(
@@ -136,7 +136,7 @@ class DoctorPrescriptionControllerTest {
                 .andExpect(jsonPath("$.decision").value("BLOCKED"))
                 .andExpect(jsonPath("$.message_type").value("contraindication_warning"))
                 .andExpect(jsonPath("$.blocked").value(true))
-                .andExpect(jsonPath("$.reasons[0]").value("过敏史“青霉素”与药品 1 的成分/禁忌项匹配"));
+                .andExpect(jsonPath("$.reasons[0]").value("该患者过敏史“青霉素”与阿莫西林胶囊的成分/禁忌项匹配"));
     }
 
     @Test

@@ -14,6 +14,7 @@ import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.rule.ContraindicationRuleEngine;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,13 @@ public class ContraindicationService {
             throw new ApiException(409, "请先创建并激活健康档案后再进行禁忌检查");
         }
 
-        List<Medication> medications = medicationMapper.selectByIds(medicationIds);
+        // 候选 + 档案在用药（APPROVED 处方药品）并集一并加载：既校验候选存在，也为规则引擎
+        // 提供 PG 权威药名（命中 reason 只展示全名，不暴露裸 id，票 93）。
+        List<Long> approvedMedicationIds = prescriptionItemMapper.selectMedicationIdsByHealthProfileAndStatus(
+                profile.getId(), contracts.prescriptionFlow().statuses().get("approved"));
+        LinkedHashSet<Long> checkedMedicationIds = new LinkedHashSet<>(medicationIds);
+        checkedMedicationIds.addAll(approvedMedicationIds);
+        List<Medication> medications = medicationMapper.selectByIds(List.copyOf(checkedMedicationIds));
         // 票 88：medications 收敛为标准目录（无上下架语义），存在即可参与禁忌检查；
         // 在售/库存校验在开方目录与下单事务各自完成。
         Set<Long> existingIds =
@@ -49,11 +56,10 @@ public class ContraindicationService {
             }
         }
 
+        Map<Long, String> medicationNames = medications.stream()
+                .filter(m -> m.getName() != null)
+                .collect(java.util.stream.Collectors.toMap(Medication::getId, Medication::getName));
         List<String> allergies = allergyMapper.selectAllergens(profile.getId());
-        List<Long> approvedMedicationIds = prescriptionItemMapper.selectMedicationIdsByHealthProfileAndStatus(
-                profile.getId(), contracts.prescriptionFlow().statuses().get("approved"));
-        LinkedHashSet<Long> checkedMedicationIds = new LinkedHashSet<>(medicationIds);
-        checkedMedicationIds.addAll(approvedMedicationIds);
         ContraindicationFacts facts;
         try {
             facts = factRepository.load(List.copyOf(checkedMedicationIds));
@@ -61,7 +67,7 @@ public class ContraindicationService {
             // 医学事实源不可用时必须 fail closed：不猜测安全，也不把异常细节或患者数据写入日志。
             facts = new ContraindicationFacts(List.of(), List.of(), false);
         }
-        return ruleEngine.judge(allergies, medicationIds, facts);
+        return ruleEngine.judge(allergies, medicationIds, facts, medicationNames);
     }
 
     public record CheckCommand(long patientId, List<Long> medicationIds) {}

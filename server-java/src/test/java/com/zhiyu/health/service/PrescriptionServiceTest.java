@@ -302,19 +302,27 @@ class PrescriptionServiceTest {
     }
 
     @Test
-    void createRejectsBlockedSubmissionBeforeInsert() {
+    void checkSafetyRejectsVisitedAppointment() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
-        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
-        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
-                .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
-                .thenReturn(new ContraindicationResult(
-                        "BLOCKED",
-                        "contraindication_warning",
-                        true,
-                        List.of("过敏史“青霉素”与药品 1 的成分/禁忌项匹配"),
-                        "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
-                        "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。"));
+        Appointment visited = appointment(12L);
+        visited.setStatus("VISITED");
+        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(visited);
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.checkSafety(new PrescriptionService.CheckSafetyCommand(8L, 21L, List.of(1L))));
+
+        assertEquals(409, error.getStatus());
+        assertEquals("已接诊挂号不可开方", error.getMessage());
+        verifyNoInteractions(contraindicationService);
+    }
+
+    @Test
+    void createRejectsVisitedAppointment() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        Appointment visited = appointment(12L);
+        visited.setStatus("VISITED");
+        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(visited);
 
         ApiException error = assertThrows(
                 ApiException.class,
@@ -325,7 +333,36 @@ class PrescriptionServiceTest {
                         List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
 
         assertEquals(409, error.getStatus());
-        assertEquals("检测到用药禁忌，已阻止本次处方提交。请调整用药方案或咨询药师：过敏史“青霉素”与药品 1 的成分/禁忌项匹配", error.getMessage());
+        assertEquals("已接诊挂号不可开方", error.getMessage());
+        verifyNoInteractions(contraindicationService, pharmacyMedicationMapper);
+        verify(prescriptionMapper, never()).insert(any(Prescription.class));
+    }
+
+    @Test
+    void createRejectsBlockedSubmissionBeforeInsert() {
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+                .thenReturn(new ContraindicationResult(
+                        "BLOCKED",
+                        "contraindication_warning",
+                        true,
+                        List.of("该患者过敏史“青霉素”与阿莫西林胶囊的成分/禁忌项匹配"),
+                        "检测到用药禁忌，已阻止本次电子处方的开具。",
+                        "请仔细核查！"));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.create(new PrescriptionService.CreateCommand(
+                        8L,
+                        21L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
+
+        assertEquals(409, error.getStatus());
+        assertEquals("检测到用药禁忌，已阻止本次处方提交。请调整用药方案或咨询药师：该患者过敏史“青霉素”与阿莫西林胶囊的成分/禁忌项匹配", error.getMessage());
         verify(prescriptionMapper, never()).insert(any(Prescription.class));
         verifyNoInteractions(transactionTemplate);
     }
@@ -461,9 +498,9 @@ class PrescriptionServiceTest {
                         "BLOCKED",
                         "contraindication_warning",
                         true,
-                        List.of("过敏史“青霉素”与药品 1 的成分/禁忌项匹配"),
-                        "检测到用药禁忌，已阻止本次药品推荐。请咨询医生或药师后再用药。",
-                        "请咨询医生或药师，并主动告知完整过敏史和正在使用的药品。"));
+                        List.of("该患者过敏史“青霉素”与阿莫西林胶囊的成分/禁忌项匹配"),
+                        "检测到用药禁忌，已阻止本次电子处方的开具。",
+                        "请仔细核查！"));
 
         ApiException error = assertThrows(
                 ApiException.class,
