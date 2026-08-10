@@ -1,21 +1,17 @@
 import { request } from '@umijs/max';
 
+// 票 88（ADR-0035）：medications 收敛为全平台标准药品目录，
+// 不再承载价格/库存/启用状态（这些语义已下沉到院区药房药品 pharmacy_medications）。
 export interface Medication {
   id: number;
   name: string;
   generic_name: string;
   specification: string;
   instructions: string;
-  price: number;
-  stock: number;
-  is_active: boolean;
   is_prescription: boolean;
 }
 
 export interface MedicationInput {
-  price: number;
-  stock: number;
-  is_active: boolean;
   is_prescription: boolean;
 }
 

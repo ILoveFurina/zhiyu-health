@@ -16,7 +16,20 @@ import {
 } from '@/utils/session';
 
 const LOGIN_PATH = '/login';
-const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
+// 票 88 角色-路径矩阵（前端第一道，后端另有路由级鉴权）：
+// admin 全量；pharmacist 仅处方审核/院区药房库存/药品订单；doctor 仅接诊/排班
+const ADMIN_ONLY_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
+const ADMIN_OR_PHARMACIST_PATHS = ['/prescriptions', '/pharmacy-inventory', '/drug-orders'];
+const DOCTOR_PATHS = ['/workbench', '/schedule-table', '/schedule-request'];
+
+// 判断角色是否可访问该路径；未知路径仅 admin 放行（兜底交给后端）
+function pathAllowedForRole(pathname: string, role?: string): boolean {
+  const hit = (paths: string[]) => paths.some((p) => pathname.startsWith(p));
+  if (role === 'admin') return true;
+  if (role === 'pharmacist') return hit(ADMIN_OR_PHARMACIST_PATHS);
+  if (role === 'doctor') return hit(DOCTOR_PATHS) && !hit(ADMIN_ONLY_PATHS) && !hit(ADMIN_OR_PHARMACIST_PATHS);
+  return false;
+}
 
 // 顶栏面包屑：pathname -> [分组名, 页面名]
 const ROUTE_GROUPS: Record<string, [string, string]> = {
@@ -27,9 +40,9 @@ const ROUTE_GROUPS: Record<string, [string, string]> = {
   '/departments': ['组织管理', '科室管理'],
   '/doctors': ['组织管理', '医生管理'],
   '/schedule-review': ['业务管理', '排班审核'],
-  '/prescriptions': ['业务管理', '电子处方审核'],
-  '/medications': ['业务管理', '药品管理'],
-  '/drug-orders': ['业务管理', '药品订单管理'],
+  '/prescriptions': ['业务管理', '处方审核'],
+  '/pharmacy-inventory': ['业务管理', '院区药房库存'],
+  '/drug-orders': ['业务管理', '药品订单'],
   '/payments': ['业务管理', '收费管理'],
   '/workbench': ['业务管理', '接诊台'],
   '/schedule-table': ['业务管理', '排班表'],
@@ -88,7 +101,7 @@ export const request: RequestConfig = {
   },
 };
 
-// 路由守卫：未登录一律去 /login；已登录访问 /login 或 / 按角色落首页；doctor 禁入组织管理页
+// 路由守卫：未登录一律去 /login；已登录访问 /login 或 / 按角色落首页；越权路径按角色矩阵拦回各自首页
 export function onRouteChange({ location }: { location: { pathname: string } }) {
   const { pathname } = location;
   const loggedIn = !!getToken();
@@ -103,8 +116,20 @@ export function onRouteChange({ location }: { location: { pathname: string } }) 
     });
     return;
   }
-  if (getCachedUser()?.role !== 'admin' && ADMIN_PATHS.some((p) => pathname.startsWith(p))) {
-    history.replace('/workbench');
+  const role = getCachedUser()?.role;
+  if (!role) {
+    // cachedUser 未就绪（首屏 onRouteChange 先于 getInitialState）：补拉后再按矩阵判定
+    void resolveUser().then((user) => {
+      if (!user) {
+        history.replace(LOGIN_PATH);
+      } else if (!pathAllowedForRole(pathname, user.role)) {
+        history.replace(homeByRole(user.role));
+      }
+    });
+    return;
+  }
+  if (!pathAllowedForRole(pathname, role)) {
+    history.replace(homeByRole(role));
   }
 }
 
@@ -126,7 +151,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
   headerTitleRender: () => null,
   // 侧栏菜单按分组渲染：用 menuDataRender 把扁平菜单重组为分组结构
   // （路由保持扁平，避免 Umi layout 插件对嵌套无 component 父级的白屏问题）
-  // 按角色分流：admin 看三组管理菜单（接诊台不进 admin 菜单）；doctor 只看接诊台
+  // 按角色分流（票 88）：admin 看三组管理菜单（接诊台不进 admin 菜单）；
+  // pharmacist 只看处方审核/院区药房库存/药品订单；doctor 只看接诊台
   menu: { type: 'group' },
   menuDataRender: (): MenuDataItem[] => {
     const mk = (name: string, paths: string[]): MenuDataItem => ({
@@ -134,12 +160,16 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       path: `/${name}`,
       children: paths.map((p) => ({ name: ROUTE_NAMES[p], path: p })),
     });
-    if (initialState?.currentUser?.role === 'doctor') {
+    const role = initialState?.currentUser?.role;
+    if (role === 'doctor') {
       return [mk('业务管理', ['/workbench', '/schedule-table', '/schedule-request'])];
+    }
+    if (role === 'pharmacist') {
+      return [mk('业务管理', ['/prescriptions', '/pharmacy-inventory', '/drug-orders'])];
     }
     return [
       mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors']),
-      mk('业务管理', ['/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments']),
+      mk('业务管理', ['/schedule-review', '/prescriptions', '/pharmacy-inventory', '/drug-orders', '/payments']),
       mk('智能与日志', ['/knowledge-graph', '/agent-trace', '/demo']),
     ];
   },
