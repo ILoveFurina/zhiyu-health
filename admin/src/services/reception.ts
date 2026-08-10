@@ -37,11 +37,37 @@ export interface ReceptionDashboard {
   appointments: ReceptionAppointment[];
 }
 
+export interface PatientProfile {
+  gender: string | null;
+  age: number | null;
+  allergies: string[];
+}
+
+export interface PrescriptionItemView {
+  name: string;
+  specification: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  quantity: number;
+  notes?: string | null;
+}
+
+export interface PrescriptionDetail {
+  status: string;
+  review_reason: string | null;
+  items: PrescriptionItemView[];
+}
+
 export interface AppointmentDetail {
   appointment: ReceptionAppointment;
   diagnosis?: string;
   advice?: string;
   completed_at?: string;
+  /** 患者健康档案（票 94）：挂号时固化的 health_profile_id 派生，过敏史空列表前端显示"未填" */
+  patient_profile?: PatientProfile | null;
+  /** 处方明细（票 94）：无处方为 null；有处方带药品列表 + 状态 + 驳回原因 */
+  prescription?: PrescriptionDetail | null;
 }
 
 export function fetchReceptionDashboard() {

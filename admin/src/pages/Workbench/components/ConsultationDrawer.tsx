@@ -43,6 +43,15 @@ export default function ConsultationDrawer(props: Props) {
             <Descriptions column={2} size="small">
               <Descriptions.Item label="患者">{appointment.patient_nickname}</Descriptions.Item>
               <Descriptions.Item label="序号">{appointment.sequence_number} 号</Descriptions.Item>
+              <Descriptions.Item label="性别">{detail?.patient_profile?.gender ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="年龄">
+                {detail?.patient_profile?.age != null ? `${detail.patient_profile.age} 岁` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="过敏史">
+                {detail?.patient_profile?.allergies?.length
+                  ? detail.patient_profile.allergies.join('、')
+                  : '未填'}
+              </Descriptions.Item>
               <Descriptions.Item label="时段">{appointment.time_slot}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 {appointment.prescription_status ? (
@@ -116,19 +125,26 @@ export default function ConsultationDrawer(props: Props) {
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>
                 <Descriptions.Item label="医嘱">{detail?.advice}</Descriptions.Item>
-                {/* 处方审核结果（对齐在线问诊完成态）：无处方不渲染；驳回附原因 */}
-                {appointment.prescription_status && (
+                {/* 处方明细（票 94）：无处方不渲染；状态 + 驳回原因 + 药品清单 */}
+                {detail?.prescription && (
                   <Descriptions.Item label="处方审核">
-                    <Space direction="vertical" size={4}>
-                      <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status] ?? 'default'}>
-                        {prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
-                          ?? appointment.prescription_status}
+                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Tag color={PRESCRIPTION_COLORS[detail.prescription.status] ?? 'default'}>
+                        {prescriptionStatusLabels[detail.prescription.status as keyof typeof prescriptionStatusLabels]
+                          ?? detail.prescription.status}
                       </Tag>
-                      {prescriptionRejected && (
+                      {detail.prescription.status === prescriptionStatuses.rejected && (
                         <Typography.Text type="danger">
-                          驳回原因：{appointment.prescription_review_reason || '未填写驳回原因'}
+                          驳回原因：{detail.prescription.review_reason || '未填写驳回原因'}
                         </Typography.Text>
                       )}
+                      <Typography.Text strong>药品清单</Typography.Text>
+                      {detail.prescription.items.map((item, idx) => (
+                        <Typography.Text key={idx} style={{ display: 'block' }}>
+                          {item.name}（{item.specification}）· {item.dosage} · {item.frequency} · {item.duration} · ×{item.quantity}
+                          {item.notes && <Typography.Text type="secondary"> ｜ 备注：{item.notes}</Typography.Text>}
+                        </Typography.Text>
+                      ))}
                     </Space>
                   </Descriptions.Item>
                 )}
