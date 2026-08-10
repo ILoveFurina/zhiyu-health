@@ -37,6 +37,8 @@ const GRIDS = [
       { key: 'health', icon: 'heart', label: '健康档案', action: 'navigateTo', url: '/pages/health/index' },
       { key: 'appointments', icon: 'ticket', label: '我的挂号', action: 'navigateTo', url: '/pages/appointments/index' },
       { key: 'prescriptions', icon: 'file', label: '电子处方', action: 'navigateTo', url: '/pages/prescriptions/index' },
+      // 票 94：便捷购药引导入口，经 globalData 交棒 chat 页自动进入购药引导卡（同「智能导诊」）
+      { key: 'drugGuide', icon: 'capsule', label: '便捷购药', action: 'switchTab', url: '/pages/chat/index' },
       { key: 'drugOrders', icon: 'capsule', label: '药品订单', action: 'navigateTo', url: '/pages/drug-orders/index' },
     ],
   },
@@ -375,6 +377,8 @@ Page({
     const { key, action, url } = e.currentTarget.dataset
     // 宫格「智能导诊」与主卡入口同一路径：交棒 chat 页自动进入导诊引导
     if (key === 'triage') getApp().globalData.pendingTriageEntry = true
+    // 宫格「便捷购药」（票 94）：交棒 chat 页自动进入购药引导卡
+    if (key === 'drugGuide') getApp().globalData.pendingDrugGuideEntry = true
     if (action === 'switchTab') my.switchTab({ url })
     else my.navigateTo({ url })
   },
