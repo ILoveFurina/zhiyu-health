@@ -1,5 +1,5 @@
 {
-  "_doc": "线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 86 操作顺序与叫号时段窗口）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像（仅状态码/标签，不含迁移，无影响）。",
+  "_doc": "线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 86 操作顺序与叫号时段窗口，票 92 过点未叫号自动取消退款）。server-java 与 admin 直接消费；支付宝小程序在 miniprogram/utils/appointment.js 手工镜像（仅状态码/标签，不含迁移，无影响）。",
   "statuses": {
     "pending_payment": "PENDING_PAYMENT",
     "booked": "BOOKED",
@@ -30,6 +30,11 @@
     "cancel": {
       "from": ["PENDING_PAYMENT", "BOOKED"],
       "to": "CANCELLED"
+    },
+    "auto_cancel_uncalled": {
+      "_doc": "系统触发的过点未叫号自动取消（票 92，反转 ADR-0034 第 3 条）：区别于患者主动 cancel（from 含 PENDING_PAYMENT），此迁移只接受 BOOKED，由 expireUncalledAppointments 惰性触发，同事务退款+消息。",
+      "from": ["BOOKED"],
+      "to": "CANCELLED"
     }
   },
   "payment_timeout_seconds": 60,
@@ -49,5 +54,11 @@
       "schedule_date",
       "time_slot"
     ]
+  },
+  "_uncalled_notice_doc": "过点未叫号已支付预约的自动取消退款通知（票 92，反转 ADR-0034 第 3 条）：号源时段窗口 end（上午 11:30 / 下午 18:00）后，BOOKED 但未被叫号的预约由系统惰性收敛为 CANCELLED + 退款 PAID->REFUNDED，同事务下发此消息。判定复用 EffectiveSlotWindows 的 end（SlotWindowGuard.isClosed，当天且 now > end，fail-open 未知窗口不取消），惰性失效不引入调度中间件（ADR-0033 同构）；无 grace，过点即收敛（CAS 守卫已防误取消已叫号单 IN_PROGRESS）。",
+  "uncalled_notice": {
+    "message_type": "appointment_auto_cancelled",
+    "title": "挂号已自动取消",
+    "content": "医生暂未接诊，费用已原路返回"
   }
 }

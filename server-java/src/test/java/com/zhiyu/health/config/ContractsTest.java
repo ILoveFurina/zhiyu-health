@@ -584,6 +584,9 @@ class ContractsTest {
         // 取消放宽：待支付与待就诊均可取消，均释放号源。
         assertThat(flow.transitions().get("cancel").from()).containsExactly("PENDING_PAYMENT", "BOOKED");
         assertThat(flow.transitions().get("cancel").to()).isEqualTo("CANCELLED");
+        // 票 92：过点未叫号已支付预约的系统自动取消迁移，from 只接受 BOOKED（区别于患者主动 cancel）。
+        assertThat(flow.transitions().get("auto_cancel_uncalled").from()).containsExactly("BOOKED");
+        assertThat(flow.transitions().get("auto_cancel_uncalled").to()).isEqualTo("CANCELLED");
         // 支付截止默认 60 秒（演示便于观察超时收敛）；接诊台可见白名单排除待支付。
         assertThat(flow.paymentTimeoutSeconds()).isEqualTo(60);
         // 票 90：已支付预约取消截止分钟数，距号源起始时间不足此值不可取消。
@@ -595,6 +598,11 @@ class ContractsTest {
         assertThat(notice.greeting()).contains("就诊序号");
         assertThat(notice.contentSchema())
                 .containsExactly("greeting", "room", "sequence_number", "schedule_date", "time_slot");
+        // 票 92：过点未叫号自动取消退款通知，纯文本消息。
+        Contracts.AppointmentFlow.UncalledNotice uncalled = flow.uncalledNotice();
+        assertThat(uncalled.messageType()).isEqualTo("appointment_auto_cancelled");
+        assertThat(uncalled.title()).isEqualTo("挂号已自动取消");
+        assertThat(uncalled.content()).isEqualTo("医生暂未接诊，费用已原路返回");
     }
 
     @Test

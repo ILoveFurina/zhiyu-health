@@ -638,7 +638,7 @@ public class Contracts {
         }
     }
 
-    /** 线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 90 已支付取消与退款）。 */
+    /** 线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 90 已支付取消与退款，票 92 过点未叫号自动取消退款）。 */
     public record AppointmentFlow(
             Map<String, String> statuses,
             Map<String, String> statusLabels,
@@ -646,7 +646,8 @@ public class Contracts {
             @JsonProperty("payment_timeout_seconds") int paymentTimeoutSeconds,
             @JsonProperty("cancel_cutoff_minutes") int cancelCutoffMinutes,
             @JsonProperty("reception_visible_statuses") List<String> receptionVisibleStatuses,
-            CalledNotice calledNotice) {
+            CalledNotice calledNotice,
+            UncalledNotice uncalledNotice) {
         public AppointmentFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
@@ -677,6 +678,12 @@ public class Contracts {
                 contentSchema = List.copyOf(contentSchema);
             }
         }
+
+        /**
+         * 过点未叫号自动取消退款通知（票 92，反转 ADR-0034 第 3 条）：BOOKED 预约过号源时段窗口 end 后
+         * 由系统惰性收敛为 CANCELLED + 退款，同事务下发此纯文本消息。content 为固定文案，非 LLM 生成。
+         */
+        public record UncalledNotice(String messageType, String title, String content) {}
     }
 
     /**
