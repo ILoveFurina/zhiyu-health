@@ -48,6 +48,7 @@ public class DemoResetService {
     private static final String[] DEMO_TABLES = {
         "med_checkin_records",
         "in_app_messages",
+        "drug_order_fulfillment_events",
         "drug_order_items",
         "drug_orders",
         "prescription_items",

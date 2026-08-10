@@ -19,6 +19,8 @@ public class PrescriptionTemplateItem {
     private String dosage;
     private String frequency;
     private String duration;
+    // 票 88：医生填写的正整数配药数量，引用模板开方时带入处方明细。
+    private Integer quantity;
     private String notes;
 
     @TableField(exist = false)

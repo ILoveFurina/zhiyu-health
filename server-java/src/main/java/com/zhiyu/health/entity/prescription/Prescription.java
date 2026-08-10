@@ -18,6 +18,8 @@ public class Prescription {
     private Long appointmentId;
     private Long onlineConsultationId;
     private Long doctorId;
+    // 票 88（ADR-0035）：不可变来源院区，开方时从接诊医生当时所属院区固化，不随医生调动改变。
+    private Long sourceCampusId;
     private String status;
     private String notes;
     private String reviewReason;
@@ -26,6 +28,9 @@ public class Prescription {
     private String disclaimer;
     private OffsetDateTime createdAt;
     private OffsetDateTime reviewedAt;
+    // 票 88（ADR-0035）：支付时一次性核销，固化核销时间与订单；非空即永久阻止二次购药。
+    private OffsetDateTime redeemedAt;
+    private Long redeemedOrderId;
 
     @TableField(exist = false)
     private String doctorName;

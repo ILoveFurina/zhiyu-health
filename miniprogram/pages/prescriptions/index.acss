@@ -17,8 +17,9 @@
 .interpretation { margin-top: var(--zy-space-xs); color: var(--zy-text-title); font-size: 25rpx; line-height: 1.7; }
 .pharmacy { margin-top: 20rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
 .order { margin-top: var(--zy-space-sm); border: 0; border-radius: var(--zy-radius-lg); background: var(--zy-color-primary); color: #fff; font-size: 26rpx; }
-.quantity-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; color: var(--zy-text-title); }
-.quantity { width: 100rpx; padding: 6rpx 10rpx; border: 1rpx solid var(--zy-color-primary-soft); border-radius: var(--zy-radius-sm); background: #fff; text-align: center; }
+/* 票 88：配药数量只读展示（医生开方决定）；已核销处方提示不可重复下单 */
+.quantity-text { margin-top: 8rpx; color: var(--zy-text-title); font-size: 23rpx; }
+.redeemed-hint { margin-top: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 23rpx; text-align: center; }
 /* 待审核/已驳回卡内说明与引导（票 60） */
 .pending-hint { margin-top: 18rpx; color: var(--zy-text-secondary); font-size: 23rpx; }
 .reject-reason { margin-top: 18rpx; padding: 16rpx; border-radius: var(--zy-radius-sm); background: var(--zy-color-danger-soft); color: var(--zy-color-danger); font-size: 23rpx; line-height: 1.6; }

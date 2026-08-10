@@ -220,7 +220,7 @@ export default function LoginPage() {
             type="secondary"
             style={{ marginTop: 18, textAlign: "center", fontSize: 12 }}
           >
-            演示账号：admin / admin123456
+            演示账号：admin / admin123456 · pharmacist / pharmacist123456
           </Typography.Text>
         </section>
       </div>

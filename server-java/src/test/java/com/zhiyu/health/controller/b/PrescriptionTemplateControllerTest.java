@@ -45,12 +45,12 @@ class PrescriptionTemplateControllerTest {
                     1L,
                     OffsetDateTime.parse("2026-08-01T09:00:00+08:00"),
                     List.of(new PrescriptionTemplateService.ItemView(
-                            11L, 12L, "氨氯地平片", "5mg*14片", "5mg", "每日1次", "30天", "晨起服用")));
+                            11L, 12L, "氨氯地平片", "5mg*14片", "5mg", "每日1次", "30天", 2, "晨起服用")));
 
     private static final String TEMPLATE_JSON =
             """
             {"name":"高血压基础用药","items":[{"medication_id":12,
-            "dosage":"5mg","frequency":"每日1次","duration":"30天","notes":"晨起服用"}]}
+            "dosage":"5mg","frequency":"每日1次","duration":"30天","quantity":2,"notes":"晨起服用"}]}
             """;
 
     @Test
@@ -61,7 +61,7 @@ class PrescriptionTemplateControllerTest {
                 .thenReturn(new PrescriptionTemplateService.SaveCommand(
                         8L,
                         "高血压基础用药",
-                        List.of(new PrescriptionTemplateService.ItemInput(12L, "5mg", "每日1次", "30天", "晨起服用"))));
+                        List.of(new PrescriptionTemplateService.ItemInput(12L, "5mg", "每日1次", "30天", 2, "晨起服用"))));
         when(service.create(any())).thenReturn(TEMPLATE_VIEW);
         when(service.update(eq(8L), eq(1L), any())).thenReturn(TEMPLATE_VIEW);
 
@@ -73,7 +73,8 @@ class PrescriptionTemplateControllerTest {
                 .andExpect(jsonPath("$[0].created_at").exists())
                 .andExpect(jsonPath("$[0].items[0].id").value(11))
                 .andExpect(jsonPath("$[0].items[0].medication_id").value(12))
-                .andExpect(jsonPath("$[0].items[0].medication_name").value("氨氯地平片"));
+                .andExpect(jsonPath("$[0].items[0].medication_name").value("氨氯地平片"))
+                .andExpect(jsonPath("$[0].items[0].quantity").value(2));
 
         mockMvc.perform(get("/api/b/reception/prescription-templates/1")
                         .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
@@ -117,7 +118,7 @@ class PrescriptionTemplateControllerTest {
                 .thenReturn(new PrescriptionTemplateService.SaveCommand(
                         8L,
                         "高血压基础用药",
-                        List.of(new PrescriptionTemplateService.ItemInput(12L, "5mg", "每日1次", "30天", null))));
+                        List.of(new PrescriptionTemplateService.ItemInput(12L, "5mg", "每日1次", "30天", 2, null))));
         when(service.update(eq(8L), eq(3L), any())).thenThrow(new ApiException(404, "处方模板不存在"));
         doThrow(new ApiException(404, "处方模板不存在")).when(service).delete(8L, 3L);
 
@@ -151,7 +152,7 @@ class PrescriptionTemplateControllerTest {
                 .thenReturn(new PrescriptionTemplateService.SaveCommand(
                         8L,
                         "测试模板",
-                        List.of(new PrescriptionTemplateService.ItemInput(99L, "5mg", "每日1次", "30天", null))));
+                        List.of(new PrescriptionTemplateService.ItemInput(99L, "5mg", "每日1次", "30天", 1, null))));
         when(service.create(any())).thenThrow(new ApiException(400, "药品不存在或已停用"));
 
         mockMvc.perform(
@@ -161,7 +162,7 @@ class PrescriptionTemplateControllerTest {
                                 .content(
                                         """
                         {"name":"测试模板","items":[{"medication_id":99,
-                        "dosage":"5mg","frequency":"每日1次","duration":"30天"}]}
+                        "dosage":"5mg","frequency":"每日1次","duration":"30天","quantity":1}]}
                         """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("药品不存在或已停用"));

@@ -9,6 +9,7 @@ import com.zhiyu.health.entity.prescription.Prescription;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,16 +27,39 @@ public class ClinicalContextService {
     private final StaffUserMapper staffUserMapper;
     private final ReceptionMapper receptionMapper;
     private final OnlineConsultationMapper onlineConsultationMapper;
+    private final DoctorMapper doctorMapper;
     private final Contracts contracts;
 
     /** 一次可开方临床场景的最小上下文；sourceType 只取契约 prescription-flow source_types 值。 */
     public record ClinicalContext(
-            Long patientId, Long healthProfileId, Long doctorId, String sourceType, LocalDateTime occurredAt) {}
+            Long patientId,
+            Long healthProfileId,
+            Long doctorId,
+            String sourceType,
+            LocalDateTime occurredAt,
+            Long sourceCampusId) {}
+
+    /** 已鉴权医生的身份与当前所属院区（票 88：开方目录与来源院区固化的唯一派生点）。 */
+    public record DoctorContext(long doctorId, long campusId) {}
+
+    /** B 端医生身份派生（与 ReceptionService 同一模式）：角色与绑定关系只信员工账号记录。 */
+    public DoctorContext requireDoctorContext(long staffId) {
+        StaffUser staff = staffUserMapper.selectById(staffId);
+        if (staff == null || !StaffUser.ROLE_DOCTOR.equals(staff.getRole()) || staff.getDoctorId() == null) {
+            throw new ApiException(403, "仅医生可操作");
+        }
+        // 来源院区从医生当时所属科室派生并固化到处方，禁止客户端传入或后续跟随医生调动。
+        Long campusId = doctorMapper.selectCampusIdByDoctorId(staff.getDoctorId());
+        if (campusId == null) {
+            throw new ApiException(409, "医生所属科室未配置院区");
+        }
+        return new DoctorContext(staff.getDoctorId(), campusId);
+    }
 
     /** 线下挂号开方上下文：医生只能操作自己排班下的挂号单，已取消挂号不可开方。 */
     public ClinicalContext requirePrescribableFromAppointment(long staffId, long appointmentId) {
-        long doctorId = requireDoctor(staffId);
-        Appointment appointment = receptionMapper.selectAppointment(appointmentId, doctorId);
+        DoctorContext doctor = requireDoctorContext(staffId);
+        Appointment appointment = receptionMapper.selectAppointment(appointmentId, doctor.doctorId());
         if (appointment == null) {
             throw new ApiException(404, "挂号单不存在");
         }
@@ -45,11 +69,12 @@ public class ClinicalContextService {
         return new ClinicalContext(
                 appointment.getPatientId(),
                 appointment.getHealthProfileId(),
-                doctorId,
+                doctor.doctorId(),
                 sourceType("appointment"),
                 appointment.getCreatedAt() == null
                         ? null
-                        : appointment.getCreatedAt().toLocalDateTime());
+                        : appointment.getCreatedAt().toLocalDateTime(),
+                doctor.campusId());
     }
 
     /**
@@ -57,9 +82,11 @@ public class ClinicalContextService {
      * （归属失败与票 55 既有守卫一致返回 404，不区分原因以免泄露存在性）。
      */
     public ClinicalContext requirePrescribableFromOnlineConsultation(long staffId, long onlineConsultationId) {
-        long doctorId = requireDoctor(staffId);
+        DoctorContext doctor = requireDoctorContext(staffId);
         OnlineConsultation consultation = onlineConsultationMapper.selectDetailedById(onlineConsultationId);
-        if (consultation == null || consultation.getDoctorId() == null || consultation.getDoctorId() != doctorId) {
+        if (consultation == null
+                || consultation.getDoctorId() == null
+                || consultation.getDoctorId() != doctor.doctorId()) {
             throw new ApiException(404, "问诊单不存在");
         }
         if (!contracts.onlineConsultation().statuses().get("in_progress").equals(consultation.getStatus())) {
@@ -71,14 +98,16 @@ public class ClinicalContextService {
         return new ClinicalContext(
                 consultation.getPatientId(),
                 consultation.getHealthProfileId(),
-                doctorId,
+                doctor.doctorId(),
                 sourceType("online_consultation"),
-                occurredAt == null ? null : occurredAt.toLocalDateTime());
+                occurredAt == null ? null : occurredAt.toLocalDateTime(),
+                doctor.campusId());
     }
 
     /**
      * 从已落库处方派生上下文（服药提醒生成、C 端可见性、订单归属等下游使用）：
-     * 患者/档案/发生时间来自 DETAIL_COLUMNS 双来源 COALESCE 投影。
+     * 患者/档案/发生时间来自 DETAIL_COLUMNS 双来源 COALESCE 投影；来源院区取处方
+     * 开方时固化的不可变列（票 88），不再从医生现所属科室现查。
      */
     public ClinicalContext ofPrescription(Prescription prescription) {
         return new ClinicalContext(
@@ -88,21 +117,13 @@ public class ClinicalContextService {
                 sourceTypeOf(prescription),
                 prescription.getOccurredAt() == null
                         ? null
-                        : prescription.getOccurredAt().toLocalDateTime());
+                        : prescription.getOccurredAt().toLocalDateTime(),
+                prescription.getSourceCampusId());
     }
 
     /** 处方来源按非空外键派生（数据库不落 source_type 列），取值只经契约；所有调用方共用本入口。 */
     public String sourceTypeOf(Prescription prescription) {
         return sourceType(prescription.getOnlineConsultationId() != null ? "online_consultation" : "appointment");
-    }
-
-    /** B 端医生身份派生（与 ReceptionService 同一模式）：角色与绑定关系只信员工账号记录。 */
-    private long requireDoctor(long staffId) {
-        StaffUser staff = staffUserMapper.selectById(staffId);
-        if (staff == null || !StaffUser.ROLE_DOCTOR.equals(staff.getRole()) || staff.getDoctorId() == null) {
-            throw new ApiException(403, "仅医生可操作");
-        }
-        return staff.getDoctorId();
     }
 
     private String sourceType(String key) {

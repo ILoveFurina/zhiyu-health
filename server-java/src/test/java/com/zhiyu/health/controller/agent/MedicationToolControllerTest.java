@@ -15,10 +15,9 @@ import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.service.MedicationToolService;
 import com.zhiyu.health.service.MedicationToolService.MedicationView;
-import com.zhiyu.health.service.MedicationToolService.PrepareLineView;
-import com.zhiyu.health.service.MedicationToolService.PrepareOrderView;
 import com.zhiyu.health.service.MedicationToolService.PrescriptionCardView;
 import com.zhiyu.health.service.MedicationToolService.PrescriptionItemView;
+import com.zhiyu.health.service.prescription.DrugOrderService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -26,8 +25,8 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * 购药工具回调接口单测（票 77）：验证 controller 只做参数校验与装配、委托 service，
- * 并覆盖处方药不得走 OTC 路径、prepare 不扣库存等约束。
+ * 购药工具回调接口单测（票 77 → 票 88 药房感知化）：验证 controller 只做参数校验与装配、
+ * 委托 service；prepare/otc-prepare 只读不扣库存，处方药不得走 OTC 路径。
  */
 class MedicationToolControllerTest {
 
@@ -41,7 +40,7 @@ class MedicationToolControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.medications[0].medication_id").value(2))
                 .andExpect(jsonPath("$.medications[0].name").value("布洛芬缓释胶囊"))
-                .andExpect(jsonPath("$.medications[0].is_active").value(true));
+                .andExpect(jsonPath("$.medications[0].specification").value("0.3g*20粒"));
         verify(service).searchOtc("布洛芬");
     }
 
@@ -55,32 +54,15 @@ class MedicationToolControllerTest {
                 .andExpect(jsonPath("$.prescriptions[0].doctor_name").value("周安宁"))
                 .andExpect(jsonPath("$.prescriptions[0].source_type").value("APPOINTMENT"))
                 .andExpect(jsonPath("$.prescriptions[0].items[0].name").value("阿莫西林胶囊"))
-                .andExpect(jsonPath("$.prescriptions[0].items[0].dosage").value("每次1粒"));
+                .andExpect(jsonPath("$.prescriptions[0].items[0].dosage").value("每次1粒"))
+                .andExpect(jsonPath("$.prescriptions[0].items[0].quantity").value(2));
         verify(service).listApprovedPrescriptions(12L);
     }
 
     @Test
-    void prepareOtcAssemblesCardWithoutDeductingStock() throws Exception {
-        when(service.prepare(eq(2L), eq(3), eq(null), eq(12L))).thenReturn(otcPrepareCard());
-
-        mvc().perform(get("/api/agent/drug-orders/prepare")
-                        .param("patient_id", "12")
-                        .param("medication_id", "2")
-                        .param("quantity", "3"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.source").value("OTC"))
-                .andExpect(jsonPath("$.items[0].medication_id").value(2))
-                .andExpect(jsonPath("$.items[0].quantity").value(3))
-                .andExpect(jsonPath("$.items[0].unit_price").value(22.00))
-                .andExpect(jsonPath("$.items[0].subtotal").value(66.00))
-                .andExpect(jsonPath("$.items[0].available").value(true))
-                .andExpect(jsonPath("$.total_amount").value(66.00));
-        verify(service).prepare(2L, 3, null, 12L);
-    }
-
-    @Test
-    void preparePrescriptionDrugReturnsPrescriptionSource() throws Exception {
-        when(service.prepare(eq(null), eq(null), eq(5L), eq(12L))).thenReturn(prescriptionPrepareCard());
+    void prepareReturnsLockedCampusPharmacyPreview() throws Exception {
+        // 票 88：处方预览含锁定院区药房（嵌套契约形状 + 扁平确认页字段），只读不扣库存
+        when(service.prepare(12L, 5L)).thenReturn(prescriptionPreview());
 
         mvc().perform(get("/api/agent/drug-orders/prepare")
                         .param("patient_id", "12")
@@ -88,32 +70,51 @@ class MedicationToolControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source").value("PRESCRIPTION"))
                 .andExpect(jsonPath("$.prescription_id").value(5))
-                .andExpect(jsonPath("$.prescription_source_type").value("APPOINTMENT"))
-                .andExpect(jsonPath("$.doctor_name").value("周安宁"));
-        verify(service).prepare(null, null, 5L, 12L);
+                .andExpect(jsonPath("$.doctor_name").value("周安宁"))
+                .andExpect(jsonPath("$.hospital_name").value("云澜医院"))
+                .andExpect(jsonPath("$.campus_name").value("主院区"))
+                .andExpect(jsonPath("$.pharmacy.id").value(71))
+                .andExpect(jsonPath("$.pharmacy.display_name").value("主院区大药房"))
+                .andExpect(jsonPath("$.items[0].medication_id").value(1))
+                .andExpect(jsonPath("$.items[0].quantity").value(2))
+                .andExpect(jsonPath("$.medication_amount").value(37.00));
+        verify(service).prepare(12L, 5L);
     }
 
     @Test
-    void prepareOtcRejectsPrescriptionDrug() throws Exception {
-        // ADR-0032 硬约束：处方药不得走 OTC 路径，service 抛 409，controller 零 try-catch 经 advice 出口。
-        when(service.prepare(1L, 2, null, 12L)).thenThrow(new ApiException(409, "处方药须凭已审核电子处方购买"));
+    void otcPrepareEchoesValidatedItems() throws Exception {
+        when(service.otcPrepare(eq(List.of(new DrugOrderService.QuantityInput(2L, 3)))))
+                .thenReturn(List.of(new DrugOrderService.OtcItemEcho(2L, "布洛芬缓释胶囊", "0.3g*20粒", 3)));
 
-        mvc().perform(get("/api/agent/drug-orders/prepare")
+        mvc().perform(get("/api/agent/drug-orders/otc-prepare")
                         .param("patient_id", "12")
-                        .param("medication_id", "1")
-                        .param("quantity", "2"))
+                        .param("items", "2:3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].medication_id").value(2))
+                .andExpect(jsonPath("$.items[0].name").value("布洛芬缓释胶囊"))
+                .andExpect(jsonPath("$.items[0].quantity").value(3));
+    }
+
+    @Test
+    void otcPrepareRejectsPrescriptionDrug() throws Exception {
+        // ADR-0032 硬约束：处方药不得走 OTC 路径，service 抛 409，controller 零 try-catch 经 advice 出口。
+        when(service.otcPrepare(eq(List.of(new DrugOrderService.QuantityInput(1L, 2)))))
+                .thenThrow(new ApiException(409, "处方药须凭已审核电子处方购买"));
+
+        mvc().perform(get("/api/agent/drug-orders/otc-prepare")
+                        .param("patient_id", "12")
+                        .param("items", "1:2"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("处方药须凭已审核电子处方购买"));
     }
 
     @Test
-    void preparePrescriptionWithoutPatientIdRejected() throws Exception {
-        // 处方药路径需要 patient_id 做归属校验，缺失时返回 400 而非误导性的 404"处方不存在"。
-        when(service.prepare(null, null, 5L, null)).thenThrow(new ApiException(400, "处方药购药确认需要 patient_id"));
-
-        mvc().perform(get("/api/agent/drug-orders/prepare").param("prescription_id", "5"))
+    void otcPrepareRejectsMalformedItems() throws Exception {
+        mvc().perform(get("/api/agent/drug-orders/otc-prepare")
+                        .param("patient_id", "12")
+                        .param("items", "not-a-pair"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value("处方药购药确认需要 patient_id"));
+                .andExpect(jsonPath("$.detail").value("items 参数格式应为 medication_id:quantity 逗号分隔"));
     }
 
     // standaloneSetup 不加载 application.yml 的全局 SNAKE_CASE 策略，须显式注入消息转换器
@@ -127,7 +128,7 @@ class MedicationToolControllerTest {
     }
 
     private MedicationView otcMedication() {
-        return new MedicationView(2L, "布洛芬缓释胶囊", "布洛芬", "0.3g*20粒", new BigDecimal("22.00"), 280, true);
+        return new MedicationView(2L, "布洛芬缓释胶囊", "布洛芬", "0.3g*20粒");
     }
 
     private PrescriptionCardView approvedPrescription() {
@@ -137,27 +138,25 @@ class MedicationToolControllerTest {
                 "APPOINTMENT",
                 "线下接诊",
                 "2026-07-29",
-                List.of(new PrescriptionItemView(1L, "阿莫西林胶囊", "0.25g*24粒", "每次1粒", "每日三次", "7天")));
+                List.of(new PrescriptionItemView(1L, "阿莫西林胶囊", "0.25g*24粒", "每次1粒", "每日三次", "7天", 2)));
     }
 
-    private PrepareOrderView otcPrepareCard() {
-        PrepareLineView line = new PrepareLineView(
-                2L, "布洛芬缓释胶囊", "0.3g*20粒", 3, new BigDecimal("22.00"), new BigDecimal("66.00"), 280, true);
-        return new PrepareOrderView(
-                "OTC", null, List.of(line), new BigDecimal("66.00"), new BigDecimal("66.00"), null, null, null);
-    }
-
-    private PrepareOrderView prescriptionPrepareCard() {
-        PrepareLineView line = new PrepareLineView(
-                1L, "阿莫西林胶囊", "0.25g*24粒", 1, new BigDecimal("18.50"), new BigDecimal("18.50"), 320, true);
-        return new PrepareOrderView(
+    private DrugOrderService.PrescriptionPreviewView prescriptionPreview() {
+        return new DrugOrderService.PrescriptionPreviewView(
                 "PRESCRIPTION",
                 5L,
-                List.of(line),
-                new BigDecimal("18.50"),
-                new BigDecimal("18.50"),
-                "APPOINTMENT",
                 "周安宁",
-                "2026-07-29");
+                "2026-07-29",
+                "云澜医院",
+                "主院区",
+                "澜山市城东区梧桐路1号",
+                71L,
+                "主院区大药房",
+                new BigDecimal("5.00"),
+                45,
+                new DrugOrderService.PreviewPharmacyRef(71L, "主院区大药房", new BigDecimal("5.00"), 45),
+                List.of(new DrugOrderService.PreviewItemView(
+                        1L, "阿莫西林胶囊", "0.25g*24粒", 2, new BigDecimal("18.50"), 10, true)),
+                new BigDecimal("37.00"));
     }
 }

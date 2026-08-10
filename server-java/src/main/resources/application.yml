@@ -16,6 +16,12 @@ spring:
       # 默认 1MB 不够医生头像（票 54 上限 2MB），放宽到 5MB 留余量
       max-file-size: 5MB
       max-request-size: 10MB
+  web:
+    resources:
+      # 默认保持 Spring 静态资源原位（本地 B 端走 5173 dev server）；
+      # 云部署无 nginx 形态下由 compose 注入 file:/app/admin-dist/ 让 server-java 直接托管 admin 产物。
+      # 四个 classpath 默认值需显式保留——设置 static-locations 会整体覆盖 Spring 默认清单。
+      static-locations: ${ADMIN_STATIC_LOCATIONS:classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/}
   datasource:
     url: ${DATABASE_JDBC_URL:jdbc:postgresql://localhost:5432/zhiyu}
     username: ${DATABASE_USER:zhiyu}
@@ -46,6 +52,8 @@ zhiyu:
     doctor2-password: ${SEED_DOCTOR2_PASSWORD:}
     # 其余 13 位医生统一密码（票 57）：缺省 doctor123456，与 AGENTS.md 演示账号约定一致
     doctors-password: ${SEED_DOCTORS_PASSWORD:doctor123456}
+    # 全局药师统一密码（票 88）：缺省 pharmacist123456，与 AGENTS.md 演示账号约定一致
+    pharmacist-password: ${SEED_PHARMACIST_PASSWORD:pharmacist123456}
   agent:
     base-url: ${SERVER_PY_BASE_URL:http://localhost:8000}
     callback-secret: ${AGENT_CALLBACK_SECRET}

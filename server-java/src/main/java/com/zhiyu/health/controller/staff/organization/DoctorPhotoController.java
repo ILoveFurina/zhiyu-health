@@ -26,7 +26,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 /**
  * B 端医生照片上传与回拉（票 54）。
  *
- * <p>仅 admin 角色可访问（AdminInterceptor 在 /api/b/** 生效）。上传复用
+ * <p>仅 admin 角色可访问（/api/b/** 路由级角色授权，admin-only）。上传复用
  * {@link MinioStorageService#storePhoto} 的旁路持久化：MinIO 未启用或写入失败时返回占位
  * 响应（空 object_key），不阻塞医生档案保存--照片为可选项。回拉走 server-java 代理流式
  * 返回，避免 bucket 公共读；object_key 即取图凭证（与 C 端 PhotoController 同语义）。

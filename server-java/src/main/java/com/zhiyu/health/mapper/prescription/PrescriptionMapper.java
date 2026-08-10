@@ -107,4 +107,12 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             @Param("interpretation") String interpretation,
             @Param("disclaimer") String disclaimer,
             @Param("expectedStatus") String expectedStatus);
+
+    // 票 88（ADR-0035）：支付时一次性核销，0 行即已核销（重复支付/并发），service 抛 409。
+    @Update(
+            """
+            UPDATE prescriptions SET redeemed_at = now(), redeemed_order_id = #{orderId}
+            WHERE id = #{id} AND redeemed_at IS NULL
+            """)
+    int redeem(@Param("id") long id, @Param("orderId") long orderId);
 }

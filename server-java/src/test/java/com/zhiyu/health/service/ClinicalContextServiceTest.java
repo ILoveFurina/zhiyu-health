@@ -13,6 +13,7 @@ import com.zhiyu.health.entity.prescription.Prescription;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
 import com.zhiyu.health.service.consultation.ClinicalContextService;
 import com.zhiyu.health.support.TestContracts;
 import java.time.OffsetDateTime;
@@ -24,8 +25,9 @@ class ClinicalContextServiceTest {
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
     private final ReceptionMapper receptionMapper = mock(ReceptionMapper.class);
     private final OnlineConsultationMapper onlineConsultationMapper = mock(OnlineConsultationMapper.class);
+    private final DoctorMapper doctorMapper = mock(DoctorMapper.class);
     private final ClinicalContextService service = new ClinicalContextService(
-            staffUserMapper, receptionMapper, onlineConsultationMapper, TestContracts.instance());
+            staffUserMapper, receptionMapper, onlineConsultationMapper, doctorMapper, TestContracts.instance());
 
     // ------------------------------------------------------------------
     // 线下挂号来源
@@ -42,6 +44,7 @@ class ClinicalContextServiceTest {
         assertThat(context.patientId()).isEqualTo(12L);
         assertThat(context.healthProfileId()).isEqualTo(3L);
         assertThat(context.doctorId()).isEqualTo(5L);
+        assertThat(context.sourceCampusId()).isEqualTo(7L);
         assertThat(context.sourceType()).isEqualTo("APPOINTMENT");
         assertThat(context.occurredAt())
                 .isEqualTo(OffsetDateTime.parse("2026-08-01T09:00:00+08:00").toLocalDateTime());
@@ -90,6 +93,7 @@ class ClinicalContextServiceTest {
         assertThat(context.patientId()).isEqualTo(12L);
         assertThat(context.healthProfileId()).isEqualTo(3L);
         assertThat(context.doctorId()).isEqualTo(5L);
+        assertThat(context.sourceCampusId()).isEqualTo(7L);
         assertThat(context.sourceType()).isEqualTo("ONLINE_CONSULTATION");
         // 发生时间取接诊时刻，不取创建或完成时间
         assertThat(context.occurredAt())
@@ -146,6 +150,22 @@ class ClinicalContextServiceTest {
     // ------------------------------------------------------------------
 
     @Test
+    void prescribableRejectsDoctorWithoutCampus() {
+        // 医生所属科室未配置院区：开方上下文无法派生来源院区，fail closed（票 88）
+        StaffUser staff = new StaffUser();
+        staff.setRole(StaffUser.ROLE_DOCTOR);
+        staff.setDoctorId(5L);
+        when(staffUserMapper.selectById(8L)).thenReturn(staff);
+        when(doctorMapper.selectCampusIdByDoctorId(5L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.requirePrescribableFromAppointment(8L, 21L))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(409);
+                    assertThat(e.getMessage()).isEqualTo("医生所属科室未配置院区");
+                });
+    }
+
+    @Test
     void ofPrescriptionDerivesSourceByNonNullForeignKey() {
         Prescription offline = new Prescription();
         offline.setAppointmentId(21L);
@@ -159,10 +179,13 @@ class ClinicalContextServiceTest {
         online.setPatientId(12L);
         online.setHealthProfileId(3L);
         online.setDoctorId(5L);
+        online.setSourceCampusId(7L);
         ClinicalContextService.ClinicalContext context = service.ofPrescription(online);
         assertThat(context.sourceType()).isEqualTo("ONLINE_CONSULTATION");
         assertThat(context.patientId()).isEqualTo(12L);
         assertThat(context.healthProfileId()).isEqualTo(3L);
+        // 来源院区取处方开方时固化的不可变列，不现查医生所属科室
+        assertThat(context.sourceCampusId()).isEqualTo(7L);
     }
 
     private void givenDoctor(long staffId, long doctorId) {
@@ -170,6 +193,8 @@ class ClinicalContextServiceTest {
         staff.setRole(StaffUser.ROLE_DOCTOR);
         staff.setDoctorId(doctorId);
         when(staffUserMapper.selectById(staffId)).thenReturn(staff);
+        // 票 88：开方上下文携带医生当前所属院区（科室 → 院区外键派生）
+        when(doctorMapper.selectCampusIdByDoctorId(doctorId)).thenReturn(7L);
     }
 
     private Appointment appointment() {

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 院区管理（票 49）：仅 admin 角色可操作（AdminInterceptor），业务在 CampusAdminService */
+/** 院区管理（票 49）：仅 admin 角色可操作（/api/b/** 路由级角色授权，admin-only），业务在 CampusAdminService */
 @RestController
 @RequestMapping("/api/b/campuses")
 @RequiredArgsConstructor

@@ -164,35 +164,29 @@
         <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
       </view>
 
-      <!-- 票 79/78：购药确认卡。server-py 经 prepare_drug_order 工具装配后以 drug_order_prepare
-           事件下发（tool_to_event 映射）；历史回放可能以 drug_order_confirm kind 落库，两 kind
-           共用同一组件渲染。就地确认不跳页，确认下单调 POST /api/c/drug-orders；取消就地隐藏卡片。 -->
+      <!-- 票 88：购药预览卡。server-py 购药工具装配后以 drug_order_prepare 事件下发
+           （tool_to_event 映射）；历史回放可能以 drug_order_confirm kind 落库，两 kind
+           共用同一组件渲染。卡片只展示非敏感稳定事实，点击只跳统一购药确认页，
+           确认页实时校验价格库存后才建单，不在聊天内提交订单。 -->
       <view a:elif="{{(item.kind === 'drug_order_prepare' || item.kind === 'drug_order_confirm') && !item.hidden}}" id="msg-{{item.id}}">
         <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
           <drug-order-confirm-card
             card="{{item.card}}"
             cardId="{{item.id}}"
-            submitting="{{drugConfirmSubmitting[item.id]}}"
-            submitted="{{drugConfirmSubmitted[item.id]}}"
-            history="{{item.history}}"
-            onConfirm="onDrugOrderConfirm"
-            onCancel="onDrugOrderConfirmCancel"
-            onGoOrders="openDrugOrders"
+            onOpen="openDrugOrderConfirm"
           />
         </view>
         <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />
       </view>
 
-      <!-- 票 79：购药结果卡（drug_order）。已建单订单视图，支付/取消复用 services/drug-orders.js -->
+      <!-- 票 88：购药结果卡（drug_order）。下单成功后由 server-java 落聊天的订单摘要，
+           只读展示；支付/取消/履约进度统一在订单详情页管理（实时拉取）。 -->
       <view a:elif="{{item.kind === 'drug_order'}}" id="msg-{{item.id}}">
         <view class="{{item.entering ? 'zy-business-enter' : ''}}" style="animation-delay: {{item.enterDelay || 0}}ms">
           <drug-order-card
             card="{{item.card}}"
             cardId="{{item.id}}"
-            payingOrderId="{{drugPayingOrderId}}"
-            cancellingOrderId="{{drugCancellingOrderId}}"
-            onPay="onDrugOrderPay"
-            onCancel="onDrugOrderCancel"
+            onOpenDetail="openDrugOrderDetail"
           />
         </view>
         <ai-disclaimer text="{{item.card.disclaimer || item.disclaimer}}" />

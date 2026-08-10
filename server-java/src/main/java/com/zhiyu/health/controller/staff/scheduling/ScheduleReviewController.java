@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理员排班审核：路径在 /api/b/schedule-requests/**，受 AdminInterceptor 保护（仅 admin）。
+ * 管理员排班审核：路径在 /api/b/schedule-requests/**，仅 admin（/api/b/** 路由级角色授权）。
  * 审核通过后落盘为 schedules 行，C 端即可见；驳回需填原因。
  */
 @RestController

@@ -5,13 +5,11 @@ import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.entity.common.InAppMessage;
-import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.entity.prescription.Medication;
 import com.zhiyu.health.entity.prescription.Prescription;
 import com.zhiyu.health.entity.prescription.PrescriptionItem;
 import com.zhiyu.health.mapper.common.InAppMessageMapper;
-import com.zhiyu.health.mapper.common.StaffUserMapper;
-import com.zhiyu.health.mapper.prescription.MedicationMapper;
+import com.zhiyu.health.mapper.pharmacy.PharmacyMedicationMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.rule.ContraindicationResult;
@@ -29,8 +27,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 @RequiredArgsConstructor
 public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescription> {
-    private final StaffUserMapper staffUserMapper;
-    private final MedicationMapper medicationMapper;
     private final PrescriptionMapper prescriptionMapper;
     private final PrescriptionItemMapper itemMapper;
     private final TransactionTemplate transactionTemplate;
@@ -39,13 +35,15 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
     private final DisclaimerService disclaimers;
     private final Contracts contracts;
     private final PrescriptionDtoMapper dtoMapper;
-    private final MedCheckinService medCheckinService;
     private final ClinicalContextService clinicalContexts;
     private final InAppMessageMapper inAppMessageMapper;
+    private final PharmacyMedicationMapper pharmacyMedicationMapper;
 
-    public List<MedicationView> listMedications(long staffId) {
-        requireDoctor(staffId);
-        return medicationMapper.selectActive().stream()
+    /** 医生开方目录（票 88）：只含医生当前院区药房已配置且在售的标准药品，keyword 按药名模糊过滤。 */
+    public List<MedicationView> listMedications(long staffId, String keyword) {
+        ClinicalContextService.DoctorContext doctor = clinicalContexts.requireDoctorContext(staffId);
+        String normalized = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        return pharmacyMedicationMapper.selectOnSaleCatalogByCampus(doctor.campusId(), normalized).stream()
                 .map(dtoMapper::toMedicationView)
                 .toList();
     }
@@ -72,7 +70,9 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             throw new ApiException(409, "该挂号单已开具电子处方");
         }
         return persist(
-                context, command.items(), dtoMapper.toPrescription(command, context.doctorId(), status("pending")));
+                context,
+                command.items(),
+                dtoMapper.toPrescription(command, context.doctorId(), context.sourceCampusId(), status("pending")));
     }
 
     /** 在线问诊开方（票 56）：同一问诊最多一张处方；患者/档案/医生身份由统一临床上下文派生。 */
@@ -85,15 +85,29 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         return persist(
                 context,
                 command.items(),
-                dtoMapper.toOnlinePrescription(command, context.doctorId(), status("pending")));
+                dtoMapper.toOnlinePrescription(
+                        command, context.doctorId(), context.sourceCampusId(), status("pending")));
     }
 
     /** 两来源共用落库主路径：entity 按来源写好对应外键列（另一列为 null，schema XOR 兜底）。 */
     private PrescriptionView persist(
             ClinicalContextService.ClinicalContext context, List<CreateItem> items, Prescription prescription) {
-        List<Medication> medications = items.stream()
-                .map(item -> requireMedication(item.medicationId()))
-                .toList();
+        // 票 88：提交侧复验开方目录——药品须处于开方院区药房在售状态（与医生选药列表同一查询口径），
+        // 前端目录只是体验层，不作为边界；下架药品的历史处方不受影响（明细只存标准药品外键）。
+        List<Long> medicationIds =
+                items.stream().map(CreateItem::medicationId).distinct().toList();
+        Map<Long, Medication> medicationById = new java.util.HashMap<>();
+        pharmacyMedicationMapper
+                .selectOnSaleByCampusAndIds(context.sourceCampusId(), medicationIds)
+                .forEach(medication -> medicationById.put(medication.getId(), medication));
+        if (medicationById.size() != medicationIds.size()) {
+            throw new ApiException(400, "药品不在本院区药房在售目录");
+        }
+        for (CreateItem item : items) {
+            if (item.quantity() == null || item.quantity() < 1) {
+                throw new ApiException(400, "配药数量必须为正整数");
+            }
+        }
         // 提交侧强制复跑同一确定性规则：前端禁用按钮只是体验层，不能作为安全边界。
         ContraindicationResult safety = contraindicationService.check(new ContraindicationService.CheckCommand(
                 context.patientId(),
@@ -119,7 +133,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             prescription.setId(id);
             created = prescription;
         }
-        return toView(created, pairItems(items, medications));
+        return toView(created, pairItems(items, medicationById));
     }
 
     public List<PrescriptionView> listForReview(String status, String keyword) {
@@ -183,11 +197,8 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             }
             Prescription reviewed = prescriptionMapper.selectDetailedById(id);
             writeReviewResultMessage(reviewed, reviewTarget);
-            // 审核通过才 eager 预生成服药打卡提醒（ADR-0017）；驳回不生成。
-            // 生成幂等由 UNIQUE(prescription_item_id, due_date) 兜底，重复审核静默吞掉。
-            if (status("approved").equals(reviewTarget)) {
-                medCheckinService.generateForApprovedPrescription(id);
-            }
+            // 票 88（ADR-0035）：不再「审核通过即生成」用药提醒；提醒改由处方药订单
+            // 首次到达 DELIVERED/PICKED_UP 时经 DrugOrderService 幂等生成。
             return toView(reviewed);
         });
     }
@@ -213,22 +224,10 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         inAppMessageMapper.insertIgnoreConflict(message);
     }
 
-    private List<ItemView> pairItems(List<CreateItem> inputs, List<Medication> medications) {
-        return java.util.stream.IntStream.range(0, inputs.size())
-                .mapToObj(i -> {
-                    CreateItem input = inputs.get(i);
-                    Medication medication = medications.get(i);
-                    return dtoMapper.toCreatedItem(input, medication);
-                })
+    private List<ItemView> pairItems(List<CreateItem> inputs, Map<Long, Medication> medicationById) {
+        return inputs.stream()
+                .map(input -> dtoMapper.toCreatedItem(input, medicationById.get(input.medicationId())))
                 .toList();
-    }
-
-    private Medication requireMedication(long id) {
-        Medication medication = medicationMapper.selectById(id);
-        if (medication == null || !Boolean.TRUE.equals(medication.getIsActive())) {
-            throw new ApiException(400, "药品不存在或已停用");
-        }
-        return medication;
     }
 
     /** 命中禁忌或数据不完整（fail closed）一律 409 拒绝提交；话术只取 contracts/。 */
@@ -244,14 +243,6 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             message = base + "：" + String.join("；", safety.reasons());
         }
         return new ApiException(409, message);
-    }
-
-    private long requireDoctor(long staffId) {
-        StaffUser staff = staffUserMapper.selectById(staffId);
-        if (staff == null || !StaffUser.ROLE_DOCTOR.equals(staff.getRole()) || staff.getDoctorId() == null) {
-            throw new ApiException(403, "仅医生可操作");
-        }
-        return staff.getDoctorId();
     }
 
     private Map<String, String> toAgentFact(PrescriptionItem item) {
@@ -297,7 +288,8 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
 
     public record MedicationView(Long id, String name, String genericName, String specification, String instructions) {}
 
-    public record CreateItem(long medicationId, String dosage, String frequency, String duration, String notes) {}
+    public record CreateItem(
+            long medicationId, String dosage, String frequency, String duration, Integer quantity, String notes) {}
 
     public record CreateCommand(long staffId, long appointmentId, String notes, List<CreateItem> items) {}
 
@@ -314,6 +306,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
             String dosage,
             String frequency,
             String duration,
+            Integer quantity,
             String notes) {}
 
     public record PrescriptionView(

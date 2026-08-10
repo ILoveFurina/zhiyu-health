@@ -105,13 +105,19 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
                     value: m.id, label: `${m.name}（${m.specification}）`,
                   }))} />
                 </Form.Item>
-                <Form.Item {...rest} name={[name, 'dosage']} rules={[{ required: true, whitespace: true }]}>
+                <Form.Item {...rest} name={[name, 'dosage']} rules={[{
+                  required: true, whitespace: true, message: '请输入单次剂量',
+                }]}>
                   <Input placeholder="单次剂量，如 0.5g" />
                 </Form.Item>
-                <Form.Item {...rest} name={[name, 'frequency']} rules={[{ required: true, whitespace: true }]}>
+                <Form.Item {...rest} name={[name, 'frequency']} rules={[{
+                  required: true, whitespace: true, message: '请输入用药频次',
+                }]}>
                   <Input placeholder="频次，如 每日3次" />
                 </Form.Item>
-                <Form.Item {...rest} name={[name, 'duration']} rules={[{ required: true, whitespace: true }]}>
+                <Form.Item {...rest} name={[name, 'duration']} rules={[{
+                  required: true, whitespace: true, message: '请输入用药疗程',
+                }]}>
                   <Input placeholder="疗程，如 5天" />
                 </Form.Item>
                 <Form.Item {...rest} name={[name, 'notes']}><Input placeholder="用药备注" /></Form.Item>

@@ -2,18 +2,18 @@
 
 ## 业务概述
 
-本模块覆盖"医生开方 → 药师/管理员审核 → 患者购药 → 订单履约 → 服药打卡"的完整链路：B 端医生在接诊台开具电子处方，开方过程由 server-java 的确定性禁忌规则引擎实时拦截（PG 健康档案过敏史 + Neo4j 禁忌子图，fail closed）；处方审核通过后患者可在 C 端凭处方购药，也可在 AI 对话中直接购买 OTC 药品（ADR-0032）。药房采用平台自营语义（ADR-0026），`medications` 为全局药品目录与库存。AI 在本模块只做两件收窄的事：处方审核通过时生成患者可读的通俗解读（server-py `agent/clinical.py`），以及 C 端通用药品说明书流（`agent/medication.py`）——个性化禁忌判定永远不属于 AI（ADR-0016/0028）。
+本模块覆盖"医生开方 → 药师/管理员审核 → 患者购药 → 订单履约 → 服药打卡"的完整链路：B 端医生在接诊台开具电子处方，开方过程由 server-java 的确定性禁忌规则引擎实时拦截（PG 健康档案过敏史 + Neo4j 禁忌子图，fail closed）；处方审核通过后患者可在 C 端凭处方购药，也可在 AI 对话中直接购买 OTC 药品（ADR-0032）。药房采用一院区一药房模型（ADR-0035，supersedes ADR-0026）：`medications` 收敛为全平台标准药品目录（药名/规格/处方属性），价格、库存与在售状态由各院区药房独立维护（`campus_pharmacies` + `pharmacy_medications`）。AI 在本模块只做两件收窄的事：处方审核通过时生成患者可读的通俗解读（server-py `agent/clinical.py`），以及 C 端通用药品说明书流（`agent/medication.py`）——个性化禁忌判定永远不属于 AI（ADR-0016/0028）。
 
 ## 业务流程
 
 1. B 端医生在接诊台（线下挂号或在线问诊）打开开方表单，`GET /api/b/reception/medications` 拉取在售药品目录，可"从模板导入"预填明细。
 2. 医生每选一次药品，前端防抖 300ms 调 `POST .../contraindication-check`，server-java 返回 SAFE / BLOCKED / REVIEW_REQUIRED 之一；命中禁忌时按钮禁用并展示原因（体验层拦截）。
 3. 提交 `POST /api/b/reception/appointments/{id}/prescriptions`（或在线问诊对应端点）：server-java 从已鉴权挂号单/问诊单派生患者与医生身份，**提交侧强制复跑同一禁忌规则**，命中即 409 拒绝；同一来源只允许一张处方（唯一约束兜底并发）。
-4. 处方进入 PENDING，出现在 B 端「处方审核」页。审核人通过/驳回：`POST /api/b/prescriptions/{id}/review`。通过时先在事务外调 server-py 生成处方通俗解读，再在事务内做条件更新（WHERE status=PENDING 防并发双审）、写审核结果站内消息、eager 预生成整段疗程的服药打卡记录（ADR-0018）。驳回必填原因，驳回即终态，不可改方重提（ADR-0030）。
-5. 患者收到站内消息后进入 C 端「我的处方」页，仅 APPROVED 处方可下单：调整数量后 `POST /c/drug-orders`，server-java 校验处方归属与状态、按 medication_id 加行锁、条件 UPDATE 预扣库存、写入 UNPAID 订单。
-6. OTC 购药无处方：C 端 AI 对话中患者点名药品，server-py 工具 `search_medications` / `prepare_drug_order` 回调 server-java 装配确认卡，确认后同样走 `POST /c/drug-orders`（prescription_id 为空，药品须 is_prescription=FALSE）。
-7. 患者在「药品订单」页模拟支付（`POST /c/drug-orders/{id}/pay`，UNPAID → PAID）或取消（库存同事务回补）；B 端药房管理页对 PAID 订单确认完成（→ DONE）。
-8. 服药打卡：处方审核通过时已按 duration 展开每日一条 PENDING 提醒；C 端消息页看到到点提醒，点"已服用"条件 UPDATE 推进 CHECKED 并现算连续打卡天数（streak）。
+4. 处方进入 PENDING，出现在 B 端「处方审核」页（admin 与全局 pharmacist 均可审核）。审核人通过/驳回：`POST /api/b/prescriptions/{id}/review`。通过时先在事务外调 server-py 生成处方通俗解读，再在事务内做条件更新（WHERE status=PENDING 防并发双审）、写审核结果站内消息。驳回必填原因，驳回即终态，不可改方重提（ADR-0030）。
+5. 患者收到站内消息后进入 C 端「我的处方」页，仅 APPROVED 处方且未核销可下单：数量复用处方明细、履约药房锁定为开方来源院区的院区药房，`POST /c/drug-orders` 事务内锁定药房药品行、重校验在售与全量库存后原子预扣，写入 UNPAID 订单（10 分钟支付截止，惰性过期回补）。
+6. OTC 购药无处方：C 端 AI 对话中患者点名药品并给出数量，server-py 工具回调 server-java 装配购药预览卡，点击跳统一购药确认页，患者在当前服务城市内可整单履约的院区药房中显式选择后同样走 `POST /c/drug-orders`（prescription_id 为空，药品须 is_prescription=FALSE）。
+7. 患者在「药品订单」页模拟支付（`POST /c/drug-orders/{id}/pay`，UNPAID → PAID，同事务一次性核销处方）或取消（库存同事务回补并释放处方重试资格）；支付后由 admin/pharmacist 在 B 端按取药方式人工推进履约状态机：配送 PAID→DISPENSING→SHIPPED→DELIVERED（进 SHIPPED 生成虚构承运方与物流单号），自取 PAID→DISPENSING→READY_FOR_PICKUP→PICKED_UP，每次推进条件更新并追加 append-only 履约事件。
+8. 服药打卡：处方药订单首次到达 DELIVERED/PICKED_UP 时才按 duration 幂等展开每日一条 PENDING 提醒（票 88 起不再是审核通过即生成，OTC 永不生成）；C 端消息页看到到点提醒，点"已服用"条件 UPDATE 推进 CHECKED 并现算连续打卡天数（streak）。
 
 ## 代码地图
 
@@ -254,15 +254,15 @@ B 端处方解读同理收窄（`server-py/app/agent/clinical.py:23-28`）：只
 
 - `contracts/prescription-flow.json`：处方状态机（PENDING/APPROVED/REJECTED）、审核决定、来源类型（APPOINTMENT/ONLINE_CONSULTATION，仅派生展示不落库）、审核结果站内消息文案。
 - `contracts/contraindication.json`：禁忌规则三分支决定（SAFE/BLOCKED/REVIEW_REQUIRED）、卡片消息类型与全部固定话术——两端只消费契约值，LLM 不得改写。
-- `contracts/order-flow.json`：药品订单状态机（UNPAID/PAID/DONE/CANCELLED）与来源枚举（PRESCRIPTION/OTC），附 drug_order 卡片 content 字段清单。
+- `contracts/order-flow.json`：药品订单状态机（UNPAID/PAID/DISPENSING/SHIPPED/DELIVERED/READY_FOR_PICKUP/PICKED_UP/CANCELLED/EXPIRED）、取药方式（PICKUP 院区自取/DELIVERY 配送到家）、履约推进动作与来源枚举（PRESCRIPTION/OTC），附 drug_order 卡片 content 字段清单。
 - `contracts/med-checkin-flow.json`：服药打卡状态机（PENDING/CHECKED）与提醒/时间线类型。
 - `contracts/medication-knowledge.json`：通用说明书流的 SSE 事件（token/done）与流尾话术、未识别药名话术。
 - ADR-0016《C 端 Agent 不做个性化用药决策》：C 端移除 check_contraindication 工具，禁忌检查仅留 B 端开方流程。
 - ADR-0025《拍药盒架构：视觉只提药名 + 工具回调 + 规则引擎 + 双出口》：早期跨栈设计，决策 1/2/3 已被 ADR-0028 废除，vision 纯 OCR 提名仍有效。
-- ADR-0026《药品履约：平台自营药房，不做处方外流与多药店》：`medications` 是全局目录与库存的领域语义。
+- ADR-0035《药品履约采用一院区一药房与全局药师模拟闭环》（supersedes ADR-0026）：院区药房独立价格/库存/在售，处方锁来源院区药房，OTC 患者本城选药房，10 分钟惰性过期，支付一次性核销处方。
 - ADR-0030《处方驳回即终态，不开放改方重提》：REJECTED 后患者被引导重新问诊/挂号，唯一约束不动摇。
 - ADR-0032《OTC 药品无处方直接下单，处方药凭已审核处方下单》：`drug_orders.prescription_id` 可空，双路径由此而来。
-- 延伸：ADR-0018《服药打卡调度模型：eager 预生成 + 到点过滤》、ADR-0028《C 端药品说明收口为通用知识流，个性化禁忌仅留 B 端开方》。
+- 延伸：ADR-0018《服药打卡调度模型：eager 预生成 + 到点过滤》（票 88 起预生成时点从"审核通过"改为"订单送达/取药"）、ADR-0028《C 端药品说明收口为通用知识流，个性化禁忌仅留 B 端开方》。
 
 ## 讲解提示
 

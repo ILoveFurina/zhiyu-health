@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 知识图谱只读入口（票 13 / ADR-0013）：B 端可视化页经此 controller 访问图谱投影。
  *
- * 仅 admin 角色可访问（AdminInterceptor 保护 /api/b/**）。controller 零业务逻辑，
+ * 仅 admin 角色可访问（/api/b/** 路由级角色授权，admin-only）。controller 零业务逻辑，
  * 只做鉴权透传与转调 server-py 只读知识接口；admin 浏览器不得直连 server-py 或 Neo4j。
  */
 @RestController

@@ -1,16 +1,27 @@
 {
+  "_doc": "票 88（ADR-0035）：药品订单重构为院区药房履约模型。状态机分两条前向路径——配送 UNPAID -> PAID -> DISPENSING -> SHIPPED -> DELIVERED，自取 UNPAID -> PAID -> DISPENSING -> READY_FOR_PICKUP -> PICKED_UP；仅 UNPAID 可取消（CANCELLED），创建后 payment_timeout_seconds 内未支付惰性过期（EXPIRED），两种终止都回补库存。支付后无取消/退款/异常履约分支。旧 DONE 状态与 complete 动作已删除。",
   "_doc_sources": "票 76（ADR-0032）：订单来源区分处方药/OTC。prescription=基于已审核电子处方的处方药订单，otc=用户直接选药的非处方药订单。",
   "statuses": {
     "unpaid": "UNPAID",
     "paid": "PAID",
-    "done": "DONE",
-    "cancelled": "CANCELLED"
+    "dispensing": "DISPENSING",
+    "shipped": "SHIPPED",
+    "delivered": "DELIVERED",
+    "ready_for_pickup": "READY_FOR_PICKUP",
+    "picked_up": "PICKED_UP",
+    "cancelled": "CANCELLED",
+    "expired": "EXPIRED"
   },
   "status_labels": {
     "UNPAID": "待支付",
     "PAID": "已支付",
-    "DONE": "已完成",
-    "CANCELLED": "已取消"
+    "DISPENSING": "调剂中",
+    "SHIPPED": "配送中",
+    "DELIVERED": "已送达",
+    "READY_FOR_PICKUP": "待取药",
+    "PICKED_UP": "已取药",
+    "CANCELLED": "已取消",
+    "EXPIRED": "已过期"
   },
   "sources": {
     "prescription": "PRESCRIPTION",
@@ -20,13 +31,29 @@
     "PRESCRIPTION": "处方药",
     "OTC": "非处方药"
   },
+  "_pickup_methods_doc": "取药方式（票 88）：所有院区药房同时支持院区自取与配送到家。自取使用院区地址快照且配送费为 0，配送采集一次性收货信息快照。",
+  "pickup_methods": {
+    "pickup": "PICKUP",
+    "delivery": "DELIVERY"
+  },
+  "pickup_method_labels": {
+    "PICKUP": "院区自取",
+    "DELIVERY": "配送到家"
+  },
+  "_decisions_doc": "pay/cancel 为 C 端待支付动作；dispense/ship/deliver/ready/pickup 为 B 端模拟履约推进动作（admin/pharmacist 人工推进，ADR-0035）。注意 pickup（取药动作）与 pickup_methods.pickup（取药方式）同值不同义，键名已区分。",
   "decisions": {
     "pay": "PAY",
     "cancel": "CANCEL",
-    "complete": "COMPLETE"
+    "dispense": "DISPENSE",
+    "ship": "SHIP",
+    "deliver": "DELIVER",
+    "ready": "READY",
+    "pickup": "PICKUP"
   },
+  "payment_timeout_seconds": 600,
+  "simulated_carrier_name": "智愈模拟配送",
   "messages": {
     "stock_insufficient": "药品库存不足，下单失败"
   },
-  "_drug_order_card_schema_doc": "票 78：drug_order 结果卡 content JSON 字段清单（与 DrugOrderService.OrderView 对齐）：order_no(id 订单号)/status(订单状态枚举值)/status_label(状态中文)/total_amount(总价)/source(prescription|otc)/prescription_id(处方药时非空)/items[{medication_id,name,specification,quantity,unit_price,subtotal}]/cancellable/payable/created_at。drug_order_confirm 确认卡 content JSON 字段清单（与 MedicationToolService.PrepareOrderView 对齐）：source/prescription_id/items[{medication_id,name,specification,quantity,unit_price,subtotal,stock,available}]/total_amount/payable_amount/prescription_source_type/doctor_name/prescription_date。两卡 content 均为 server-java 序列化的 JSON 字符串，落 messages.content 列，kind 列存对应 kind 值。"
+  "_drug_order_card_schema_doc": "票 88：drug_order_confirm 语义改为「购药预览卡」（不再在卡片上确认下单）。预览卡 content JSON 只含非敏感稳定事实：source(prescription|otc)/prescription_id(处方药时非空)/items[{medication_id,name,specification,quantity}]；处方药路径另含 doctor_name/prescription_date/hospital_name/campus_name/pharmacy_name（锁定院区药房）。预览卡不含收货人/电话/地址、取药方式、物流信息与最终价格承诺——价格库存以统一购药确认页实时校验为准，卡片附「价格库存以确认页为准」提示；点击只跳确认页，确认页确认才建单。drug_order 结果卡为下单成功后的订单视图 content JSON：order_no(id 订单号)/status(状态枚举值)/status_label(状态中文)/pickup_method(PICKUP|DELIVERY)/pharmacy_name/hospital_name/campus_name/medication_amount/delivery_fee/total_amount(金额快照)/items[{medication_id,name,specification,quantity,unit_price,subtotal}]/timeline(履约时间线)/收货信息仅脱敏展示(配送时)。两卡 content 均为 server-java 序列化的 JSON 字符串，落 messages.content 列，kind 列存对应 kind 值。"
 }

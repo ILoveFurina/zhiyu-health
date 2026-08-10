@@ -1,10 +1,9 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listPrescriptions } = require('../../services/patient-care')
-const { createDrugOrder } = require('../../services/drug-orders')
 const { SOURCE_TYPES, SOURCE_TYPE_LABELS, STATUSES } = require('../../utils/prescription')
 
 Page({
-  data: { loading: true, prescriptions: [], orderingId: null, skelItems: [1, 2, 3] },
+  data: { loading: true, prescriptions: [], skelItems: [1, 2, 3] },
   onShow() { ensureLogin().then(() => this.load()) },
   load() {
     this.setData({ loading: true })
@@ -20,42 +19,18 @@ Page({
           is_approved: prescription.status === STATUSES.approved,
           is_pending: prescription.status === STATUSES.pending,
           is_rejected: prescription.status === STATUSES.rejected,
-          items: prescription.items.map((item) => ({ ...item, quantity: 1 })),
+          // 票 88：已核销处方（支付成功一次性消费）不可再次购药；字段名以服务端下发为准，做布尔归一
+          is_redeemed: prescription.redeemed === true || Boolean(prescription.redeemed_at),
         })),
       }))
       .catch(() => my.showToast({ content: '电子处方加载失败', type: 'fail' }))
       .finally(() => this.setData({ loading: false }))
   },
-  order(e) {
+  // 票 88：「去购药」跳统一购药确认页（与 Agent 购药预览卡同一入口），
+  // 确认页实时校验价格库存后才建单；配药数量由医生开方决定，患者不可修改
+  goBuy(e) {
     const id = e.currentTarget.dataset.id
-    const prescription = this.data.prescriptions.find((item) => item.id === id)
-    if (!prescription) return
-    this.setData({ orderingId: id })
-    const items = prescription.items.map((item) => ({
-      medication_id: item.medication_id,
-      quantity: item.quantity,
-    }))
-    createDrugOrder(id, items)
-      .then(() => {
-        my.showToast({ content: '下单成功', type: 'success' })
-        my.navigateTo({ url: '/pages/drug-orders/index' })
-      })
-      .catch(() => my.showToast({ content: '下单失败，请检查库存后重试', type: 'fail' }))
-      .finally(() => this.setData({ orderingId: null }))
-  },
-  changeQuantity(e) {
-    const prescriptionId = e.currentTarget.dataset.prescriptionId
-    const medicationId = e.currentTarget.dataset.medicationId
-    const quantity = Math.max(1, Number(e.detail.value) || 1)
-    const prescriptions = this.data.prescriptions.map((prescription) => ({
-      ...prescription,
-      items: prescription.id === prescriptionId
-        ? prescription.items.map((item) => (
-          item.medication_id === medicationId ? { ...item, quantity } : item
-        ))
-        : prescription.items,
-    }))
-    this.setData({ prescriptions })
+    my.navigateTo({ url: `/pages/drug-order-confirm/index?source=PRESCRIPTION&prescription_id=${id}` })
   },
   openOrders() { my.navigateTo({ url: '/pages/drug-orders/index' }) },
   // 驳回引导出口：与首页在线问诊/预约挂号入口一致

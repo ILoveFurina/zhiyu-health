@@ -9,9 +9,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 /**
- * B 端药品管理：只读 + 编辑（改价格/库存/上下架），不新增不删除（spec 0002 决策：
- * 新增破坏 Neo4j 禁忌子图对齐，删除破坏历史处方完整性）。库存预扣条件更新属药品订单票（T37），
- * 本票只搭好 ServiceImpl 基座与字段。404 判定留在 service 层（ApiExceptionHandler 统一出口）。
+ * B 端标准药品目录管理：只读 + 编辑处方属性（票 88 起价格/库存/上下架语义收敛到院区药房），
+ * 不新增不删除（spec 0002 决策：新增破坏 Neo4j 禁忌子图对齐，删除破坏历史处方完整性）。
+ * 404 判定留在 service 层（ApiExceptionHandler 统一出口）。
  */
 @Service
 public class MedicationAdminService extends ServiceImpl<MedicationMapper, Medication> {

@@ -68,10 +68,39 @@ for t in ["hospitals", "hospital_campuses", "standard_departments", "department_
     n = q(f'SELECT count(*) FROM "{t}"')[0][0]
     print(f"   {t}: {n}")
 
+print("== 4c. 票88 院区药房基线（ADR-0035）")
+# 院区与药房强一对一：campus_pharmacies 数量必须等于 hospital_campuses 数量
+campuses = q("SELECT count(*) FROM hospital_campuses")[0][0]
+pharmacies = q("SELECT count(*) FROM campus_pharmacies")[0][0]
+print(f"   hospital_campuses: {campuses} / campus_pharmacies: {pharmacies}")
+assert pharmacies == campuses, f"campus_pharmacies({pharmacies}) 应等于 hospital_campuses({campuses})"
+# 标准药品目录不再承载价格/库存/在售；药房药品为各药房独立关系（seed 基线 150 行）
+med_cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHERE table_name='medications'")]
+assert "price" not in med_cols and "stock" not in med_cols and "is_active" not in med_cols, \
+    "medications 仍存 price/stock/is_active 列（票88 已移至 pharmacy_medications）"
+n = q("SELECT count(*) FROM pharmacy_medications")[0][0]
+print(f"   pharmacy_medications: {n}")
+assert n == 150, f"pharmacy_medications 应为 150，实际 {n}"
+# 订单新枚举与新表存在；处方来源院区/核销字段存在
+for t in ["drug_order_fulfillment_events"]:
+    assert t in tables, f"缺新表 {t}"
+rx_cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHERE table_name='prescriptions'")]
+for c in ["source_campus_id", "redeemed_at", "redeemed_order_id"]:
+    assert c in rx_cols, f"prescriptions 缺 {c}"
+order_cols = [r[0] for r in q("SELECT column_name FROM information_schema.columns WHERE table_name='drug_orders'")]
+for c in ["pharmacy_id", "pickup_method", "medication_amount", "delivery_fee", "total_amount",
+          "pharmacy_name", "hospital_name", "campus_name", "campus_address", "payment_deadline"]:
+    assert c in order_cols, f"drug_orders 缺 {c}"
+# 处方活跃订单部分唯一索引兜底
+idx = [r[0] for r in q("SELECT indexname FROM pg_indexes WHERE indexname='uq_drug_orders_active_prescription'")]
+assert idx, "缺 uq_drug_orders_active_prescription 部分唯一索引"
+print("   票88 schema 形状: OK")
+
 print("== 4b. staff_users 账号（B 端登录）：seed.sql 不种此表，由 StaffUserSeed 在 server-java 启动时补种")
 print("   期望值按 .env 的 SEED_* 键存在性推导（镜像 StaffUserSeed.seedIfAbsent 逻辑）：")
-print("   admin/doctor.lin/doctor.zhou 各需对应 SEED_ADMIN/DOCTOR/DOCTOR2_PASSWORD；13 位医生恒补种")
-expected = 13
+print("   admin/doctor.lin/doctor.zhou 各需对应 SEED_ADMIN/DOCTOR/DOCTOR2_PASSWORD；13 位医生恒补种；")
+print("   票88 新增全局药师 pharmacist（SEED_PHARMACIST_PASSWORD 可覆盖，缺省 pharmacist123456，恒补种）")
+expected = 14
 for key in ["SEED_ADMIN_PASSWORD", "SEED_DOCTOR_PASSWORD", "SEED_DOCTOR2_PASSWORD"]:
     if env.get(key):
         expected += 1
@@ -81,6 +110,8 @@ assert n == expected, (
     f"staff_users 应为 {expected}，实际 {n}。该表由 StaffUserSeed 在 server-java 启动时补种，"
     "seed.sql 不含其数据——重建（reset_zhiyu.py）后必须先重启 server-java 再跑本验证"
 )
+pharmacist = q("SELECT count(*) FROM staff_users WHERE username='pharmacist' AND role='pharmacist'")[0][0]
+assert pharmacist == 1, "缺 pharmacist 药师账号（StaffUserSeed 补种，需先重启 server-java）"
 
 print("== 5. schedules 行数（15医生 × 7天 × 2时段 = 210）")
 n = q("SELECT count(*) FROM schedules")[0][0]

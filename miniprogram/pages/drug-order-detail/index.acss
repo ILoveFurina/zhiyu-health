@@ -1,0 +1,42 @@
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: var(--zy-color-fill); }
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+.dod-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--zy-space-sm); }
+.dod-kicker { color: var(--zy-text-weak); font-size: 20rpx; }
+.dod-title { color: var(--zy-text-title); font-size: 32rpx; font-weight: 700; }
+.dod-status { padding: 7rpx 18rpx; border-radius: 999rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 21rpx; font-weight: 600; }
+.dod-status-UNPAID { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
+.dod-status-CANCELLED,
+.dod-status-EXPIRED { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
+.dod-countdown { margin-bottom: var(--zy-space-sm); color: var(--zy-color-warning); font-size: 22rpx; }
+
+.dod-card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: var(--zy-shadow-card); }
+.dod-card-title { color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; }
+.dod-kv { margin-top: var(--zy-space-sm); display: flex; justify-content: space-between; color: var(--zy-text-title); font-size: 26rpx; }
+.dod-k { flex-shrink: 0; margin-right: var(--zy-space-md); color: var(--zy-text-weak); font-size: 24rpx; }
+
+.dod-item { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); border: 1rpx solid var(--zy-color-border); }
+.dod-item-head { display: flex; align-items: center; justify-content: space-between; }
+.dod-item-name { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.dod-item-qty { color: var(--zy-text-secondary); font-size: 26rpx; }
+.dod-item-spec { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+.dod-item-price { margin-top: var(--zy-space-xs); display: flex; justify-content: space-between; color: var(--zy-text-secondary); font-size: 24rpx; }
+.dod-item-subtotal { color: var(--zy-text-title); font-weight: 600; }
+
+.dod-total { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); display: flex; align-items: baseline; justify-content: space-between; }
+.dod-total-label { color: var(--zy-text-secondary); font-size: 24rpx; }
+.dod-total-amount { color: var(--zy-color-primary); font-size: 36rpx; font-weight: 700; }
+
+.dod-pickup-address { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm); border-radius: var(--zy-radius-sm); background: var(--zy-color-fill); color: var(--zy-text-secondary); font-size: 24rpx; }
+
+.dod-event { margin-top: var(--zy-space-sm); display: flex; align-items: flex-start; gap: var(--zy-space-sm); }
+.dod-event-dot { margin-top: 10rpx; width: 12rpx; height: 12rpx; border-radius: 999rpx; background: var(--zy-color-primary); flex-shrink: 0; }
+.dod-event-status { color: var(--zy-text-title); font-size: 26rpx; font-weight: 600; }
+.dod-event-time { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 20rpx; }
+
+.dod-reminder { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 26rpx; font-weight: 600; text-align: center; }
+
+.dod-actions { display: flex; gap: var(--zy-space-sm); }
+.dod-btn { flex: 1; margin: 0; border-radius: var(--zy-radius-lg); font-size: 28rpx; }
+.dod-btn-pay { border: 0; background: var(--zy-color-primary); color: #fff; }
+.dod-btn-cancel { border: 1rpx solid var(--zy-color-danger); background: #fff; color: var(--zy-color-danger); }
