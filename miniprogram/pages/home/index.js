@@ -4,6 +4,8 @@ const { listAppointments, payAppointment } = require('../../services/appointment
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
 const { listConsultationProgress } = require('../../services/consultation')
+const { listMessages } = require('../../services/patient-care')
+const { readInAppMessageIds } = require('../../utils/messages')
 const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
 const {
   decorateAppointment,
@@ -208,6 +210,8 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
+    // 消息中心未读角标（票 93）：与消息中心页共用本机已读口径，仅 onShow 随 load 拉取
+    unreadCount: 0,
     showEntrance: true,
     // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
     regCityName: '',
@@ -353,9 +357,12 @@ Page({
           listConsultationProgress()
             .then((res) => (res && res.items) || [])
             .catch(() => this._consultationProgress || []),
+          // 未读角标失败降级为不显示，不阻塞首页
+          listMessages().catch(() => []),
         ])
       )
-      .then(([profiles, appointments, orders, consultationProgress]) => {
+      .then(([profiles, appointments, orders, consultationProgress, messages]) => {
+        const readIds = readInAppMessageIds()
         profiles = profiles.map((item) => ({ ...item, initial: item.display_name.slice(0, 1) }))
         const activeProfile = profiles.find((item) => item.active) || null
         this._appointments = appointments
@@ -366,6 +373,7 @@ Page({
           activeProfile,
           profileLoaded: true,
           todos: buildTodos(appointments, orders, consultationProgress),
+          unreadCount: messages.filter((item) => !readIds.includes(String(item.id))).length,
         }, () => this.startTodoCountdown())
       })
       .catch(() => my.showToast({ content: '加载失败，请稍后重试', type: 'fail' }))
@@ -382,6 +390,10 @@ Page({
   openTodo(e) {
     const item = this.data.todos.find((todo) => todo.key === e.currentTarget.dataset.key)
     if (item && item.url) my.navigateTo({ url: item.url })
+  },
+
+  openMessages() {
+    my.navigateTo({ url: '/pages/messages/index' })
   },
 
   refreshConsultationTodos() {
