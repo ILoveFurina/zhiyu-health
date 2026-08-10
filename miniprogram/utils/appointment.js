@@ -27,6 +27,11 @@ function decorateAppointment(item) {
     isCancelled: item.status_code === STATUSES.cancelled,
     // 挂号凭证（就诊序号）仅在已支付后展示：待支付尚不构成有效就诊凭证（票 81）。
     hasVoucher: item.status_code !== STATUSES.cancelled && item.status_code !== STATUSES.pendingPayment,
+    // 可取消标记由后端计算下发（票 89）：待支付未过期或已支付未过取消截止时刻才可取消，
+    // 前端不自行复制时段表（ADR-0034 cancellable 同构 callable 模式）。
+    isCancellable: item.cancellable === true,
+    // 已退款标记：取消已支付预约后 payment_status 为 REFUNDED，用于展示退款文案。
+    isRefunded: item.payment_status === 'REFUNDED',
   }
 }
 
