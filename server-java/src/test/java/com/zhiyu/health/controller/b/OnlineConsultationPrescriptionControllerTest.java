@@ -39,7 +39,10 @@ class OnlineConsultationPrescriptionControllerTest {
     void createReturnsPendingPrescriptionWithOnlineSource() throws Exception {
         when(inputMapper.toOnlineCommand(anyLong(), anyLong(), any()))
                 .thenReturn(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, "足疗程服用", List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+                        8L,
+                        41L,
+                        "足疗程服用",
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
         when(service.createFromOnlineConsultation(any()))
                 .thenReturn(new PrescriptionService.PrescriptionView(
                         51L,
@@ -65,7 +68,7 @@ class OnlineConsultationPrescriptionControllerTest {
                                 .content(
                                         """
                                 {"notes":"足疗程服用","items":[{"medication_id":1,
-                                "dosage":"0.5g","frequency":"每日3次","duration":"5天"}]}
+                                "dosage":"0.5g","frequency":"每日3次","duration":"5天","quantity":2}]}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source_type").value("ONLINE_CONSULTATION"))
@@ -87,9 +90,9 @@ class OnlineConsultationPrescriptionControllerTest {
     void createRejectsBlockedDuplicateForeignAndNotInProgress() throws Exception {
         when(inputMapper.toOnlineCommand(anyLong(), anyLong(), any()))
                 .thenReturn(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
         String body =
-                "{\"items\":[{\"medication_id\":1,\"dosage\":\"0.5g\",\"frequency\":\"每日3次\",\"duration\":\"5天\"}]}";
+                "{\"items\":[{\"medication_id\":1,\"dosage\":\"0.5g\",\"frequency\":\"每日3次\",\"duration\":\"5天\",\"quantity\":2}]}";
 
         // 提交侧禁忌拦截（绕过前端禁用按钮直连 API 也必须 fail closed）
         // 用 doThrow 而非 when(...).thenThrow：重复打桩已 thenThrow 的 mock 会在 when() 内真实抛出

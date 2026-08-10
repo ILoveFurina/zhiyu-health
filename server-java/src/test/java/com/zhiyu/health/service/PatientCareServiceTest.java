@@ -12,6 +12,7 @@ import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.consultation.ClinicalContextService;
@@ -104,6 +105,7 @@ class PatientCareServiceTest {
                 mock(StaffUserMapper.class),
                 mock(ReceptionMapper.class),
                 mock(OnlineConsultationMapper.class),
+                mock(DoctorMapper.class),
                 TestContracts.instance());
     }
 }

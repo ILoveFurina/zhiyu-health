@@ -1,5 +1,7 @@
 package com.zhiyu.health.controller.b;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,99 +15,121 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.staff.prescription.DrugOrderAdminController;
-import com.zhiyu.health.entity.prescription.DrugOrder;
-import com.zhiyu.health.entity.prescription.DrugOrderItem;
-import com.zhiyu.health.mapper.prescription.DrugOrderItemMapper;
-import com.zhiyu.health.mapper.prescription.DrugOrderMapper;
-import com.zhiyu.health.mapper.prescription.MedicationMapper;
-import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.prescription.DrugOrderService;
-import com.zhiyu.health.service.prescription.mapping.DrugOrderDtoMapper;
-import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
 
+/**
+ * B 端药品订单端点冒烟（票 88）：薄入口装配与分页/过滤参数传递、staffId 注入履约、
+ * 取消与履约动作委托；业务行为见 DrugOrderServiceTest。
+ */
 class DrugOrderAdminControllerTest {
 
-    private final DrugOrderMapper orderMapper = mock(DrugOrderMapper.class);
-    private final DrugOrderItemMapper itemMapper = mock(DrugOrderItemMapper.class);
-    private final MedicationMapper medicationMapper = mock(MedicationMapper.class);
-    private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
-    private final DrugOrderDtoMapper dtoMapper = Mappers.getMapper(DrugOrderDtoMapper.class);
-    private final DrugOrderService service = new DrugOrderService(
-            orderMapper,
-            itemMapper,
-            medicationMapper,
-            prescriptionMapper,
-            transactionTemplate(),
-            TestContracts.instance(),
-            dtoMapper);
+    private final DrugOrderService service = mock(DrugOrderService.class);
     private final DrugOrderAdminController controller = new DrugOrderAdminController(service);
 
     @Test
-    void filtersOrdersByContractStatus() throws Exception {
-        DrugOrder order = order(51L, "PAID");
-        order.setPatientNickname("张三");
-        when(orderMapper.selectForAdmin("PAID")).thenReturn(List.of(order));
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
+    void listPassesFiltersAndPagination() throws Exception {
+        when(service.listForAdmin("PAID", "DELIVERY", 2, 10))
+                .thenReturn(new DrugOrderService.AdminOrderPage(List.of(orderView("PAID")), 21, 2, 10));
 
-        mvc().perform(get("/api/b/drug-orders").param("status", "PAID"))
+        mvc().perform(get("/api/b/drug-orders")
+                        .param("status", "PAID")
+                        .param("pickup_method", "DELIVERY")
+                        .param("page", "2")
+                        .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(51))
-                .andExpect(jsonPath("$[0].status").value("PAID"))
-                .andExpect(jsonPath("$[0].status_label").value("已支付"))
-                .andExpect(jsonPath("$[0].patient_name").value("张三"));
+                .andExpect(jsonPath("$.total").value(21))
+                .andExpect(jsonPath("$.records[0].id").value(51))
+                .andExpect(jsonPath("$.records[0].status").value("PAID"))
+                .andExpect(jsonPath("$.records[0].status_label").value("已支付"))
+                .andExpect(jsonPath("$.records[0].patient_name").value("张三"));
+        verify(service).listForAdmin("PAID", "DELIVERY", 2, 10);
     }
 
     @Test
-    void getsOrderDetail() throws Exception {
-        DrugOrder order = order(51L, "UNPAID");
-        order.setPatientNickname("李四");
-        // B 端明细经 selectDetailedForAdmin（JOIN patients 取昵称），非 selectById
-        when(orderMapper.selectDetailedForAdmin(51L)).thenReturn(order);
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
+    void listWithoutFiltersDelegatesNulls() throws Exception {
+        when(service.listForAdmin(isNull(), isNull(), anyInt(), anyInt()))
+                .thenReturn(new DrugOrderService.AdminOrderPage(List.of(), 0, 1, 20));
+
+        mvc().perform(get("/api/b/drug-orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records").isArray());
+    }
+
+    @Test
+    void detailReturnsPlaintextReceiverForFulfillment() throws Exception {
+        when(service.detailForAdmin(51L)).thenReturn(orderView("SHIPPED"));
 
         mvc().perform(get("/api/b/drug-orders/51"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(51))
                 .andExpect(jsonPath("$.prescription_id").value(31))
-                .andExpect(jsonPath("$.patient_name").value("李四"))
-                .andExpect(jsonPath("$.items").isArray());
+                .andExpect(jsonPath("$.receiver_phone").value("13812345678"))
+                .andExpect(jsonPath("$.carrier_name").value("智愈模拟配送"))
+                .andExpect(jsonPath("$.events[0].status").value("UNPAID"))
+                .andExpect(jsonPath("$.events[0].occurred_at").exists());
     }
 
     @Test
-    void cancellingUnpaidOrderRestoresStock() throws Exception {
-        DrugOrderItem item = new DrugOrderItem();
-        item.setDrugOrderId(51L);
-        item.setMedicationId(1L);
-        item.setQuantity(2);
-        when(orderMapper.selectForUpdate(51L)).thenReturn(order(51L, "UNPAID"));
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of(item));
-        when(medicationMapper.restoreStock(1L, 2)).thenReturn(1);
-        when(orderMapper.cancel(51L, "CANCELLED", "UNPAID")).thenReturn(1);
+    void fulfillmentInjectsStaffIdAndDelegatesDecision() throws Exception {
+        when(service.fulfill(9L, 51L, "DISPENSE")).thenReturn(orderView("DISPENSING"));
+
+        mvc().perform(post("/api/b/drug-orders/51/fulfillment")
+                        .requestAttr("authSubject", 9L)
+                        .contentType("application/json")
+                        .content("{\"decision\":\"DISPENSE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DISPENSING"));
+        verify(service).fulfill(9L, 51L, "DISPENSE");
+    }
+
+    @Test
+    void cancelDelegatesToService() throws Exception {
+        when(service.cancelForAdmin(51L)).thenReturn(orderView("CANCELLED"));
 
         mvc().perform(post("/api/b/drug-orders/51/cancel"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
-
-        verify(medicationMapper).restoreStock(1L, 2);
+        verify(service).cancelForAdmin(51L);
     }
 
-    private DrugOrder order(long id, String status) {
-        DrugOrder order = new DrugOrder();
-        order.setId(id);
-        order.setPatientId(7L);
-        order.setPrescriptionId(31L);
-        order.setStatus(status);
-        order.setTotalAmount(new BigDecimal("37.00"));
-        return order;
+    private DrugOrderService.OrderView orderView(String status) {
+        return new DrugOrderService.OrderView(
+                51L,
+                7L,
+                "张三",
+                31L,
+                "PRESCRIPTION",
+                status,
+                "已支付",
+                new DrugOrderService.PharmacyRef(71L, "主院区大药房"),
+                "主院区大药房",
+                "云澜医院",
+                "主院区",
+                "澜山市城东区梧桐路1号",
+                "澜山市城东区梧桐路1号",
+                "DELIVERY",
+                "配送到家",
+                new BigDecimal("37.00"),
+                new BigDecimal("5.00"),
+                new BigDecimal("42.00"),
+                "2026-08-10T10:10:00+08:00",
+                null,
+                null,
+                "张三",
+                "13812345678",
+                "澜山市城东区梧桐路12号3栋",
+                "智愈模拟配送",
+                "ZY0000000051",
+                false,
+                false,
+                List.of(),
+                List.of(new DrugOrderService.EventView("UNPAID", "待支付", "2026-08-10T10:00:00+08:00")),
+                "2026-08-10T10:00:00+08:00");
     }
 
     private MockMvc mvc() {
@@ -114,13 +138,5 @@ class DrugOrderAdminControllerTest {
                 .setControllerAdvice(new ApiExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper))
                 .build();
-    }
-
-    private TransactionTemplate transactionTemplate() {
-        TransactionTemplate template = mock(TransactionTemplate.class);
-        when(template.execute(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation
-                .getArgument(0, TransactionCallback.class)
-                .doInTransaction(mock(TransactionStatus.class)));
-        return template;
     }
 }

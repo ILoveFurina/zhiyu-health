@@ -23,6 +23,7 @@ public interface PrescriptionTemplateDtoMapper {
     @Mapping(target = "dosage", source = "input.dosage", qualifiedByName = "trimRequired")
     @Mapping(target = "frequency", source = "input.frequency", qualifiedByName = "trimRequired")
     @Mapping(target = "duration", source = "input.duration", qualifiedByName = "trimRequired")
+    @Mapping(target = "quantity", source = "input.quantity")
     @Mapping(target = "notes", source = "input.notes", qualifiedByName = "trimToNull")
     PrescriptionTemplateItem toItem(PrescriptionTemplateService.ItemInput input, long templateId);
 

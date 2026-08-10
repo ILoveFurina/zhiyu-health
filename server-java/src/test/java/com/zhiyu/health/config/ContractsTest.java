@@ -476,6 +476,13 @@ class ContractsTest {
                 .containsExactlyInAnyOrderEntriesOf(Map.of("admin", "管理员", "doctor", "医生", "pharmacist", "药师"));
         assertThat(staffRoles.roleLabels().keySet())
                 .containsExactlyInAnyOrderElementsOf(staffRoles.roles().values());
+        // StaffUser 角色常量是 Java 侧权限判断入口（拦截器/service），必须与契约取值同源。
+        assertThat(com.zhiyu.health.entity.common.StaffUser.ROLE_ADMIN)
+                .isEqualTo(staffRoles.roles().get("admin"));
+        assertThat(com.zhiyu.health.entity.common.StaffUser.ROLE_DOCTOR)
+                .isEqualTo(staffRoles.roles().get("doctor"));
+        assertThat(com.zhiyu.health.entity.common.StaffUser.ROLE_PHARMACIST)
+                .isEqualTo(staffRoles.roles().get("pharmacist"));
     }
 
     @Test

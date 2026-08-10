@@ -47,13 +47,13 @@ class MedCheckinServiceTest {
             Mappers.getMapper(MedCheckinDtoMapper.class));
 
     @Test
-    void eagerGeneratesDailyRemindersByDurationDays() {
-        // duration="5天" -> 5 条 PENDING，due_date 从今天起逐日递增。
+    void deliveredOrderGeneratesDailyRemindersByDurationDays() {
+        // duration="5天" -> 5 条 PENDING，due_date 从交付当天起逐日递增。
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
         when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(101L, "阿莫西林胶囊", "5天")));
 
-        service.generateForApprovedPrescription(31L);
+        service.generateForDeliveredOrder(deliveredOrder(31L));
 
         // insertIgnore 被调用 5 次，due_date 分别是今天起 0..4 天。
         verify(checkinMapper).insertIgnore(argMatcher(101L, LocalDate.now()));
@@ -62,14 +62,14 @@ class MedCheckinServiceTest {
     }
 
     @Test
-    void eagerGeneratesForOnlineConsultationPrescriptionFromClinicalContext() {
+    void deliveredOrderGeneratesForOnlineConsultationPrescriptionFromClinicalContext() {
         // 在线问诊处方无挂号单：患者/档案必须由统一临床上下文派生（票 56）。
         when(prescriptionMapper.selectDetailedById(32L)).thenReturn(onlinePrescription(32L, 41L));
         when(clinicalContexts.ofPrescription(any(Prescription.class)))
                 .thenReturn(context(13L, 98L, "ONLINE_CONSULTATION"));
         when(itemMapper.selectDetailed(32L)).thenReturn(List.of(item(101L, "阿莫西林胶囊", "3天")));
 
-        service.generateForApprovedPrescription(32L);
+        service.generateForDeliveredOrder(deliveredOrder(32L));
 
         verify(checkinMapper, org.mockito.Mockito.times(3))
                 .insertIgnore(org.mockito.ArgumentMatchers.argThat(r -> r != null
@@ -79,36 +79,45 @@ class MedCheckinServiceTest {
     }
 
     @Test
-    void eagerParsesWeekAndMonthDuration() {
+    void deliveredOrderParsesWeekAndMonthDuration() {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
         when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(102L, "布洛芬", "2周")));
 
-        service.generateForApprovedPrescription(31L);
+        service.generateForDeliveredOrder(deliveredOrder(31L));
 
         // 2周 = 14 天。
         verify(checkinMapper, org.mockito.Mockito.times(14)).insertIgnore(any(MedCheckinRecord.class));
     }
 
     @Test
-    void eagerFallsBackToDefaultDaysWhenDurationUnparseable() {
+    void deliveredOrderFallsBackToDefaultDaysWhenDurationUnparseable() {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, 21L));
         when(clinicalContexts.ofPrescription(any(Prescription.class))).thenReturn(context(12L, 99L, "APPOINTMENT"));
         when(itemMapper.selectDetailed(31L)).thenReturn(List.of(item(103L, "维生素C", "遵医嘱")));
 
-        service.generateForApprovedPrescription(31L);
+        service.generateForDeliveredOrder(deliveredOrder(31L));
 
         // 无法解析默认 7 天。
         verify(checkinMapper, org.mockito.Mockito.times(7)).insertIgnore(any(MedCheckinRecord.class));
     }
 
     @Test
-    void eagerSkipsWhenPrescriptionMissing() {
+    void deliveredOrderSkipsWhenPrescriptionMissing() {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(null);
 
-        service.generateForApprovedPrescription(31L);
+        service.generateForDeliveredOrder(deliveredOrder(31L));
 
         verify(checkinMapper, never()).insertIgnore(any(MedCheckinRecord.class));
+    }
+
+    @Test
+    void otcOrderNeverGeneratesReminders() {
+        // 票 88（ADR-0035）：OTC 订单（无处方）永不自动生成用药提醒。
+        service.generateForDeliveredOrder(deliveredOrder(null));
+
+        verify(checkinMapper, never()).insertIgnore(any(MedCheckinRecord.class));
+        verify(prescriptionMapper, never()).selectDetailedById(anyLong());
     }
 
     @Test
@@ -195,6 +204,14 @@ class MedCheckinServiceTest {
                 r -> r != null && r.getPrescriptionItemId() == itemId && dueDate.equals(r.getDueDate()));
     }
 
+    /** 到达交付终态的药品订单：prescriptionId 非空即处方药订单，null 即 OTC 订单。 */
+    private com.zhiyu.health.entity.prescription.DrugOrder deliveredOrder(Long prescriptionId) {
+        com.zhiyu.health.entity.prescription.DrugOrder order = new com.zhiyu.health.entity.prescription.DrugOrder();
+        order.setId(51L);
+        order.setPrescriptionId(prescriptionId);
+        return order;
+    }
+
     private Prescription prescription(long id, long appointmentId) {
         Prescription p = new Prescription();
         p.setId(id);
@@ -210,7 +227,7 @@ class MedCheckinServiceTest {
     }
 
     private ClinicalContextService.ClinicalContext context(long patientId, long profileId, String sourceType) {
-        return new ClinicalContextService.ClinicalContext(patientId, profileId, 5L, sourceType, null);
+        return new ClinicalContextService.ClinicalContext(patientId, profileId, 5L, sourceType, null, 7L);
     }
 
     private PrescriptionItem item(long id, String name, String duration) {

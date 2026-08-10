@@ -1,12 +1,9 @@
 package com.zhiyu.health.controller.c;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,62 +13,124 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.ApiExceptionHandler;
 import com.zhiyu.health.controller.patient.prescription.DrugOrderController;
 import com.zhiyu.health.controller.patient.prescription.mapping.DrugOrderInputMapper;
-import com.zhiyu.health.entity.prescription.DrugOrder;
-import com.zhiyu.health.entity.prescription.DrugOrderItem;
-import com.zhiyu.health.entity.prescription.Medication;
-import com.zhiyu.health.entity.prescription.Prescription;
-import com.zhiyu.health.mapper.prescription.DrugOrderItemMapper;
-import com.zhiyu.health.mapper.prescription.DrugOrderMapper;
-import com.zhiyu.health.mapper.prescription.MedicationMapper;
-import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.prescription.DrugOrderService;
-import com.zhiyu.health.service.prescription.mapping.DrugOrderDtoMapper;
-import com.zhiyu.health.support.TestContracts;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
 
+/** C 端药品订单端点冒烟（票 88）：薄入口装配与参数解析；业务行为见 DrugOrderServiceTest。 */
 class DrugOrderControllerTest {
 
-    private final DrugOrderMapper orderMapper = mock(DrugOrderMapper.class);
-    private final DrugOrderItemMapper itemMapper = mock(DrugOrderItemMapper.class);
-    private final MedicationMapper medicationMapper = mock(MedicationMapper.class);
-    private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
-    private final TransactionTemplate transactionTemplate = transactionTemplate();
-    private final DrugOrderDtoMapper dtoMapper = Mappers.getMapper(DrugOrderDtoMapper.class);
-    private final DrugOrderService service = new DrugOrderService(
-            orderMapper,
-            itemMapper,
-            medicationMapper,
-            prescriptionMapper,
-            transactionTemplate,
-            TestContracts.instance(),
-            dtoMapper);
+    private final DrugOrderService service = mock(DrugOrderService.class);
     private final DrugOrderController controller =
             new DrugOrderController(service, Mappers.getMapper(DrugOrderInputMapper.class));
 
     @Test
-    void approvedPrescriptionCreatesUnpaidOrderAndDeductsStock() throws Exception {
-        Prescription prescription = prescription("APPROVED");
-        Medication medication = medication(1L, "阿莫西林胶囊", "18.50");
-        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(prescription);
-        when(medicationMapper.selectForPrescriptionForUpdate(31L)).thenReturn(List.of(medication));
-        when(medicationMapper.deductStock(1L, 2)).thenReturn(1);
-        doAnswer(invocation -> {
-                    invocation.getArgument(0, DrugOrder.class).setId(51L);
-                    return 1;
-                })
-                .when(orderMapper)
-                .insert(any(DrugOrder.class));
+    void previewDelegatesToService() throws Exception {
+        DrugOrderService.PrescriptionPreviewView preview = new DrugOrderService.PrescriptionPreviewView(
+                "PRESCRIPTION",
+                31L,
+                "林医生",
+                "2026-08-10",
+                "云澜医院",
+                "主院区",
+                "澜山市城东区梧桐路1号",
+                71L,
+                "主院区大药房",
+                new BigDecimal("5.00"),
+                45,
+                new DrugOrderService.PreviewPharmacyRef(71L, "主院区大药房", new BigDecimal("5.00"), 45),
+                List.of(),
+                new BigDecimal("37.00"));
+        when(service.previewPrescription(7L, 31L)).thenReturn(preview);
+
+        mvc().perform(get("/api/c/drug-orders/preview")
+                        .param("prescription_id", "31")
+                        .requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("PRESCRIPTION"))
+                .andExpect(jsonPath("$.pharmacy_id").value(71))
+                .andExpect(jsonPath("$.pharmacy_name").value("主院区大药房"))
+                .andExpect(jsonPath("$.pharmacy.id").value(71))
+                .andExpect(jsonPath("$.pharmacy.display_name").value("主院区大药房"))
+                .andExpect(jsonPath("$.medication_amount").value(37.00));
+    }
+
+    @Test
+    void otcCandidatesParsesItemsParamAndPassesCoords() throws Exception {
+        DrugOrderService.OtcCandidatesView candidates = new DrugOrderService.OtcCandidatesView(
+                List.of(new DrugOrderService.OtcItemEcho(2L, "布洛芬缓释胶囊", "0.3g*20粒", 3)),
+                List.of(new DrugOrderService.OtcCandidateView(
+                        71L,
+                        "主院区大药房",
+                        "云澜医院",
+                        "主院区",
+                        "澜山市城东区梧桐路1号",
+                        new BigDecimal("5.00"),
+                        45,
+                        new BigDecimal("66.00"),
+                        320.5)));
+        when(service.otcCandidates(List.of(new DrugOrderService.QuantityInput(2L, 3)), 120.15, 30.27))
+                .thenReturn(candidates);
+
+        mvc().perform(get("/api/c/drug-orders/otc-candidates")
+                        .param("items", "2:3")
+                        .param("lng", "120.15")
+                        .param("lat", "30.27")
+                        .requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].medication_id").value(2))
+                .andExpect(jsonPath("$.items[0].quantity").value(3))
+                .andExpect(jsonPath("$.pharmacies[0].pharmacy_id").value(71))
+                .andExpect(jsonPath("$.pharmacies[0].medication_amount").value(66.00))
+                .andExpect(jsonPath("$.pharmacies[0].distance_meters").value(320.5));
+    }
+
+    @Test
+    void otcCandidatesWithoutCoordsOmitsDistance() throws Exception {
+        DrugOrderService.OtcCandidatesView candidates = new DrugOrderService.OtcCandidatesView(
+                List.of(new DrugOrderService.OtcItemEcho(2L, "布洛芬缓释胶囊", "0.3g*20粒", 3)),
+                List.of(new DrugOrderService.OtcCandidateView(
+                        71L,
+                        "主院区大药房",
+                        "云澜医院",
+                        "主院区",
+                        "澜山市城东区梧桐路1号",
+                        new BigDecimal("5.00"),
+                        45,
+                        new BigDecimal("66.00"),
+                        null)));
+        when(service.otcCandidates(eq(List.of(new DrugOrderService.QuantityInput(2L, 3))), isNull(), isNull()))
+                .thenReturn(candidates);
+
+        mvc().perform(get("/api/c/drug-orders/otc-candidates")
+                        .param("items", "2:3")
+                        .requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pharmacies[0].pharmacy_id").value(71))
+                .andExpect(jsonPath("$.pharmacies[0].distance_meters").doesNotExist());
+    }
+
+    @Test
+    void otcCandidatesRejectsMalformedItems() throws Exception {
+        mvc().perform(get("/api/c/drug-orders/otc-candidates")
+                        .param("items", "not-a-pair")
+                        .requestAttr("authSubject", 7L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("items 参数格式应为 medication_id:quantity 逗号分隔"));
+    }
+
+    @Test
+    void createMapsInputToCommand() throws Exception {
+        DrugOrderService.OrderView order = orderView("UNPAID");
+        when(service.create(any())).thenReturn(order);
 
         mvc().perform(
                         post("/api/c/drug-orders")
@@ -79,32 +138,28 @@ class DrugOrderControllerTest {
                                 .contentType("application/json")
                                 .content(
                                         """
-                                {"prescription_id":31,"items":[{"medication_id":1,"quantity":2}]}
+                                {"prescription_id":31,"pickup_method":"DELIVERY",
+                                 "receiver":{"name":"张三","phone":"13812345678","address":"澜山市城东区梧桐路12号"}}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(51))
                 .andExpect(jsonPath("$.status").value("UNPAID"))
-                .andExpect(jsonPath("$.source").value("PRESCRIPTION"))
-                .andExpect(jsonPath("$.total_amount").value(37.00));
+                .andExpect(jsonPath("$.pharmacy.display_name").value("主院区大药房"))
+                .andExpect(jsonPath("$.events[0].status").value("UNPAID"));
 
-        verify(medicationMapper).deductStock(1L, 2);
+        org.mockito.Mockito.verify(service)
+                .create(eq(new DrugOrderService.CreateCommand(
+                        7L,
+                        31L,
+                        null,
+                        null,
+                        "DELIVERY",
+                        new DrugOrderService.ReceiverInput("张三", "13812345678", "澜山市城东区梧桐路12号"))));
     }
 
     @Test
-    void onlineConsultationPrescriptionCreatesOrderLikeAppointmentOne() throws Exception {
-        // 在线问诊处方（appointment_id 为空）与线下处方走同一下单主路径（票 56）。
-        Prescription prescription = prescription("APPROVED");
-        prescription.setOnlineConsultationId(41L);
-        Medication medication = medication(1L, "阿莫西林胶囊", "18.50");
-        when(prescriptionMapper.selectForPatient(32L, 7L)).thenReturn(prescription);
-        when(medicationMapper.selectForPrescriptionForUpdate(32L)).thenReturn(List.of(medication));
-        when(medicationMapper.deductStock(1L, 2)).thenReturn(1);
-        doAnswer(invocation -> {
-                    invocation.getArgument(0, DrugOrder.class).setId(52L);
-                    return 1;
-                })
-                .when(orderMapper)
-                .insert(any(DrugOrder.class));
+    void createOtcMapsPharmacyAndItems() throws Exception {
+        when(service.create(any())).thenReturn(orderView("UNPAID"));
 
         mvc().perform(
                         post("/api/c/drug-orders")
@@ -112,149 +167,78 @@ class DrugOrderControllerTest {
                                 .contentType("application/json")
                                 .content(
                                         """
-                                {"prescription_id":32,"items":[{"medication_id":1,"quantity":2}]}
+                                {"pharmacy_id":71,"items":[{"medication_id":2,"quantity":3}],"pickup_method":"PICKUP"}
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(52))
-                .andExpect(jsonPath("$.status").value("UNPAID"));
+                .andExpect(status().isOk());
 
-        verify(medicationMapper).deductStock(1L, 2);
+        org.mockito.Mockito.verify(service)
+                .create(eq(new DrugOrderService.CreateCommand(
+                        7L, null, 71L, List.of(new DrugOrderService.QuantityInput(2L, 3)), "PICKUP", null)));
     }
 
     @Test
-    void foreignPrescriptionIsInvisibleAndRejectedAs404() throws Exception {
-        // 归属不符：selectForPatient 按患者过滤返回 null -> 404，不泄露存在性、不建单。
-        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(null);
-
-        mvc().perform(
-                        post("/api/c/drug-orders")
-                                .requestAttr("authSubject", 7L)
-                                .contentType("application/json")
-                                .content(
-                                        """
-                                {"prescription_id":31,"items":[{"medication_id":1,"quantity":2}]}
-                                """))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("电子处方不存在"));
-
-        verify(orderMapper, never()).insert(any(DrugOrder.class));
-        verify(medicationMapper, never()).deductStock(anyLong(), anyInt());
-    }
-
-    @Test
-    void insufficientStockRejectsOrderWithoutCreatingIt() throws Exception {
-        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(prescription("APPROVED"));
-        when(medicationMapper.selectForPrescriptionForUpdate(31L))
-                .thenReturn(List.of(medication(1L, "阿莫西林胶囊", "18.50")));
-        when(medicationMapper.deductStock(1L, 2)).thenReturn(0);
-
-        mvc().perform(
-                        post("/api/c/drug-orders")
-                                .requestAttr("authSubject", 7L)
-                                .contentType("application/json")
-                                .content(
-                                        """
-                                {"prescription_id":31,"items":[{"medication_id":1,"quantity":2}]}
-                                """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("药品库存不足，下单失败"));
-
-        verify(orderMapper, never()).insert(any(DrugOrder.class));
-    }
-
-    @Test
-    void repeatedMedicationLinesReusePrescriptionDetailsInsteadOfRejectingOrder() throws Exception {
-        Medication firstLine = medication(1L, "阿莫西林胶囊", "18.50");
-        Medication secondLine = medication(1L, "阿莫西林胶囊", "18.50");
-        when(prescriptionMapper.selectForPatient(31L, 7L)).thenReturn(prescription("APPROVED"));
-        when(medicationMapper.selectForPrescriptionForUpdate(31L)).thenReturn(List.of(firstLine, secondLine));
-        when(medicationMapper.deductStock(1L, 1)).thenReturn(1);
-        when(medicationMapper.deductStock(1L, 2)).thenReturn(1);
-        doAnswer(invocation -> {
-                    invocation.getArgument(0, DrugOrder.class).setId(51L);
-                    return 1;
-                })
-                .when(orderMapper)
-                .insert(any(DrugOrder.class));
-
-        mvc().perform(
-                        post("/api/c/drug-orders")
-                                .requestAttr("authSubject", 7L)
-                                .contentType("application/json")
-                                .content(
-                                        """
-                                {"prescription_id":31,"items":[
-                                  {"medication_id":1,"quantity":1},
-                                  {"medication_id":1,"quantity":2}
-                                ]}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items.length()").value(2))
-                .andExpect(jsonPath("$.total_amount").value(55.50));
-    }
-
-    @Test
-    void cancellingUnpaidOrderRestoresStock() throws Exception {
-        DrugOrder order = new DrugOrder();
-        order.setId(51L);
-        order.setPatientId(7L);
-        order.setPrescriptionId(31L);
-        order.setStatus("UNPAID");
-        order.setTotalAmount(new BigDecimal("37.00"));
-        DrugOrderItem item = new DrugOrderItem();
-        item.setDrugOrderId(51L);
-        item.setMedicationId(1L);
-        item.setMedicationName("阿莫西林胶囊");
-        item.setSpecification("0.25g*24粒");
-        item.setQuantity(2);
-        item.setUnitPrice(new BigDecimal("18.50"));
-        item.setSubtotal(new BigDecimal("37.00"));
-        when(orderMapper.selectForPatientForUpdate(51L, 7L)).thenReturn(order);
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of(item));
-        when(medicationMapper.restoreStock(1L, 2)).thenReturn(1);
-        when(orderMapper.cancel(51L, "CANCELLED", "UNPAID")).thenReturn(1);
-
-        mvc().perform(post("/api/c/drug-orders/51/cancel").requestAttr("authSubject", 7L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
-
-        verify(medicationMapper).restoreStock(1L, 2);
-    }
-
-    @Test
-    void payingUnpaidOrderMarksItPaid() throws Exception {
-        DrugOrder order = new DrugOrder();
-        order.setId(51L);
-        order.setPatientId(7L);
-        order.setPrescriptionId(31L);
-        order.setStatus("UNPAID");
-        order.setTotalAmount(new BigDecimal("37.00"));
-        when(orderMapper.selectForPatientForUpdate(51L, 7L)).thenReturn(order);
-        when(orderMapper.markPaid(51L, "PAID", "UNPAID")).thenReturn(1);
+    void payCancelListAndDetailDelegate() throws Exception {
+        when(service.pay(7L, 51L)).thenReturn(orderView("PAID"));
+        when(service.cancel(7L, 51L)).thenReturn(orderView("CANCELLED"));
+        when(service.listForPatient(7L)).thenReturn(List.of(orderView("UNPAID")));
+        when(service.detailForPatient(7L, 51L)).thenReturn(orderView("PAID"));
 
         mvc().perform(post("/api/c/drug-orders/51/pay").requestAttr("authSubject", 7L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PAID"))
-                .andExpect(jsonPath("$.status_label").value("已支付"))
-                .andExpect(jsonPath("$.cancellable").value(false));
+                .andExpect(jsonPath("$.status").value("PAID"));
+        mvc().perform(post("/api/c/drug-orders/51/cancel").requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        mvc().perform(get("/api/c/drug-orders").requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status_label").value("待支付"));
+        mvc().perform(get("/api/c/drug-orders/51").requestAttr("authSubject", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PAID"));
     }
 
     @Test
-    void listsOnlyCurrentPatientsOrders() throws Exception {
-        DrugOrder order = new DrugOrder();
-        order.setId(51L);
-        order.setPatientId(7L);
-        order.setPrescriptionId(31L);
-        order.setStatus("UNPAID");
-        order.setTotalAmount(new BigDecimal("18.50"));
-        when(orderMapper.selectForPatient(7L)).thenReturn(List.of(order));
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
+    void serviceExceptionPropagatesThroughAdvice() throws Exception {
+        when(service.pay(7L, 51L)).thenThrow(new ApiException(409, "仅待支付药品订单可支付"));
 
-        mvc().perform(get("/api/c/drug-orders").requestAttr("authSubject", 7L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(51))
-                .andExpect(jsonPath("$[0].status_label").value("待支付"))
-                .andExpect(jsonPath("$[0].cancellable").value(true));
+        mvc().perform(post("/api/c/drug-orders/51/pay").requestAttr("authSubject", 7L))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("仅待支付药品订单可支付"));
+    }
+
+    private DrugOrderService.OrderView orderView(String status) {
+        return new DrugOrderService.OrderView(
+                51L,
+                7L,
+                null,
+                31L,
+                "PRESCRIPTION",
+                status,
+                "待支付",
+                new DrugOrderService.PharmacyRef(71L, "主院区大药房"),
+                "主院区大药房",
+                "云澜医院",
+                "主院区",
+                "澜山市城东区梧桐路1号",
+                "澜山市城东区梧桐路1号",
+                "DELIVERY",
+                "配送到家",
+                new BigDecimal("37.00"),
+                new BigDecimal("5.00"),
+                new BigDecimal("42.00"),
+                "2026-08-10T10:10:00+08:00",
+                550L,
+                null,
+                "张三",
+                "138****5678",
+                "澜山市城东区****",
+                null,
+                null,
+                "UNPAID".equals(status),
+                "UNPAID".equals(status),
+                List.of(),
+                List.of(new DrugOrderService.EventView("UNPAID", "待支付", "2026-08-10T10:00:00+08:00")),
+                "2026-08-10T10:00:00+08:00");
     }
 
     private MockMvc mvc() {
@@ -263,99 +247,5 @@ class DrugOrderControllerTest {
                 .setControllerAdvice(new ApiExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper))
                 .build();
-    }
-
-    private Prescription prescription(String status) {
-        Prescription prescription = new Prescription();
-        prescription.setId(31L);
-        prescription.setStatus(status);
-        return prescription;
-    }
-
-    private Medication medication(long id, String name, String price) {
-        Medication medication = new Medication();
-        medication.setId(id);
-        medication.setName(name);
-        medication.setSpecification("0.25g*24粒");
-        medication.setPrice(new BigDecimal(price));
-        // 处方药路径不读此字段；OTC 路径校验它，默认 TRUE 与 seed 阿莫西林语义一致。
-        medication.setIsPrescription(true);
-        return medication;
-    }
-
-    // 票 76：OTC 下单（prescription_id 为空）走 selectByIdsForUpdate，药品须 is_prescription=FALSE。
-    @Test
-    void otcOrderWithoutPrescriptionCreatesUnpaidOrderAndDeductsStock() throws Exception {
-        Medication otc = medication(2L, "布洛芬缓释胶囊", "22.00");
-        otc.setIsPrescription(false);
-        when(medicationMapper.selectByIdsForUpdate(List.of(2L))).thenReturn(List.of(otc));
-        when(medicationMapper.deductStock(2L, 3)).thenReturn(1);
-        doAnswer(invocation -> {
-                    invocation.getArgument(0, DrugOrder.class).setId(61L);
-                    return 1;
-                })
-                .when(orderMapper)
-                .insert(any(DrugOrder.class));
-
-        mvc().perform(
-                        post("/api/c/drug-orders")
-                                .requestAttr("authSubject", 7L)
-                                .contentType("application/json")
-                                .content(
-                                        """
-                                {"items":[{"medication_id":2,"quantity":3}]}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(61))
-                .andExpect(jsonPath("$.status").value("UNPAID"))
-                .andExpect(jsonPath("$.source").value("OTC"))
-                .andExpect(jsonPath("$.prescription_id").doesNotExist())
-                .andExpect(jsonPath("$.total_amount").value(66.00));
-
-        verify(medicationMapper).deductStock(2L, 3);
-        verify(prescriptionMapper, never()).selectForPatient(anyLong(), anyLong());
-    }
-
-    @Test
-    void otcOrderRejectsPrescriptionDrugWithoutApprovedPrescription() throws Exception {
-        // 处方药（is_prescription=TRUE）不得走 OTC 路径，须凭已审核处方（ADR-0032 硬约束）。
-        Medication rx = medication(1L, "阿莫西林胶囊", "18.50");
-        when(medicationMapper.selectByIdsForUpdate(List.of(1L))).thenReturn(List.of(rx));
-
-        mvc().perform(
-                        post("/api/c/drug-orders")
-                                .requestAttr("authSubject", 7L)
-                                .contentType("application/json")
-                                .content(
-                                        """
-                                {"items":[{"medication_id":1,"quantity":2}]}
-                                """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("处方药须凭已审核电子处方购买"));
-
-        verify(orderMapper, never()).insert(any(DrugOrder.class));
-        verify(medicationMapper, never()).deductStock(anyLong(), anyInt());
-    }
-
-    @Test
-    void otcOrderWithoutItemsIsRejected() throws Exception {
-        mvc().perform(post("/api/c/drug-orders")
-                        .requestAttr("authSubject", 7L)
-                        .contentType("application/json")
-                        .content("""
-                                {}
-                                """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value("OTC 下单必须指定药品与数量"));
-
-        verify(orderMapper, never()).insert(any(DrugOrder.class));
-    }
-
-    private TransactionTemplate transactionTemplate() {
-        TransactionTemplate template = mock(TransactionTemplate.class);
-        when(template.execute(any())).thenAnswer(invocation -> invocation
-                .getArgument(0, TransactionCallback.class)
-                .doInTransaction(mock(TransactionStatus.class)));
-        return template;
     }
 }

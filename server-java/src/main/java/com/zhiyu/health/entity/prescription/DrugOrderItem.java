@@ -17,6 +17,8 @@ public class DrugOrderItem {
 
     private Long drugOrderId;
     private Long medicationId;
+    // 票 88（ADR-0035）：成交时锁定的药房药品在售关系快照；下架/换价后历史订单仍可追溯。
+    private Long pharmacyMedicationId;
     private Integer quantity;
     private BigDecimal unitPrice;
     private BigDecimal subtotal;

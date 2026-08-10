@@ -18,17 +18,11 @@ import com.zhiyu.health.service.demo.DemoDashboardService.DashboardView;
 import com.zhiyu.health.service.demo.DemoDashboardService.DepartmentShare;
 import com.zhiyu.health.service.demo.DemoDashboardService.SlotUsage;
 import com.zhiyu.health.service.demo.DemoKnowledgeSourceService;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStock;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockItem;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockView;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.SyncResult;
 import com.zhiyu.health.service.demo.DemoResetService;
 import com.zhiyu.health.service.demo.DemoResetService.ResetResult;
 import com.zhiyu.health.service.demo.DemoTimeSlotService;
 import com.zhiyu.health.service.demo.DemoTimeSlotService.TimeSlotWindowView;
 import com.zhiyu.health.support.StaffTokens;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -41,8 +35,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * 演示武器包入口（票 25）：仅 admin 可用，三重保护与中途失败经 service 抛 ApiException 出口。
  *
  * MockMvc 覆盖：未授权 401 / doctor 403 / 重置 env 未开启 403 / 确认短语不匹配 400 /
- * 重置进行中 409 / 中途失败 503 含步骤清单 / 知识源非法值 400 / 知识源默认 none / 看板聚合 /
- * Mock 药店库存同步与快照形状（票 48，真实 service 行为见 DemoPharmacySyncControllerTest）。
+ * 重置进行中 409 / 中途失败 503 含步骤清单 / 知识源非法值 400 / 知识源默认 none / 看板聚合。
+ * 票 88：Mock 药店库存同步两端点已移除（库存归院区药房），相应用例一并删除。
  */
 @WebMvcTest(DemoController.class)
 class DemoControllerTest {
@@ -60,9 +54,6 @@ class DemoControllerTest {
     private DemoKnowledgeSourceService knowledgeSourceService;
 
     @MockitoBean
-    private DemoPharmacySyncService pharmacySyncService;
-
-    @MockitoBean
     private DemoTimeSlotService timeSlotService;
 
     @Test
@@ -73,8 +64,6 @@ class DemoControllerTest {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/b/demo/dashboard")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/b/demo/knowledge-source")).andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/b/demo/pharmacy-stock/sync")).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/b/demo/pharmacy-stock")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/b/demo/time-slot-windows")).andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/b/demo/time-slot-windows")
                         .contentType("application/json")
@@ -92,11 +81,6 @@ class DemoControllerTest {
         mockMvc.perform(get("/api/b/demo/dashboard").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/b/demo/knowledge-source").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/b/demo/pharmacy-stock/sync")
-                        .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/b/demo/pharmacy-stock").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/b/demo/time-slot-windows").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isForbidden());
@@ -231,34 +215,6 @@ class DemoControllerTest {
                         .content("{\"knowledge_source\":\"graph\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.knowledge_source").value("graph"));
-    }
-
-    @Test
-    void syncPharmacyStockReturnsStats() throws Exception {
-        when(pharmacySyncService.sync())
-                .thenReturn(new SyncResult(OffsetDateTime.parse("2026-08-06T10:15:30+08:00"), 3, 12));
-        mockMvc.perform(post("/api/b/demo/pharmacy-stock/sync")
-                        .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.synced_at").value("2026-08-06T10:15:30+08:00"))
-                .andExpect(jsonPath("$.pharmacy_count").value(3))
-                .andExpect(jsonPath("$.record_count").value(12));
-    }
-
-    @Test
-    void pharmacyStockReturnsSnapshot() throws Exception {
-        when(pharmacySyncService.snapshot())
-                .thenReturn(new PharmacyStockView(
-                        null,
-                        List.of(new PharmacyStock(
-                                "澜庭大药房", "城东区·梧桐路 12 号", List.of(new PharmacyStockItem("阿莫西林胶囊", "0.25g*24粒", 86))))));
-        mockMvc.perform(get("/api/b/demo/pharmacy-stock").with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.last_synced_at").doesNotExist())
-                .andExpect(jsonPath("$.pharmacies[0].name").value("澜庭大药房"))
-                .andExpect(jsonPath("$.pharmacies[0].region").value("城东区·梧桐路 12 号"))
-                .andExpect(jsonPath("$.pharmacies[0].items[0].medication_name").value("阿莫西林胶囊"))
-                .andExpect(jsonPath("$.pharmacies[0].items[0].stock").value(86));
     }
 
     @Test

@@ -26,13 +26,13 @@ import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.OnlineConsultationMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
-import com.zhiyu.health.mapper.prescription.MedicationMapper;
+import com.zhiyu.health.mapper.organization.DoctorMapper;
+import com.zhiyu.health.mapper.pharmacy.PharmacyMedicationMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.rule.ContraindicationResult;
 import com.zhiyu.health.service.consultation.ClinicalContextService;
 import com.zhiyu.health.service.prescription.ContraindicationService;
-import com.zhiyu.health.service.prescription.MedCheckinService;
 import com.zhiyu.health.service.prescription.PrescriptionService;
 import com.zhiyu.health.service.prescription.mapping.PrescriptionDtoMapper;
 import com.zhiyu.health.support.TestContracts;
@@ -50,14 +50,16 @@ class PrescriptionServiceTest {
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
     private final ReceptionMapper receptionMapper = mock(ReceptionMapper.class);
     private final OnlineConsultationMapper onlineConsultationMapper = mock(OnlineConsultationMapper.class);
-    private final MedicationMapper medicationMapper = mock(MedicationMapper.class);
+    private final DoctorMapper doctorMapper = mock(DoctorMapper.class);
+    private final PharmacyMedicationMapper pharmacyMedicationMapper = mock(PharmacyMedicationMapper.class);
     private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
     private final PrescriptionItemMapper itemMapper = mock(PrescriptionItemMapper.class);
     private final TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
     private final AgentClient agentClient = mock(AgentClient.class);
     private final ContraindicationService contraindicationService = mock(ContraindicationService.class);
-    private final MedCheckinService medCheckinService = mock(MedCheckinService.class);
     private final InAppMessageMapper inAppMessageMapper = mock(InAppMessageMapper.class);
+
+    private static final long DOCTOR_CAMPUS_ID = 7L;
 
     {
         // 测试替身直接执行事务回调，等价于真实事务模板的行为（review 的状态推进+消息写入在事务内）。
@@ -66,14 +68,14 @@ class PrescriptionServiceTest {
             TransactionCallback<?> callback = invocation.getArgument(0);
             return callback == null ? null : callback.doInTransaction(mock(TransactionStatus.class));
         });
+        // 开方医生默认属于院区 7（plain mock 无严格桩检查，个别用例可再 stub 覆盖）。
+        when(doctorMapper.selectCampusIdByDoctorId(anyLong())).thenReturn(DOCTOR_CAMPUS_ID);
     }
 
     // 临床上下文用真实模块接同一批 mapper mock：线下路径的既有打桩（receptionMapper 等）原样生效。
     private final ClinicalContextService clinicalContexts = new ClinicalContextService(
-            staffUserMapper, receptionMapper, onlineConsultationMapper, TestContracts.instance());
+            staffUserMapper, receptionMapper, onlineConsultationMapper, doctorMapper, TestContracts.instance());
     private final PrescriptionService service = new PrescriptionService(
-            staffUserMapper,
-            medicationMapper,
             prescriptionMapper,
             itemMapper,
             transactionTemplate,
@@ -82,9 +84,9 @@ class PrescriptionServiceTest {
             TestDisclaimers.instance(),
             TestContracts.instance(),
             Mappers.getMapper(PrescriptionDtoMapper.class),
-            medCheckinService,
             clinicalContexts,
-            inAppMessageMapper);
+            inAppMessageMapper,
+            pharmacyMedicationMapper);
 
     @Test
     void listForReviewPassesStatusAndKeywordToMapper() {
@@ -140,8 +142,7 @@ class PrescriptionServiceTest {
         assertEquals("已通过", result.status());
         assertEquals("仅供参考，不替代医生诊断", result.disclaimer());
         verify(agentClient).explainPrescription(anyList());
-        // 审核通过必须触发服药打卡 eager 预生成（ADR-0017）。
-        verify(medCheckinService).generateForApprovedPrescription(31L);
+        // 票 88（ADR-0035）：审核通过不再生成用药提醒；改由处方药订单交付终态触发。
         // 票 60：通过分支同事务写审核结果站内消息，文案只取契约
         var copy = TestContracts.instance().prescriptionFlow().messages().get("approved");
         ArgumentCaptor<InAppMessage> message = ArgumentCaptor.forClass(InAppMessage.class);
@@ -158,7 +159,7 @@ class PrescriptionServiceTest {
 
     @Test
     void rejectionWritesReviewResultMessageFromContract() {
-        // 票 60：驳回分支同样写审核结果站内消息（取 rejected 文案），但不生成打卡提醒
+        // 票 60：驳回分支同样写审核结果站内消息（取 rejected 文案）
         Prescription pending = prescription(31L, "PENDING");
         Prescription rejected = prescription(31L, "REJECTED");
         rejected.setPatientId(12L);
@@ -175,7 +176,6 @@ class PrescriptionServiceTest {
         assertEquals(copy.title(), message.getValue().getTitle());
         assertEquals(copy.content(), message.getValue().getContent());
         assertEquals(31L, message.getValue().getRelatedPrescriptionId());
-        verify(medCheckinService, never()).generateForApprovedPrescription(31L);
     }
 
     @Test
@@ -227,18 +227,6 @@ class PrescriptionServiceTest {
     }
 
     @Test
-    void rejectionDoesNotGenerateMedCheckinReminders() {
-        // 驳回处方不得生成服药打卡提醒（票 22：未审核处方不生成提醒）。
-        when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, "PENDING"));
-        when(prescriptionMapper.review(31L, "REJECTED", "用法不当", 1L, null, null, "PENDING"))
-                .thenReturn(1);
-
-        service.review(1L, 31L, "REJECT", "用法不当");
-
-        verify(medCheckinService, never()).generateForApprovedPrescription(31L);
-    }
-
-    @Test
     void checkSafetyUsesAppointmentPatientContext() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
@@ -269,20 +257,20 @@ class PrescriptionServiceTest {
     }
 
     @Test
-    void listMedicationsOnlyReturnsActiveForDoctorSelection() {
-        // 停用药品不出现在医生开方选药列表：selectActive() 已按 is_active=TRUE 过滤，
-        // listMedications 直接透传其结果，停用药（id=2 isActive=false）被排除。
+    void listMedicationsOnlyReturnsOnSaleCampusCatalog() {
+        // 票 88：医生开方目录只含当前院区药房已配置且在售的标准药品；
+        // 过滤口径在 selectOnSaleCatalogByCampus（JOIN 药房 + is_on_sale=TRUE），service 直接透传。
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
-        Medication active = new Medication();
-        active.setId(1L);
-        active.setIsActive(true);
-        when(medicationMapper.selectActive()).thenReturn(List.of(active));
+        Medication onSale = new Medication();
+        onSale.setId(1L);
+        when(pharmacyMedicationMapper.selectOnSaleCatalogByCampus(DOCTOR_CAMPUS_ID, null))
+                .thenReturn(List.of(onSale));
 
-        List<PrescriptionService.MedicationView> views = service.listMedications(8L);
+        List<PrescriptionService.MedicationView> views = service.listMedications(8L, null);
 
         assertEquals(1, views.size());
         assertEquals(1L, views.get(0).id());
-        verify(medicationMapper).selectActive();
+        verify(pharmacyMedicationMapper).selectOnSaleCatalogByCampus(DOCTOR_CAMPUS_ID, null);
     }
 
     @Test
@@ -317,7 +305,8 @@ class PrescriptionServiceTest {
     void createRejectsBlockedSubmissionBeforeInsert() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
-        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
         when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "BLOCKED",
@@ -330,7 +319,10 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(
                 ApiException.class,
                 () -> service.create(new PrescriptionService.CreateCommand(
-                        8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+                        8L,
+                        21L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
 
         assertEquals(409, error.getStatus());
         assertEquals("检测到用药禁忌，已阻止本次处方提交。请调整用药方案或咨询药师：过敏史“青霉素”与药品 1 的成分/禁忌项匹配", error.getMessage());
@@ -342,7 +334,8 @@ class PrescriptionServiceTest {
     void createChecksSafetyThenPersistsWhenSafe() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
-        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
         when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
@@ -359,7 +352,7 @@ class PrescriptionServiceTest {
         when(prescriptionMapper.selectDetailedById(31L)).thenReturn(prescription(31L, "PENDING"));
 
         PrescriptionService.PrescriptionView view = service.create(new PrescriptionService.CreateCommand(
-                8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+                8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
 
         assertEquals("待审核", view.status());
         verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L)));
@@ -370,7 +363,8 @@ class PrescriptionServiceTest {
     void createFromOnlineConsultationWritesOnlineForeignKeyAndSourceType() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
-        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
         when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
@@ -389,13 +383,18 @@ class PrescriptionServiceTest {
         // 命令只携带 staffId 与问诊单 ID：患者/档案/医生身份全部由临床上下文派生，不接受请求体
         PrescriptionService.PrescriptionView view =
                 service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, "足疗程服用", List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+                        8L,
+                        41L,
+                        "足疗程服用",
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
 
         ArgumentCaptor<Prescription> inserted = ArgumentCaptor.forClass(Prescription.class);
         verify(prescriptionMapper).insert(inserted.capture());
         assertEquals(41L, inserted.getValue().getOnlineConsultationId());
         assertEquals(null, inserted.getValue().getAppointmentId());
         assertEquals(5L, inserted.getValue().getDoctorId());
+        // 来源院区开方时从接诊医生所属院区固化，不接受请求体传入
+        assertEquals(DOCTOR_CAMPUS_ID, inserted.getValue().getSourceCampusId());
         assertEquals("ONLINE_CONSULTATION", view.sourceType());
         assertEquals("在线问诊", view.sourceTypeLabel());
         assertEquals("待审核", view.status());
@@ -412,7 +411,10 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(
                 ApiException.class,
                 () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+                        8L,
+                        41L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
 
         assertEquals(409, error.getStatus());
         assertEquals("该问诊已开具电子处方", error.getMessage());
@@ -425,7 +427,8 @@ class PrescriptionServiceTest {
         // 并发重复提交越过预检撞 uq_prescriptions_online_consultation：明确 409，不冒 500
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
-        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
         when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
@@ -438,7 +441,10 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(
                 ApiException.class,
                 () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+                        8L,
+                        41L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
 
         assertEquals(409, error.getStatus());
         assertEquals("该问诊已开具电子处方", error.getMessage());
@@ -448,7 +454,8 @@ class PrescriptionServiceTest {
     void createFromOnlineConsultationRejectsBlockedSubmission() {
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
-        when(medicationMapper.selectById(1L)).thenReturn(medication(1L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
         when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "BLOCKED",
@@ -461,7 +468,10 @@ class PrescriptionServiceTest {
         ApiException error = assertThrows(
                 ApiException.class,
                 () -> service.createFromOnlineConsultation(new PrescriptionService.CreateOnlineCommand(
-                        8L, 41L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null)))));
+                        8L,
+                        41L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
 
         assertEquals(409, error.getStatus());
         verify(prescriptionMapper, never()).insert(any(Prescription.class));
@@ -504,6 +514,50 @@ class PrescriptionServiceTest {
         verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L)));
     }
 
+    @Test
+    void createRejectsMedicationNotOnSaleInSourceCampus() {
+        // 提交侧复验：药品不在开方院区药房在售目录（含已下架/跨院区目录）一律 400，不落库。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of());
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.create(new PrescriptionService.CreateCommand(
+                        8L,
+                        21L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null)))));
+
+        assertEquals(400, error.getStatus());
+        assertEquals("药品不在本院区药房在售目录", error.getMessage());
+        verify(prescriptionMapper, never()).insert(any(Prescription.class));
+        verifyNoInteractions(contraindicationService, transactionTemplate);
+    }
+
+    @Test
+    void createRejectsNonPositiveQuantity() {
+        // 配药数量必须为正整数（请求体 @Positive 之外 service 再兜底，DB CHECK 为最终防线）。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(5L));
+        when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
+        when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
+                .thenReturn(List.of(medication(1L)));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.create(new PrescriptionService.CreateCommand(
+                        8L,
+                        21L,
+                        null,
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 0, null)))));
+
+        assertEquals(400, error.getStatus());
+        assertEquals("配药数量必须为正整数", error.getMessage());
+        verify(prescriptionMapper, never()).insert(any(Prescription.class));
+        verifyNoInteractions(contraindicationService, transactionTemplate);
+    }
+
     private StaffUser doctor(long doctorId) {
         StaffUser staff = new StaffUser();
         staff.setRole(StaffUser.ROLE_DOCTOR);
@@ -523,7 +577,6 @@ class PrescriptionServiceTest {
     private Medication medication(long id) {
         Medication medication = new Medication();
         medication.setId(id);
-        medication.setIsActive(true);
         return medication;
     }
 

@@ -1,8 +1,8 @@
 package com.zhiyu.health.service.consultation;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;

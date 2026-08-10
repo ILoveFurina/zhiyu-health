@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.MvcResult;
 /**
  * 医生照片上传/回拉 HTTP seam（票 54）。
  *
- * <p>用 @WebMvcTest 挂 AuthFilter + AdminInterceptor，验证 admin 鉴权与文件校验、
+ * <p>用 @WebMvcTest 挂 AuthFilter + StaffRoleInterceptor，验证 admin 鉴权与文件校验、
  * MinIO 旁路降级（storePhoto 返回空时不报错）。
  */
 @WebMvcTest(DoctorPhotoController.class)

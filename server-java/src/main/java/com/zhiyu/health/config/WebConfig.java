@@ -1,6 +1,8 @@
 package com.zhiyu.health.config;
 
+import com.zhiyu.health.entity.common.StaffUser;
 import java.util.Arrays;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -82,14 +84,37 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * B 端默认仅 admin 可操作；放行员工认证区（登录/资料，任何已登录员工可用）
-     * 与接诊台（医生工作台，doctor 角色由 ReceptionService 在业务层校验）。
+     * B 端路由级角色矩阵（票 88，ADR-0035）：具体路由先注册、catch-all 兜底 admin-only。
+     * - doctor-only：/api/b/reception/**（接诊/排班/开方医生工作台）
+     * - admin-or-pharmacist：处方审核、药品订单、院区药房库存、标准药品目录
+     *   （目录读/处方属性维护是药师现场补药与库存页的必要依赖）
+     * - admin-only：其余 /api/b/**（组织/系统），放行员工认证区（登录/资料，任何已登录员工可用）
+     * 角色取值经 StaffUser 常量与 contracts/staff-roles.json 绑定（ContractsTest 断言同源）。
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new AdminInterceptor())
+        registry.addInterceptor(new StaffRoleInterceptor(Set.of(StaffUser.ROLE_DOCTOR), "仅医生可操作"))
+                .addPathPatterns("/api/b/reception/**");
+        registry.addInterceptor(
+                        new StaffRoleInterceptor(Set.of(StaffUser.ROLE_ADMIN, StaffUser.ROLE_PHARMACIST), "仅管理员或药师可操作"))
+                .addPathPatterns(
+                        "/api/b/prescriptions/**",
+                        "/api/b/drug-orders/**",
+                        "/api/b/campus-pharmacies/**",
+                        "/api/b/pharmacy-medications/**",
+                        "/api/b/medications/**",
+                        "/api/b/campuses/*/pharmacy");
+        registry.addInterceptor(new StaffRoleInterceptor(Set.of(StaffUser.ROLE_ADMIN), "仅管理员可操作"))
                 .addPathPatterns("/api/b/**")
-                .excludePathPatterns("/api/b/auth/**", "/api/b/reception/**");
+                .excludePathPatterns(
+                        "/api/b/auth/**",
+                        "/api/b/reception/**",
+                        "/api/b/prescriptions/**",
+                        "/api/b/drug-orders/**",
+                        "/api/b/campus-pharmacies/**",
+                        "/api/b/pharmacy-medications/**",
+                        "/api/b/medications/**",
+                        "/api/b/campuses/*/pharmacy");
     }
 
     @Override

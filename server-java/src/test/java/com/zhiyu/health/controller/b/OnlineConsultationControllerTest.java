@@ -66,7 +66,7 @@ class OnlineConsultationControllerTest {
 
     @Test
     void adminRoleIsRejectedByServiceLevelDoctorGuard() throws Exception {
-        // 接诊台命名空间对 AdminInterceptor 放行，doctor 角色收口在业务层（与 ReceptionService 同一模式）
+        // 接诊台命名空间仅 doctor 可访问（路由级角色授权），admin token 在 HTTP 层即 403
         when(consultations.pool(1L)).thenThrow(new ApiException(403, "仅医生可操作"));
         mockMvc.perform(get("/api/b/reception/online-consultations/pool")
                         .with(StaffTokens.withSubject("1", StaffUser.ROLE_ADMIN)))

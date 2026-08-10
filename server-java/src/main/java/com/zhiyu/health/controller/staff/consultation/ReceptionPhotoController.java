@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
- * 接诊台图片代理（问诊图片回看修复）：挂在 reception 命名空间下（AdminInterceptor 放行、
+ * 接诊台图片代理（问诊图片回看修复）：挂在 reception 命名空间下（仅 doctor 可访问、
  * AuthFilter 仍要求 staff JWT），doctor 角色可直接访问，而票 54 的 /api/b/photos 仅限
- * admin 角色（AdminInterceptor 拦截），医生回看患者问诊图片会 403。
+ * admin 角色（/api/b/** 路由级角色授权拦截），医生回看患者问诊图片会 403。
  *
  * <p>object_key 即取图凭证（UUID 不可猜测，与 C 端 PhotoController、B 端 /api/b/photos 同语义），
  * 不做会话归属校验；透传逻辑与 DoctorPhotoController.getPhoto 同构。

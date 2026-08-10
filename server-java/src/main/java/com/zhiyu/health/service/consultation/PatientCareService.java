@@ -67,6 +67,7 @@ public class PatientCareService {
             String dosage,
             String frequency,
             String duration,
+            Integer quantity,
             String notes) {}
 
     public record PatientPrescriptionView(

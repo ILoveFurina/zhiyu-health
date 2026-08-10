@@ -96,9 +96,14 @@ public class PrescriptionTemplateService extends ServiceImpl<PrescriptionTemplat
 
     private void validateItems(List<ItemInput> items) {
         for (ItemInput item : items) {
+            if (item.quantity() == null || item.quantity() < 1) {
+                throw new ApiException(400, "配药数量必须为正整数");
+            }
             Medication medication = medicationMapper.selectById(item.medicationId());
-            if (medication == null || !Boolean.TRUE.equals(medication.getIsActive())) {
-                throw new ApiException(400, "药品不存在或已停用");
+            // 票 88：medications 收敛为标准目录（无停用语义），存在即可入模板；
+            // 是否在售由开方目录（院区药房）把关。
+            if (medication == null) {
+                throw new ApiException(400, "药品不存在");
             }
         }
     }
@@ -116,7 +121,8 @@ public class PrescriptionTemplateService extends ServiceImpl<PrescriptionTemplat
         return dtoMapper.toTemplateView(template, dtoMapper.toItemViews(items));
     }
 
-    public record ItemInput(long medicationId, String dosage, String frequency, String duration, String notes) {}
+    public record ItemInput(
+            long medicationId, String dosage, String frequency, String duration, Integer quantity, String notes) {}
 
     public record SaveCommand(long staffId, String name, List<ItemInput> items) {}
 
@@ -128,6 +134,7 @@ public class PrescriptionTemplateService extends ServiceImpl<PrescriptionTemplat
             String dosage,
             String frequency,
             String duration,
+            Integer quantity,
             String notes) {}
 
     public record TemplateView(Long id, String name, Long doctorId, OffsetDateTime createdAt, List<ItemView> items) {}
