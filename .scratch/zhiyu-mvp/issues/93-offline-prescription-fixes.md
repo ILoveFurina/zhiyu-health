@@ -12,9 +12,9 @@
 - [x] contracts：`contraindication.json` 的 `messages.blocked` / `messages.review_required` / `advice` 改医生向话术
 - [x] server-java：`ContraindicationRuleEngine` reason 改用 PG 药名(新增 names 入参)、`ContraindicationService` 按候选+在用药并集取药名；`requirePrescribableFromAppointment` 拦 VISITED(409)
 - [x] admin：`PrescriptionForm` 逐项「配药数量」输入 + 模板导入带数量 + 预检 Alert 对 REVIEW_REQUIRED 用 warning 色；`prescription.ts`/`prescriptionTemplate.ts` 类型补 `quantity`；`TemplateFormModal` 配药数量输入与回显；`ConsultationDrawer` 开方区 `!completed` 门控
-- [x] 测试：规则引擎 reason 断言、服务层禁忌文案断言、VISITED 拦截 service 单测同步更新；admin typecheck/build 绿
-- [x] 人工走通：接诊台线下接诊开方提交审核不再报错；禁忌预检显示药品全名与医生向文案；已接诊「查看」只读
-- [x] 票单置 done 前：README 依赖图新增 T93 节点并加 `[x]`
+- [x] 测试：规则引擎 reason 断言、服务层禁忌文案断言、VISITED 拦截 service 单测同步更新；t93 分支全量 server-java 922 测试绿；admin typecheck/build 绿
+- [ ] 人工走通：接诊台线下接诊开方提交审核不再报错；禁忌预检显示药品全名与医生向文案；已接诊「查看」只读（浏览器实测）
+- [ ] 票单置 done 前：README 依赖图 T93 节点已在数字前加 `[x]`（节点已新增，done 时加标记）
 
 ## Comments
 
