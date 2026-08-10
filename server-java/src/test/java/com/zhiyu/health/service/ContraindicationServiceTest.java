@@ -43,7 +43,8 @@ class ContraindicationServiceTest {
     void checksCurrentProfilesAllergiesAgainstValidatedMedicationIds() {
         HealthProfile profile = profile(31L);
         Medication medication = medication(1L, "阿莫西林胶囊");
-        when(profileMapper.selectActive(12L)).thenReturn(profile);
+        // 档案按就诊固化 health_profile_id 取（selectOwned 校验归属），不依赖当前活跃档案
+        when(profileMapper.selectOwned(31L, 12L)).thenReturn(profile);
         when(allergyMapper.selectAllergens(31L)).thenReturn(List.of("青霉素"));
         when(medicationMapper.selectByIds(List.of(1L))).thenReturn(List.of(medication));
         when(facts.load(List.of(1L)))
@@ -52,45 +53,45 @@ class ContraindicationServiceTest {
                         List.of(),
                         true));
 
-        assertThat(service.check(new ContraindicationService.CheckCommand(12L, List.of(1L)))
+        assertThat(service.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L)))
                         .decision())
                 .isEqualTo("BLOCKED");
     }
 
     @Test
-    void rejectsWhenPatientHasNoCurrentHealthProfile() {
-        when(profileMapper.selectActive(12L)).thenReturn(null);
+    void rejectsWhenPatientHasNoMatchingHealthProfile() {
+        when(profileMapper.selectOwned(31L, 12L)).thenReturn(null);
 
-        assertThatThrownBy(() -> service.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        assertThatThrownBy(() -> service.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L))))
                 .isInstanceOf(ApiException.class)
-                .hasMessage("请先创建并激活健康档案后再进行禁忌检查");
+                .hasMessage("请先创建健康档案后再进行禁忌检查");
     }
 
     @Test
     void rejectsUnknownMedicationIdBeforeReadingNeo4j() {
-        when(profileMapper.selectActive(12L)).thenReturn(profile(31L));
+        when(profileMapper.selectOwned(31L, 12L)).thenReturn(profile(31L));
         when(medicationMapper.selectByIds(List.of(999L))).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.check(new ContraindicationService.CheckCommand(12L, List.of(999L))))
+        assertThatThrownBy(() -> service.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(999L))))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("药品不存在: 999");
     }
 
     @Test
     void blocksForReviewWhenNeo4jFactsCannotBeRead() {
-        when(profileMapper.selectActive(12L)).thenReturn(profile(31L));
+        when(profileMapper.selectOwned(31L, 12L)).thenReturn(profile(31L));
         when(allergyMapper.selectAllergens(31L)).thenReturn(List.of());
         when(medicationMapper.selectByIds(List.of(1L))).thenReturn(List.of(medication(1L)));
         when(facts.load(List.of(1L))).thenThrow(new IllegalStateException("Neo4j unavailable"));
 
-        ContraindicationService.CheckCommand command = new ContraindicationService.CheckCommand(12L, List.of(1L));
+        ContraindicationService.CheckCommand command = new ContraindicationService.CheckCommand(12L, 31L, List.of(1L));
         assertThat(service.check(command).decision()).isEqualTo("REVIEW_REQUIRED");
         assertThat(service.check(command).blocked()).isTrue();
     }
 
     @Test
     void checksCandidateAgainstCurrentApprovedPrescription() {
-        when(profileMapper.selectActive(12L)).thenReturn(profile(31L));
+        when(profileMapper.selectOwned(31L, 12L)).thenReturn(profile(31L));
         when(allergyMapper.selectAllergens(31L)).thenReturn(List.of());
         // 候选 + 档案在用药（APPROVED 处方药品）并集加载药名
         when(medicationMapper.selectByIds(List.of(2L, 4L)))
@@ -105,7 +106,7 @@ class ContraindicationServiceTest {
                         List.of(new MedicationInteractionFact(2L, 4L, "合用可能增加出血风险")),
                         true));
 
-        ContraindicationResult result = service.check(new ContraindicationService.CheckCommand(12L, List.of(2L)));
+        ContraindicationResult result = service.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(2L)));
 
         assertThat(result.decision()).isEqualTo("BLOCKED");
     }

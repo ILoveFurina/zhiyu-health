@@ -19,7 +19,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** 当前健康档案禁忌检查：PG 提供可信业务上下文，Neo4j 提供唯一医学事实。 */
+/** 就诊上下文健康档案禁忌检查：PG 提供可信业务上下文，Neo4j 提供唯一医学事实。 */
 @Service
 @RequiredArgsConstructor
 public class ContraindicationService {
@@ -34,9 +34,12 @@ public class ContraindicationService {
 
     public ContraindicationResult check(CheckCommand command) {
         List<Long> medicationIds = List.copyOf(new LinkedHashSet<>(command.medicationIds()));
-        HealthProfile profile = profileMapper.selectActive(command.patientId());
+        // 档案取就诊上下文固化的 health_profile_id（与开方上下文、票 97 接诊详情同一来源），
+        // 不取「当前活跃档案」：患者可能建有多个档案，挂号/问诊绑定的与活跃的不一致时，
+        // 用活跃档案会读错过敏史导致禁忌漏检（票 93 复盘，青宸/青 复现）。
+        HealthProfile profile = profileMapper.selectOwned(command.healthProfileId(), command.patientId());
         if (profile == null) {
-            throw new ApiException(409, "请先创建并激活健康档案后再进行禁忌检查");
+            throw new ApiException(409, "请先创建健康档案后再进行禁忌检查");
         }
 
         // 候选 + 档案在用药（APPROVED 处方药品）并集一并加载：既校验候选存在，也为规则引擎
@@ -70,5 +73,5 @@ public class ContraindicationService {
         return ruleEngine.judge(allergies, medicationIds, facts, medicationNames);
     }
 
-    public record CheckCommand(long patientId, List<Long> medicationIds) {}
+    public record CheckCommand(long patientId, long healthProfileId, List<Long> medicationIds) {}
 }

@@ -232,14 +232,14 @@ class PrescriptionServiceTest {
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
         ContraindicationResult safe =
                 new ContraindicationResult("SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null);
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L, 2L))))
                 .thenReturn(safe);
 
         ContraindicationResult result =
                 service.checkSafety(new PrescriptionService.CheckSafetyCommand(8L, 21L, List.of(1L, 2L)));
 
         assertEquals("SAFE", result.decision());
-        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L)));
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L, 2L)));
     }
 
     @Test
@@ -344,7 +344,7 @@ class PrescriptionServiceTest {
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
         when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
                 .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "BLOCKED",
                         "contraindication_warning",
@@ -373,7 +373,7 @@ class PrescriptionServiceTest {
         when(receptionMapper.selectAppointment(21L, 5L)).thenReturn(appointment(12L));
         when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
                 .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
         // 测试替身直接执行事务回调，等价于真实事务模板的行为。
@@ -392,7 +392,7 @@ class PrescriptionServiceTest {
                 8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
 
         assertEquals("待审核", view.status());
-        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L)));
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, 31L, List.of(1L)));
         verify(itemMapper).insert(any(PrescriptionItem.class));
     }
 
@@ -402,7 +402,7 @@ class PrescriptionServiceTest {
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
         when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
                 .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
         when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation
@@ -436,7 +436,7 @@ class PrescriptionServiceTest {
         assertEquals("在线问诊", view.sourceTypeLabel());
         assertEquals("待审核", view.status());
         // 禁忌复跑用的是问诊单派生的患者身份
-        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L)));
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L)));
     }
 
     @Test
@@ -466,7 +466,7 @@ class PrescriptionServiceTest {
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
         when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
                 .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null));
         when(transactionTemplate.execute(any())).thenAnswer(invocation -> invocation
@@ -493,7 +493,7 @@ class PrescriptionServiceTest {
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
         when(pharmacyMedicationMapper.selectOnSaleByCampusAndIds(anyLong(), anyList()))
                 .thenReturn(List.of(medication(1L)));
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L))))
                 .thenReturn(new ContraindicationResult(
                         "BLOCKED",
                         "contraindication_warning",
@@ -541,14 +541,14 @@ class PrescriptionServiceTest {
         when(onlineConsultationMapper.selectDetailedById(41L)).thenReturn(onlineConsultation("IN_PROGRESS", 5L));
         ContraindicationResult safe =
                 new ContraindicationResult("SAFE", "contraindication_result", false, List.of(), "未发现已知禁忌", null);
-        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L))))
+        when(contraindicationService.check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L, 2L))))
                 .thenReturn(safe);
 
         ContraindicationResult result = service.checkSafetyFromOnlineConsultation(
                 new PrescriptionService.CheckSafetyOnlineCommand(8L, 41L, List.of(1L, 2L)));
 
         assertEquals("SAFE", result.decision());
-        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, List.of(1L, 2L)));
+        verify(contraindicationService).check(new ContraindicationService.CheckCommand(12L, 3L, List.of(1L, 2L)));
     }
 
     @Test
@@ -606,6 +606,7 @@ class PrescriptionServiceTest {
         Appointment appointment = new Appointment();
         appointment.setId(21L);
         appointment.setPatientId(patientId);
+        appointment.setHealthProfileId(31L);
         appointment.setDoctorId(5L);
         appointment.setStatus("BOOKED");
         return appointment;

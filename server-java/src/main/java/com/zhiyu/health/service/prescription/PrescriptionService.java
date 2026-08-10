@@ -52,15 +52,15 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         ClinicalContextService.ClinicalContext context =
                 clinicalContexts.requirePrescribableFromAppointment(command.staffId(), command.appointmentId());
         // 患者身份只来自已鉴权医生名下的挂号单，绝不接受请求体传入。
-        return contraindicationService.check(
-                new ContraindicationService.CheckCommand(context.patientId(), command.medicationIds()));
+        return contraindicationService.check(new ContraindicationService.CheckCommand(
+                context.patientId(), context.healthProfileId(), command.medicationIds()));
     }
 
     public ContraindicationResult checkSafetyFromOnlineConsultation(CheckSafetyOnlineCommand command) {
         ClinicalContextService.ClinicalContext context = clinicalContexts.requirePrescribableFromOnlineConsultation(
                 command.staffId(), command.onlineConsultationId());
-        return contraindicationService.check(
-                new ContraindicationService.CheckCommand(context.patientId(), command.medicationIds()));
+        return contraindicationService.check(new ContraindicationService.CheckCommand(
+                context.patientId(), context.healthProfileId(), command.medicationIds()));
     }
 
     public PrescriptionView create(CreateCommand command) {
@@ -111,6 +111,7 @@ public class PrescriptionService extends ServiceImpl<PrescriptionMapper, Prescri
         // 提交侧强制复跑同一确定性规则：前端禁用按钮只是体验层，不能作为安全边界。
         ContraindicationResult safety = contraindicationService.check(new ContraindicationService.CheckCommand(
                 context.patientId(),
+                context.healthProfileId(),
                 items.stream().map(CreateItem::medicationId).toList()));
         if (safety.blocked()) {
             throw safetyException(safety);
