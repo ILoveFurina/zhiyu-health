@@ -1,0 +1,126 @@
+<view class="page">
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <block a:else>
+    <view class="dcn-source-row">
+      <view class="dcn-source-tag dcn-source-tag-{{source}}">{{sourceLabel}}</view>
+      <view class="dcn-realtime-hint">价格与库存以本页实时校验为准</view>
+    </view>
+
+    <!-- 处方药：处方信息（医生/日期/来源医院/院区），数量由医生开方决定，患者不可改 -->
+    <block a:if="{{isPrescription && preview}}">
+      <view class="dcn-card">
+        <view class="dcn-card-title">处方信息</view>
+        <view class="dcn-kv"><text class="dcn-k">开方医生</text><text>{{preview.doctor_name}}医生</text></view>
+        <view class="dcn-kv"><text class="dcn-k">开方日期</text><text>{{preview.prescription_date}}</text></view>
+        <view class="dcn-kv"><text class="dcn-k">来源</text><text>{{preview.hospital_name}} · {{preview.campus_name}}</text></view>
+      </view>
+      <view class="dcn-card">
+        <view class="dcn-card-title">
+          履约药房
+          <text class="dcn-lock-tag">处方锁定，不可更改</text>
+        </view>
+        <view class="dcn-pharmacy-name">{{preview.pharmacy_name}}</view>
+        <view class="dcn-pharmacy-meta">{{preview.hospital_name}} · {{preview.campus_name}}</view>
+      </view>
+      <view class="dcn-card">
+        <view class="dcn-card-title">药品明细</view>
+        <view a:for="{{preview.items}}" a:key="medication_id" class="dcn-item">
+          <view class="dcn-item-head">
+            <view class="dcn-item-name">{{item.name}}</view>
+            <view class="dcn-item-qty">× {{item.quantity}}</view>
+          </view>
+          <view a:if="{{item.specification}}" class="dcn-item-spec">{{item.specification}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- OTC：药品明细 + 可整单履约候选药房（不预选第一家，患者必须显式选择） -->
+    <block a:if="{{!isPrescription}}">
+      <view class="dcn-card">
+        <view class="dcn-card-title">药品明细</view>
+        <view a:for="{{items}}" a:key="medication_id" class="dcn-item">
+          <view class="dcn-item-head">
+            <view class="dcn-item-name">{{item.name}}</view>
+            <view class="dcn-item-qty">× {{item.quantity}}</view>
+          </view>
+          <view a:if="{{item.specification}}" class="dcn-item-spec">{{item.specification}}</view>
+        </view>
+      </view>
+      <view class="dcn-card">
+        <view class="dcn-card-title">选择履约药房</view>
+        <view class="dcn-pharmacy-hint">
+          {{located ? '已按距离从近到远排序' : '未授权定位，按医院与院区顺序展示'}}
+        </view>
+        <view a:if="{{pharmacies.length === 0}}" class="dcn-empty">
+          当前服务城市暂无药房可完整履约本次药品
+        </view>
+        <view
+          a:for="{{pharmacies}}"
+          a:key="pharmacy_id"
+          data-id="{{item.pharmacy_id}}"
+          class="dcn-pharmacy {{selectedPharmacyId === item.pharmacy_id ? 'dcn-pharmacy-on' : ''}}"
+          onTap="selectPharmacy"
+        >
+          <view class="dcn-pharmacy-head">
+            <view class="dcn-pharmacy-name">{{item.pharmacy_name}}</view>
+            <view a:if="{{item.distance_text}}" class="dcn-pharmacy-distance">{{item.distance_text}}</view>
+          </view>
+          <view class="dcn-pharmacy-meta">{{item.hospital_name}} · {{item.campus_name}}</view>
+          <view class="dcn-pharmacy-quote">
+            <text>药品 ¥{{item.medication_amount}}</text>
+            <text>配送费 ¥{{item.delivery_fee}}</text>
+            <text a:if="{{item.estimated_minutes}}">约 {{item.estimated_minutes}} 分钟</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 取药方式：所有院区药房同时支持院区自取与配送到家 -->
+    <view class="dcn-card">
+      <view class="dcn-card-title">取药方式</view>
+      <view class="dcn-methods">
+        <view
+          data-method="PICKUP"
+          class="dcn-method {{pickupMethod === 'PICKUP' ? 'dcn-method-on' : ''}}"
+          onTap="selectPickupMethod"
+        >
+          <view class="dcn-method-name">院区自取</view>
+          <view class="dcn-method-desc">配送费 ¥0.00</view>
+        </view>
+        <view
+          data-method="DELIVERY"
+          class="dcn-method {{pickupMethod === 'DELIVERY' ? 'dcn-method-on' : ''}}"
+          onTap="selectPickupMethod"
+        >
+          <view class="dcn-method-name">配送到家</view>
+          <view class="dcn-method-desc">
+            {{isDelivery ? '配送费 ¥' + deliveryFee : '药房固定配送费'}}{{estimatedText ? ' · ' + estimatedText : ''}}
+          </view>
+        </view>
+      </view>
+      <view a:if="{{!isDelivery && pickupAddress}}" class="dcn-pickup-address">
+        自取地址：{{pickupAddress}}
+      </view>
+      <!-- 配送才采集一次性收货信息；自取不收集 -->
+      <block a:if="{{isDelivery}}">
+        <view class="dcn-form">
+          <input class="dcn-input" placeholder="收货人" value="{{receiverName}}" onInput="onReceiverNameInput" />
+          <input class="dcn-input" placeholder="手机号" type="number" maxlength="11" value="{{receiverPhone}}" onInput="onReceiverPhoneInput" />
+          <input class="dcn-input" placeholder="完整收货地址" value="{{receiverAddress}}" onInput="onReceiverAddressInput" />
+        </view>
+        <view class="dcn-consent">收货信息仅用于本次配送，不会保存为地址簿</view>
+      </block>
+    </view>
+
+    <!-- 价格小结：药品金额 + 配送费 = 合计（下单时固化为订单快照） -->
+    <view class="dcn-card">
+      <view class="dcn-kv"><text class="dcn-k">药品金额</text><text>¥{{medicationAmount}}</text></view>
+      <view class="dcn-kv"><text class="dcn-k">配送费</text><text>¥{{deliveryFee}}</text></view>
+      <view class="dcn-total"><text class="dcn-total-label">合计</text><text class="dcn-total-amount">¥{{totalAmount}}</text></view>
+    </view>
+
+    <button class="dcn-submit" loading="{{submitting}}" disabled="{{submitting}}" onTap="submit">
+      {{submitting ? '提交中…' : '确认下单'}}
+    </button>
+  </block>
+</view>

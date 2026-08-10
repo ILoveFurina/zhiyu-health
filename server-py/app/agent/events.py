@@ -18,8 +18,19 @@ KNOWLEDGE_TOOL = "search_knowledge"
 GRAPH_TOOL = "traverse_graph"
 
 # 查已审核处方工具名（票 80）：投影成 prescriptions 选择卡，但三态有编排层把关--
-# 零张/单张抑制选择卡（文字引导或直通 prepare 确认卡），多张才投影选择卡。
+# 零张/单张抑制选择卡（文字引导或直通 prepare 预览卡），多张才投影选择卡。
 PRESCRIPTIONS_TOOL = "list_approved_prescriptions"
+
+# 购药预览卡工具名（票 88，ADR-0035）：prepare 回调返回含价格/库存/配送费等实时测算，
+# 这些只给模型叙述用；投影成卡片前必须按白名单收敛，卡片只承载非敏感稳定事实。
+PREPARE_DRUG_ORDER_TOOL = "prepare_drug_order"
+
+# 预览卡固定提示：价格与库存以统一购药确认页实时校验为准，卡片不作承诺。
+_PREVIEW_PRICE_STOCK_NOTICE = "价格库存以确认页为准"
+# 预览卡白名单字段（contracts/order-flow.json _drug_order_card_schema_doc）：
+# 公共字段 + 处方药路径的处方来源事实；收货人/电话/地址/取药方式/物流/价格库存一律排除。
+_PREVIEW_ITEM_KEYS = ("medication_id", "name", "specification", "quantity")
+_PREVIEW_PRESCRIPTION_KEYS = ("doctor_name", "prescription_date", "hospital_name", "campus_name")
 
 _MASK_SENSITIVE_KEYS = frozenset(
     {
@@ -146,7 +157,7 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
         )
     # 票 80：处方药购药三态由编排代码而非模型决定是否产选择卡
     # - 零处方：抑制选择卡，让模型按提示词文字引导「暂无已审核处方，可先发起问诊或挂号让医生开方」
-    # - 单处方：抑制选择卡，让模型直接调 prepare_drug_order(prescription_id=...) 走 79 直通确认卡
+    # - 单处方：抑制选择卡，让模型直接调 prepare_drug_order(prescription_id=...) 直通预览卡
     # - 多处方：投影 prescriptions 选择卡供用户点选（点选经 prescription_id 上下文注入触发 prepare）
     # 工具调用本身成功（查询有结果只是无数据/单张），_classify_tool_result 仍记 success。
     if message.name == PRESCRIPTIONS_TOOL:
@@ -155,7 +166,43 @@ def _tool_output(message: ToolMessage) -> AgentOutput | None:
         if count <= 1:
             return None
     event = _tool_event(message.name)
-    return AgentOutput(event, payload) if event is not None else None
+    if event is None:
+        return None
+    # 票 88：购药预览卡按白名单投影——prepare/otc-prepare 回调里的实时价格、库存、
+    # 配送费、院区地址等只回给模型，不落卡片；卡片另附「价格库存以确认页为准」。
+    if message.name == PREPARE_DRUG_ORDER_TOOL:
+        return AgentOutput(event, _drug_order_preview_card(payload))
+    return AgentOutput(event, payload)
+
+
+def _drug_order_preview_card(payload: dict[str, Any]) -> dict[str, Any]:
+    """把 prepare/otc-prepare 回调收敛成购药预览卡 payload（白名单字段 + 固定提示）。
+
+    跳页载荷与展示内容合一：source + prescription_id（处方药）或 items（OTC）即端侧
+    跳统一购药确认页所需全部上下文，下单与实时校验都在确认页发生。
+    """
+    raw_items = payload.get("items")
+    items = (
+        [
+            {key: item.get(key) for key in _PREVIEW_ITEM_KEYS}
+            for item in raw_items
+            if isinstance(item, dict)
+        ]
+        if isinstance(raw_items, list)
+        else []
+    )
+    card: dict[str, Any] = {
+        "source": payload.get("source"),
+        "prescription_id": payload.get("prescription_id"),
+        "items": items,
+        "price_stock_notice": _PREVIEW_PRICE_STOCK_NOTICE,
+    }
+    if payload.get("source") == get_contracts().order_flow.sources["prescription"]:
+        for key in _PREVIEW_PRESCRIPTION_KEYS:
+            card[key] = payload.get(key)
+        pharmacy = payload.get("pharmacy")
+        card["pharmacy_name"] = pharmacy.get("display_name") if isinstance(pharmacy, dict) else None
+    return card
 
 
 def _tool_event(tool_name: str | None) -> CardEvent | None:

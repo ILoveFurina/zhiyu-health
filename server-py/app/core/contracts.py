@@ -109,6 +109,35 @@ class PaymentFlowContract(BaseModel):
     messages: dict[str, str]
 
 
+class OrderFlowContract(BaseModel):
+    """药品订单（票 88，ADR-0035）：九值状态机、来源、取药方式、履约动作与支付超时。
+
+    server-py 当前不消费订单常量（购药预览卡/结果卡 payload 由 server-java 序列化），
+    登记本契约只为保证文件损坏时 fail-fast 且结构双栈同步。
+    """
+
+    statuses: dict[str, str]
+    status_labels: dict[str, str]
+    sources: dict[str, str]
+    source_labels: dict[str, str]
+    pickup_methods: dict[str, str]
+    pickup_method_labels: dict[str, str]
+    decisions: dict[str, str]
+    payment_timeout_seconds: int
+    simulated_carrier_name: str
+    messages: dict[str, str]
+
+
+class StaffRolesContract(BaseModel):
+    """B 端 staff_users.role 单一事实源（票 88）：admin/doctor/pharmacist 小写取值与中文标签。
+
+    server-py 不做角色鉴权，登记只为 fail-fast 与结构双栈同步。
+    """
+
+    roles: dict[str, str]
+    role_labels: dict[str, str]
+
+
 class ContraindicationContract(BaseModel):
     decisions: dict[str, str]
     message_types: dict[str, str]
@@ -264,6 +293,8 @@ class Contracts(BaseModel):
     chat_realtime: ChatRealtimeContract
     prescription_flow: PrescriptionFlowContract
     payment_flow: PaymentFlowContract
+    order_flow: OrderFlowContract
+    staff_roles: StaffRolesContract
     contraindication: ContraindicationContract
     knowledge: KnowledgeContract
     knowledge_documents: KnowledgeDocumentsContract
@@ -323,6 +354,8 @@ def _load(dir_path: Path) -> Contracts:
             payment_flow=PaymentFlowContract.model_validate(
                 _read_json(dir_path, "payment-flow.json")
             ),
+            order_flow=OrderFlowContract.model_validate(_read_json(dir_path, "order-flow.json")),
+            staff_roles=StaffRolesContract.model_validate(_read_json(dir_path, "staff-roles.json")),
             contraindication=ContraindicationContract.model_validate(
                 _read_json(dir_path, "contraindication.json")
             ),

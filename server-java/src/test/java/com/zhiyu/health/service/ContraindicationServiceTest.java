@@ -73,7 +73,7 @@ class ContraindicationServiceTest {
 
         assertThatThrownBy(() -> service.check(new ContraindicationService.CheckCommand(12L, List.of(999L))))
                 .isInstanceOf(ApiException.class)
-                .hasMessage("药品不存在或已停用: 999");
+                .hasMessage("药品不存在: 999");
     }
 
     @Test
@@ -117,7 +117,6 @@ class ContraindicationServiceTest {
     private Medication medication(long id) {
         Medication medication = new Medication();
         medication.setId(id);
-        medication.setIsActive(true);
         return medication;
     }
 }

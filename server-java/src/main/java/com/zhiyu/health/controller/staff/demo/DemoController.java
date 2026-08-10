@@ -4,9 +4,6 @@ import com.zhiyu.health.config.Contracts;
 import com.zhiyu.health.service.demo.DemoDashboardService;
 import com.zhiyu.health.service.demo.DemoDashboardService.DashboardView;
 import com.zhiyu.health.service.demo.DemoKnowledgeSourceService;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.PharmacyStockView;
-import com.zhiyu.health.service.demo.DemoPharmacySyncService.SyncResult;
 import com.zhiyu.health.service.demo.DemoResetService;
 import com.zhiyu.health.service.demo.DemoResetService.ResetResult;
 import com.zhiyu.health.service.demo.DemoTimeSlotService;
@@ -24,13 +21,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 演示武器包入口（票 25，ADR-0022）：全部收口在 {@code /api/b/demo/**}，仅 admin 可用（AdminInterceptor）。
+ * 演示武器包入口（票 25，ADR-0022）：全部收口在 {@code /api/b/demo/**}，仅 admin 可用（/api/b/** 路由级角色授权）。
  *
  * 演示重置三重保护在 {@link DemoResetService} 内执行；中途失败保持冻结、返回步骤清单，
  * 接口幂等可从失败步重跑，不自动回滚。成功 200 / 失败 503，体形状统一为 {@link ResetResult}。
  *
- * Mock 药店库存同步（票 48，ADR-0026 演示展示层例外）两枚端点收口于此：
- * POST {@code /pharmacy-stock/sync} 触发同步，GET {@code /pharmacy-stock} 取库存快照。
+ * 票 88（ADR-0035）：Mock 药店库存同步两枚端点已随「平台中心药房/Mock 外部药店」模型移除，
+ * 库存真实归属各院区药房（/api/b/campus-pharmacies/**），不再保留误导性外部药店入口。
  *
  * 演示时段设置（票 87）：GET/PUT {@code /time-slot-windows} 覆盖上午/下午起止，
  * 受 {@code DEMO_TIME_SLOT_ENABLED} 门控，env 关闭时整个能力 403 不可用。
@@ -43,7 +40,6 @@ public class DemoController {
     private final DemoResetService resetService;
     private final DemoDashboardService dashboardService;
     private final DemoKnowledgeSourceService knowledgeSourceService;
-    private final DemoPharmacySyncService pharmacySyncService;
     private final DemoTimeSlotService timeSlotService;
 
     public record ResetRequest(@NotBlank String confirm) {}
@@ -79,18 +75,6 @@ public class DemoController {
     public KnowledgeSourceView putKnowledgeSource(@RequestBody KnowledgeSourceRequest request) {
         knowledgeSourceService.update(request.knowledgeSource());
         return new KnowledgeSourceView(knowledgeSourceService.current());
-    }
-
-    /** Mock 药店库存同步（票 48）：仅刷新进程内同步时间并返回统计，不触碰业务库存。 */
-    @PostMapping("/pharmacy-stock/sync")
-    public SyncResult syncPharmacyStock() {
-        return pharmacySyncService.sync();
-    }
-
-    /** Mock 药店库存快照：虚构药店静态明细 + 上次同步时间（未同步为 null）。 */
-    @GetMapping("/pharmacy-stock")
-    public PharmacyStockView pharmacyStock() {
-        return pharmacySyncService.snapshot();
     }
 
     /** 读演示时段覆盖（有效时段窗口）；env 未开启 403。 */

@@ -10,9 +10,14 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
 from app.agent.types import AgentContext
+from app.core.contracts import get_contracts
 from app.tools.callback import BusinessCallbackClient, forward_get, forward_post
 
 __all__ = ["build_business_tools"]
+
+# OTC 来源标记的单一事实源是 contracts/order-flow.json；otc-prepare 回调不回传 source，
+# 由工具补进结果供模型叙述与预览卡投影区分两条路径。
+_OTC_SOURCE = get_contracts().order_flow.sources["otc"]
 
 
 def _appointment_args_error(schedule_id: int, condition_summary: str) -> str | None:
@@ -25,34 +30,12 @@ def _appointment_args_error(schedule_id: int, condition_summary: str) -> str | N
 
 
 def _otc_prepare_args_error(medication_id: int | None, quantity: int | None) -> str | None:
-    """OTC 购药确认入参由模型生成：臆造值属正常运行时结果，返回错误文本让其改正。"""
+    """OTC 购药预览入参由模型生成：臆造值属正常运行时结果，返回错误文本让其改正。"""
     if medication_id is None or medication_id <= 0:
-        return "购药确认失败：medication_id 无效，请先查药再确认购药"
+        return "购药预览失败：medication_id 无效，请先查药再装配预览卡"
     if quantity is None or quantity < 1:
-        return "购药确认失败：购买数量必须为正整数"
+        return "购药预览失败：购买数量必须为正整数，请先向用户确认数量"
     return None
-
-
-def _drug_order_prepare_params(
-    patient_id: int, medication_id: int | None, quantity: int | None, prescription_id: int | None
-) -> dict[str, Any] | str:
-    """装配购药确认回调参数：处方药传 prescription_id，OTC 传 medication_id + quantity。
-
-    入参由模型生成，臆造值属正常运行时结果：返回错误文本让其改正，而非掐断流。
-    患者身份从可信上下文取（不入模型可见参数），供处方归属校验。
-    """
-    params: dict[str, Any] = {"patient_id": patient_id}
-    if prescription_id is not None:
-        if prescription_id <= 0:
-            return "购药确认失败：prescription_id 无效，请先查询已审核处方"
-        params["prescription_id"] = prescription_id
-        return params
-    args_error = _otc_prepare_args_error(medication_id, quantity)
-    if args_error is not None:
-        return args_error
-    params["medication_id"] = medication_id
-    params["quantity"] = quantity
-    return params
 
 
 def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
@@ -107,7 +90,11 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
 
     @tool
     async def search_medications(name: str) -> dict[str, Any] | str:
-        """按药名模糊查询在售非处方药（OTC），供用户点名买药时查药；只返回可直接下单的药品。"""
+        """按药名查询平台标准药品目录，供用户点名买药时定位标准药品。
+
+        目录条目带 is_prescription 处方属性；命中处方药时不得按 OTC 购药，
+        引导用户凭已审核处方购药或先咨询医生。不得编造药品。
+        """
         return await forward_get(
             client,
             "/api/agent/medications",
@@ -127,30 +114,6 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
             action="查询已审核处方",
         )
 
-    @tool
-    async def prepare_drug_order(
-        runtime: ToolRuntime[AgentContext],
-        medication_id: int | None = None,
-        quantity: int | None = None,
-        prescription_id: int | None = None,
-    ) -> dict[str, Any] | str:
-        """装配购药确认卡所需数据（实时单价/库存/总价测算），不扣库存不建订单。
-
-        二选一：OTC 传 medication_id + quantity；处方药传 prescription_id。
-        患者身份从可信上下文取，供处方归属校验。
-        """
-        params = _drug_order_prepare_params(
-            runtime.context.patient_id, medication_id, quantity, prescription_id
-        )
-        if isinstance(params, str):
-            return params
-        return await forward_get(
-            client,
-            "/api/agent/drug-orders/prepare",
-            params,
-            action="装配购药确认卡",
-        )
-
     return [
         recommend_doctors,
         get_doctor_slots,
@@ -158,5 +121,53 @@ def build_business_tools(client: BusinessCallbackClient) -> list[BaseTool]:
         get_appointment,
         search_medications,
         list_approved_prescriptions,
-        prepare_drug_order,
+        _build_prepare_drug_order_tool(client),
     ]
+
+
+def _build_prepare_drug_order_tool(client: BusinessCallbackClient) -> BaseTool:
+    """购药预览卡工具独立装配：处方药/OTC 双分支回调不同端点，拆出避免主装配函数超复杂度。
+
+    处方药走 prepare 拿处方固化院区与锁定院区药房；OTC 走 otc-prepare 校验明细。
+    两个端点都只读，不扣库存不建订单。
+    """
+
+    @tool
+    async def prepare_drug_order(
+        runtime: ToolRuntime[AgentContext],
+        medication_id: int | None = None,
+        quantity: int | None = None,
+        prescription_id: int | None = None,
+    ) -> dict[str, Any] | str:
+        """装配购药预览卡所需数据（处方药返回锁定院区药房，OTC 校验明细），不扣库存不建订单。
+
+        二选一：处方药传 prescription_id；OTC 传 medication_id + quantity。
+        患者身份从可信上下文取（不入模型可见参数），供处方归属校验。
+        预览卡只展示非敏感稳定事实，价格与库存以用户在统一购药确认页看到的实时结果为准；
+        下单不在对话内发生，用户点击预览卡进入确认页后才决定是否购买。
+        """
+        patient_id = runtime.context.patient_id
+        if prescription_id is not None:
+            if prescription_id <= 0:
+                return "购药预览失败：prescription_id 无效，请先查询已审核处方"
+            return await forward_get(
+                client,
+                "/api/agent/drug-orders/prepare",
+                {"patient_id": patient_id, "prescription_id": prescription_id},
+                action="装配购药预览卡",
+            )
+        args_error = _otc_prepare_args_error(medication_id, quantity)
+        if args_error is not None:
+            return args_error
+        result = await forward_get(
+            client,
+            "/api/agent/drug-orders/otc-prepare",
+            {"patient_id": patient_id, "items": f"{medication_id}:{quantity}"},
+            action="校验 OTC 购药明细",
+        )
+        # otc-prepare 只回明细回声，补上来源标记供模型叙述与预览卡投影区分两条路径
+        if isinstance(result, dict):
+            return {"source": _OTC_SOURCE, **result}
+        return result
+
+    return prepare_drug_order

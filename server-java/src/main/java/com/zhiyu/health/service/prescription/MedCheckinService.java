@@ -3,6 +3,7 @@ package com.zhiyu.health.service.prescription;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
+import com.zhiyu.health.entity.prescription.DrugOrder;
 import com.zhiyu.health.entity.prescription.MedCheckinRecord;
 import com.zhiyu.health.entity.prescription.Prescription;
 import com.zhiyu.health.entity.prescription.PrescriptionItem;
@@ -23,8 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 服药打卡业务服务（ADR-0018）：
- * - eager 生成：处方审核通过时按 duration 解析的天数展开每日一条 PENDING，ON CONFLICT DO NOTHING 幂等；
+ * 服药打卡业务服务（ADR-0018 + 票 88 ADR-0035）：
+ * - 生成时机：处方药订单首次到达交付终态（DELIVERED/PICKED_UP）时按 duration 解析的天数
+ *   展开每日一条 PENDING，UNIQUE(prescription_item_id, due_date) + ON CONFLICT DO NOTHING 幂等；
+ *   票 88 起不再「处方审核通过即生成」，OTC 订单永不自动生成。
  * - 打卡幂等：条件 UPDATE 只推进 PENDING，CHECKED 不可回退；
  * - streak 现算：从今天/昨天往前数连续 CHECKED 的 due_date，漏一天归零，不存派生列。
  * server-py 不参与，全部 server-java 直写直读。
@@ -49,11 +52,15 @@ public class MedCheckinService extends ServiceImpl<MedCheckinRecordMapper, MedCh
     private final MedCheckinDtoMapper dtoMapper;
 
     /**
-     * 处方审核通过时 eager 预生成打卡提醒：按每条明细的 duration 展开每日一条 PENDING。
-     * 生成幂等由 UNIQUE(prescription_item_id, due_date) + ON CONFLICT DO NOTHING 兜底，
-     * 重复审核/重投静默吞掉，不抛异常。
+     * 处方药订单交付时生成打卡提醒（票 88）：按每条明细的 duration 展开每日一条 PENDING，
+     * 起始日为交付当天。生成幂等由 UNIQUE(prescription_item_id, due_date) + ON CONFLICT
+     * DO NOTHING 兜底，同单重投/重复触发静默吞掉；OTC 订单（无处方）直接返回，永不生成。
      */
-    public void generateForApprovedPrescription(long prescriptionId) {
+    public void generateForDeliveredOrder(DrugOrder order) {
+        Long prescriptionId = order.getPrescriptionId();
+        if (prescriptionId == null) {
+            return;
+        }
         Prescription prescription = prescriptionMapper.selectDetailedById(prescriptionId);
         if (prescription == null) {
             return;

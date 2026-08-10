@@ -38,6 +38,7 @@ class OnlineConsultationPgIntegrationTest {
 
     private static final long HOSPITAL = 990001L;
     private static final long CAMPUS = 990001L;
+    private static final long PHARMACY = 990001L;
     private static final long STD_DEPT_RESPIRATORY = 990001L;
     private static final long STD_DEPT_OTHER = 990002L;
     private static final long DEPT_CATEGORY = 990001L;
@@ -110,6 +111,7 @@ class OnlineConsultationPgIntegrationTest {
             statement.execute("DELETE FROM department_categories WHERE id = " + DEPT_CATEGORY);
             statement.execute("DELETE FROM standard_departments WHERE id IN (" + STD_DEPT_RESPIRATORY + ", "
                     + STD_DEPT_OTHER + ")");
+            statement.execute("DELETE FROM campus_pharmacies WHERE id = " + PHARMACY);
             statement.execute("DELETE FROM hospital_campuses WHERE id = " + CAMPUS);
             statement.execute("DELETE FROM hospitals WHERE id = " + HOSPITAL);
         }
@@ -284,8 +286,13 @@ class OnlineConsultationPgIntegrationTest {
             long rxWithOrder = insertPrescription(withOrder.getId(), "APPROVED");
             try (Connection connection = dataSource.getConnection();
                     Statement statement = connection.createStatement()) {
-                statement.execute("INSERT INTO drug_orders(patient_id, prescription_id, status, total_amount)"
-                        + " VALUES (" + PATIENT + ", " + rxWithOrder + ", 'UNPAID', 10.00)");
+                // 票 88：订单落履约快照模型（自取单不落收货信息）；has_drug_order 只关心订单存在性
+                statement.execute("INSERT INTO drug_orders(patient_id, prescription_id, pharmacy_id, pickup_method,"
+                        + " status, medication_amount, delivery_fee, total_amount, pharmacy_name, hospital_name,"
+                        + " campus_name, campus_address, payment_deadline)"
+                        + " VALUES (" + PATIENT + ", " + rxWithOrder + ", " + PHARMACY + ", 'PICKUP', 'UNPAID',"
+                        + " 10.00, 0, 10.00, 'IT总院区药房', 'IT集成测试医院', 'IT总院区', '测试路 1 号',"
+                        + " now() + interval '10 minutes')");
             }
             OnlineConsultation withoutOrder = waitingConsultation();
             withoutOrder.setHealthProfileId(PROFILE_B);
@@ -318,8 +325,9 @@ class OnlineConsultationPgIntegrationTest {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery(
-                        "INSERT INTO prescriptions(online_consultation_id, doctor_id, status, interpretation,"
-                                + " disclaimer) VALUES (" + consultationId + ", " + DOCTOR_A + ", '" + status + "',"
+                        "INSERT INTO prescriptions(online_consultation_id, doctor_id, source_campus_id, status,"
+                                + " interpretation, disclaimer) VALUES (" + consultationId + ", " + DOCTOR_A + ", "
+                                + CAMPUS + ", '" + status + "',"
                                 + " '用药解读', '仅供参考，不替代医生诊断') RETURNING id")) {
             assertThat(rs.next()).isTrue();
             return rs.getLong(1);
@@ -354,12 +362,16 @@ class OnlineConsultationPgIntegrationTest {
             statement.execute("DELETE FROM department_categories WHERE id = " + DEPT_CATEGORY);
             statement.execute("DELETE FROM standard_departments WHERE id IN (" + STD_DEPT_RESPIRATORY + ", "
                     + STD_DEPT_OTHER + ")");
+            statement.execute("DELETE FROM campus_pharmacies WHERE id = " + PHARMACY);
             statement.execute("DELETE FROM hospital_campuses WHERE id = " + CAMPUS);
             statement.execute("DELETE FROM hospitals WHERE id = " + HOSPITAL);
 
             statement.execute("INSERT INTO hospitals(id, name, level) VALUES (" + HOSPITAL + ", 'IT集成测试医院', '三甲')");
             statement.execute("INSERT INTO hospital_campuses(id, hospital_id, name, city_code, city_name, address)"
                     + " VALUES (" + CAMPUS + ", " + HOSPITAL + ", 'IT总院区', '410100', '郑州', '测试路 1 号')");
+            statement.execute("INSERT INTO campus_pharmacies(id, campus_id, display_name, delivery_fee,"
+                    + " estimated_delivery_minutes) VALUES (" + PHARMACY + ", " + CAMPUS
+                    + ", 'IT总院区药房', 5.00, 45)");
             statement.execute("INSERT INTO standard_departments(id, category, name) VALUES ("
                     + STD_DEPT_RESPIRATORY + ", 'IT内科', 'IT呼吸内科'), ("
                     + STD_DEPT_OTHER + ", 'IT外科', 'IT普外科')");

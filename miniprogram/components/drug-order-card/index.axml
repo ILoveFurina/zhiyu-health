@@ -2,15 +2,18 @@
   <view class="dor-head">
     <view>
       <view class="dor-kicker">药品订单</view>
-      <view class="dor-title">#{{card.id}}</view>
+      <view class="dor-title">#{{card.id || card.order_no}}</view>
     </view>
     <view class="dor-status dor-status-{{card.status}}">{{card.status_label || card.status}}</view>
   </view>
 
   <view class="dor-meta">
     <view><text class="dor-meta-label">来源</text>{{card.source === 'PRESCRIPTION' ? '处方药' : '非处方药'}}</view>
-    <view a:if="{{card.prescription_id}}"><text class="dor-meta-label">关联处方</text>#{{card.prescription_id}}</view>
-    <view a:if="{{card.created_at}}"><text class="dor-meta-label">创建时间</text>{{card.created_at}}</view>
+    <view a:if="{{pickupLabel}}"><text class="dor-meta-label">取药方式</text>{{pickupLabel}}</view>
+    <view a:if="{{card.pharmacy_name}}"><text class="dor-meta-label">履约药房</text>{{card.pharmacy_name}}</view>
+    <view a:if="{{card.hospital_name}}">
+      <text class="dor-meta-label">药房位置</text>{{card.hospital_name}}{{card.campus_name ? ' · ' + card.campus_name : ''}}
+    </view>
   </view>
 
   <view class="dor-items">
@@ -24,25 +27,15 @@
     </view>
   </view>
 
-  <view class="dor-total">
-    <text class="dor-total-label">订单合计</text>
-    <text>¥{{card.total_amount}}</text>
+  <view class="dor-amounts">
+    <view a:if="{{card.delivery_fee != null}}" class="dor-amount-row">
+      <text class="dor-amount-label">配送费</text><text>¥{{card.delivery_fee}}</text>
+    </view>
+    <view class="dor-total">
+      <text class="dor-total-label">订单合计</text>
+      <text>¥{{card.total_amount}}</text>
+    </view>
   </view>
 
-  <view a:if="{{card.payable || card.cancellable}}" class="dor-actions">
-    <button
-      a:if="{{card.payable}}"
-      class="dor-btn dor-btn-pay"
-      loading="{{payingOrderId === card.id}}"
-      disabled="{{payingOrderId === card.id || cancellingOrderId === card.id}}"
-      onTap="pay"
-    >模拟支付</button>
-    <button
-      a:if="{{card.cancellable}}"
-      class="dor-btn dor-btn-cancel"
-      loading="{{cancellingOrderId === card.id}}"
-      disabled="{{cancellingOrderId === card.id || payingOrderId === card.id}}"
-      onTap="cancel"
-    >取消订单</button>
-  </view>
+  <view class="dor-btn dor-btn-detail" onTap="openDetail">查看订单详情</view>
 </view>

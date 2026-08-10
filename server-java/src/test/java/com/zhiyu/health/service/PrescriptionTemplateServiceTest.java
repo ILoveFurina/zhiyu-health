@@ -99,18 +99,34 @@ class PrescriptionTemplateServiceTest {
     }
 
     @Test
-    void createRejectsInactiveMedication() {
+    void createRejectsUnknownMedication() {
+        // 票 88：medications 收敛为标准目录（无停用语义），药品不存在即 400
         when(staffUserMapper.selectById(8L)).thenReturn(doctor(1L));
-        Medication inactive = new Medication();
-        inactive.setId(12L);
-        inactive.setIsActive(false);
-        when(medicationMapper.selectById(12L)).thenReturn(inactive);
+        when(medicationMapper.selectById(12L)).thenReturn(null);
 
         ApiException error = assertThrows(
                 ApiException.class,
                 () -> service.create(new PrescriptionTemplateService.SaveCommand(8L, "测试", List.of(itemInput(12L)))));
 
         assertEquals(400, error.getStatus());
+        verify(templateMapper, never()).insert(any(PrescriptionTemplate.class));
+        verifyNoInteractions(transactionTemplate);
+    }
+
+    @Test
+    void createRejectsNonPositiveQuantity() {
+        // 票 88：模板明细配药数量同样必须为正整数（service 兜底，DB CHECK 为最终防线）
+        when(staffUserMapper.selectById(8L)).thenReturn(doctor(1L));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> service.create(new PrescriptionTemplateService.SaveCommand(
+                        8L,
+                        "测试",
+                        List.of(new PrescriptionTemplateService.ItemInput(12L, "5mg", "每日1次", "30天", 0, null)))));
+
+        assertEquals(400, error.getStatus());
+        assertEquals("配药数量必须为正整数", error.getMessage());
         verify(templateMapper, never()).insert(any(PrescriptionTemplate.class));
         verifyNoInteractions(transactionTemplate);
     }
@@ -163,7 +179,7 @@ class PrescriptionTemplateServiceTest {
     }
 
     private PrescriptionTemplateService.ItemInput itemInput(long medicationId) {
-        return new PrescriptionTemplateService.ItemInput(medicationId, "5mg", "每日1次", "30天", null);
+        return new PrescriptionTemplateService.ItemInput(medicationId, "5mg", "每日1次", "30天", 2, null);
     }
 
     private StaffUser doctor(long doctorId) {
@@ -176,7 +192,6 @@ class PrescriptionTemplateServiceTest {
     private Medication activeMedication(long id) {
         Medication medication = new Medication();
         medication.setId(id);
-        medication.setIsActive(true);
         return medication;
     }
 

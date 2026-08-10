@@ -1,0 +1,13 @@
+{
+  "_doc": "B 端 staff_users.role 单一事实源（票 88，ADR-0035）：取值沿用现有小写惯例（admin/doctor），新增全局药师 pharmacist——不建人员档案、不绑定医院/院区，负责处方审核、院区药房库存与药品订单模拟履约。server-java/admin 的角色枚举与权限判断均从本文件推导。",
+  "roles": {
+    "admin": "admin",
+    "doctor": "doctor",
+    "pharmacist": "pharmacist"
+  },
+  "role_labels": {
+    "admin": "管理员",
+    "doctor": "医生",
+    "pharmacist": "药师"
+  }
+}

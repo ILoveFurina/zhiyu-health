@@ -39,13 +39,13 @@ public class ContraindicationService {
         }
 
         List<Medication> medications = medicationMapper.selectByIds(medicationIds);
-        Set<Long> activeIds = medications.stream()
-                .filter(medication -> Boolean.TRUE.equals(medication.getIsActive()))
-                .map(Medication::getId)
-                .collect(java.util.stream.Collectors.toSet());
+        // 票 88：medications 收敛为标准目录（无上下架语义），存在即可参与禁忌检查；
+        // 在售/库存校验在开方目录与下单事务各自完成。
+        Set<Long> existingIds =
+                medications.stream().map(Medication::getId).collect(java.util.stream.Collectors.toSet());
         for (Long medicationId : medicationIds) {
-            if (!activeIds.contains(medicationId)) {
-                throw new ApiException(400, "药品不存在或已停用: " + medicationId);
+            if (!existingIds.contains(medicationId)) {
+                throw new ApiException(400, "药品不存在: " + medicationId);
             }
         }
 

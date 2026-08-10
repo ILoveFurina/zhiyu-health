@@ -25,8 +25,11 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// 各角色登录落点（票 88）：admin 进组织管理，pharmacist 进处方审核，doctor 进接诊台
 export function homeByRole(role?: string) {
-  return role === 'admin' ? '/hospitals' : '/workbench';
+  if (role === 'admin') return '/hospitals';
+  if (role === 'pharmacist') return '/prescriptions';
+  return '/workbench';
 }
 
 // 首屏 onRouteChange 可能先于 getInitialState 触发，cachedUser 未就绪时补拉一次

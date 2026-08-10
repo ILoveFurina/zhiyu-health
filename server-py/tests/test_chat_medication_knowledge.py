@@ -220,7 +220,8 @@ def test_tool_callback_failure_degrades_to_model_explanation_without_breaking_st
 
 
 def test_search_medications_projects_card_and_forwards_name() -> None:
-    """票 77：search_medications 按药名查 OTC，转发 name 参数并投影 medications 卡片。"""
+    """票 77/88：search_medications 按药名查标准药品目录（带 is_prescription 处方属性），
+    转发 name 参数并投影 medications 卡片。"""
     http_calls: list[tuple[str, str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -234,9 +235,7 @@ def test_search_medications_projects_card_and_forwards_name() -> None:
                         "name": "布洛芬缓释胶囊",
                         "generic_name": "布洛芬",
                         "specification": "0.3g*20粒",
-                        "price": 22.00,
-                        "stock": 280,
-                        "is_active": True,
+                        "is_prescription": False,
                     }
                 ]
             },

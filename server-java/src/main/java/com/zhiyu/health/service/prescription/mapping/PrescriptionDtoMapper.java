@@ -17,16 +17,20 @@ public interface PrescriptionDtoMapper {
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "appointmentId", source = "command.appointmentId")
     @Mapping(target = "doctorId", source = "doctorId")
+    @Mapping(target = "sourceCampusId", source = "sourceCampusId")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "notes", source = "command.notes", qualifiedByName = "trimToNull")
-    Prescription toPrescription(PrescriptionService.CreateCommand command, long doctorId, String status);
+    Prescription toPrescription(
+            PrescriptionService.CreateCommand command, long doctorId, long sourceCampusId, String status);
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "onlineConsultationId", source = "command.onlineConsultationId")
     @Mapping(target = "doctorId", source = "doctorId")
+    @Mapping(target = "sourceCampusId", source = "sourceCampusId")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "notes", source = "command.notes", qualifiedByName = "trimToNull")
-    Prescription toOnlinePrescription(PrescriptionService.CreateOnlineCommand command, long doctorId, String status);
+    Prescription toOnlinePrescription(
+            PrescriptionService.CreateOnlineCommand command, long doctorId, long sourceCampusId, String status);
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "prescriptionId", source = "prescriptionId")
@@ -34,6 +38,7 @@ public interface PrescriptionDtoMapper {
     @Mapping(target = "dosage", source = "input.dosage", qualifiedByName = "trimRequired")
     @Mapping(target = "frequency", source = "input.frequency", qualifiedByName = "trimRequired")
     @Mapping(target = "duration", source = "input.duration", qualifiedByName = "trimRequired")
+    @Mapping(target = "quantity", source = "input.quantity")
     @Mapping(target = "notes", source = "input.notes", qualifiedByName = "trimToNull")
     PrescriptionItem toPrescriptionItem(PrescriptionService.CreateItem input, long prescriptionId);
 
@@ -50,6 +55,7 @@ public interface PrescriptionDtoMapper {
     @Mapping(target = "dosage", source = "input.dosage")
     @Mapping(target = "frequency", source = "input.frequency")
     @Mapping(target = "duration", source = "input.duration")
+    @Mapping(target = "quantity", source = "input.quantity")
     @Mapping(target = "notes", source = "input.notes")
     PrescriptionService.ItemView toCreatedItem(PrescriptionService.CreateItem input, Medication medication);
 

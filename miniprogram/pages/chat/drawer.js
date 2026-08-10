@@ -70,24 +70,13 @@ const drawerMethods = {
     listMessages(conversationId)
       .then((messages) => {
         const replayed = messages.map((m) => this.replayMessage(m)).filter(Boolean)
-        // 票 78/79：drug_order 结果卡（带支付/取消动态按钮）不持久化--其卡片快照会与后端
-        // 订单实际状态不同步（取消/支付后快照仍是 UNPAID，操作即报错）。历史回放时把确认卡
-        // 一律置 history 只读态：隐藏「确认下单/取消」按钮，改为提示「已下单，去订单列表查看
-        // 订单状态」。订单的支付/取消/状态统一在 drug-orders 订单列表页管理（该页总拉实时数据）。
-        replayed.forEach((msg) => {
-          if (msg.kind === 'drug_order_confirm' || msg.kind === 'drug_order_prepare') {
-            msg.history = true
-          }
-        })
+        // 票 88：购药预览卡历史回放仍可点击——点击只跳统一购药确认页实时校验，
+        // 卡片不承载下单动作，无需只读态；订单状态统一在订单列表/详情页实时管理。
         this.setData({
           messages: replayed,
           conversationId,
           conversationTitle: conversationTitle || titleFromMessages(replayed),
           redFlag: null,
-          // 切换会话清空实时下单态：drugConfirmSubmitted 是页内存 map 且 key 为一次性 _msgSeq，
-          // 旧会话的 key 对新回放 id 无意义。
-          drugConfirmSubmitting: {},
-          drugConfirmSubmitted: {},
           drawerOpen: false,
           anchorId: 'thread-bottom',
         })
@@ -204,9 +193,9 @@ const drawerMethods = {
           disclaimer: card.disclaimer || m.disclaimer,
         }
       }
-      // 票 79/78：购药卡片回放——无需加工，disclaimer 优先取卡片 JSON 内字段（与 department_options 同构）。
-      // drug_order_prepare/drug_order_confirm 同组件渲染；prescriptions 为处方选择卡；
-      // medications 为查药结果卡（只读展示，不交互）。
+      // 票 88/79：购药卡片回放——无需加工，disclaimer 优先取卡片 JSON 内字段（与 department_options 同构）。
+      // drug_order_prepare/drug_order_confirm 同组件渲染（预览卡，点击跳确认页）；prescriptions 为处方选择卡；
+      // medications 为查药结果卡（只读展示，不交互）；drug_order 为下单结果摘要卡（只读，跳订单详情）。
       if (
         m.kind === 'prescriptions' ||
         m.kind === 'medications' ||

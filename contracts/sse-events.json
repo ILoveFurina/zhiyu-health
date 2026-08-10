@@ -16,7 +16,7 @@
     "drug_order_confirm",
     "drug_order"
   ],
-  "_drug_order_cards_doc": "票 78：购药两段式卡片。drug_order_confirm=购药确认卡，由 server-py Agent 经 prepare_drug_order 工具装配后以 SSE 卡片事件下发，展示药品明细/单价/库存/总价/处方来源，待用户在卡片上确认下单，不扣库存不建单。drug_order=购药结果卡，已建单订单视图，展示订单号/status/total_amount/items/prescription_source；它不经 Agent 工具产出，而是 C 端直接调 POST /api/c/drug-orders 下单成功后由 server-java 本地落库（票 79），不进入 server-py->server-java 的 SSE 透传链路。两 kind 在契约层全部登记（card_events/message_kinds/ai_card_kinds/event_to_kind），保证 messages 表 CHECK 与历史回看覆盖；source 字段区分 prescription/otc（取值见 order-flow.json sources）。",
+  "_drug_order_cards_doc": "票 78/票 88：购药两段式卡片。drug_order_confirm=购药预览卡（票 88 语义调整，不再在卡片上确认下单），由 server-py Agent 经 prepare_drug_order 工具装配后以 SSE 卡片事件下发，只展示来源/药名/规格/数量与处方医生/日期/医院/院区/锁定药房等非敏感稳定事实，并附「价格库存以确认页为准」；点击预览卡只跳统一购药确认页，确认页实时校验后才建单，卡片不扣库存不建单。drug_order=购药结果卡，已建单订单视图，展示订单号/status/pickup_method/药房与院区名/金额快照/items/时间线与脱敏收货信息；它不经 Agent 工具产出，而是 C 端在确认页调 POST /api/c/drug-orders 下单成功后由 server-java 本地落库（票 79），不进入 server-py->server-java 的 SSE 透传链路。两 kind 在契约层全部登记（card_events/message_kinds/ai_card_kinds/event_to_kind），保证 messages 表 CHECK 与历史回看覆盖；source 字段区分 prescription/otc（取值见 order-flow.json sources）。",
   "_trace_events_doc": "工具进度事件（票 24）：无序、可穿插，与有序的 stream_events 并列。两态对齐 LangGraph 工具调用的发起/返回时刻，不插值、不造中间心跳。trace 事件名集合必须与 card_events/ai_card_kinds 严格不相交且不得与 done 重名，由 ContractsConsistencyTest 钉死。tool_end 的 data 可选携带 tool_output_summary（server-py 对工具返回体脱敏+截断后的摘要，仅 B 端 trace 展示用，非本契约白名单字段，不落患者敏感原文）。",
   "trace_events": ["tool_start", "tool_end"],
   "_trace_results_doc": "tool_end 的结果枚举：success/error/skipped（skipped 如定位拒绝时静默降级，对用户不可见）。error_code 只存白名单码，非白名单统一记 TOOL_ERROR_UNKNOWN。",

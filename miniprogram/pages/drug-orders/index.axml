@@ -1,31 +1,41 @@
 <view class="page">
   <view a:if="{{loading}}" class="state">正在加载…</view>
   <zy-empty a:elif="{{orders.length === 0}}" icon="capsule" text="暂无药品订单" />
-  <view a:for="{{orders}}" a:key="id" class="card zy-fade-in" style="animation-delay: {{index * 40}}ms">
+  <view
+    a:for="{{orders}}"
+    a:key="id"
+    class="card zy-fade-in"
+    style="animation-delay: {{index * 40}}ms"
+    data-id="{{item.id}}"
+    onTap="openDetail"
+  >
     <view class="head">
       <view>
         <view class="order-kicker">药品订单</view>
         <view class="title">#{{item.id}}</view>
       </view>
-      <view class="status status-{{item.status}}">{{item.status_label}}</view>
+      <view class="status status-{{item.status}}">{{item.statusLabel}}</view>
     </view>
     <view class="meta">
-      <view><text class="meta-label">关联处方</text>#{{item.prescription_id}}</view>
+      <view>
+        <text class="meta-label">来源</text>{{item.sourceLabel}}
+        <text a:if="{{item.pickupLabel}}" class="pickup-tag">{{item.pickupLabel}}</text>
+      </view>
+      <view><text class="meta-label">履约药房</text>{{item.pharmacy_name}}</view>
       <view><text class="meta-label">创建时间</text>{{item.created_at}}</view>
     </view>
-    <view a:for="{{item.items}}" a:for-item="drug" a:key="medication_id" class="drug">
-      <view class="drug-name">{{drug.name}}</view>
-      <view class="drug-spec">{{drug.specification}}</view>
-      <view class="price"><text>¥{{drug.unit_price}} × {{drug.quantity}}</text><text class="subtotal">¥{{drug.subtotal}}</text></view>
-    </view>
     <view class="total"><text class="total-label">订单合计</text><text>¥{{item.total_amount}}</text></view>
-    <view a:if="{{item.payable || item.cancellable}}" class="actions">
-      <button a:if="{{item.payable}}" class="pay" data-id="{{item.id}}"
-        loading="{{payingId === item.id}}" disabled="{{payingId === item.id || cancellingId === item.id}}" onTap="pay">
+    <!-- 仅 UNPAID 展示 10 分钟支付倒计时与模拟支付/取消；倒计时到点本地置已过期事实 -->
+    <view a:if="{{item.canOperate && item.countdownText}}" class="countdown">
+      支付剩余 {{item.countdownText}}
+    </view>
+    <view a:if="{{item.canOperate}}" class="actions">
+      <button class="pay" data-id="{{item.id}}"
+        loading="{{payingId === item.id}}" disabled="{{payingId === item.id || cancellingId === item.id}}" catchTap="pay">
         模拟支付
       </button>
-      <button a:if="{{item.cancellable}}" class="cancel" data-id="{{item.id}}"
-        loading="{{cancellingId === item.id}}" disabled="{{cancellingId === item.id || payingId === item.id}}" onTap="cancel">
+      <button class="cancel" data-id="{{item.id}}"
+        loading="{{cancellingId === item.id}}" disabled="{{cancellingId === item.id || payingId === item.id}}" catchTap="cancel">
         取消订单
       </button>
     </view>

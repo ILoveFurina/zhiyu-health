@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 科室管理：仅 admin 角色可操作（AdminInterceptor），业务在 DepartmentAdminService */
+/** 科室管理：仅 admin 角色可操作（/api/b/** 路由级角色授权，admin-only），业务在 DepartmentAdminService */
 @RestController
 @RequestMapping("/api/b/departments")
 @RequiredArgsConstructor

@@ -9,6 +9,8 @@
     "pages/health/index",
     "pages/prescriptions/index",
     "pages/drug-orders/index",
+    "pages/drug-order-confirm/index",
+    "pages/drug-order-detail/index",
     "pages/messages/index",
     "pages/booking/hospitals/index",
     "pages/booking/campuses/index",

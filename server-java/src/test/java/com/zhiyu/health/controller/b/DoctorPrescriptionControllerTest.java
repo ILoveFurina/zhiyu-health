@@ -37,7 +37,7 @@ class DoctorPrescriptionControllerTest {
 
     @Test
     void doctorListsMedicationsAndCreatesPendingPrescription() throws Exception {
-        when(service.listMedications(8L))
+        when(service.listMedications(8L, null))
                 .thenReturn(List.of(new PrescriptionService.MedicationView(1L, "阿莫西林胶囊", "阿莫西林", "0.25g*24粒", "饭后口服")));
         when(service.create(any()))
                 .thenReturn(new PrescriptionService.PrescriptionView(
@@ -61,7 +61,7 @@ class DoctorPrescriptionControllerTest {
                         8L,
                         21L,
                         "足疗程服用",
-                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", "饭后服用"))));
+                        List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, "饭后服用"))));
 
         mockMvc.perform(get("/api/b/reception/medications").with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR)))
                 .andExpect(status().isOk())
@@ -75,11 +75,26 @@ class DoctorPrescriptionControllerTest {
                                         """
                                 {"notes":"足疗程服用","items":[{"medication_id":1,
                                 "dosage":"0.5g","frequency":"每日3次","duration":"5天",
-                                "notes":"饭后服用"}]}
+                                "quantity":2,"notes":"饭后服用"}]}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("待审核"));
-        verify(service).listMedications(8L);
+        verify(service).listMedications(8L, null);
+    }
+
+    @Test
+    void createRejectsNonPositiveQuantity() throws Exception {
+        // 票 88：配药数量由医生填写且必须为正整数，请求体层直接 400
+        mockMvc.perform(
+                        post("/api/b/reception/appointments/21/prescriptions")
+                                .with(StaffTokens.withSubject("8", StaffUser.ROLE_DOCTOR))
+                                .contentType("application/json")
+                                .content(
+                                        """
+                        {"items":[{"medication_id":1,
+                        "dosage":"0.5g","frequency":"每日3次","duration":"5天","quantity":0}]}
+                        """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -165,7 +180,7 @@ class DoctorPrescriptionControllerTest {
     void createRejectsBlockedSubmissionBypassingFrontend() throws Exception {
         when(inputMapper.toCommand(anyLong(), anyLong(), any()))
                 .thenReturn(new PrescriptionService.CreateCommand(
-                        8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", null))));
+                        8L, 21L, null, List.of(new PrescriptionService.CreateItem(1L, "0.5g", "每日3次", "5天", 2, null))));
         when(service.create(any()))
                 .thenThrow(new ApiException(409, "检测到用药禁忌，已阻止本次处方提交。请调整用药方案或咨询药师：过敏史“青霉素”与药品 1 的成分/禁忌项匹配"));
 
@@ -176,7 +191,7 @@ class DoctorPrescriptionControllerTest {
                                 .content(
                                         """
                         {"items":[{"medication_id":1,
-                        "dosage":"0.5g","frequency":"每日3次","duration":"5天"}]}
+                        "dosage":"0.5g","frequency":"每日3次","duration":"5天","quantity":2}]}
                         """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("已阻止本次处方提交")));

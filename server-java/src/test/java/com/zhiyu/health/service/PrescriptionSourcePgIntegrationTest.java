@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import com.zhiyu.health.entity.consultation.ConsultationRecord;
 import com.zhiyu.health.entity.prescription.Prescription;
 import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
-import com.zhiyu.health.mapper.prescription.MedicationMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -35,7 +34,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 /**
- * 处方/接诊记录双来源约束与审核、库存并发语义的真实 PostgreSQL 集成测试（票 56，Spec 0003）。
+ * 处方/接诊记录双来源约束与审核、库存并发语义的真实 PostgreSQL 集成测试（票 56，Spec 0003）；
+ * 票 88 增补：一院区一药房唯一、处方活跃订单部分唯一索引与履约条件更新并发。
  * 默认构建跳过；显式开启：
  * <pre>mvn -f server-java/pom.xml test -Dpg.it=true -Dtest=PrescriptionSourcePgIntegrationTest</pre>
  * 需要环境变量 DATABASE_JDBC_URL / DATABASE_USER / POSTGRES_PASSWORD 指向一次性库
@@ -60,6 +60,8 @@ class PrescriptionSourcePgIntegrationTest {
     private static final long DRAFT = 990001L;
     private static final long CONSULTATION = 990001L;
     private static final long MEDICATION = 990001L;
+    private static final long PHARMACY = 990001L;
+    private static final long PHARMACY_MEDICATION = 990001L;
     private static final int INITIAL_STOCK = 10;
 
     private static PGSimpleDataSource dataSource;
@@ -83,7 +85,6 @@ class PrescriptionSourcePgIntegrationTest {
         configuration.setMapUnderscoreToCamelCase(true);
         configuration.addMapper(PrescriptionMapper.class);
         configuration.addMapper(ConsultationRecordMapper.class);
-        configuration.addMapper(MedicationMapper.class);
         sqlSessionFactory = new MybatisSqlSessionFactoryBuilder().build(configuration);
     }
 
@@ -92,8 +93,9 @@ class PrescriptionSourcePgIntegrationTest {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
             deleteTicketRows(statement);
-            // 每个用例从同一库存基线出发，避免相互影响
-            statement.execute("UPDATE medications SET stock = " + INITIAL_STOCK + " WHERE id = " + MEDICATION);
+            // 每个用例从同一库存基线出发，避免相互影响（票 88：库存在药房药品关系上，各院区独立）
+            statement.execute(
+                    "UPDATE pharmacy_medications SET stock = " + INITIAL_STOCK + " WHERE id = " + PHARMACY_MEDICATION);
         }
     }
 
@@ -110,7 +112,9 @@ class PrescriptionSourcePgIntegrationTest {
             statement.execute("DELETE FROM preconsultation_drafts WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM appointments WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM schedules WHERE id IN (" + SCHEDULE_A + ", " + SCHEDULE_B + ")");
+            statement.execute("DELETE FROM pharmacy_medications WHERE id = " + PHARMACY_MEDICATION);
             statement.execute("DELETE FROM medications WHERE id = " + MEDICATION);
+            statement.execute("DELETE FROM campus_pharmacies WHERE id = " + PHARMACY);
             statement.execute("DELETE FROM staff_users WHERE id = " + STAFF);
             statement.execute("DELETE FROM health_profiles WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM patients WHERE id = " + PATIENT);
@@ -137,6 +141,7 @@ class PrescriptionSourcePgIntegrationTest {
                     .hasMessageContaining("ck_prescriptions_source");
             Prescription bothEmpty = new Prescription();
             bothEmpty.setDoctorId(DOCTOR);
+            bothEmpty.setSourceCampusId(CAMPUS);
             bothEmpty.setStatus("PENDING");
             assertThatThrownBy(() -> prescriptions.insert(bothEmpty))
                     .isInstanceOf(PersistenceException.class)
@@ -226,20 +231,115 @@ class PrescriptionSourcePgIntegrationTest {
     }
 
     /**
-     * 库存防超卖（DrugOrderService.deductStock 语义）：库存只能经 stock >= n 条件 UPDATE 预扣，
-     * 并发下扣减成功次数不得超过基线可供给单数，库存绝不为负。
+     * 库存防超卖（票 88：与下单预扣同一语义，库存在 pharmacy_medications 上）：库存只能经
+     * stock >= n 条件 UPDATE 预扣，并发下扣减成功次数不得超过基线可供给单数，库存绝不为负。
+     * 整单原子扣减与药房行锁由履约阶段（票 88 后续）的 mapper 覆盖，此处钉住 PG 条件更新语义。
      */
     @Test
     void concurrentStockDeductionNeverOversells() throws Exception {
         // 基线 10 件、5 个并发买家各预扣 4 件：恰好 2 个成功（2*4 <= 10 < 3*4）
         List<Integer> results = runConcurrently(5, () -> {
-            try (SqlSession session = sqlSessionFactory.openSession(true)) {
-                return session.getMapper(MedicationMapper.class).deductStock(MEDICATION, 4);
+            try (Connection connection = dataSource.getConnection();
+                    Statement statement = connection.createStatement()) {
+                return statement.executeUpdate("UPDATE pharmacy_medications SET stock = stock - 4 WHERE id = "
+                        + PHARMACY_MEDICATION + " AND stock >= 4");
             }
         });
 
         assertThat(results.stream().mapToInt(Integer::intValue).sum()).isEqualTo(2);
         assertThat(currentStock()).isEqualTo(INITIAL_STOCK - 8);
+    }
+
+    /** 一院区一药房（票 88）：campus_pharmacies.campus_id UNIQUE，同院区第二家药房被 DB 拒绝。 */
+    @Test
+    void onePharmacyPerCampusUniqueConstraint() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement()) {
+            // fixtures 已占用 CAMPUS 院区（PHARMACY），重复插入即违反 UNIQUE —— 插入失败无残留，无需清理
+            assertThatThrownBy(() ->
+                            statement.execute("INSERT INTO campus_pharmacies(campus_id, display_name, delivery_fee,"
+                                    + " estimated_delivery_minutes) VALUES (" + CAMPUS
+                                    + ", 'IT重复药房', 5.00, 45)"))
+                    .isInstanceOf(PSQLException.class)
+                    .hasMessageContaining("campus_pharmacies_campus_id_key");
+        }
+    }
+
+    /**
+     * 处方活跃订单唯一（票 88）：uq_drug_orders_active_prescription 部分唯一索引保证同一处方
+     * 至多一张未取消/未过期订单，并发重复下单由 DB 兜底；取消/过期后处方可再次下单。
+     */
+    @Test
+    void activePrescriptionOrderPartialUniqueIndex() throws Exception {
+        long prescriptionId;
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
+            Prescription prescription = appointmentPrescription();
+            session.getMapper(PrescriptionMapper.class).insert(prescription);
+            prescriptionId = prescription.getId();
+        }
+
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement()) {
+            insertDrugOrder(statement, prescriptionId, "UNPAID");
+            // 同一处方第二张活跃订单（无论哪种未完结状态）被部分唯一索引拒绝
+            assertThatThrownBy(() -> insertDrugOrder(statement, prescriptionId, "PAID"))
+                    .isInstanceOf(PSQLException.class)
+                    .hasMessageContaining("uq_drug_orders_active_prescription");
+            // 已取消/已过期订单不占活跃位：取消后再下一张 UNPAID 订单可共存
+            insertDrugOrder(statement, prescriptionId, "CANCELLED");
+            long reordered = insertDrugOrder(statement, prescriptionId, "UNPAID");
+            assertThat(reordered).isPositive();
+        }
+    }
+
+    /**
+     * 履约并发（票 88，ADR-0035）：两请求并发推进同一 PAID 订单配药，条件更新保证恰好一个
+     * affected=1，订单终态只推进一次（与审核并发同一语义，mapper 层 0 行即 409）。
+     */
+    @Test
+    void concurrentFulfillmentTransitionYieldsExactlyOneWinner() throws Exception {
+        long orderId;
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement()) {
+            // OTC 订单（prescription_id NULL）避免与活跃处方唯一索引用例相互干扰
+            orderId = insertDrugOrder(statement, null, "PAID");
+        }
+
+        List<Integer> results = runConcurrently(2, () -> {
+            try (Connection connection = dataSource.getConnection();
+                    Statement statement = connection.createStatement()) {
+                return statement.executeUpdate("UPDATE drug_orders SET status = 'DISPENSING', dispensing_at = now()"
+                        + " WHERE id = " + orderId + " AND status = 'PAID'");
+            }
+        });
+
+        assertThat(results).containsExactlyInAnyOrder(1, 0);
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery("SELECT status FROM drug_orders WHERE id = " + orderId)) {
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getString(1)).isEqualTo("DISPENSING");
+        }
+    }
+
+    /**
+     * 插入 drug_orders 固定形状行并回读自增 id：只填 NOT NULL 列，取药方式 PICKUP
+     * （ck_drug_orders_receiver_snapshot 要求自取单收货信息全空，默认即满足）。
+     */
+    private static long insertDrugOrder(Statement statement, Long prescriptionId, String status) throws Exception {
+        String prescription = prescriptionId == null ? "NULL" : String.valueOf(prescriptionId);
+        statement.executeUpdate(
+                "INSERT INTO drug_orders(patient_id, prescription_id, pharmacy_id, pickup_method, status,"
+                        + " medication_amount, delivery_fee, total_amount, pharmacy_name, hospital_name,"
+                        + " campus_name, campus_address, payment_deadline) VALUES (" + PATIENT + ", "
+                        + prescription + ", " + PHARMACY + ", 'PICKUP', '" + status
+                        + "', 18.50, 0.00, 18.50, 'IT总院区药房', 'IT集成测试医院', 'IT总院区', '测试路 1 号',"
+                        + " now() + interval '15 minutes')",
+                Statement.RETURN_GENERATED_KEYS);
+        try (ResultSet keys = statement.getGeneratedKeys()) {
+            assertThat(keys.next()).isTrue();
+            return keys.getLong(1);
+        }
     }
 
     /** 并发执行同一操作：统一门闩放行，收集各线程 affected rows。 */
@@ -272,7 +372,8 @@ class PrescriptionSourcePgIntegrationTest {
     private static int currentStock() throws Exception {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement();
-                ResultSet rs = statement.executeQuery("SELECT stock FROM medications WHERE id = " + MEDICATION)) {
+                ResultSet rs = statement.executeQuery(
+                        "SELECT stock FROM pharmacy_medications WHERE id = " + PHARMACY_MEDICATION)) {
             assertThat(rs.next()).isTrue();
             return rs.getInt(1);
         }
@@ -282,6 +383,7 @@ class PrescriptionSourcePgIntegrationTest {
         Prescription prescription = new Prescription();
         prescription.setAppointmentId(APPOINTMENT_A);
         prescription.setDoctorId(DOCTOR);
+        prescription.setSourceCampusId(CAMPUS);
         prescription.setStatus("PENDING");
         return prescription;
     }
@@ -290,6 +392,7 @@ class PrescriptionSourcePgIntegrationTest {
         Prescription prescription = new Prescription();
         prescription.setOnlineConsultationId(CONSULTATION);
         prescription.setDoctorId(DOCTOR);
+        prescription.setSourceCampusId(CAMPUS);
         prescription.setStatus("PENDING");
         return prescription;
     }
@@ -303,8 +406,10 @@ class PrescriptionSourcePgIntegrationTest {
         return record;
     }
 
-    /** 本票写入行统一清场：prescription_items 随 prescriptions ON DELETE CASCADE 联动。 */
+    /** 本票写入行统一清场：drug_order_items 随 drug_orders、prescription_items 随 prescriptions ON DELETE CASCADE 联动。 */
     private static void deleteTicketRows(Statement statement) throws Exception {
+        // drug_orders 引用 prescriptions（prescription_id），必须先于 prescriptions 删除
+        statement.execute("DELETE FROM drug_orders WHERE patient_id = " + PATIENT);
         statement.execute("DELETE FROM prescriptions WHERE doctor_id = " + DOCTOR);
         statement.execute("DELETE FROM consultation_records WHERE doctor_id = " + DOCTOR);
     }
@@ -317,7 +422,9 @@ class PrescriptionSourcePgIntegrationTest {
             statement.execute("DELETE FROM preconsultation_drafts WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM appointments WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM schedules WHERE id IN (" + SCHEDULE_A + ", " + SCHEDULE_B + ")");
+            statement.execute("DELETE FROM pharmacy_medications WHERE id = " + PHARMACY_MEDICATION);
             statement.execute("DELETE FROM medications WHERE id = " + MEDICATION);
+            statement.execute("DELETE FROM campus_pharmacies WHERE id = " + PHARMACY);
             statement.execute("DELETE FROM staff_users WHERE id = " + STAFF);
             statement.execute("DELETE FROM health_profiles WHERE patient_id = " + PATIENT);
             statement.execute("DELETE FROM patients WHERE id = " + PATIENT);
@@ -361,8 +468,13 @@ class PrescriptionSourcePgIntegrationTest {
                     + ", " + DRAFT + ", " + STD_DEPT_RESPIRATORY + ", " + DOCTOR
                     + ", 'IT 主诉', 'IT 现病史', '仅供参考，不替代医生诊断', 'COMPLETED',"
                     + " now() + interval '1 hour', now())");
-            statement.execute("INSERT INTO medications(id, name, generic_name, specification, instructions, price,"
-                    + " stock) VALUES (" + MEDICATION + ", 'IT测试药品990001', 'IT通用名', '0.25g*24粒', '口服', 18.50, "
+            statement.execute("INSERT INTO medications(id, name, generic_name, specification, instructions)"
+                    + " VALUES (" + MEDICATION + ", 'IT测试药品990001', 'IT通用名', '0.25g*24粒', '口服')");
+            statement.execute("INSERT INTO campus_pharmacies(id, campus_id, display_name, delivery_fee,"
+                    + " estimated_delivery_minutes) VALUES (" + PHARMACY + ", " + CAMPUS
+                    + ", 'IT总院区药房', 5.00, 45)");
+            statement.execute("INSERT INTO pharmacy_medications(id, pharmacy_id, medication_id, price, stock)"
+                    + " VALUES (" + PHARMACY_MEDICATION + ", " + PHARMACY + ", " + MEDICATION + ", 18.50, "
                     + INITIAL_STOCK + ")");
         }
     }

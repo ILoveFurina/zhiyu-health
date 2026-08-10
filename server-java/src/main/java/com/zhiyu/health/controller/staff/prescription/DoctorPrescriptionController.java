@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,6 +33,8 @@ public class DoctorPrescriptionController {
             @NotBlank @Size(max = 100) String dosage,
             @NotBlank @Size(max = 100) String frequency,
             @NotBlank @Size(max = 100) String duration,
+            // 票 88：配药数量由医生填写（正整数），患者不可修改
+            @NotNull @Positive Integer quantity,
             @Size(max = 500) String notes) {}
 
     public record CreateInput(@Size(max = 1000) String notes, @NotEmpty @Size(max = 20) List<@Valid ItemInput> items) {}
@@ -47,10 +50,15 @@ public class DoctorPrescriptionController {
             String message,
             String advice) {}
 
-    @GetMapping("/medications")
+    /**
+     * 开方目录（票 88）：本院区药房在售标准药品，keyword 按药名模糊过滤。
+     * /medications 为票 77 既有路径别名（admin 端已按此消费），同一 handler 同一口径。
+     */
+    @GetMapping({"/prescribable-medications", "/medications"})
     public List<PrescriptionService.MedicationView> medications(
-            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId) {
-        return service.listMedications(staffId);
+            @RequestAttribute(AuthFilter.ATTR_AUTH_SUBJECT) Long staffId,
+            @RequestParam(required = false) String keyword) {
+        return service.listMedications(staffId, keyword);
     }
 
     @PostMapping("/appointments/{appointmentId}/prescriptions")

@@ -64,7 +64,7 @@ uv run python scripts/verify_zhiyu.py
 - 按 `.scratch/zhiyu-mvp/issues/` 票单施工，一票一个分支，完成后合入 `main`
 - 双栈语境禁止单独使用“后端”，必须写 server-java（业务后端）或 server-py（Agent 层）
 - Git 提交必须遵循 Conventional Commits，格式为 `type(scope): 中文摘要`（scope 可省略）；仅为复杂逻辑和业务规则写注释，解释设计原因及失败时的一致性保障。事务、并发、补偿、原子操作和非直观 SQL 必须就地注释
-- 演示数据只能使用虚构信息。演示账号为 `admin/admin123456`、`doctor.lin/doctor123456`、`doctor.zhou/doctor123456`；其余 13 位医生（doctors id 3-15）用户名 `doctor.<姓拼音>`（doctor.chen ~ doctor.han），统一密码 `doctor123456`（`SEED_DOCTORS_PASSWORD`，缺省同值）；SEED_* 变更时同步更新本文件
+- 演示数据只能使用虚构信息。演示账号为 `admin/admin123456`、`doctor.lin/doctor123456`、`doctor.zhou/doctor123456`、`pharmacist/pharmacist123456`（全局药师，`SEED_PHARMACIST_PASSWORD` 可覆盖，缺省同值）；其余 13 位医生（doctors id 3-15）用户名 `doctor.<姓拼音>`（doctor.chen ~ doctor.han），统一密码 `doctor123456`（`SEED_DOCTORS_PASSWORD`，缺省同值）；SEED_* 变更时同步更新本文件
 - 新 CRUD/跨栈契约票提交前必须确认：B 端 service 继承 `ServiceImpl`；DTO/Entity/View 映射全部使用 MapStruct；状态、决定、消息类型及其 TS 类型均从 `contracts/` 推导；票单状态与 checklist 已更新。审查疑点先核对现有拦截器和后续票边界，必要时补负向 HTTP 测试，不越票实现。
 - 任意票单置 `done` 前必须确认：`README.md` 依赖关系图中对应节点已在数字前加 `[x]`（形如 `T29["[x]29 组织管理迁移"]`，双引号包裹、`[x]` 紧贴数字）；未完成节点保持数字开头不加标记。撤回 `done` 时须同步移除该 `[x]`。
 

@@ -19,7 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/** staff_users 幂等 seed（票 57）：15 个演示账号全量补种、已存在跳过、密码未配置跳过 */
+/** staff_users 幂等 seed（票 57/票 88）：17 个演示账号全量补种、已存在跳过、密码未配置跳过 */
 class StaffUserSeedTest {
 
     private static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
@@ -27,19 +27,30 @@ class StaffUserSeedTest {
     private final StaffUserMapper staffUserMapper = mock(StaffUserMapper.class);
 
     private StaffUserSeed seed(
-            String adminPassword, String doctorPassword, String doctor2Password, String doctorsPassword) {
+            String adminPassword,
+            String doctorPassword,
+            String doctor2Password,
+            String doctorsPassword,
+            String pharmacistPassword) {
         return new StaffUserSeed(
-                staffUserMapper, PASSWORD_ENCODER, adminPassword, doctorPassword, doctor2Password, doctorsPassword);
+                staffUserMapper,
+                PASSWORD_ENCODER,
+                adminPassword,
+                doctorPassword,
+                doctor2Password,
+                doctorsPassword,
+                pharmacistPassword);
     }
 
     @Test
-    void seedsAllSixteenDemoAccounts() {
+    void seedsAllSeventeenDemoAccounts() {
         when(staffUserMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
 
-        seed("admin123456", "doctor123456", "doctor123456", "doctor123456").run(null);
+        seed("admin123456", "doctor123456", "doctor123456", "doctor123456", "pharmacist123456")
+                .run(null);
 
         var captor = ArgumentCaptor.forClass(StaffUser.class);
-        verify(staffUserMapper, times(16)).insert(captor.capture());
+        verify(staffUserMapper, times(17)).insert(captor.capture());
         List<StaffUser> inserted = captor.getAllValues();
 
         Map<String, StaffUser> byUsername = inserted.stream().collect(Collectors.toMap(StaffUser::getUsername, s -> s));
@@ -60,12 +71,20 @@ class StaffUserSeedTest {
                         "doctor.huang",
                         "doctor.liang",
                         "doctor.feng",
-                        "doctor.han");
+                        "doctor.han",
+                        "pharmacist");
 
         assertThat(byUsername.get("admin").getRole()).isEqualTo(StaffUser.ROLE_ADMIN);
         assertThat(byUsername.get("admin").getDoctorId()).isNull();
         assertThat(PASSWORD_ENCODER.matches(
                         "admin123456", byUsername.get("admin").getPasswordHash()))
+                .isTrue();
+
+        // 全局药师（票 88）：ROLE_PHARMACIST，不绑定医生档案，缺省密码可登录
+        assertThat(byUsername.get("pharmacist").getRole()).isEqualTo(StaffUser.ROLE_PHARMACIST);
+        assertThat(byUsername.get("pharmacist").getDoctorId()).isNull();
+        assertThat(PASSWORD_ENCODER.matches(
+                        "pharmacist123456", byUsername.get("pharmacist").getPasswordHash()))
                 .isTrue();
 
         // 13 位补种医生全部 ROLE_DOCTOR 且绑定各自 doctorId，统一密码可登录
@@ -83,7 +102,8 @@ class StaffUserSeedTest {
     void skipsAccountsThatAlreadyExist() {
         when(staffUserMapper.selectCount(any(QueryWrapper.class))).thenReturn(1L);
 
-        seed("admin123456", "doctor123456", "doctor123456", "doctor123456").run(null);
+        seed("admin123456", "doctor123456", "doctor123456", "doctor123456", "pharmacist123456")
+                .run(null);
 
         verify(staffUserMapper, never()).insert(any(StaffUser.class));
     }
@@ -92,7 +112,7 @@ class StaffUserSeedTest {
     void skipsAccountsWhenPasswordUnset() {
         when(staffUserMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
 
-        seed("", "", "", "").run(null);
+        seed("", "", "", "", "").run(null);
 
         verify(staffUserMapper, never()).insert(any(StaffUser.class));
     }
@@ -101,8 +121,8 @@ class StaffUserSeedTest {
     void skipsOnlyUnsetPasswordDoctors() {
         when(staffUserMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
 
-        // doctors-password 未配置：id 3-15 跳过，admin/doctor.lin/doctor.zhou 仍补种
-        seed("admin123456", "doctor123456", "doctor123456", "").run(null);
+        // doctors-password/pharmacist-password 未配置：id 3-15 与药师跳过，admin/doctor.lin/doctor.zhou 仍补种
+        seed("admin123456", "doctor123456", "doctor123456", "", "").run(null);
 
         var captor = ArgumentCaptor.forClass(StaffUser.class);
         verify(staffUserMapper, times(3)).insert(captor.capture());
