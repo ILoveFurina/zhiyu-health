@@ -43,8 +43,8 @@ class MedicationKnowledgeStreamer(Protocol):
 
 class ChatMedicationKnowledgeStreamer:
     def __init__(self, settings: Settings) -> None:
-        # 通用说明书是单向内容生成：low 档位兼顾速度与质量（与 clinical 同档）
-        self._model = build_chat_model(settings, reasoning_effort="low", timeout=60, max_retries=1)
+        # 通用说明书是单向内容生成：disabled 关闭思考提速，质量不依赖思考档位
+        self._model = build_chat_model(settings, reasoning_effort="disabled", timeout=60, max_retries=1)
 
     def stream(self, drug_name: str) -> AsyncIterator[str]:
         return self._stream(drug_name)

@@ -18,7 +18,8 @@ class ClinicalGenerator(Protocol):
 
 class ChatClinicalGenerator:
     def __init__(self, settings: Settings) -> None:
-        self._model = build_chat_model(settings, reasoning_effort="low", timeout=60, max_retries=1)
+        # 处方解读/问诊总结是单向内容生成：disabled 关闭思考提速，质量不依赖思考档位
+        self._model = build_chat_model(settings, reasoning_effort="disabled", timeout=60, max_retries=1)
 
     async def explain_prescription(self, items: list[dict[str, str]]) -> str:
         return await self._generate(
