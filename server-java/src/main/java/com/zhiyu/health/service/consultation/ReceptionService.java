@@ -2,6 +2,7 @@ package com.zhiyu.health.service.consultation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhiyu.health.agentclient.AgentClient;
 import com.zhiyu.health.config.ApiException;
 import com.zhiyu.health.config.Contracts;
@@ -244,8 +245,10 @@ public class ReceptionService {
 
     private AppointmentView toAppointmentView(Appointment appointment) {
         // 挂号状态与处方状态并列：有处方时前端优先展示处方状态（待审核/已通过/已驳回）。
+        // 同时回传驳回原因，使接诊抽屉能像在线问诊一样展示审核结果，而不必新增查询端点。
         Prescription prescription = prescriptionMapper.selectByAppointmentId(appointment.getId());
         String prescriptionStatus = prescription == null ? null : prescription.getStatus();
+        String prescriptionReviewReason = prescription == null ? null : prescription.getReviewReason();
         String timeSlotValue = appointment.getTimeSlot() == null
                 ? null
                 : appointment.getTimeSlot().getValue();
@@ -261,6 +264,7 @@ public class ReceptionService {
                 appointment.getStatus(),
                 contracts.appointmentFlow().statusLabel(appointment.getStatus()),
                 prescriptionStatus,
+                prescriptionReviewReason,
                 appointment.getScheduleDate() == null
                         ? null
                         : appointment.getScheduleDate().toString(),
@@ -290,6 +294,7 @@ public class ReceptionService {
             String statusCode,
             String status,
             String prescriptionStatus,
+            @JsonProperty("prescription_review_reason") String prescriptionReviewReason,
             String scheduleDate,
             String timeSlot,
             String conditionSummary,

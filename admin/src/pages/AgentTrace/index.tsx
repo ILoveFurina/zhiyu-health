@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { App, Button, Card, Drawer, Input, Skeleton, Table, Tag, Timeline, type TableColumnsType } from 'antd';
+import dayjs from 'dayjs';
 import {
   fetchTraceConversations,
   fetchTraceLogs,
@@ -141,8 +142,8 @@ export default function AgentTracePage() {
       {
         title: '最近活跃',
         dataIndex: 'last_active_at',
-        width: 220,
-        render: (value) => value || '-',
+        width: 160,
+        render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
       },
       {
         title: '操作',
