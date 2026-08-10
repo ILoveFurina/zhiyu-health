@@ -10,6 +10,7 @@ const {
   remainingPaymentSeconds,
   formatCountdown,
 } = require('../../utils/appointment')
+const { STATUSES: ORDER_STATUSES } = require('../../utils/drug-order')
 
 // 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
 let locationPrompted = false
@@ -73,7 +74,7 @@ const PRESCRIPTION_TODO = {
   REJECTED: { badge: '处方未通过', badgeClass: 'todo-badge-muted', meta: '处方未通过，点击查看详情 ›' },
 }
 
-/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与待支付药品订单。 */
+/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进）。 */
 function buildTodos(appointments, orders, consultationProgress) {
   const today = todayString()
   const decorated = (appointments || []).map(decorateAppointment)
@@ -130,6 +131,31 @@ function buildTodos(appointments, orders, consultationProgress) {
       updatedAt: item.created_at || '',
       url: '/pages/drug-orders/index',
     }))
+  // 履约跟进：自取「待取药」轮到患者行动（与待支付同级优先），配送「配送中」为安心信息卡；
+  // 已支付/调剂中是药师推进的过渡态不上首页，终态（已送达/已取药/已取消/已过期）自然消失。
+  // badge 直接用 API 下发的 status_label，端侧不镜像 status_labels（utils/drug-order.js 约定）。
+  const FULFILLMENT_TODO = {
+    [ORDER_STATUSES.ready_for_pickup]: {
+      priority: 8,
+      meta: (item) => `药品已备好，凭订单到${item.campus_name || ''}${item.pharmacy_name || '药房'}取药 ›`,
+    },
+    [ORDER_STATUSES.shipped]: {
+      priority: 9,
+      meta: (item) => `${item.carrier_name || '配送'}已发出，请留意查收 ›`,
+    },
+  }
+  const fulfillment = (orders || [])
+    .filter((item) => FULFILLMENT_TODO[item.status])
+    .map((item) => ({
+      key: `order-${item.id}`,
+      kind: 'order',
+      badge: item.status_label,
+      title: `药品订单 #${item.id}`,
+      meta: FULFILLMENT_TODO[item.status].meta(item),
+      priority: FULFILLMENT_TODO[item.status].priority,
+      updatedAt: item.created_at || '',
+      url: '/pages/drug-orders/index',
+    }))
   const consultation = (consultationProgress || []).map((item) => {
     if (item.reference_type === 'PRESCRIPTION') {
       const deco = PRESCRIPTION_TODO[item.status] || {
@@ -168,7 +194,7 @@ function buildTodos(appointments, orders, consultationProgress) {
       url,
     }
   })
-  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid].sort(
+  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid, ...fulfillment].sort(
     (a, b) => a.priority - b.priority || b.updatedAt.localeCompare(a.updatedAt)
   )
 }
