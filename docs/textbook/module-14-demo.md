@@ -2,7 +2,7 @@
 
 ## 业务概述
 
-演示武器包是比赛评审专用的支撑能力，包含三件套：**演示看板**（今日挂号量、科室分布、号源使用率、Agent 对话量与工具调用次数）、**演示重置**（一键清空演示业务数据并重灌 seed）、**知识源现场切换**（B 端切换 RAG / 知识图谱 / 裸 LLM，C 端发新对话即见对比效果）。ADR-0022 明确它不是医疗业务实体，生产环境绝不该有一键清数据的能力，因此全部 HTTP 入口收口在 `/api/b/demo/**` 前缀下与业务 CRUD 物理隔离，并由三重保护让其在非演示环境"形同虚设"。此外票 48 补了一个纯展示层的 Mock 药店库存同步（ADR-0026 演示展示层例外），覆盖"药品库存同步（与药店数据打通）"的演示画面。
+演示武器包是比赛评审专用的支撑能力，包含三件套：**演示看板**（今日挂号量、科室分布、号源使用率、Agent 对话量与工具调用次数）、**演示重置**（一键清空演示业务数据并重灌 seed）、**知识源现场切换**（B 端切换 RAG / 知识图谱 / 裸 LLM，C 端发新对话即见对比效果）。ADR-0022 明确它不是医疗业务实体，生产环境绝不该有一键清数据的能力，因此全部 HTTP 入口收口在 `/api/b/demo/**` 前缀下与业务 CRUD 物理隔离，并由三重保护让其在非演示环境"形同虚设"。票 48 曾有的纯展示层 Mock 药店库存同步已随票 88 退出（ADR-0035）：药品履约改为一院区一药房，由全局药师在 B 端人工推进模拟履约状态机。
 
 ## 业务流程
 
@@ -19,7 +19,6 @@
 | service | 演示重置三重保护与七步编排、一致性断言 | `server-java/src/main/java/com/zhiyu/health/service/demo/DemoResetService.java` |
 | service | 知识源现场切换（Redis 全局单键读写） | `server-java/src/main/java/com/zhiyu/health/service/demo/DemoKnowledgeSourceService.java` |
 | service | 演示看板只读聚合（JdbcTemplate 直组 record） | `server-java/src/main/java/com/zhiyu/health/service/demo/DemoDashboardService.java` |
-| service | Mock 药店库存同步（纯展示层 fixture） | `server-java/src/main/java/com/zhiyu/health/service/demo/DemoPharmacySyncService.java` |
 | config | 冻结闸门（进程内 AtomicBoolean）与 C 端冻结过滤器 | `server-java/src/main/java/com/zhiyu/health/config/DemoFreezeGate.java`、`DemoFreezeFilter.java` |
 | config | 过滤器装配：order 25，仅拦 `/api/c/*` | `server-java/src/main/java/com/zhiyu/health/config/WebConfig.java` |
 | service | 知识源补位：请求未带值时读全局键 | `server-java/src/main/java/com/zhiyu/health/service/chat/ChatRoundService.java` |
@@ -221,7 +220,7 @@ ADR-0021 的设计是"Redis 单键 + 逐请求补位"：B 端写键时用契约�
 - `contracts/demo-arsenal.json`：演示武器包跨栈常量单一事实源——确认短语、知识源值域/默认值/Redis 键、知识基线数量断言阈值、冻结状态码与文案。
 - `docs/adr/0022-demo-arsenal-boundary-and-protection.md`：演示武器包边界——`/api/b/demo/**` 收口、重置三重保护、进程内互斥锁（否决 Redis 分布式锁与 Spring Profile）。
 - `docs/adr/0021-knowledge-source-live-toggle-redis-key.md`：知识源现场切换——Redis 单键 + 逐请求补位，server-py 不感知。
-- `docs/adr/0026-platform-self-operated-pharmacy.md`：平台自营药房主线，票 48 的 Mock 药店库存同步是其修订的"演示展示层例外"。
+- `docs/adr/0035-campus-pharmacy-and-simulated-fulfillment.md`：一院区一药房与全局药师模拟履约闭环（supersedes ADR-0026 平台自营药房；票 48 的 Mock 药店库存同步随之退出）。
 - `docs/adr/0010-cross-stack-contracts.md`（跨栈契约，注意与 `0010-rag-knowledge-retrieval.md` 区分）：契约值只从 `contracts/` 加载的总约定，demo-arsenal 双栈读取即遵循此 ADR。
 
 ## 讲解提示
