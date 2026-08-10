@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 排班管理：仅 admin 角色可操作（AdminInterceptor），404/409 由 service 抛 ApiException */
+/** 排班管理：404/409 由 service 抛 ApiException */
 @RestController
 @RequestMapping("/api/b/schedules")
 @RequiredArgsConstructor
@@ -55,6 +55,7 @@ public class ScheduleController {
 
     @PutMapping("/{id}")
     public Schedule update(@PathVariable long id, @Valid @RequestBody ScheduleInput input) {
+        // 路径 id 覆盖 body 中可能缺失或不一致的 id，避免误改其它排班。
         Schedule changes = scheduleInputMapper.toEntity(input);
         changes.setId(id);
         return scheduleService.updateSchedule(changes);
@@ -68,6 +69,8 @@ public class ScheduleController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
+        // DELETE 语义实为逻辑停诊（disable），不硬删：号源记录需保留用于历史对账与已挂号单回溯，
+        // 真正的停诊经 ScheduleRequestService 审核流，此处仅作为管理员快捷停诊入口。
         disable(id);
     }
 }

@@ -12,6 +12,9 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface ScheduleMapper extends BaseMapper<Schedule> {
 
+    // C 端按科室查可挂号源：NOT EXISTS 子查询排除存在待审核 DISABLE/MODIFY 申请的排班，
+    // 口径与 selectBookableByDoctor 一致——这类排班在挂号入口会被 reserve 的冻结校验 409 拦截，
+    // 若照样返回只会误导患者点击后失败；remaining_slots>0 只取未约满行。
     @Select(
             """
             SELECT s.*
@@ -34,6 +37,9 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
     List<Schedule> selectAvailableByDepartment(
             @Param("departmentName") String departmentName, @Param("fromDate") LocalDate fromDate);
 
+    // C 端按医生查可挂号源：NOT EXISTS 子查询同上口径（排除待审核 DISABLE/MODIFY）。
+    // 注意子查询 target_schedule_id = id 中的 id 解析为外层 schedules 表主键（单表查询无歧义），
+    // 与 selectAvailableByDepartment 的 s.id 语义一致；保持无前缀仅为历史沿用，勿误读为列名缺失。
     @Select(
             """
             SELECT * FROM schedules
@@ -92,6 +98,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     List<Schedule> selectBookableByDoctor(@Param("doctorId") long doctorId, @Param("fromDate") LocalDate fromDate);
 
+    // 持锁取 registration_fee：与 AppointmentService.reserve 临界区共用同一把 schedule 行锁，
+    // 保证扣号、序号分配、取费在同一事务内读到一致的排班快照，避免取费后行被并发停诊。
     @Select(
             """
             SELECT s.*, d.registration_fee
@@ -116,12 +124,17 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             @Param("scheduleDate") LocalDate scheduleDate,
             @Param("timeSlot") String timeSlot);
 
+    // 停诊/复诊裸翻转无 CAS：排班不可硬删，停诊保留历史与号源对账；并发安全由审核流串行化保证
+    // （disable/enable 只经 ScheduleRequestService 审核通过后调用，不会与患者挂号并发触达）。
     @Update("UPDATE schedules SET is_active = FALSE WHERE id = #{scheduleId}")
     int disable(@Param("scheduleId") long scheduleId);
 
     @Update("UPDATE schedules SET is_active = TRUE WHERE id = #{scheduleId}")
     int enable(@Param("scheduleId") long scheduleId);
 
+    // 号源容量增量调整（排班号源修改审核通过后执行）：remaining 按 (newTotal-oldTotal) 增量平移，
+    // 而非用新 total 覆盖，避免覆盖期间并发扣减丢失；WHERE remaining+delta>=0 防缩容把已售号源扣成负数。
+    // 增量与 Redis 侧 SlotAccounting.withAdjustment 的 INCRBY 可交换，双写一致。
     @Update(
             """
             UPDATE schedules
@@ -135,6 +148,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     int adjustCapacity(@Param("schedule") Schedule schedule);
 
+    // 挂号扣减号源 CAS：WHERE remaining_slots>0 乐观扣减，返回 0 即满号，由上层（SlotAccounting
+    // 已 DECR Redis）回补后抛 409。与 Redis DECR 双写，PG 返回 0 时 Redis 预扣被反向补偿。
     @Update(
             """
             UPDATE schedules
@@ -143,6 +158,8 @@ public interface ScheduleMapper extends BaseMapper<Schedule> {
             """)
     int decrementRemainingSlots(@Param("scheduleId") long scheduleId);
 
+    // 取消/超时回补号源 CAS：WHERE remaining_slots<total_slots 防回补超过总容量（停诊或审核调整
+    // 期间 total 可能已变，上限守卫避免号源池溢出）。与 Redis INCR 双写，PG 返回 0 时 Redis 退还被撤销。
     @Update(
             """
             UPDATE schedules

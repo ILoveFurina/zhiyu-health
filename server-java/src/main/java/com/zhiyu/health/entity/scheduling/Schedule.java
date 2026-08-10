@@ -20,8 +20,11 @@ public class Schedule {
     private Long doctorId;
     private LocalDate scheduleDate;
     private TimeSlot timeSlot;
+    // 号源容量计数器，不变式 0<=remaining<=total；并发扣减经 decrement/incrementRemainingSlots 的 CAS 守卫，
+    // 与 Redis 计数双写对账（SlotAccounting），禁止先查后改。
     private Integer totalSlots;
     private Integer remainingSlots;
+    // 停诊标志：由 disable/enable 翻转，受 schedule_request 审核流约束（待审核 DISABLE/MODIFY 期间冻结挂号）。
     // 装箱 Boolean 时 Lombok 生成 getIsActive/setIsActive，与原手写签名一致
     private Boolean isActive;
 
