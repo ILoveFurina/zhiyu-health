@@ -81,18 +81,6 @@ class DrugOrderAdminControllerTest {
     }
 
     @Test
-    void completingPaidOrderMarksItDone() throws Exception {
-        when(orderMapper.selectForUpdate(51L)).thenReturn(order(51L, "PAID"));
-        when(orderMapper.complete(51L, "DONE", "PAID")).thenReturn(1);
-        when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
-
-        mvc().perform(post("/api/b/drug-orders/51/complete"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DONE"))
-                .andExpect(jsonPath("$.status_label").value("已完成"));
-    }
-
-    @Test
     void cancellingUnpaidOrderRestoresStock() throws Exception {
         DrugOrderItem item = new DrugOrderItem();
         item.setDrugOrderId(51L);

@@ -13,8 +13,10 @@ import org.springframework.util.StringUtils;
 
 /**
  * staff_users 幂等 seed：口令散列必须走代码（seed.sql 无法计算 BCrypt），
- * 密码从 .env 注入（SEED_ADMIN_PASSWORD / SEED_DOCTOR_PASSWORD / SEED_DOCTOR2_PASSWORD / SEED_DOCTORS_PASSWORD），
- * admin/doctor.lin/doctor.zhou 缺省则跳过，不入库；id 3-15 的 13 位医生缺省 doctor123456（票 57 接诊测试约定）。
+ * 密码从 .env 注入（SEED_ADMIN_PASSWORD / SEED_DOCTOR_PASSWORD / SEED_DOCTOR2_PASSWORD /
+ * SEED_DOCTORS_PASSWORD / SEED_PHARMACIST_PASSWORD），admin/doctor.lin/doctor.zhou 缺省则跳过，
+ * 不入库；id 3-15 的 13 位医生缺省 doctor123456（票 57 接诊测试约定）；
+ * 全局药师 pharmacist（票 88，ADR-0035）缺省 pharmacist123456，不绑定医生档案。
  */
 @Component
 public class StaffUserSeed implements ApplicationRunner {
@@ -47,6 +49,7 @@ public class StaffUserSeed implements ApplicationRunner {
     private final String doctorPassword;
     private final String doctor2Password;
     private final String doctorsPassword;
+    private final String pharmacistPassword;
 
     public StaffUserSeed(
             StaffUserMapper staffUserMapper,
@@ -54,13 +57,15 @@ public class StaffUserSeed implements ApplicationRunner {
             @Value("${zhiyu.seed.admin-password:}") String adminPassword,
             @Value("${zhiyu.seed.doctor-password:}") String doctorPassword,
             @Value("${zhiyu.seed.doctor2-password:}") String doctor2Password,
-            @Value("${zhiyu.seed.doctors-password:}") String doctorsPassword) {
+            @Value("${zhiyu.seed.doctors-password:}") String doctorsPassword,
+            @Value("${zhiyu.seed.pharmacist-password:}") String pharmacistPassword) {
         this.staffUserMapper = staffUserMapper;
         this.passwordEncoder = passwordEncoder;
         this.adminPassword = adminPassword;
         this.doctorPassword = doctorPassword;
         this.doctor2Password = doctor2Password;
         this.doctorsPassword = doctorsPassword;
+        this.pharmacistPassword = pharmacistPassword;
     }
 
     @Override
@@ -72,6 +77,8 @@ public class StaffUserSeed implements ApplicationRunner {
         // 其余 13 位医生（票 57）：统一密码，任何医生都可登录接诊台做接诊测试
         EXTRA_DOCTOR_USERNAMES.forEach(
                 (doctorId, username) -> seedIfAbsent(username, doctorsPassword, StaffUser.ROLE_DOCTOR, doctorId));
+        // 全局药师（票 88，ADR-0035）：不绑定医院/院区，负责处方审核、院区药房库存与药品订单履约
+        seedIfAbsent("pharmacist", pharmacistPassword, StaffUser.ROLE_PHARMACIST, null);
     }
 
     private void seedIfAbsent(String username, String password, String role, Long doctorId) {

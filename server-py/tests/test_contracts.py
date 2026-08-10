@@ -186,6 +186,45 @@ def test_payment_flow_values_are_loaded() -> None:
     assert flow.messages["pay_success"] == "支付成功"
 
 
+def test_order_flow_values_are_loaded() -> None:
+    # 票 88（ADR-0035）：九值状态机 + 取药方式 + 履约动作 + 10 分钟待支付 + 虚构承运方
+    flow = get_contracts().order_flow
+    assert flow.statuses == {
+        "unpaid": "UNPAID",
+        "paid": "PAID",
+        "dispensing": "DISPENSING",
+        "shipped": "SHIPPED",
+        "delivered": "DELIVERED",
+        "ready_for_pickup": "READY_FOR_PICKUP",
+        "picked_up": "PICKED_UP",
+        "cancelled": "CANCELLED",
+        "expired": "EXPIRED",
+    }
+    assert set(flow.status_labels) == set(flow.statuses.values())
+    assert flow.sources == {"prescription": "PRESCRIPTION", "otc": "OTC"}
+    assert flow.pickup_methods == {"pickup": "PICKUP", "delivery": "DELIVERY"}
+    assert set(flow.pickup_method_labels) == set(flow.pickup_methods.values())
+    assert flow.decisions == {
+        "pay": "PAY",
+        "cancel": "CANCEL",
+        "dispense": "DISPENSE",
+        "ship": "SHIP",
+        "deliver": "DELIVER",
+        "ready": "READY",
+        "pickup": "PICKUP",
+    }
+    assert flow.payment_timeout_seconds == 600
+    assert flow.simulated_carrier_name == "智愈模拟配送"
+    assert flow.messages["stock_insufficient"] == "药品库存不足，下单失败"
+
+
+def test_staff_roles_are_loaded() -> None:
+    # 票 88（ADR-0035）：B 端角色单一事实源——小写取值沿用现有惯例，新增全局药师
+    roles = get_contracts().staff_roles
+    assert roles.roles == {"admin": "admin", "doctor": "doctor", "pharmacist": "pharmacist"}
+    assert roles.role_labels == {"admin": "管理员", "doctor": "医生", "pharmacist": "药师"}
+
+
 def test_contraindication_values_are_loaded() -> None:
     contract = get_contracts().contraindication
     assert contract.decisions == {

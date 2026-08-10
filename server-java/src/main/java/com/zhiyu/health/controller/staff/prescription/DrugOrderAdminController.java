@@ -26,10 +26,7 @@ public class DrugOrderAdminController {
         return service.getForAdmin(id);
     }
 
-    @PostMapping("/{id}/complete")
-    public DrugOrderService.OrderView complete(@PathVariable long id) {
-        return service.completeForAdmin(id);
-    }
+    // TODO(票88阶段二)：/complete 随 DONE 状态移除；履约推进端点（DISPENSE/SHIP/DELIVER/READY/PICKUP）待阶段二实现。
 
     @PostMapping("/{id}/cancel")
     public DrugOrderService.OrderView cancel(@PathVariable long id) {

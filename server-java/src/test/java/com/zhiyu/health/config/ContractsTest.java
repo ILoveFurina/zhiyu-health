@@ -427,21 +427,55 @@ class ContractsTest {
     @Test
     void orderFlowDefinesStatusesDecisionsAndMessages() {
         Contracts.OrderFlow flow = contracts.orderFlow();
+        // 票 88（ADR-0035）：九值状态机——配送/自取两条前向路径 + 取消/过期两个终止态；DONE 已删除
         assertThat(flow.statuses())
-                .containsEntry("unpaid", "UNPAID")
-                .containsEntry("paid", "PAID")
-                .containsEntry("done", "DONE")
-                .containsEntry("cancelled", "CANCELLED");
-        assertThat(flow.statusLabels()).containsEntry("UNPAID", "待支付");
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "unpaid", "UNPAID",
+                        "paid", "PAID",
+                        "dispensing", "DISPENSING",
+                        "shipped", "SHIPPED",
+                        "delivered", "DELIVERED",
+                        "ready_for_pickup", "READY_FOR_PICKUP",
+                        "picked_up", "PICKED_UP",
+                        "cancelled", "CANCELLED",
+                        "expired", "EXPIRED"));
+        assertThat(flow.statusLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(flow.statuses().values());
+        assertThat(flow.statusLabels()).containsEntry("UNPAID", "待支付").containsEntry("PICKED_UP", "已取药");
+        // C 端待支付动作 + B 端模拟履约推进动作；旧 complete 已删除
         assertThat(flow.decisions())
-                .containsEntry("pay", "PAY")
-                .containsEntry("cancel", "CANCEL")
-                .containsEntry("complete", "COMPLETE");
-        // 票 60：message_types(DRUG_ORDER_STATUS) 与 created/cancelled 文案从未接线，已从契约删除
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "pay", "PAY",
+                        "cancel", "CANCEL",
+                        "dispense", "DISPENSE",
+                        "ship", "SHIP",
+                        "deliver", "DELIVER",
+                        "ready", "READY",
+                        "pickup", "PICKUP"));
         assertThat(flow.messages()).containsEntry("stock_insufficient", "药品库存不足，下单失败");
         // 票 76（ADR-0032）：订单来源区分处方药/OTC。
         assertThat(flow.sources()).containsEntry("prescription", "PRESCRIPTION").containsEntry("otc", "OTC");
         assertThat(flow.sourceLabels()).containsEntry("PRESCRIPTION", "处方药").containsEntry("OTC", "非处方药");
+        // 票 88：取药方式（院区自取/配送到家）、10 分钟待支付与虚构承运方
+        assertThat(flow.pickupMethods())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("pickup", "PICKUP", "delivery", "DELIVERY"));
+        assertThat(flow.pickupMethodLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(flow.pickupMethods().values());
+        assertThat(flow.paymentTimeoutSeconds()).isEqualTo(600);
+        assertThat(flow.simulatedCarrierName()).isEqualTo("智愈模拟配送");
+    }
+
+    @Test
+    void staffRolesAreLoaded() {
+        // 票 88（ADR-0035）：B 端角色单一事实源——小写取值沿用现有惯例，新增全局药师
+        Contracts.StaffRoles staffRoles = contracts.staffRoles();
+        assertThat(staffRoles.roles())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("admin", "admin", "doctor", "doctor", "pharmacist", "pharmacist"));
+        assertThat(staffRoles.roleLabels())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("admin", "管理员", "doctor", "医生", "pharmacist", "药师"));
+        assertThat(staffRoles.roleLabels().keySet())
+                .containsExactlyInAnyOrderElementsOf(staffRoles.roles().values());
     }
 
     @Test

@@ -4,7 +4,6 @@ import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, Too
 import { orderStatusLabels, orderStatuses } from '@/contracts/order';
 import {
   cancelDrugOrder,
-  completeDrugOrder,
   getDrugOrder,
   listDrugOrders,
   type DrugOrder,
@@ -17,8 +16,13 @@ import { formatDateTime, formatRelativeTime } from '@/utils/time';
 const statusColors: Record<string, string> = {
   [orderStatuses.unpaid]: 'gold',
   [orderStatuses.paid]: 'blue',
-  [orderStatuses.done]: 'green',
+  [orderStatuses.dispensing]: 'geekblue',
+  [orderStatuses.shipped]: 'processing',
+  [orderStatuses.delivered]: 'green',
+  [orderStatuses.ready_for_pickup]: 'cyan',
+  [orderStatuses.picked_up]: 'green',
   [orderStatuses.cancelled]: 'default',
+  [orderStatuses.expired]: 'default',
 };
 
 export default function DrugOrderPage() {
@@ -40,9 +44,9 @@ export default function DrugOrderPage() {
   useEffect(() => { load().catch(() => {}); }, [load]);
 
   const openDetail = async (id: number) => setDetail(await getDrugOrder(id));
-  const mutate = async (row: DrugOrder, action: 'cancel' | 'complete') => {
-    await (action === 'cancel' ? cancelDrugOrder(row.id) : completeDrugOrder(row.id));
-    message.success(action === 'cancel' ? '订单已取消，库存已回补' : '订单已确认完成');
+  const cancel = async (row: DrugOrder) => {
+    await cancelDrugOrder(row.id);
+    message.success('订单已取消，库存已回补');
     setDetail(undefined);
     await load();
   };
@@ -75,9 +79,9 @@ export default function DrugOrderPage() {
         <Button type="link" onClick={() => openDetail(row.id)}>查看明细</Button>
         {row.status === orderStatuses.unpaid && <Button type="link" danger onClick={() => modal.confirm({
           title: '取消药品订单', content: '取消后将回补本单预扣库存。', okText: '确认取消', okButtonProps: { danger: true },
-          onOk: () => mutate(row, 'cancel'),
+          onOk: () => cancel(row),
         })}>取消</Button>}
-        {row.status === orderStatuses.paid && <Button type="link" onClick={() => mutate(row, 'complete')}>确认完成</Button>}
+        {/* TODO(票88阶段二)：履约推进操作（调剂/发货/送达/待取/取药）随 B 端履约矩阵实现 */}
       </Space>,
     },
   ], [modal, load]);
@@ -87,7 +91,7 @@ export default function DrugOrderPage() {
     { label: '订单总数', value: rows.length, suffix: '单' },
     { label: '待支付', value: countBy(orderStatuses.unpaid), suffix: '单' },
     { label: '已支付', value: countBy(orderStatuses.paid), suffix: '单' },
-    { label: '已完成', value: countBy(orderStatuses.done), suffix: '单' },
+    { label: '履约中', value: countBy(orderStatuses.dispensing) + countBy(orderStatuses.shipped) + countBy(orderStatuses.ready_for_pickup), suffix: '单' },
   ];
 
   return (

@@ -72,9 +72,9 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
         return transactionTemplate.execute(status -> payInTransaction(patientId, orderId));
     }
 
-    public OrderView completeForAdmin(long orderId) {
-        return transactionTemplate.execute(status -> completeInTransaction(orderId));
-    }
+    // TODO(票88阶段二)：B 端「确认完成」（PAID -> DONE）已随 DONE 状态移除，
+    // 履约推进改为配送/自取两条前向状态机（DISPENSE/SHIP/DELIVER/READY/PICKUP），
+    // 由 append-only drug_order_fulfillment_events 记录，待阶段二实现。
 
     public OrderView cancelForAdmin(long orderId) {
         return transactionTemplate.execute(status -> cancelForAdminInTransaction(orderId));
@@ -212,23 +212,6 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
             throw new ApiException(409, "药品订单状态已变化，请刷新后重试");
         }
         order.setStatus(paid);
-        return toView(order, itemMapper.selectDetailed(orderId));
-    }
-
-    private OrderView completeInTransaction(long orderId) {
-        DrugOrder order = orderMapper.selectForUpdate(orderId);
-        if (order == null) {
-            throw new ApiException(404, "药品订单不存在");
-        }
-        String paid = contracts.orderFlow().statuses().get("paid");
-        if (!paid.equals(order.getStatus())) {
-            throw new ApiException(409, "仅已支付药品订单可确认完成");
-        }
-        String done = contracts.orderFlow().statuses().get("done");
-        if (orderMapper.complete(orderId, done, paid) == 0) {
-            throw new ApiException(409, "药品订单状态已变化，请刷新后重试");
-        }
-        order.setStatus(done);
         return toView(order, itemMapper.selectDetailed(orderId));
     }
 

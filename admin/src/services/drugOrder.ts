@@ -32,6 +32,3 @@ export const getDrugOrder = (id: number) => request<DrugOrder>(`/api/b/drug-orde
 
 export const cancelDrugOrder = (id: number) =>
   request<DrugOrder>(`/api/b/drug-orders/${id}/cancel`, { method: 'POST' });
-
-export const completeDrugOrder = (id: number) =>
-  request<DrugOrder>(`/api/b/drug-orders/${id}/complete`, { method: 'POST' });

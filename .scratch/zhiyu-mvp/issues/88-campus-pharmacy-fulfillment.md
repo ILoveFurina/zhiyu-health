@@ -8,13 +8,13 @@
 
 ## 契约与数据模型
 
-- [ ] contracts：新增药品订单状态、取药方式、履约动作/事件和 B 端 staff role 的单一事实源；Java/TypeScript/小程序枚举与权限判断均从契约推导，`ContractsTest`/跨栈一致性测试同步
-- [ ] schema：新增 `campus_pharmacies`（`campus_id` 唯一且非空、展示名、固定配送费、预计配送分钟数）与 `pharmacy_medications`（`pharmacy_id + medication_id` 唯一、价格、库存、在售状态），价格非负、库存非负、预计时效为正数
+- [x] contracts：新增药品订单状态、取药方式、履约动作/事件和 B 端 staff role 的单一事实源；Java/TypeScript/小程序枚举与权限判断均从契约推导，`ContractsTest`/跨栈一致性测试同步
+- [x] schema：新增 `campus_pharmacies`（`campus_id` 唯一且非空、展示名、固定配送费、预计配送分钟数）与 `pharmacy_medications`（`pharmacy_id + medication_id` 唯一、价格、库存、在售状态），价格非负、库存非负、预计时效为正数
 - [ ] schema：院区与药房保持强一对一；新建院区时在同一事务自动创建药房，院区药房不可从独立 CRUD 新增或删除，仅允许修改展示名、配送费与预计时效
-- [ ] schema：`medications` 收敛为全局标准药品目录（名称、规格、处方属性及必要知识字段），移除全局价格/库存语义；现有虚构 seed 为每个院区生成一个药房和相互独立的药房药品数据
+- [x] schema：`medications` 收敛为全局标准药品目录（名称、规格、处方属性及必要知识字段），移除全局价格/库存语义；现有虚构 seed 为每个院区生成一个药房和相互独立的药房药品数据
 - [ ] schema：`prescriptions` 新增不可变来源院区；`prescription_items` 与 `prescription_template_items` 新增正整数配药数量；从已鉴权接诊医生派生来源院区，禁止客户端传入或后续跟随医生调动
-- [ ] schema：扩展 `drug_orders`，至少固化履约药房、取药方式、支付截止、药品金额、配送费/总额、药房/院区/自取地址快照、脱敏展示所需字段、配送收货信息快照、虚构承运方/物流单号及各关键状态时间戳；自取订单不得落收货信息
-- [ ] schema：订单明细关联标准药品并保存药房药品关系/成交单价与数量快照；新增 append-only `drug_order_fulfillment_events`，记录状态、发生时间和操作 staff，不允许更新或删除历史事件
+- [x] schema：扩展 `drug_orders`，至少固化履约药房、取药方式、支付截止、药品金额、配送费/总额、药房/院区/自取地址快照、脱敏展示所需字段、配送收货信息快照、虚构承运方/物流单号及各关键状态时间戳；自取订单不得落收货信息
+- [x] schema：订单明细关联标准药品并保存药房药品关系/成交单价与数量快照；新增 append-only `drug_order_fulfillment_events`，记录状态、发生时间和操作 staff，不允许更新或删除历史事件
 - [ ] schema：为处方建立“同一处方至多一张非 `CANCELLED`/`EXPIRED` 订单”的数据库约束；支付时固化处方核销时间/订单，支付后永久阻止二次购药
 - [ ] schema：药房药品从未被处方或订单引用时才允许物理删除，已有历史引用只允许下架/重新上架；采用外键与 service 检查共同保障，历史处方和订单展示不依赖当前在售关系
 
@@ -77,4 +77,5 @@
 ## Comments
 
 - 2026-08-10 grill-with-docs（grilling + domain-modeling）确认：不做中心药房和外部药店；每院区一药房且同时经营处方药/OTC；处方锁开方院区，OTC 患者跨本城市院区自主选；整单单药房原子履约；10 分钟未支付惰性过期；支付时一次核销处方；配送/自取由 B 端手工推进；交付后才生成处方提醒；预览卡保留必要非敏感信息并跳确认页；现场可由 admin/pharmacist 给任意院区药房补标准药品。
+- 2026-08-10 阶段一完成（契约/schema/seed/脚本/跨栈绑定机械同步）：order-flow.json 重构为九值状态机 + 取药方式 + 履约动作 + 600s 待支付 + 虚构承运方；新增 staff-roles.json（admin/doctor/pharmacist 小写取值沿用现有惯例）；schema 新增 campus_pharmacies/pharmacy_medications/drug_order_fulfillment_events，drug_orders 重构快照模型并加处方活跃订单部分唯一索引，prescriptions 补 source_campus_id 与核销字段，medications 移除 price/stock/is_active；seed 每院区一药房 + 150 行相互独立的药房药品；StaffUserSeed 补种全局药师（SEED_PHARMACIST_PASSWORD 缺省 pharmacist123456）；B 端「确认完成」（/complete + DONE）随 DONE 状态移除，履约推进待阶段二（代码内 TODO 标注）。数据库重建（reset_zhiyu.py）推迟到 server-java 业务代码对齐后执行。
 - 药师角色评估结论：采用一个全局 `pharmacist` staff 账号，不建人员档案、不做院区绑定；主要改动是现有 blanket admin 鉴权拆成路由级角色矩阵、B 端菜单/落点和 seed，复杂度中等且纳入本票，不另拆票。

@@ -1,5 +1,6 @@
-﻿/* 购药结果卡（票 79）：与 drug-orders 列表页同族视觉，类名带 dor- 前缀避免组件样式串扰。
- * 状态色取契约 status 值（UNPAID/PAID/DONE/CANCELLED），与列表页 .status-* 同口径。 */
+/* 购药结果卡（票 79）：与 drug-orders 列表页同族视觉，类名带 dor- 前缀避免组件样式串扰。
+ * 状态色取契约 status 值（票 88 九值：UNPAID/PAID/DISPENSING/SHIPPED/DELIVERED/
+ * READY_FOR_PICKUP/PICKED_UP/CANCELLED/EXPIRED），与列表页 .status-* 同口径。 */
 .dor-card {
   padding: var(--zy-space-md);
   border-radius: var(--zy-radius-card);
@@ -20,6 +21,9 @@
 }
 .dor-status-UNPAID { background: var(--zy-color-warning-soft); color: var(--zy-color-warning); }
 .dor-status-CANCELLED { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
+.dor-status-EXPIRED { background: var(--zy-color-danger-soft); color: var(--zy-color-danger); }
+.dor-status-DELIVERED { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
+.dor-status-PICKED_UP { background: var(--zy-color-primary-soft); color: var(--zy-color-primary); }
 
 .dor-meta {
   margin-top: var(--zy-space-sm);

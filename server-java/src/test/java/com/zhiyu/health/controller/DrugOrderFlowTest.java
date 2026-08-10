@@ -32,7 +32,9 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** 药品订单跨端状态机 seam：同一订单由 C 端支付后交由 B 端确认完成。 */
+/** 药品订单 C 端支付 seam：患者对待支付订单完成模拟支付（UNPAID -> PAID）。
+ * 票 88（ADR-0035）：B 端「确认完成」（PAID -> DONE）随 DONE 状态移除，
+ * 履约推进（配送/自取两条前向状态机）属票 88 阶段二。 */
 class DrugOrderFlowTest {
 
     private final DrugOrderMapper orderMapper = mock(DrugOrderMapper.class);
@@ -47,21 +49,15 @@ class DrugOrderFlowTest {
             Mappers.getMapper(DrugOrderDtoMapper.class));
 
     @Test
-    void sameOrderFlowsFromUnpaidThroughPatientPaymentToAdminCompletion() throws Exception {
+    void unpaidOrderFlowsToPaidAfterPatientPayment() throws Exception {
         DrugOrder order = order();
         when(orderMapper.selectForPatientForUpdate(51L, 7L)).thenReturn(order);
         when(orderMapper.markPaid(51L, "PAID", "UNPAID")).thenReturn(1);
-        when(orderMapper.selectForUpdate(51L)).thenReturn(order);
-        when(orderMapper.complete(51L, "DONE", "PAID")).thenReturn(1);
         when(itemMapper.selectDetailed(51L)).thenReturn(List.of());
 
         mvc().perform(post("/api/c/drug-orders/51/pay").requestAttr("authSubject", 7L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PAID"));
-
-        mvc().perform(post("/api/b/drug-orders/51/complete"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DONE"));
     }
 
     private DrugOrder order() {

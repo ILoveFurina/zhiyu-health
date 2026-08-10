@@ -63,11 +63,4 @@ public interface DrugOrderMapper extends BaseMapper<DrugOrder> {
             """)
     int markPaid(
             @Param("id") long id, @Param("paidStatus") String paidStatus, @Param("unpaidStatus") String unpaidStatus);
-
-    @Update(
-            """
-            UPDATE drug_orders SET status = #{doneStatus}
-            WHERE id = #{id} AND status = #{paidStatus}
-            """)
-    int complete(@Param("id") long id, @Param("doneStatus") String doneStatus, @Param("paidStatus") String paidStatus);
 }

@@ -46,6 +46,7 @@ public class Contracts {
     private final ConsultationPhotoLimits consultationPhotoLimits;
     private final HealthObservations healthObservations;
     private final ScheduleRequestFlow scheduleRequestFlow;
+    private final StaffRoles staffRoles;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -82,6 +83,7 @@ public class Contracts {
                 read(mapper, dir, "consultation-photo-limits.json", ConsultationPhotoLimits.class);
         this.healthObservations = read(mapper, dir, "health-observations.json", HealthObservations.class);
         this.scheduleRequestFlow = read(mapper, dir, "schedule-request-flow.json", ScheduleRequestFlow.class);
+        this.staffRoles = read(mapper, dir, "staff-roles.json", StaffRoles.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -152,6 +154,11 @@ public class Contracts {
 
     public OrderFlow orderFlow() {
         return orderFlow;
+    }
+
+    /** B 端员工角色（票 88）：admin/doctor/pharmacist 取值与中文标签的单一事实源。 */
+    public StaffRoles staffRoles() {
+        return staffRoles;
     }
 
     public PaymentFlow paymentFlow() {
@@ -464,7 +471,11 @@ public class Contracts {
             Map<String, String> decisions,
             Map<String, String> messages,
             Map<String, String> sources,
-            Map<String, String> sourceLabels) {
+            Map<String, String> sourceLabels,
+            Map<String, String> pickupMethods,
+            Map<String, String> pickupMethodLabels,
+            @JsonProperty("payment_timeout_seconds") int paymentTimeoutSeconds,
+            @JsonProperty("simulated_carrier_name") String simulatedCarrierName) {
         public OrderFlow {
             statuses = Map.copyOf(statuses);
             statusLabels = Map.copyOf(statusLabels);
@@ -472,6 +483,16 @@ public class Contracts {
             messages = Map.copyOf(messages);
             sources = Map.copyOf(sources);
             sourceLabels = Map.copyOf(sourceLabels);
+            pickupMethods = Map.copyOf(pickupMethods);
+            pickupMethodLabels = Map.copyOf(pickupMethodLabels);
+        }
+    }
+
+    /** B 端 staff_users.role 单一事实源（票 88，ADR-0035）：admin/doctor/pharmacist 小写取值与中文标签。 */
+    public record StaffRoles(Map<String, String> roles, Map<String, String> roleLabels) {
+        public StaffRoles {
+            roles = Map.copyOf(roles);
+            roleLabels = Map.copyOf(roleLabels);
         }
     }
 
