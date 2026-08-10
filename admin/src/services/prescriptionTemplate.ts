@@ -8,6 +8,7 @@ export interface PrescriptionTemplateItem {
   dosage: string;
   frequency: string;
   duration: string;
+  // 票 88：模板明细同样带配药数量，引用模板开方时带入处方明细
   quantity: number;
   notes?: string;
 }

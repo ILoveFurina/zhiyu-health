@@ -393,7 +393,9 @@ class ContractsTest {
                 .containsEntry("blocked", "BLOCKED")
                 .containsEntry("review_required", "REVIEW_REQUIRED");
         assertThat(contraindication.messageTypes()).containsEntry("warning", "contraindication_warning");
-        assertThat(contraindication.messages().get("blocked")).contains("请咨询医生或药师");
+        // 票 93：blocked/review_required/advice 为 B 端医生向话术，不再出现"咨询医生或药师"式患者口吻。
+        assertThat(contraindication.messages().get("blocked")).contains("已阻止本次电子处方的开具");
+        assertThat(contraindication.advice()).isEqualTo("请仔细核查！");
         assertThat(contraindication.messages().get("safe_without_history")).contains("无法完整确认");
     }
 

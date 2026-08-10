@@ -15,7 +15,7 @@
 .greeting { color: var(--zy-text-title); font-size: 44rpx; font-weight: 700; }
 .greeting-sub { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 26rpx; }
 
-/* 消息中心入口（票 93）：右上角绝对定位不挤布局流，padding 放大触摸热区 */
+/* 消息中心入口（票 96）：右上角绝对定位不挤布局流，padding 放大触摸热区 */
 .msg-bell {
   position: absolute;
   top: var(--zy-space-xs);

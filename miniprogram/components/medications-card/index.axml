@@ -11,7 +11,7 @@
     未找到匹配的 OTC 药品
   </view>
 
-  <!-- 药品清单：每项展示药名/通用名/规格（票 88 起价格/库存归属院区药房，本卡不展示），只读不可点 -->
+  <!-- 药品清单：每项展示药名/通用名/规格（票 88 起价格/库存/在售下沉到院区药房，本卡不展示），只读不可点 -->
   <view a:else class="mc-list">
     <view
       a:for="{{card.medications}}"
@@ -19,11 +19,10 @@
       a:key="medication_id"
       class="mc-item"
     >
-      <view class="mc-item-head">
-        <view class="mc-item-name">{{med.name}}</view>
-      </view>
+      <view class="mc-item-name">{{med.name}}</view>
       <view a:if="{{med.generic_name}}" class="mc-item-generic">通用名：{{med.generic_name}}</view>
       <view a:if="{{med.specification}}" class="mc-item-spec">{{med.specification}}</view>
     </view>
+    <view class="mc-tip">具体在售状态与价格以下单页为准</view>
   </view>
 </view>

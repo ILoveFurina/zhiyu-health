@@ -42,7 +42,7 @@ class ContraindicationServiceTest {
     @Test
     void checksCurrentProfilesAllergiesAgainstValidatedMedicationIds() {
         HealthProfile profile = profile(31L);
-        Medication medication = medication(1L);
+        Medication medication = medication(1L, "阿莫西林胶囊");
         when(profileMapper.selectActive(12L)).thenReturn(profile);
         when(allergyMapper.selectAllergens(31L)).thenReturn(List.of("青霉素"));
         when(medicationMapper.selectByIds(List.of(1L))).thenReturn(List.of(medication));
@@ -92,7 +92,9 @@ class ContraindicationServiceTest {
     void checksCandidateAgainstCurrentApprovedPrescription() {
         when(profileMapper.selectActive(12L)).thenReturn(profile(31L));
         when(allergyMapper.selectAllergens(31L)).thenReturn(List.of());
-        when(medicationMapper.selectByIds(List.of(2L))).thenReturn(List.of(medication(2L)));
+        // 候选 + 档案在用药（APPROVED 处方药品）并集加载药名
+        when(medicationMapper.selectByIds(List.of(2L, 4L)))
+                .thenReturn(List.of(medication(2L, "布洛芬片"), medication(4L, "华法林钠片")));
         when(prescriptionItemMapper.selectMedicationIdsByHealthProfileAndStatus(31L, "APPROVED"))
                 .thenReturn(List.of(4L));
         when(facts.load(List.of(2L, 4L)))
@@ -115,8 +117,13 @@ class ContraindicationServiceTest {
     }
 
     private Medication medication(long id) {
+        return medication(id, null);
+    }
+
+    private Medication medication(long id, String name) {
         Medication medication = new Medication();
         medication.setId(id);
+        medication.setName(name);
         return medication;
     }
 }

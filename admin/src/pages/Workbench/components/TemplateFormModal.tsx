@@ -66,8 +66,9 @@ export default function TemplateFormModal({ open, record, medications, onOpenCha
                   <Form.Item {...rest} name={[name, 'duration']} rules={[{ required: true, whitespace: true }]}>
                     <Input placeholder="疗程，如 5天" />
                   </Form.Item>
-                  <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: '请输入配药数量' }]}>
-                    <InputNumber min={1} precision={0} style={{ width: 110 }} placeholder="配药数量" />
+                  {/* 票 88：模板明细同样由医生填写配药数量（正整数，默认 1），引用模板开方时带入处方明细 */}
+                  <Form.Item {...rest} name={[name, 'quantity']} initialValue={1} rules={[{ required: true, message: '请输入配药数量' }]}>
+                    <InputNumber min={1} precision={0} style={{ width: 76 }} placeholder="数量" />
                   </Form.Item>
                   <Form.Item {...rest} name={[name, 'notes']}><Input placeholder="用药备注" /></Form.Item>
                   {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}

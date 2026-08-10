@@ -80,7 +80,7 @@ const PRESCRIPTION_TODO = {
   REJECTED: { badge: '处方未通过', badgeClass: 'todo-badge-muted', meta: '处方未通过，点击查看详情 ›' },
 }
 
-/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进），服药提醒殿后（票 93）。 */
+/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进），服药提醒殿后（票 96）。 */
 function buildTodos(appointments, orders, consultationProgress, reminders) {
   const today = todayString()
   const decorated = (appointments || []).map(decorateAppointment)
@@ -200,7 +200,7 @@ function buildTodos(appointments, orders, consultationProgress, reminders) {
       url,
     }
   })
-  // 服药打卡提醒（票 93）：服务端只返回到点未打卡的 PENDING 记录，就地打卡后摘卡；
+  // 服药打卡提醒（票 96）：服务端只返回到点未打卡的 PENDING 记录，就地打卡后摘卡；
   // 卡片点击仍可达消息中心查看剂量详情。
   const medCheckins = (reminders || []).map((item) => ({
     key: `medcheckin-${item.id}`,
@@ -228,7 +228,7 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
-    // 消息中心未读角标（票 93）：与消息中心页共用本机已读口径，仅 onShow 随 load 拉取
+    // 消息中心未读角标（票 96）：与消息中心页共用本机已读口径，仅 onShow 随 load 拉取
     unreadCount: 0,
     showEntrance: true,
     // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
@@ -435,7 +435,7 @@ Page({
       .catch(() => {})
   },
 
-  /** 待办卡就地打卡（票 93，对齐 payTodo 的 catchTap 模式）：成功 toast 连续天数并摘卡，失败保留卡片。 */
+  /** 待办卡就地打卡（票 96，对齐 payTodo 的 catchTap 模式）：成功 toast 连续天数并摘卡，失败保留卡片。 */
   checkinTodo(e) {
     const id = e.currentTarget.dataset.id
     checkMedCheckin(id)

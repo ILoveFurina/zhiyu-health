@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,10 @@ public class ContraindicationRuleEngine {
     private final Contracts contracts;
 
     public ContraindicationResult judge(
-            List<String> allergies, List<Long> candidateMedicationIds, ContraindicationFacts facts) {
+            List<String> allergies,
+            List<Long> candidateMedicationIds,
+            ContraindicationFacts facts,
+            Map<Long, String> medicationNames) {
         Contracts.Contraindication contract = contracts.contraindication();
         Set<Long> factMedicationIds = new HashSet<>();
         facts.medications().forEach(fact -> factMedicationIds.add(fact.medicationId()));
@@ -35,7 +39,9 @@ public class ContraindicationRuleEngine {
             medicationTerms.addAll(medication.allergyTerms());
             for (String allergy : allergies) {
                 if (medicationTerms.stream().anyMatch(term -> matches(allergy, term))) {
-                    reasons.add("过敏史“%s”与药品 %d 的成分/禁忌项匹配".formatted(allergy.trim(), medication.medicationId()));
+                    // B 端开方场景：reason 只展示 PG 权威药名，不暴露裸 id（票 93）。
+                    reasons.add("该患者过敏史“%s”与%s的成分/禁忌项匹配"
+                            .formatted(allergy.trim(), nameOf(medication.medicationId(), medicationNames)));
                 }
             }
         }
@@ -45,9 +51,11 @@ public class ContraindicationRuleEngine {
             if (involvesCandidate
                     && factMedicationIds.contains(interaction.leftMedicationId())
                     && factMedicationIds.contains(interaction.rightMedicationId())) {
-                reasons.add("药品 %d 与药品 %d：%s"
+                reasons.add("%s 与 %s：%s"
                         .formatted(
-                                interaction.leftMedicationId(), interaction.rightMedicationId(), interaction.reason()));
+                                nameOf(interaction.leftMedicationId(), medicationNames),
+                                nameOf(interaction.rightMedicationId(), medicationNames),
+                                interaction.reason()));
             }
         }
         return reasons.isEmpty()
@@ -65,6 +73,12 @@ public class ContraindicationRuleEngine {
                 reasons,
                 contract.messages().get(decisionKey),
                 blocked ? contract.advice() : null);
+    }
+
+    private String nameOf(long medicationId, Map<Long, String> medicationNames) {
+        // PG medications.name 是业务权威药名；参与判定的 id 均来自已校验候选或档案在用药，
+        // 名称必然存在，此处兜底仅防御未来数据漂移，避免把裸 id 暴露给医生。
+        return medicationNames.getOrDefault(medicationId, "未知药品");
     }
 
     private boolean matches(String left, String right) {
