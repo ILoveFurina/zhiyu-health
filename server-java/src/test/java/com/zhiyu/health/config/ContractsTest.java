@@ -400,10 +400,17 @@ class ContractsTest {
     @Test
     void paymentFlowStatusesAndMessagesAreLoaded() {
         Contracts.PaymentFlow payment = contracts.paymentFlow();
-        assertThat(payment.statuses()).containsExactlyInAnyOrderEntriesOf(Map.of("unpaid", "UNPAID", "paid", "PAID"));
-        assertThat(payment.statusLabels()).containsEntry("UNPAID", "待支付").containsEntry("PAID", "已支付");
-        assertThat(payment.decisions()).containsEntry("pay", "PAY");
+        // 票 90：新增 refunded 态与 refund decision/文案。
+        assertThat(payment.statuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("unpaid", "UNPAID", "paid", "PAID", "refunded", "REFUNDED"));
+        assertThat(payment.statusLabels())
+                .containsEntry("UNPAID", "待支付")
+                .containsEntry("PAID", "已支付")
+                .containsEntry("REFUNDED", "已退款");
+        assertThat(payment.decisions()).containsEntry("pay", "PAY").containsEntry("refund", "REFUND");
         assertThat(payment.messages()).containsEntry("pay_success", "支付成功");
+        assertThat(payment.messages()).containsEntry("refund_success", "退款成功");
+        assertThat(payment.messages()).containsEntry("not_refundable", "该挂号收费不可退款");
     }
 
     @Test
@@ -579,6 +586,8 @@ class ContractsTest {
         assertThat(flow.transitions().get("cancel").to()).isEqualTo("CANCELLED");
         // 支付截止默认 60 秒（演示便于观察超时收敛）；接诊台可见白名单排除待支付。
         assertThat(flow.paymentTimeoutSeconds()).isEqualTo(60);
+        // 票 90：已支付预约取消截止分钟数，距号源起始时间不足此值不可取消。
+        assertThat(flow.cancelCutoffMinutes()).isEqualTo(30);
         assertThat(flow.receptionVisibleStatuses()).containsExactly("BOOKED", "IN_PROGRESS", "VISITED");
         Contracts.AppointmentFlow.CalledNotice notice = flow.calledNotice();
         assertThat(notice.messageType()).isEqualTo("appointment_called");

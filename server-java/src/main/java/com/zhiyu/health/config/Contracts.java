@@ -631,12 +631,13 @@ public class Contracts {
         }
     }
 
-    /** 线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束）。 */
+    /** 线下挂号状态机与叫号通知（票 71，票 81 支付门控与单叫号约束，票 90 已支付取消与退款）。 */
     public record AppointmentFlow(
             Map<String, String> statuses,
             Map<String, String> statusLabels,
             Map<String, Transition> transitions,
             @JsonProperty("payment_timeout_seconds") int paymentTimeoutSeconds,
+            @JsonProperty("cancel_cutoff_minutes") int cancelCutoffMinutes,
             @JsonProperty("reception_visible_statuses") List<String> receptionVisibleStatuses,
             CalledNotice calledNotice) {
         public AppointmentFlow {
