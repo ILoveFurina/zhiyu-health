@@ -10,15 +10,15 @@
 
 **Blocked by:** 22 — 服药打卡；72 - 首页信息架构（与票 93 同链）
 
-**Status:** claimed
+**Status:** done
 
 - [x] miniprogram：`feature-guide.js` 新增 DRUG_GUIDE 常量 + enterDrugGuide/consumeDrugGuideEntry + dispatchFeature 分支
 - [x] miniprogram：chat 页 onShow 接线 consumeDrugGuideEntry
 - [x] miniprogram：首页宫格「便捷购药」入口（globalData 交棒 + switchTab）
 - [x] miniprogram：聊天气泡栏「便捷购药」气泡
 - [x] 回归：受影响 JS 过 node --check
-- [ ] 支付宝开发者工具：登录 → 宫格/气泡进购药引导卡 → chips 点击发送出预览卡 → 与导诊卡互斥（全程只一张）；控制台无错误
-- [ ] 票单置 done 前：README 依赖图 T94 节点加 `[x]`
+- [x] 支付宝开发者工具：登录 → 宫格/气泡进购药引导卡 → chips 点击发送出预览卡 → 与导诊卡互斥（全程只一张）；控制台无错误
+- [x] 票单置 done 前：README 依赖图 T94 节点加 `[x]`
 
 ## Comments
 

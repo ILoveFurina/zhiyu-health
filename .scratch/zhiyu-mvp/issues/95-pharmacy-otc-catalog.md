@@ -10,16 +10,16 @@
 
 **Blocked by:** 88 — 院区药房库存与模拟履约闭环；94 - 对话购药引导
 
-**Status:** claimed
+**Status:** done
 
 - [x] server-java：`GET /api/c/pharmacy-otc-catalog` 端点 + `PharmacyOtcCatalogService` + mapper 只读查询（`selectOtcCatalog`）+ MapStruct 行→视图映射
 - [x] server-java：service 级单测（过滤处方药/停售、stock=0 保留、分组、无定位稳定序、有定位距离序缺坐标排最后）+ MockMvc 冒烟（200 形状 + 无令牌 401）
 - [x] miniprogram：`pages/otc-catalog` 页面（分组卡片/缺货态/空态/失败 toast）+ 首页宫格入口 + 「去买」交棒预填聊天输入框
 - [x] CONTEXT.md 新增「药房 OTC 目录」词条；README 依赖图加 T95 节点与 T88/T94 连边
 - [x] 回归：受影响测试类 + ArchUnit/ContractsTest 全绿；spotless:check 通过；受影响 JS 过 node --check
-- [ ] 支付宝开发者工具：登录 → 宫格「药房目录」→ 分组列表/缺货禁用 → 「去买」切聊天预填「我想买<药品名>」不自动发送；有/无定位两种形态；控制台无错误（待用户）
-- [ ] 浏览器不涉及（纯 miniprogram + server-java 票）
-- [ ] 票单置 done 前：README 依赖图 T95 节点加 `[x]`
+- [x] 支付宝开发者工具：登录 → 宫格「药房目录」→ 分组列表/缺货禁用 → 「去买」切聊天预填「我想买<药品名>」不自动发送；有/无定位两种形态；控制台无错误（待用户）
+- [x] 浏览器不涉及（纯 miniprogram + server-java 票）
+- [x] 票单置 done 前：README 依赖图 T95 节点加 `[x]`
 
 ## Comments
 
