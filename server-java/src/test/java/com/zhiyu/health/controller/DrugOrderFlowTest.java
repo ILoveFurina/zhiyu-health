@@ -139,7 +139,7 @@ class DrugOrderFlowTest {
                                 .content(
                                         """
                                 {"prescription_id":31,"pickup_method":"DELIVERY",
-                                 "receiver":{"name":"张三","phone":"13812345678","address":"澜山市城东区梧桐路12号"}}
+                                 "receiver_name":"张三","receiver_phone":"13812345678","receiver_address":"澜山市城东区梧桐路12号"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNPAID"))

@@ -36,19 +36,19 @@ public class DrugOrderController {
     public record ItemInput(
             @JsonProperty("medication_id") @NotNull @Positive Long medicationId, @NotNull @Min(1) Integer quantity) {}
 
-    /** 配送收货信息（一次性快照，不建地址簿）；PICKUP 订单忽略本字段。 */
-    public record ReceiverInput(String name, String phone, String address) {}
-
     /**
      * 下单：处方药传 prescription_id（锁处方来源院区药房、复用处方数量）；
      * OTC 传 pharmacy_id + items（显式选择可整单履约的院区药房）。两组互斥，由 service 裁决。
+     * 收货信息为一次性快照的扁平三字段（与小程序确认页提交形状一致），PICKUP 订单忽略并置空、不落库。
      */
     public record CreateInput(
             @JsonProperty("prescription_id") @Positive Long prescriptionId,
             @JsonProperty("pharmacy_id") @Positive Long pharmacyId,
             List<@Valid ItemInput> items,
             @JsonProperty("pickup_method") @NotBlank String pickupMethod,
-            ReceiverInput receiver) {}
+            @JsonProperty("receiver_name") String receiverName,
+            @JsonProperty("receiver_phone") String receiverPhone,
+            @JsonProperty("receiver_address") String receiverAddress) {}
 
     /** 处方药购药预览：处方固化院区与锁定药房 + 实时价格/库存测算（不扣库存）。 */
     @GetMapping("/preview")

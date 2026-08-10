@@ -12,10 +12,16 @@ public interface DrugOrderInputMapper {
     @Mapping(target = "pharmacyId", source = "input.pharmacyId")
     @Mapping(target = "items", source = "input.items")
     @Mapping(target = "pickupMethod", source = "input.pickupMethod")
-    @Mapping(target = "receiver", source = "input.receiver")
+    @Mapping(target = "receiver", expression = "java(toReceiverInput(input))")
     DrugOrderService.CreateCommand toCommand(long patientId, DrugOrderController.CreateInput input);
 
     DrugOrderService.QuantityInput toQuantityInput(DrugOrderController.ItemInput input);
 
-    DrugOrderService.ReceiverInput toReceiverInput(DrugOrderController.ReceiverInput input);
+    /** 收货信息三字段全空则视为未提交（PICKUP 场景），交由 service 按取药方式校验。 */
+    default DrugOrderService.ReceiverInput toReceiverInput(DrugOrderController.CreateInput input) {
+        if (input.receiverName() == null && input.receiverPhone() == null && input.receiverAddress() == null) {
+            return null;
+        }
+        return new DrugOrderService.ReceiverInput(input.receiverName(), input.receiverPhone(), input.receiverAddress());
+    }
 }
