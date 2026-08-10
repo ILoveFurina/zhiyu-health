@@ -8,6 +8,7 @@ export interface PrescriptionTemplateItem {
   dosage: string;
   frequency: string;
   duration: string;
+  quantity: number;
   notes?: string;
 }
 
@@ -26,6 +27,7 @@ export interface PrescriptionTemplateInput {
     dosage: string;
     frequency: string;
     duration: string;
+    quantity: number;
     notes?: string;
   }>;
 }

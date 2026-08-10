@@ -136,6 +136,7 @@ export default function PrescriptionPage() {
                     { title: '单次剂量', dataIndex: 'dosage', width: 100 },
                     { title: '频次', dataIndex: 'frequency', width: 100 },
                     { title: '疗程', dataIndex: 'duration', width: 100 },
+                    { title: '数量', dataIndex: 'quantity', width: 70 },
                     { title: '备注', dataIndex: 'notes', render: (v) => v || '-' },
                   ]} />
               </Space>

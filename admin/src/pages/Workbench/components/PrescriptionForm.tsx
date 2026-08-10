@@ -1,5 +1,5 @@
 import { ImportOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Form, Input, List, Modal, Select, Space, Typography } from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, List, Modal, Select, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   checkPrescriptionSafety,
@@ -52,6 +52,7 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
           dosage: item.dosage,
           frequency: item.frequency,
           duration: item.duration,
+          quantity: item.quantity,
           notes: item.notes,
         });
       } else {
@@ -119,6 +120,9 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
                   required: true, whitespace: true, message: '请输入用药疗程',
                 }]}>
                   <Input placeholder="疗程，如 5天" />
+                </Form.Item>
+                <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: '请输入配药数量' }]}>
+                  <InputNumber min={1} precision={0} style={{ width: 110 }} placeholder="配药数量" />
                 </Form.Item>
                 <Form.Item {...rest} name={[name, 'notes']}><Input placeholder="用药备注" /></Form.Item>
                 {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}

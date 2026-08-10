@@ -25,6 +25,7 @@ export interface PrescriptionItem {
   dosage: string;
   frequency: string;
   duration: string;
+  quantity: number;
   notes?: string;
 }
 
@@ -54,6 +55,8 @@ export interface PrescriptionInput {
     dosage: string;
     frequency: string;
     duration: string;
+    // 配药数量由医生填写（正整数），与 server-java ItemInput 契约一致
+    quantity: number;
     notes?: string;
   }>;
 }
