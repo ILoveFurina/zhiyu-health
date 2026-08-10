@@ -1,4 +1,5 @@
-/* 查药结果卡（票 77/79）：只读展示 search_medications 查到的在售 OTC 药品清单。
+/* 查药结果卡（票 77/79 建，票 88 起只展示标准目录身份字段）：只读展示 search_medications
+ * 查到的 OTC 药品清单。
  * 类名带 mc- 前缀--支付宝组件样式不隔离，与 doc-/psc- 等裸类名会串扰。
  * 视觉层级对齐 drug-order-confirm-card：卡片化 + 药品明细分行。 */
 .mc-card {
@@ -31,27 +32,6 @@
 
 .mc-item-head { display: flex; align-items: center; justify-content: space-between; }
 .mc-item-name { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
-.mc-item-status {
-  padding: 4rpx 16rpx;
-  border-radius: 999rpx;
-  background: var(--zy-color-primary-soft);
-  color: var(--zy-color-primary);
-  font-size: 20rpx;
-  font-weight: 600;
-}
-.mc-item-status-inactive {
-  background: var(--zy-color-danger-soft);
-  color: var(--zy-color-danger);
-}
 
 .mc-item-generic { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
 .mc-item-spec { margin-top: 2rpx; color: var(--zy-text-weak); font-size: 22rpx; }
-
-.mc-item-foot {
-  margin-top: var(--zy-space-xs);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.mc-item-price { color: var(--zy-color-danger); font-size: 28rpx; font-weight: 700; }
-.mc-item-stock { color: var(--zy-text-weak); font-size: 22rpx; }
