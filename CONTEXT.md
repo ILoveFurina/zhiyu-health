@@ -161,8 +161,16 @@ _Avoid_: 药品识别（识别只是 vision 提药名一步，药品查询是含
 _Avoid_: 知识库（"知识库"特指 pgvector 中供向量检索的文本块）
 
 **知识库**:
-存于 PostgreSQL `knowledge_chunks` 表、经 doubao-embedding-vision 向量化的症状场景知识文本块集合。表 schema 由统一 schema.sql 管理；embedding 离线生成属数据准备（server-py），运行时 server-py 对该表只读检索。供导诊回答接地（见 ADR-0010）。
+存于 PostgreSQL `knowledge_chunks` 表、经 doubao-embedding-vision 向量化的医学知识文本块集合。表 schema 由统一 schema.sql 管理；embedding 由 Agent 层计算、业务后端持久化（运行时检索只读、写入经上传闭环）。每个 chunk 经 `document_id` 归属一份知识文档（ADR-0036），来源分系统预置（`SEED`，只读）与运营上传（`UPLOAD`，可管理）两类，检索时不区分来源平等参与 Top-K。供导诊回答接地（见 ADR-0010）。
 _Avoid_: 知识图谱（"知识图谱"特指 Neo4j 中的图结构医学知识网络）
+
+**知识文档**:
+B 端运营上传的医学知识原文实体（PDF/Markdown/纯文本等），承载于 `knowledge_documents` 表，原文旁路持久化于 MinIO。一份文档被业务后端解析切分为多个知识块（`knowledge_chunks` 行），经 Agent 层批量计算 embedding 后由业务后端写入。文档状态机 `PROCESSING -> READY | FAILED -> ARCHIVED`（异步四态）：上传即落 `PROCESSING`，切分+embedding+写库完成后 `READY`（chunk 可检索），任一步失败 `FAILED`（保留原文可整链重试），运营主动归档 `ARCHIVED`（chunk 不再被检索）。系统预置的 50 条 seed 知识也纳入文档模型（`source=SEED`，只读不可删/重切）。
+_Avoid_: 知识文件（"文档"是可管理实体含元数据与状态，非裸文件）、训练语料（demo 不训练模型，只做检索接地）
+
+**知识块**:
+知识文档被切分后落入 `knowledge_chunks` 的一行，是 RAG 向量检索单元。每块带 `department`（所属标准科室，用于导诊科室衔接）与 `title`（块标题，参与 embedding 输入），并经 `document_id` 归属其来源文档。seed 知识的块由 seed.sql 灌入（一场景一块），上传文档的块由业务后端切分逻辑产出。
+_Avoid_: 文档片段（"片段"暗示无结构切割，知识块带 department/title 归属是结构化检索单元）
 
 **知识源选择器**:
 导诊回答的接地策略选择：RAG（pgvector 知识库检索）或知识图谱（Neo4j `traverse_graph` 一跳扩展）。rag 与 graph 互斥（同一请求只注入一个知识工具），加裸 LLM 共三态。检索失败或空召回时自动降级走裸 LLM。每请求字段 `knowledge_source` 经 `contracts/` 定义、业务后端透传至 Agent 层；B 端现场切换出口归票 25。

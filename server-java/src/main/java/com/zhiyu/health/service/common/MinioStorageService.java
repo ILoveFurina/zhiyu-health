@@ -117,6 +117,53 @@ public class MinioStorageService {
         }
     }
 
+    /**
+     * 上传知识文档原文到 MinIO，返回对象 key；不可用时返回空（ADR-0036 旁路降级）。
+     *
+     * <p>与 storePhoto 同为旁路语义：MinIO 不可用时返回空，文档元数据与 chunk 正常写库，
+     * 但无法重新切分（无原文可重读）。object_key 前缀为 docs/ 区别于照片。
+     */
+    public Optional<String> storeDocument(MultipartFile file) {
+        if (!enabled || minioClient == null) {
+            return Optional.empty();
+        }
+        try {
+            ensureBucket();
+            String objectKey = buildDocumentObjectKey(file);
+            try (var input = new ByteArrayInputStream(file.getBytes())) {
+                minioClient.putObject(
+                        PutObjectArgs.builder().bucket(bucket).object(objectKey).stream(input, file.getSize(), -1)
+                                .contentType(file.getContentType() != null ? file.getContentType() : "text/plain")
+                                .build());
+            }
+            return Optional.of(objectKey);
+        } catch (ErrorResponseException e) {
+            log.warn("MinIO 写入文档失败（ErrorResponse），降级为不留原文：{}", e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("MinIO 不可用，降级为不留文档原文：{}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** 回拉原文的字节流，供重切分读取（ADR-0036）；MinIO 不可用时返回空。 */
+    public Optional<InputStream> getDocumentStream(String objectKey) {
+        if (!enabled || minioClient == null) {
+            return Optional.empty();
+        }
+        try {
+            GetObjectResponse response = minioClient.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
+            return Optional.of(response);
+        } catch (ErrorResponseException e) {
+            log.warn("MinIO 读取文档失败（对象不存在或 ErrorResponse）：{}", e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("MinIO 读取文档不可用：{}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     /** 回拉原图的字节流与 media_type；调用方负责关闭 stream。 */
     public record PhotoContent(InputStream stream, String mediaType) {}
 
@@ -176,5 +223,23 @@ public class MinioStorageService {
             }
         }
         return ".jpg";
+    }
+
+    private String buildDocumentObjectKey(MultipartFile file) {
+        String datePart = LocalDate.now().toString();
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        String ext = documentExtensionOf(file);
+        return "docs/" + datePart + "/" + uuid + ext;
+    }
+
+    private String documentExtensionOf(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        if (name != null && name.contains(".")) {
+            String ext = name.substring(name.lastIndexOf('.')).toLowerCase();
+            if (ext.matches("\\.(txt|md)")) {
+                return ext;
+            }
+        }
+        return ".txt";
     }
 }

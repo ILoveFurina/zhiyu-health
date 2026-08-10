@@ -1,0 +1,39 @@
+{
+  "_doc": "知识文档上传闭环契约（票 89，ADR-0036）：文档状态/来源枚举、孤儿超时、embedding 在线化端点、切分参数与上传限制，server-java 与 server-py 共享单一事实源。",
+  "document_status": ["PROCESSING", "READY", "FAILED", "ARCHIVED"],
+  "document_source": ["SEED", "UPLOAD"],
+  "orphan_timeout_seconds": 600,
+  "embedding": {
+    "endpoint": "/api/agent/knowledge/embeddings",
+    "max_texts": 50,
+    "batch_size": 10,
+    "timeout_ms": 60000,
+    "error_codes": [
+      "KNOWLEDGE_EMBEDDING_INVALID",
+      "EMBEDDING_MODEL_TIMEOUT",
+      "EMBEDDING_MODEL_FAILED"
+    ]
+  },
+  "embedding_input_format": "{title}。{content}",
+  "chunking": {
+    "chunk_size": 500,
+    "chunk_overlap": 50
+  },
+  "upload": {
+    "allowed_types": ["text/plain", "text/markdown"],
+    "allowed_extensions": [".txt", ".md"],
+    "max_file_bytes": 2097152,
+    "max_files": 1
+  },
+  "title_format": "{document_title} - 第{n}段",
+  "error_codes": [
+    "KNOWLEDGE_DOCUMENT_NOT_FOUND",
+    "KNOWLEDGE_DOCUMENT_SEED_READONLY",
+    "KNOWLEDGE_DOCUMENT_INVALID_STATE",
+    "KNOWLEDGE_DOCUMENT_PARSE_FAILED",
+    "KNOWLEDGE_EMBEDDING_INVALID",
+    "EMBEDDING_MODEL_TIMEOUT",
+    "EMBEDDING_MODEL_FAILED",
+    "ORPHANED"
+  ]
+}

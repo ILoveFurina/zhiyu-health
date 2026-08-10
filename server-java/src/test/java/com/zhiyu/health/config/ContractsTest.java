@@ -425,6 +425,41 @@ class ContractsTest {
     }
 
     @Test
+    void knowledgeDocumentsContractIsLoaded() {
+        // 票 89（ADR-0036）：文档状态机四态、来源二态、孤儿超时、在线 embedding 端点、切分参数与上传限制
+        Contracts.KnowledgeDocuments docs = contracts.knowledgeDocuments();
+        assertThat(docs.documentStatus()).containsExactly("PROCESSING", "READY", "FAILED", "ARCHIVED");
+        assertThat(docs.documentSource()).containsExactly("SEED", "UPLOAD");
+        assertThat(docs.orphanTimeoutSeconds()).isEqualTo(600);
+        // 在线 embedding 端点配置：与 seed_embeddings.py 的 batch_size=10 一致
+        Contracts.EmbeddingEndpoint embedding = docs.embedding();
+        assertThat(embedding.endpoint()).isEqualTo("/api/agent/knowledge/embeddings");
+        assertThat(embedding.maxTexts()).isEqualTo(50);
+        assertThat(embedding.batchSize()).isEqualTo(10);
+        assertThat(embedding.timeoutMs()).isEqualTo(60000);
+        assertThat(embedding.errorCodes())
+                .containsExactly("KNOWLEDGE_EMBEDDING_INVALID", "EMBEDDING_MODEL_TIMEOUT", "EMBEDDING_MODEL_FAILED");
+        // embedding 输入拼接格式必须与离线脚本 seed_embeddings.py 完全一致
+        assertThat(docs.embeddingInputFormat()).isEqualTo("{title}。{content}");
+        // 切分参数：滑动窗口 500 字符、重叠 50 字符
+        Contracts.Chunking chunking = docs.chunking();
+        assertThat(chunking.chunkSize()).isEqualTo(500);
+        assertThat(chunking.chunkOverlap()).isEqualTo(50);
+        // 上传限制：纯文本 + Markdown，单文件 2MB
+        Contracts.Upload upload = docs.upload();
+        assertThat(upload.allowedTypes()).containsExactly("text/plain", "text/markdown");
+        assertThat(upload.allowedExtensions()).containsExactly(".txt", ".md");
+        assertThat(upload.maxFileBytes()).isEqualTo(2L * 1024 * 1024);
+        assertThat(upload.maxFiles()).isEqualTo(1);
+        assertThat(docs.titleFormat()).isEqualTo("{document_title} - 第{n}段");
+        assertThat(docs.errorCodes()).hasSize(8).contains("ORPHANED", "KNOWLEDGE_DOCUMENT_SEED_READONLY");
+        assertThat(docs.isKnownStatus("PROCESSING")).isTrue();
+        assertThat(docs.isKnownStatus("UNKNOWN")).isFalse();
+        assertThat(docs.isKnownSource("SEED")).isTrue();
+        assertThat(docs.isKnownSource("UNKNOWN")).isFalse();
+    }
+
+    @Test
     void orderFlowDefinesStatusesDecisionsAndMessages() {
         Contracts.OrderFlow flow = contracts.orderFlow();
         assertThat(flow.statuses())

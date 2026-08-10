@@ -32,6 +32,7 @@ public class Contracts {
     private final PaymentFlow paymentFlow;
     private final Contraindication contraindication;
     private final Knowledge knowledge;
+    private final KnowledgeDocuments knowledgeDocuments;
     private final ChatRealtime chatRealtime;
     private final MedicationKnowledge medicationKnowledge;
     private final MedCheckinFlow medCheckinFlow;
@@ -67,6 +68,7 @@ public class Contracts {
         this.paymentFlow = read(mapper, dir, "payment-flow.json", PaymentFlow.class);
         this.contraindication = read(mapper, dir, "contraindication.json", Contraindication.class);
         this.knowledge = read(mapper, dir, "knowledge.json", Knowledge.class);
+        this.knowledgeDocuments = read(mapper, dir, "knowledge-documents.json", KnowledgeDocuments.class);
         this.chatRealtime = read(mapper, dir, "chat-realtime.json", ChatRealtime.class);
         this.medicationKnowledge = read(mapper, dir, "medication-knowledge.json", MedicationKnowledge.class);
         this.medCheckinFlow = read(mapper, dir, "med-checkin-flow.json", MedCheckinFlow.class);
@@ -164,6 +166,11 @@ public class Contracts {
 
     public Knowledge knowledge() {
         return knowledge;
+    }
+
+    /** 知识文档上传闭环（票 89，ADR-0036）：文档状态/来源枚举、孤儿超时、在线 embedding 端点、切分参数与上传限制。 */
+    public KnowledgeDocuments knowledgeDocuments() {
+        return knowledgeDocuments;
     }
 
     public ChatRealtime chatRealtime() {
@@ -515,6 +522,65 @@ public class Contracts {
             knowledgeSources = List.copyOf(knowledgeSources);
             knowledgeStatus = List.copyOf(knowledgeStatus);
             defaultByScenario = Map.copyOf(defaultByScenario);
+        }
+    }
+
+    /**
+     * 知识文档上传闭环（票 89，ADR-0036）：文档状态机四态、来源二态、孤儿恢复超时、
+     * 在线 embedding 端点配置、滑动窗口切分参数与上传限制，双栈共享单一事实源。
+     */
+    public record KnowledgeDocuments(
+            List<String> documentStatus,
+            List<String> documentSource,
+            @JsonProperty("orphan_timeout_seconds") int orphanTimeoutSeconds,
+            EmbeddingEndpoint embedding,
+            @JsonProperty("embedding_input_format") String embeddingInputFormat,
+            Chunking chunking,
+            Upload upload,
+            @JsonProperty("title_format") String titleFormat,
+            List<String> errorCodes) {
+        public KnowledgeDocuments {
+            documentStatus = List.copyOf(documentStatus);
+            documentSource = List.copyOf(documentSource);
+            errorCodes = List.copyOf(errorCodes);
+        }
+
+        /** 文档状态是否属于契约白名单（落库前校验，防脏值）。 */
+        public boolean isKnownStatus(String status) {
+            return status != null && documentStatus.contains(status);
+        }
+
+        /** 文档来源是否属于契约白名单。 */
+        public boolean isKnownSource(String source) {
+            return source != null && documentSource.contains(source);
+        }
+    }
+
+    /** 在线 embedding 端点：server-java 切分后调本端点批量算向量。 */
+    public record EmbeddingEndpoint(
+            String endpoint,
+            @JsonProperty("max_texts") int maxTexts,
+            @JsonProperty("batch_size") int batchSize,
+            @JsonProperty("timeout_ms") int timeoutMs,
+            List<String> errorCodes) {
+        public EmbeddingEndpoint {
+            errorCodes = List.copyOf(errorCodes);
+        }
+    }
+
+    /** 滑动窗口切分参数：chunkSize 字符数，chunkOverlap 重叠字符数。 */
+    public record Chunking(
+            @JsonProperty("chunk_size") int chunkSize, @JsonProperty("chunk_overlap") int chunkOverlap) {}
+
+    /** 文档上传限制：纯文本 + Markdown，单文件 2MB。 */
+    public record Upload(
+            List<String> allowedTypes,
+            List<String> allowedExtensions,
+            @JsonProperty("max_file_bytes") long maxFileBytes,
+            @JsonProperty("max_files") int maxFiles) {
+        public Upload {
+            allowedTypes = List.copyOf(allowedTypes);
+            allowedExtensions = List.copyOf(allowedExtensions);
         }
     }
 

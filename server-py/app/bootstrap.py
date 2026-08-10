@@ -21,6 +21,7 @@ from app.services.directory import CallbackDepartmentDirectory
 from app.services.graph import build_graph_projector, build_graph_traverser
 from app.services.health import HealthService
 from app.services.knowledge import build_knowledge_retriever
+from app.services.knowledge_embedding import LazyKnowledgeEmbedder
 from app.services.voice import LazyVoiceService
 from app.tools.business import build_business_tools
 from app.tools.callback import BusinessCallbackClient
@@ -60,6 +61,7 @@ async def production_lifespan(app: FastAPI) -> AsyncIterator[None]:
             graph_projector=build_graph_projector(clients),
             voice_service=LazyVoiceService(),
             medication_streamer=LazyMedicationKnowledgeStreamer(),
+            knowledge_embedder=LazyKnowledgeEmbedder(),
         ),
     )
     try:

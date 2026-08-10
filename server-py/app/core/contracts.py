@@ -207,6 +207,51 @@ class HealthObservationsContract(BaseModel):
     item_states: dict[str, str]
 
 
+class EmbeddingEndpointContract(BaseModel):
+    """在线 embedding 端点：server-java 切分后调本端点批量算向量。"""
+
+    endpoint: str
+    max_texts: int
+    batch_size: int
+    timeout_ms: int
+    error_codes: list[str]
+
+
+class ChunkingContract(BaseModel):
+    """滑动窗口切分参数：chunk_size 字符数，chunk_overlap 重叠字符数。"""
+
+    chunk_size: int
+    chunk_overlap: int
+
+
+class KnowledgeUploadContract(BaseModel):
+    """文档上传限制：纯文本 + Markdown，单文件 2MB。"""
+
+    allowed_types: list[str]
+    allowed_extensions: list[str]
+    max_file_bytes: int
+    max_files: int
+
+
+class KnowledgeDocumentsContract(BaseModel):
+    """知识文档上传闭环（ADR-0036）：文档状态/来源枚举、孤儿超时、在线 embedding 端点、切分参数与上传限制。
+
+    server-py 只消费 embedding 子配置（端点路径、批量大小、超时、错误码白名单）与
+    embedding_input_format；文档状态机、切分参数与上传限制由 server-java 消费，
+    在此登记只为保证文件损坏时 fail-fast 且结构双栈同步。
+    """
+
+    document_status: list[str]
+    document_source: list[str]
+    orphan_timeout_seconds: int
+    embedding: EmbeddingEndpointContract
+    embedding_input_format: str
+    chunking: ChunkingContract
+    upload: KnowledgeUploadContract
+    title_format: str
+    error_codes: list[str]
+
+
 class Contracts(BaseModel):
     disclaimer: DisclaimerContract
     sse_events: SseEventsContract
@@ -221,6 +266,7 @@ class Contracts(BaseModel):
     payment_flow: PaymentFlowContract
     contraindication: ContraindicationContract
     knowledge: KnowledgeContract
+    knowledge_documents: KnowledgeDocumentsContract
     emotion: EmotionContract
     voice: VoiceContract
     health_observations: HealthObservationsContract
@@ -281,6 +327,9 @@ def _load(dir_path: Path) -> Contracts:
                 _read_json(dir_path, "contraindication.json")
             ),
             knowledge=KnowledgeContract.model_validate(_read_json(dir_path, "knowledge.json")),
+            knowledge_documents=KnowledgeDocumentsContract.model_validate(
+                _read_json(dir_path, "knowledge-documents.json")
+            ),
             emotion=EmotionContract.model_validate(_read_json(dir_path, "emotion.json")),
             voice=VoiceContract.model_validate(_read_json(dir_path, "voice.json")),
             health_observations=HealthObservationsContract.model_validate(

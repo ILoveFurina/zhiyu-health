@@ -16,7 +16,7 @@ import {
 } from '@/utils/session';
 
 const LOGIN_PATH = '/login';
-const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/agent-trace', '/demo'];
+const ADMIN_PATHS = ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors', '/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments', '/knowledge-graph', '/knowledge-documents', '/agent-trace', '/demo'];
 
 // 顶栏面包屑：pathname -> [分组名, 页面名]
 const ROUTE_GROUPS: Record<string, [string, string]> = {
@@ -35,6 +35,7 @@ const ROUTE_GROUPS: Record<string, [string, string]> = {
   '/schedule-table': ['业务管理', '排班表'],
   '/schedule-request': ['业务管理', '排班申请'],
   '/knowledge-graph': ['智能与日志', '医学知识图谱'],
+  '/knowledge-documents': ['智能与日志', '知识文档'],
   '/agent-trace': ['智能与日志', 'Agent 调用日志'],
   '/demo': ['智能与日志', '演示武器包'],
 };
@@ -140,7 +141,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     return [
       mk('组织管理', ['/hospitals', '/campuses', '/department-categories', '/standard-departments', '/departments', '/doctors']),
       mk('业务管理', ['/schedule-review', '/prescriptions', '/medications', '/drug-orders', '/payments']),
-      mk('智能与日志', ['/knowledge-graph', '/agent-trace', '/demo']),
+      mk('智能与日志', ['/knowledge-graph', '/knowledge-documents', '/agent-trace', '/demo']),
     ];
   },
   // 侧栏顶部 logo 区：绿底「智」方块 + 标题，对齐登录页品牌

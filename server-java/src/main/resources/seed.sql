@@ -230,6 +230,11 @@ ON CONFLICT (id) DO NOTHING;
 -- 向量列由离线 embedding 工具产出的 seed-knowledge.sql 回填；此处只 seed 文本。
 -- content 含症状+病因+建议科室+就医提示；红线场景（如胸痛伴冷汗）保留在库，
 -- 红线规则在 server-java 先于一切执行，命中即中断不进检索，轻症仍可检索。
+-- 票 89（ADR-0036）：50 条 seed chunk 统一指向一条 source=SEED 系统预置文档行（只读）。
+INSERT INTO knowledge_documents (id, file_name, content_type, byte_size, object_key, source, status, department, chunk_count, created_at, updated_at)
+VALUES (1, '系统预置知识库（50 场景）', 'text/plain', 0, NULL, 'SEED', 'READY', NULL, 50, now(), now())
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO knowledge_chunks (id, department, title, content) VALUES
     (1, '心血管内科', '胸闷气短',
      '常见于情绪紧张、劳累或轻度心律失常；若活动后加重、休息能缓解，多为功能性。建议记录发作频率与诱因，避免熬夜和过量咖啡因。若反复发作或伴有心悸，建议到心血管内科评估心电图。'),
@@ -333,6 +338,9 @@ INSERT INTO knowledge_chunks (id, department, title, content) VALUES
      '慢性盆腔不适、排卵痛或肠道问题均可致下腹隐痛。建议记录疼痛与月经周期关系。若隐痛持续或加重、伴发热或异常出血，建议到妇科进一步检查。')
 ON CONFLICT (id) DO NOTHING;
 
+-- 票 89（ADR-0036）：50 条 seed chunk 回填 document_id 指向系统预置文档行（id=1）。
+UPDATE knowledge_chunks SET document_id = 1 WHERE document_id IS NULL;
+
 -- 处方模板（票 47）：doctor.lin（doctors.id=1，心内科）与 doctor.zhou（doctors.id=2）各备虚构常用药组合，
 -- 药品 id 均引用上方 medications 既有条目；显式 id + ON CONFLICT DO NOTHING 幂等。
 INSERT INTO prescription_templates (id, name, doctor_id) VALUES
@@ -365,6 +373,7 @@ SELECT setval('report_interpretations_id_seq', (SELECT COALESCE(MAX(id), 1) FROM
 SELECT setval('health_observations_id_seq', (SELECT COALESCE(MAX(id), 1) FROM health_observations));
 SELECT setval('schedules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM schedules));
 SELECT setval('knowledge_chunks_id_seq', (SELECT MAX(id) FROM knowledge_chunks));
+SELECT setval('knowledge_documents_id_seq', (SELECT MAX(id) FROM knowledge_documents));
 SELECT setval('prescription_templates_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_templates));
 SELECT setval('prescription_template_items_id_seq', (SELECT COALESCE(MAX(id), 1) FROM prescription_template_items));
 

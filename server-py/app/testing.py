@@ -39,6 +39,7 @@ def create_test_app(
     summary_callback: SummaryCallback | None = None,
     voice_service: VoiceService | None = None,
     medication_streamer: MedicationKnowledgeStreamer | None = None,
+    knowledge_embedder: object | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -61,6 +62,7 @@ def create_test_app(
                 graph_projector=graph_projector,
                 voice_service=voice_service or LazyVoiceService(),
                 medication_streamer=medication_streamer or LazyMedicationKnowledgeStreamer(),
+                knowledge_embedder=knowledge_embedder,
             ),
         )
         yield
