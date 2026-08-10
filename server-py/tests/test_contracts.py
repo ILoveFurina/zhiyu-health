@@ -242,7 +242,9 @@ def test_contraindication_values_are_loaded() -> None:
         "review_required": "REVIEW_REQUIRED",
     }
     assert contract.message_types["warning"] == "contraindication_warning"
-    assert "请咨询医生或药师" in contract.messages["blocked"]
+    # 票 93：blocked 改 B 端医生向话术（阻止开方），不再含"咨询医生或药师"式患者口吻
+    assert "已阻止本次电子处方的开具" in contract.messages["blocked"]
+    assert "请咨询医生或药师" not in contract.messages["blocked"]
     assert "无法完整确认" in contract.messages["safe_without_history"]
 
 

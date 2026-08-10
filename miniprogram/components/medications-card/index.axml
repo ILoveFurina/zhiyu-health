@@ -6,12 +6,12 @@
     </view>
   </view>
 
-  <!-- 空结果：未匹配到在售 OTC 药品 -->
+  <!-- 空结果：未匹配到 OTC 药品 -->
   <view a:if="{{!card.medications || card.medications.length === 0}}" class="mc-empty">
-    未找到匹配的在售药品
+    未找到匹配的 OTC 药品
   </view>
 
-  <!-- 药品清单：只读展示药名/通用名/规格（票 88 起价格/库存/在售下沉到院区药房，本卡不展示） -->
+  <!-- 药品清单：每项展示药名/通用名/规格（票 88 起价格/库存/在售下沉到院区药房，本卡不展示），只读不可点 -->
   <view a:else class="mc-list">
     <view
       a:for="{{card.medications}}"

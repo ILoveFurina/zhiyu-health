@@ -1,6 +1,10 @@
 <view class="page">
   <!-- 问候头 + 当前激活健康档案 chip；未建档时显示引导卡片（规则同 AI 页空态） -->
   <view class="header">
+    <view class="msg-bell" onTap="openMessages">
+      <view class="zy-ico zy-ico-mail msg-bell-icon"></view>
+      <view a:if="{{unreadCount > 0}}" class="msg-bell-badge">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
+    </view>
     <view class="greeting">{{greeting}}{{activeProfile ? '，' + activeProfile.display_name : ''}}</view>
     <view class="greeting-sub">愿每一天都健康安心</view>
     <view a:if="{{profileLoaded && profiles.length > 0}}" class="profile-chip" onTap="openSheet">
@@ -38,6 +42,7 @@
           <view a:if="{{item.hint}}" class="todo-hint">{{item.hint}}</view>
           <view a:if="{{item.payment_payable && item.paymentCountdownText}}" class="todo-countdown">支付剩余 {{item.paymentCountdownText}}</view>
           <view a:if="{{item.payment_payable}}" class="todo-pay" data-id="{{item.appointmentId}}" catchTap="payTodo">模拟支付</view>
+          <view a:if="{{item.kind === 'med_checkin'}}" class="todo-checkin" data-id="{{item.checkinId}}" catchTap="checkinTodo">已服用</view>
         </view>
       </view>
     </scroll-view>

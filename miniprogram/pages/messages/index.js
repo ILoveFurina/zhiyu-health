@@ -1,13 +1,7 @@
 const { ensureLogin } = require('../../utils/auth')
 const { listMessages, listMedCheckins, checkMedCheckin } = require('../../services/patient-care')
 const { MESSAGE_TYPES } = require('../../utils/appointment')
-
-const READ_MESSAGE_IDS_KEY = 'readInAppMessageIds'
-
-function readMessageIds() {
-  const stored = my.getStorageSync({ key: READ_MESSAGE_IDS_KEY }).data
-  return Array.isArray(stored) ? stored.map(String) : []
-}
+const { readInAppMessageIds, markInAppMessageRead } = require('../../utils/messages')
 
 Page({
   data: { loading: true, messages: [], reminders: [], skelItems: [1, 2, 3, 4] },
@@ -15,7 +9,7 @@ Page({
     ensureLogin()
       .then(() => Promise.all([listMessages(), listMedCheckins()]))
       .then(([messages, reminders]) => {
-        const readIds = readMessageIds()
+        const readIds = readInAppMessageIds()
         // 就诊指引卡（票 43）：appointment_care 的 content 是结构化 JSON，解析后挂到 item.care 供卡片渲染。
         const decorated = messages.map((item) => {
           const withReadState = { ...item, isUnread: !readIds.includes(String(item.id)) }
@@ -37,10 +31,7 @@ Page({
   // 站内消息暂无服务端已读字段，视觉已读态仅保存在本机，不改变消息业务数据。
   onMessageTap(e) {
     const id = String(e.currentTarget.dataset.id)
-    const readIds = readMessageIds()
-    if (!readIds.includes(id)) {
-      my.setStorageSync({ key: READ_MESSAGE_IDS_KEY, data: [...readIds, id] })
-    }
+    markInAppMessageRead(id)
     this.setData({
       messages: this.data.messages.map((message) =>
         String(message.id) === id ? { ...message, isUnread: false } : message

@@ -21,6 +21,8 @@ dist/
 
 # 云部署渲染产物：compose.oneclick.yaml 由 .env 填密生成，含真实凭据，不入库
 /compose.oneclick.yaml
+# 云应用层部署凭据（deploy/app/env.cloud.example 为模板）
+deploy/app/env.cloud
 
 # 知识库向量 seed：由离线 embedding 工具连真实方舟产出，含向量不入库
 # （文本 seed 在 seed.sql 中；向量缺失时运行时检索降级走裸 LLM）

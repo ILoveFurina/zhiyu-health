@@ -1,0 +1,32 @@
+.page { min-height: 100vh; padding: var(--zy-space-md); box-sizing: border-box; background: var(--zy-color-fill); }
+.state { padding-top: 180rpx; color: var(--zy-text-weak); font-size: 26rpx; text-align: center; }
+
+.otc-notice { margin-bottom: var(--zy-space-sm); color: var(--zy-text-weak); font-size: 22rpx; }
+
+.otc-card { margin-bottom: 22rpx; padding: 26rpx; border-radius: var(--zy-radius-card); background: #fff; box-shadow: var(--zy-shadow-card); }
+.otc-pharmacy-head { display: flex; align-items: center; justify-content: space-between; }
+.otc-pharmacy-name { color: var(--zy-text-title); font-size: 28rpx; font-weight: 700; }
+.otc-pharmacy-distance { flex-shrink: 0; color: var(--zy-color-primary); font-size: 22rpx; }
+.otc-pharmacy-meta { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+.otc-pharmacy-quote { margin-top: var(--zy-space-xs); display: flex; gap: var(--zy-space-md); color: var(--zy-text-secondary); font-size: 22rpx; }
+
+/* 药品行：分隔线列表（不用边框盒子，减少碎片化）；首行无分隔线 */
+.otc-item { margin-top: var(--zy-space-sm); padding: var(--zy-space-sm) 0 0; display: flex; align-items: center; justify-content: space-between; }
+.otc-item + .otc-item { border-top: 1rpx solid var(--zy-color-border); padding-top: var(--zy-space-sm); }
+.otc-item-info { flex: 1; min-width: 0; }
+.otc-item-head { display: flex; align-items: center; }
+.otc-item-name { color: var(--zy-text-title); font-size: 28rpx; font-weight: 600; }
+.otc-item-oos { margin-left: var(--zy-space-sm); padding: 2rpx 12rpx; border-radius: 999rpx; background: var(--zy-color-fill); color: var(--zy-text-weak); font-size: 20rpx; }
+.otc-item-spec { margin-top: 4rpx; color: var(--zy-text-weak); font-size: 22rpx; }
+.otc-item-foot { margin-top: var(--zy-space-xs); display: flex; align-items: baseline; gap: var(--zy-space-md); }
+.otc-item-price { color: var(--zy-color-primary); font-size: 30rpx; font-weight: 700; }
+.otc-item-stock { color: var(--zy-text-weak); font-size: 20rpx; }
+
+/* 「去买」：软底色小胶囊（对齐卡片标签层级），显式高度+清除 ::after 边框，
+ * 防支付宝 button 默认样式撑成大圆钮 */
+.otc-buy { flex-shrink: 0; margin: 0 0 0 var(--zy-space-sm); padding: 0 24rpx; height: 52rpx; line-height: 52rpx; border: 0; border-radius: 999rpx; background: var(--zy-color-primary-soft); color: var(--zy-color-primary); font-size: 22rpx; font-weight: 600; }
+.otc-buy::after { border: none; }
+.otc-buy[disabled] { background: var(--zy-color-fill); color: var(--zy-text-weak); }
+
+/* 展开/收起：居中弱文案行，避免与药品行抢层级 */
+.otc-toggle { margin-top: var(--zy-space-sm); padding-top: var(--zy-space-sm); border-top: 1rpx solid var(--zy-color-border); color: var(--zy-text-weak); font-size: 22rpx; text-align: center; }

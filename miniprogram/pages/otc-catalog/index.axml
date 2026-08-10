@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="otc-notice">价格与库存以各药房实时数据为准；购买请在对话中点名药品与数量</view>
+  <view a:if="{{loading}}" class="state">正在加载…</view>
+  <block a:else>
+    <view a:if="{{pharmacies.length === 0}}" class="state">当前服务城市暂无在售 OTC 药品</view>
+    <view a:for="{{pharmacies}}" a:key="pharmacy_id" class="otc-card">
+      <view class="otc-pharmacy-head">
+        <view class="otc-pharmacy-name">{{item.pharmacy_name}}</view>
+        <view a:if="{{item.distance_text}}" class="otc-pharmacy-distance">{{item.distance_text}}</view>
+      </view>
+      <view class="otc-pharmacy-meta">{{item.hospital_name}} · {{item.campus_name}}</view>
+      <view class="otc-pharmacy-quote">
+        <text>配送费 ¥{{item.delivery_fee}}</text>
+        <text a:if="{{item.estimated_minutes}}">约 {{item.estimated_minutes}} 分钟送达</text>
+      </view>
+      <view a:for="{{item.items_display}}" a:for-item="med" a:key="medication_id" class="otc-item">
+        <view class="otc-item-info">
+          <view class="otc-item-head">
+            <view class="otc-item-name">{{med.name}}</view>
+            <view a:if="{{med.out_of_stock}}" class="otc-item-oos">暂时缺货</view>
+          </view>
+          <view a:if="{{med.spec_text}}" class="otc-item-spec">{{med.spec_text}}</view>
+          <view class="otc-item-foot">
+            <text class="otc-item-price">¥{{med.price_text}}</text>
+            <text class="otc-item-stock">库存 {{med.stock}}</text>
+          </view>
+        </view>
+        <button
+          class="otc-buy"
+          disabled="{{med.out_of_stock}}"
+          data-name="{{med.name}}"
+          onTap="buy"
+        >去买</button>
+      </view>
+      <!-- 默认只展示前 3 种，点击展开/收起（品种多的药房一屏放不下） -->
+      <view
+        a:if="{{item.items.length > 3}}"
+        class="otc-toggle"
+        data-index="{{index}}"
+        onTap="toggleExpand"
+      >{{item.expanded ? '收起' : '展开全部 ' + item.items.length + ' 种'}}</view>
+    </view>
+  </block>
+</view>

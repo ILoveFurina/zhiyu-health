@@ -3,6 +3,7 @@ package com.zhiyu.health.mapper.pharmacy;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhiyu.health.entity.pharmacy.PharmacyAvailability;
 import com.zhiyu.health.entity.pharmacy.PharmacyMedication;
+import com.zhiyu.health.entity.pharmacy.PharmacyOtcCatalogRow;
 import com.zhiyu.health.entity.prescription.Medication;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -128,6 +129,28 @@ public interface PharmacyMedicationMapper extends BaseMapper<PharmacyMedication>
             </script>
             """)
     List<PharmacyAvailability> selectOtcAvailability(@Param("medicationIds") List<Long> medicationIds);
+
+    // 药房 OTC 目录（票 95）：与 selectOtcAvailability 同口径（无 city 入参，demo 单服务城市即
+    // 全部院区）；只读不加锁，返回全部院区药房在售 OTC 行（含 stock=0，前端标缺货），
+    // 稳定序按医院/院区/药名，由 service 分组装配目录视图。
+    @Select(
+            """
+            SELECT pm.id AS pharmacy_medication_id, pm.medication_id, pm.price, pm.stock,
+                   pm.is_on_sale,
+                   m.name AS medication_name, m.generic_name, m.specification, m.is_prescription,
+                   cp.id AS pharmacy_id, cp.display_name AS pharmacy_display_name,
+                   cp.delivery_fee, cp.estimated_delivery_minutes,
+                   h.name AS hospital_name, hc.name AS campus_name, hc.address AS campus_address,
+                   hc.longitude AS campus_longitude, hc.latitude AS campus_latitude
+            FROM pharmacy_medications pm
+            JOIN medications m ON m.id = pm.medication_id
+            JOIN campus_pharmacies cp ON cp.id = pm.pharmacy_id
+            JOIN hospital_campuses hc ON hc.id = cp.campus_id
+            JOIN hospitals h ON h.id = hc.hospital_id
+            WHERE pm.is_on_sale = TRUE AND m.is_prescription = FALSE
+            ORDER BY h.name, hc.name, m.name, pm.id
+            """)
+    List<PharmacyOtcCatalogRow> selectOtcCatalog();
 
     // 删除规则（票 88）：处方明细只存标准药品外键，药房药品的「处方引用」按
     // 「同药品 + 处方来源院区 = 本药房院区」判定；有引用即只允许下架，不可物理删除。

@@ -11,9 +11,33 @@
 }
 
 /* 问候头 */
-.header { padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
+.header { position: relative; padding: var(--zy-space-xs) var(--zy-space-xs) 0; }
 .greeting { color: var(--zy-text-title); font-size: 44rpx; font-weight: 700; }
 .greeting-sub { margin-top: var(--zy-space-xs); color: var(--zy-text-secondary); font-size: 26rpx; }
+
+/* 消息中心入口（票 96）：右上角绝对定位不挤布局流，padding 放大触摸热区 */
+.msg-bell {
+  position: absolute;
+  top: var(--zy-space-xs);
+  right: var(--zy-space-xs);
+  padding: var(--zy-space-xs);
+}
+.msg-bell-icon { color: var(--zy-text-title); font-size: 44rpx; }
+.msg-bell-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  border-radius: 999rpx;
+  background: var(--zy-color-danger);
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
 
 .profile-chip {
   display: inline-flex;
@@ -135,6 +159,16 @@
   font-size: 22rpx;
 }
 .todo-pay:active { opacity: 0.85; }
+.todo-checkin {
+  display: inline-flex;
+  margin-top: 14rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 22rpx;
+}
+.todo-checkin:active { opacity: 0.85; }
 
 /* 档案切换弹层 */
 .sheet-mask {

@@ -88,6 +88,7 @@ public class WebConfig implements WebMvcConfigurer {
      * - doctor-only：/api/b/reception/**（接诊/排班/开方医生工作台）
      * - admin-or-pharmacist：处方审核、药品订单、院区药房库存、标准药品目录
      *   （目录读/处方属性维护是药师现场补药与库存页的必要依赖）
+     * - 组织目录（医院/院区）GET 只读对药师放行（药房库存页选药房依赖），写操作仍 admin-only
      * - admin-only：其余 /api/b/**（组织/系统），放行员工认证区（登录/资料，任何已登录员工可用）
      * 角色取值经 StaffUser 常量与 contracts/staff-roles.json 绑定（ContractsTest 断言同源）。
      */
@@ -104,6 +105,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/b/pharmacy-medications/**",
                         "/api/b/medications/**",
                         "/api/b/campuses/*/pharmacy");
+        // 医院/院区目录：admin 全量，药师仅 GET（库存页选择药房只读依赖，写操作仍 admin-only）
+        registry.addInterceptor(new StaffRoleInterceptor(
+                        Set.of(StaffUser.ROLE_ADMIN), Set.of(StaffUser.ROLE_PHARMACIST), "仅管理员可操作"))
+                .addPathPatterns("/api/b/hospitals/**", "/api/b/campuses/**");
         registry.addInterceptor(new StaffRoleInterceptor(Set.of(StaffUser.ROLE_ADMIN), "仅管理员可操作"))
                 .addPathPatterns("/api/b/**")
                 .excludePathPatterns(
@@ -114,7 +119,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/b/campus-pharmacies/**",
                         "/api/b/pharmacy-medications/**",
                         "/api/b/medications/**",
-                        "/api/b/campuses/*/pharmacy");
+                        "/api/b/campuses/*/pharmacy",
+                        "/api/b/hospitals/**",
+                        "/api/b/campuses/**");
     }
 
     @Override

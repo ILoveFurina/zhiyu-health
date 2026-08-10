@@ -4,12 +4,15 @@ const { listAppointments, payAppointment } = require('../../services/appointment
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
 const { listConsultationProgress } = require('../../services/consultation')
+const { listMessages, listMedCheckins, checkMedCheckin } = require('../../services/patient-care')
+const { readInAppMessageIds } = require('../../utils/messages')
 const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
 const {
   decorateAppointment,
   remainingPaymentSeconds,
   formatCountdown,
 } = require('../../utils/appointment')
+const { STATUSES: ORDER_STATUSES } = require('../../utils/drug-order')
 
 // 启动就医位置确认只问一次（会话级标志）；跳过或确认后不再打扰
 let locationPrompted = false
@@ -36,6 +39,10 @@ const GRIDS = [
       { key: 'health', icon: 'heart', label: '健康档案', action: 'navigateTo', url: '/pages/health/index' },
       { key: 'appointments', icon: 'ticket', label: '我的挂号', action: 'navigateTo', url: '/pages/appointments/index' },
       { key: 'prescriptions', icon: 'file', label: '电子处方', action: 'navigateTo', url: '/pages/prescriptions/index' },
+      // 票 94：便捷购药引导入口，经 globalData 交棒 chat 页自动进入购药引导卡（同「智能导诊」）
+      { key: 'drugGuide', icon: 'capsule', label: '便捷购药', action: 'switchTab', url: '/pages/chat/index' },
+      // 票 95：药房 OTC 目录只读浏览页（图标复用 file-list 清单类 zy-ico-report，与 capsule 区分）
+      { key: 'otcCatalog', icon: 'report', label: '药房目录', action: 'navigateTo', url: '/pages/otc-catalog/index' },
       { key: 'drugOrders', icon: 'capsule', label: '药品订单', action: 'navigateTo', url: '/pages/drug-orders/index' },
     ],
   },
@@ -73,8 +80,8 @@ const PRESCRIPTION_TODO = {
   REJECTED: { badge: '处方未通过', badgeClass: 'todo-badge-muted', meta: '处方未通过，点击查看详情 ›' },
 }
 
-/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与待支付药品订单。 */
-function buildTodos(appointments, orders, consultationProgress) {
+/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进），服药提醒殿后（票 96）。 */
+function buildTodos(appointments, orders, consultationProgress, reminders) {
   const today = todayString()
   const decorated = (appointments || []).map(decorateAppointment)
   const pendingPayments = decorated
@@ -130,6 +137,31 @@ function buildTodos(appointments, orders, consultationProgress) {
       updatedAt: item.created_at || '',
       url: '/pages/drug-orders/index',
     }))
+  // 履约跟进：自取「待取药」轮到患者行动（与待支付同级优先），配送「配送中」为安心信息卡；
+  // 已支付/调剂中是药师推进的过渡态不上首页，终态（已送达/已取药/已取消/已过期）自然消失。
+  // badge 直接用 API 下发的 status_label，端侧不镜像 status_labels（utils/drug-order.js 约定）。
+  const FULFILLMENT_TODO = {
+    [ORDER_STATUSES.ready_for_pickup]: {
+      priority: 8,
+      meta: (item) => `药品已备好，凭订单到${item.campus_name || ''}${item.pharmacy_name || '药房'}取药 ›`,
+    },
+    [ORDER_STATUSES.shipped]: {
+      priority: 9,
+      meta: (item) => `${item.carrier_name || '配送'}已发出，请留意查收 ›`,
+    },
+  }
+  const fulfillment = (orders || [])
+    .filter((item) => FULFILLMENT_TODO[item.status])
+    .map((item) => ({
+      key: `order-${item.id}`,
+      kind: 'order',
+      badge: item.status_label,
+      title: `药品订单 #${item.id}`,
+      meta: FULFILLMENT_TODO[item.status].meta(item),
+      priority: FULFILLMENT_TODO[item.status].priority,
+      updatedAt: item.created_at || '',
+      url: '/pages/drug-orders/index',
+    }))
   const consultation = (consultationProgress || []).map((item) => {
     if (item.reference_type === 'PRESCRIPTION') {
       const deco = PRESCRIPTION_TODO[item.status] || {
@@ -168,7 +200,21 @@ function buildTodos(appointments, orders, consultationProgress) {
       url,
     }
   })
-  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid].sort(
+  // 服药打卡提醒（票 96）：服务端只返回到点未打卡的 PENDING 记录，就地打卡后摘卡；
+  // 卡片点击仍可达消息中心查看剂量详情。
+  const medCheckins = (reminders || []).map((item) => ({
+    key: `medcheckin-${item.id}`,
+    kind: 'med_checkin',
+    badge: '服药提醒',
+    badgeClass: 'todo-badge-warn',
+    title: item.medication_name,
+    meta: `${item.dosage} · ${item.frequency}`,
+    checkinId: item.id,
+    priority: 10,
+    updatedAt: item.due_date || '',
+    url: '/pages/messages/index',
+  }))
+  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid, ...fulfillment, ...medCheckins].sort(
     (a, b) => a.priority - b.priority || b.updatedAt.localeCompare(a.updatedAt)
   )
 }
@@ -182,6 +228,8 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
+    // 消息中心未读角标（票 96）：与消息中心页共用本机已读口径，仅 onShow 随 load 拉取
+    unreadCount: 0,
     showEntrance: true,
     // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
     regCityName: '',
@@ -327,19 +375,26 @@ Page({
           listConsultationProgress()
             .then((res) => (res && res.items) || [])
             .catch(() => this._consultationProgress || []),
+          // 未读角标失败降级为不显示，不阻塞首页
+          listMessages().catch(() => []),
+          // 服药提醒失败降级为空，不阻塞首页（无激活档案时服务端 404 也走此降级）
+          listMedCheckins().catch(() => []),
         ])
       )
-      .then(([profiles, appointments, orders, consultationProgress]) => {
+      .then(([profiles, appointments, orders, consultationProgress, messages, reminders]) => {
+        const readIds = readInAppMessageIds()
         profiles = profiles.map((item) => ({ ...item, initial: item.display_name.slice(0, 1) }))
         const activeProfile = profiles.find((item) => item.active) || null
         this._appointments = appointments
         this._orders = orders
         this._consultationProgress = consultationProgress
+        this._reminders = reminders
         this.setData({
           profiles,
           activeProfile,
           profileLoaded: true,
-          todos: buildTodos(appointments, orders, consultationProgress),
+          todos: buildTodos(appointments, orders, consultationProgress, reminders),
+          unreadCount: messages.filter((item) => !readIds.includes(String(item.id))).length,
         }, () => this.startTodoCountdown())
       })
       .catch(() => my.showToast({ content: '加载失败，请稍后重试', type: 'fail' }))
@@ -349,6 +404,8 @@ Page({
     const { key, action, url } = e.currentTarget.dataset
     // 宫格「智能导诊」与主卡入口同一路径：交棒 chat 页自动进入导诊引导
     if (key === 'triage') getApp().globalData.pendingTriageEntry = true
+    // 宫格「便捷购药」（票 94）：交棒 chat 页自动进入购药引导卡
+    if (key === 'drugGuide') getApp().globalData.pendingDrugGuideEntry = true
     if (action === 'switchTab') my.switchTab({ url })
     else my.navigateTo({ url })
   },
@@ -358,15 +415,43 @@ Page({
     if (item && item.url) my.navigateTo({ url: item.url })
   },
 
+  openMessages() {
+    my.navigateTo({ url: '/pages/messages/index' })
+  },
+
   refreshConsultationTodos() {
     return listConsultationProgress()
       .then((res) => {
         this._consultationProgress = (res && res.items) || []
         this.setData({
-          todos: buildTodos(this._appointments || [], this._orders || [], this._consultationProgress),
+          todos: buildTodos(
+            this._appointments || [],
+            this._orders || [],
+            this._consultationProgress,
+            this._reminders || []
+          ),
         })
       })
       .catch(() => {})
+  },
+
+  /** 待办卡就地打卡（票 96，对齐 payTodo 的 catchTap 模式）：成功 toast 连续天数并摘卡，失败保留卡片。 */
+  checkinTodo(e) {
+    const id = e.currentTarget.dataset.id
+    checkMedCheckin(id)
+      .then((view) => {
+        my.showToast({ content: `已打卡，连续 ${view.streak} 天`, type: 'success' })
+        this._reminders = (this._reminders || []).filter((r) => String(r.id) !== String(id))
+        this.setData({
+          todos: buildTodos(
+            this._appointments || [],
+            this._orders || [],
+            this._consultationProgress || [],
+            this._reminders
+          ),
+        })
+      })
+      .catch(() => my.showToast({ content: '打卡失败，请重试', type: 'fail' }))
   },
 
   openSheet() {

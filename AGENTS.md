@@ -16,6 +16,7 @@
 - 未经用户明确要求，禁止通过 SSH 登录云服务器、上传代码、部署应用、执行远程命令、重启服务或改动云端 Compose；数据库连接失败时只检查本地配置和安全组白名单并报告
 - 云演示库 zhiyu 的 schema 演进由 AI 自动执行，不再留作人工事项：凡改动 `schema.sql` 的票完成后，必须运行 `uv run python scripts/reset_zhiyu.py`（drop + recreate + seed，各阶段单事务、失败可整体重跑，脚本硬断言目标库名为 zhiyu，绝不触碰 zhiyu_it / zhiyu_test），并用 `uv run python scripts/verify_zhiyu.py` 只读验证形状与 seed 基线。演示数据全为虚构 seed，重建无副作用；该操作经 `.env` 本地直连，不属于 SSH/部署/远程命令。`seed-knowledge.sql` 向量回填是独立离线步骤（optional，不入库），不在重建范围内。注意：`staff_users`（B 端登录账号）不在 seed.sql 内，由 `StaffUserSeed` 在 server-java 启动时补种——重建后必须**先重启 server-java 再跑 verify_zhiyu.py**（verify 会断言 staff_users 行数，未重启会显式失败）
 - 日常开发不得执行 `docker compose up`；`compose.yaml` 仅供人工进行云数据库首次部署或维护
+- 公网演示部署：`deploy/app/`（compose.app.yaml + Dockerfile.bundle + Dockerfile.server-py + env.cloud.example + deploy.sh）是应用上云的全套材料（无 nginx 形态：server-java 直接托管 admin 静态产物，`ADMIN_STATIC_LOCATIONS` 注入），仅在用户明确要求公网部署时使用，步骤见 `docs/engineering-notes/cloud-app-deploy.md`；`deploy/app/env.cloud` 为云端凭据（已 gitignore）
 - 本地进程通过 `.env` 中的云数据库地址直连；不得打印 `.env` 内容或连接凭据
 
 ## 2. Commands

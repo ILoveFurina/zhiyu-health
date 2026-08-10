@@ -1,4 +1,4 @@
-/* 查药结果卡（票 77/79，票 93 收敛）：只读展示 search_medications 查到的 OTC 药品标准目录。
+/* 查药结果卡（票 77/79 建，票 93 收敛）：只读展示 search_medications 查到的 OTC 药品标准目录。
  * 类名带 mc- 前缀--支付宝组件样式不隔离，与 doc-/psc- 等裸类名会串扰。
  * 票 88 起价格/库存/在售下沉到院区药房（pharmacy_medications），本卡只展示药名/通用名/规格。 */
 .mc-card {
@@ -39,4 +39,3 @@
   color: var(--zy-text-weak);
   font-size: 22rpx;
 }
-

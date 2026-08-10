@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,19 +93,36 @@ class StaffRoleAuthorizationTest {
 
     @Test
     void pharmacistForbiddenFromAdminOnlyRoutes() throws Exception {
-        // 药师越权组织管理与系统日志：403，请求不进入业务层
-        mockMvc.perform(get("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("仅管理员可操作"));
-
+        // 药师越权系统日志：403，请求不进入业务层
         mockMvc.perform(get("/api/b/agent-call-logs")
                         .param("conversation_id", "1")
                         .with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("仅管理员可操作"));
+    }
 
-        // 院区其余子资源仍 admin-only（仅 /api/b/campuses/*/pharmacy 读药房对药师开放）
+    @Test
+    void pharmacistReadOnlyOnOrgDirectory() throws Exception {
+        // 组织目录（医院/院区）GET 只读对药师放行（药房库存页选药房依赖）；写操作仍 admin-only
+        when(hospitalAdminService.listAll()).thenReturn(List.of());
+        when(campusAdminService.listAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/b/hospitals").with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
+                .andExpect(status().isOk());
         mockMvc.perform(get("/api/b/campuses").with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/b/hospitals")
+                        .contentType("application/json")
+                        .content("{\"name\":\"测试医院\",\"level\":\"三甲\"}")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("仅管理员可操作"));
+        mockMvc.perform(post("/api/b/campuses")
+                        .contentType("application/json")
+                        .content(
+                                "{\"hospital_id\":1,\"name\":\"测试院区\",\"city_code\":\"440300\",\"city_name\":\"深圳\",\"address\":\"测试路1号\"}")
+                        .with(StaffTokens.withRole(StaffUser.ROLE_PHARMACIST)))
                 .andExpect(status().isForbidden());
     }
 

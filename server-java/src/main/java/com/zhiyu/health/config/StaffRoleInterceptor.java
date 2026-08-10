@@ -13,17 +13,26 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class StaffRoleInterceptor implements HandlerInterceptor {
 
     private final Set<String> allowedRoles;
+    // 仅 GET 额外放行的角色（如药师读组织目录维护药房库存）；写操作不受此集合影响
+    private final Set<String> readRoles;
     private final String message;
 
     public StaffRoleInterceptor(Set<String> allowedRoles, String message) {
+        this(allowedRoles, Set.of(), message);
+    }
+
+    public StaffRoleInterceptor(Set<String> allowedRoles, Set<String> readRoles, String message) {
         this.allowedRoles = Set.copyOf(allowedRoles);
+        this.readRoles = Set.copyOf(readRoles);
         this.message = message;
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         Object role = request.getAttribute(AuthFilter.ATTR_AUTH_ROLE);
-        if (role != null && allowedRoles.contains(role.toString())) {
+        if (role != null
+                && (allowedRoles.contains(role.toString())
+                        || ("GET".equals(request.getMethod()) && readRoles.contains(role.toString())))) {
             return true;
         }
         throw new ApiException(403, message);
