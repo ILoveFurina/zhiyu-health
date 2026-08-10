@@ -21,6 +21,8 @@ export interface ReceptionAppointment {
   status: string;
   /** 关联电子处方状态（PENDING/APPROVED/REJECTED），未开方为 null */
   prescription_status: string | null;
+  /** 处方驳回原因（仅 REJECTED 时有值），与在线问诊抽屉对齐展示审核结果 */
+  prescription_review_reason: string | null;
   schedule_date: string;
   time_slot: string;
   /** 是否可叫号（待就诊且当前处于有效时段窗口，后端统一判定） */

@@ -1,7 +1,7 @@
 import { Alert, Button, Collapse, Descriptions, Drawer, Form, Input, Space, Spin, Tag, Typography } from 'antd';
 import type { AppointmentDetail } from '@/services/reception';
 import type { Medication, PrescriptionInput } from '@/services/prescription';
-import { prescriptionStatusLabels } from '@/contracts/prescription';
+import { prescriptionStatusLabels, prescriptionStatuses } from '@/contracts/prescription';
 import PrescriptionForm from './PrescriptionForm';
 import { appointmentStatuses } from '@/contracts/appointment';
 
@@ -30,6 +30,10 @@ export default function ConsultationDrawer(props: Props) {
     prescriptionSubmitting, prescriptionCreated, onPrescribe } = props;
   const appointment = detail?.appointment;
   const completed = appointment?.status_code === appointmentStatuses.visited;
+  // 已开方：优先以后端持久状态判断（对齐在线问诊抽屉），避免重开抽屉时本地
+  // prescriptionCreated 被重置为 false 导致表单重现、再次提交触发 409。
+  const hasPrescription = !!appointment?.prescription_status || prescriptionCreated;
+  const prescriptionRejected = appointment?.prescription_status === prescriptionStatuses.rejected;
 
   return (
     <Drawer title="接诊详情" width={560} open={open} onClose={onClose} destroyOnHidden>
@@ -77,8 +81,27 @@ export default function ConsultationDrawer(props: Props) {
               items={[{
                 key: 'prescription',
                 label: '开具电子处方',
-                children: prescriptionCreated ? (
-                  <Alert type="success" showIcon message="电子处方已提交，等待管理员审核" />
+                children: hasPrescription ? (
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space>
+                      <Typography.Text>处方审核状态：</Typography.Text>
+                      <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status ?? prescriptionStatuses.pending] ?? 'default'}>
+                        {appointment.prescription_status
+                          ? (prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
+                            ?? appointment.prescription_status)
+                          : '审核中'}
+                      </Tag>
+                    </Space>
+                    {/* 驳回即终态，不提供编辑/重提入口；仅展示驳回原因供医生知悉（对齐在线问诊） */}
+                    {prescriptionRejected && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message="处方已被驳回"
+                        description={appointment.prescription_review_reason || '未填写驳回原因'}
+                      />
+                    )}
+                  </Space>
                 ) : (
                   <PrescriptionForm appointmentId={appointment.id} medications={medications}
                     submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
@@ -89,6 +112,22 @@ export default function ConsultationDrawer(props: Props) {
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>
                 <Descriptions.Item label="医嘱">{detail?.advice}</Descriptions.Item>
+                {/* 处方审核结果（对齐在线问诊完成态）：无处方不渲染；驳回附原因 */}
+                {appointment.prescription_status && (
+                  <Descriptions.Item label="处方审核">
+                    <Space direction="vertical" size={4}>
+                      <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status] ?? 'default'}>
+                        {prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
+                          ?? appointment.prescription_status}
+                      </Tag>
+                      {prescriptionRejected && (
+                        <Typography.Text type="danger">
+                          驳回原因：{appointment.prescription_review_reason || '未填写驳回原因'}
+                        </Typography.Text>
+                      )}
+                    </Space>
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             ) : (
               <Form layout="vertical" onFinish={onSubmit}>

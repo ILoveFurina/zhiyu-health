@@ -95,7 +95,7 @@ class ReceptionControllerTest {
     @Test
     void doctorCallsAppointment() throws Exception {
         ReceptionService.AppointmentView appointment = new ReceptionService.AppointmentView(
-                21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断", false);
+                21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断", false);
         ReceptionService.AppointmentDetail detail =
                 new ReceptionService.AppointmentDetail(appointment, null, null, null);
         when(receptionService.call(8L, 21L)).thenReturn(detail);
@@ -117,6 +117,7 @@ class ReceptionControllerTest {
                 "已接诊".equals(status) ? "VISITED" : "BOOKED",
                 status,
                 prescriptionStatus,
+                null,
                 "2026-07-28",
                 "上午",
                 "咳嗽两天",
