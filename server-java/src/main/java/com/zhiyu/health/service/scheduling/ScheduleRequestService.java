@@ -12,6 +12,7 @@ import com.zhiyu.health.mapper.scheduling.ScheduleMapper;
 import com.zhiyu.health.mapper.scheduling.ScheduleRequestMapper;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -112,6 +113,11 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
         if (action("modify").equals(actionValue)) {
             if (newTotalSlots == null || newTotalSlots < 1 || newTotalSlots > maxSlots) {
                 throw new ApiException(400, "号源数量必须在 1-" + maxSlots + " 之间");
+            }
+            // 已约数量 = total - remaining；申请号源低于已约数量时直接拒绝，避免生成必然无法审核通过的 PENDING 申请。
+            int usedSlots = target.getTotalSlots() - Objects.requireNonNullElse(target.getRemainingSlots(), 0);
+            if (newTotalSlots < usedSlots) {
+                throw new ApiException(409, "号源总数不能小于已使用号源数");
             }
             req.setTotalSlots(newTotalSlots);
         } else {
