@@ -205,3 +205,41 @@ def test_model_can_choose_department_options_tool() -> None:
     assert fake.tool_choices[0] == "required"
     assert fake.bound_tool_names[0] == ["suggest_standard_departments"]
     assert len(fake.tool_choices) == 1
+
+
+def test_department_options_string_fallback_classified_success_not_error() -> None:
+    # LLM 传入目录外科室名时，suggest_standard_departments 返回字符串引导提示（业务降级），
+    # 工具执行本身成功，trace result 应记 success 而非 error/TOOL_ERROR_UNKNOWN。
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"departments": _DEPARTMENTS})
+
+    fake = ToolCallingFake(
+        disable_streaming=True,
+        messages=iter(
+            [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        ToolCall(
+                            name="suggest_standard_departments",
+                            args={"department_names": "宇宙科、量子科"},
+                            id="department-options-fallback",
+                        )
+                    ],
+                ),
+                "未找到对应科室，以下是目前可挂的科室，请从中选择。",
+            ]
+        ),
+    )
+    client, callback = _build(fake, handler)
+    try:
+        with client:
+            events = _events(client, "我要挂宇宙科")
+    finally:
+        asyncio.run(callback.aclose())
+
+    tool_end = next(e for e in events if e["event"] == "tool_end")
+    assert tool_end["data"]["tool_name"] == "suggest_standard_departments"
+    assert tool_end["data"]["result"] == "success"
+    # 字符串降级无结构化摘要
+    assert tool_end["data"].get("tool_output_summary") is None

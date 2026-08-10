@@ -24,13 +24,18 @@ const RESULT_LABELS: Record<string, string> = {
   skipped: '跳过',
 };
 
-// 工具名->中文文案（与 miniprogram TOOL_LABELS 对齐）
+// 工具名->中文文案，覆盖 contracts/sse-events.json tool_to_event 全集 + 知识工具；
+// 用词与 miniprogram ai-bubble-state.js TOOL_LABELS 对齐
 const TOOL_LABELS: Record<string, string> = {
   recommend_doctors: '推荐医生',
   get_doctor_slots: '查询号源',
-  find_hospitals: '查找医院',
+  get_standard_department_slots: '查询科室号源',
+  suggest_standard_departments: '整理候选科室',
   create_appointment: '挂号',
   get_appointment: '查询挂号',
+  search_medications: '药品查询',
+  list_approved_prescriptions: '已审核处方',
+  prepare_drug_order: '购药准备',
   search_knowledge: '知识检索',
   traverse_graph: '图谱遍历',
 };

@@ -138,9 +138,12 @@ def test_rag_retrieves_before_generation_and_emits_ok_event() -> None:
     assert kinds == ["meta", "tool_end", "knowledge", "token", "message", "done"]
     assert events[1]["data"]["tool_name"] == "search_knowledge"
     assert events[1]["data"]["result"] == "success"
-    # tool_end 携带脱敏响应摘要（硬约束 5）：query/chunks 等敏感原文被遮蔽
+    # tool_end 携带响应摘要（硬约束 5 例外，ADR-0017）：RAG 检索词 query 与命中知识片段
+    # chunks 原样保留供回看检索质量；search_knowledge 返回体无其他需遮蔽字段
     summary = events[1]["data"]["tool_output_summary"]
-    assert "[已脱敏]" in summary and "胸闷气短" not in summary
+    assert '"query": "胸闷气短"' in summary
+    assert "心血管内科" in summary  # chunks 命中片段原文可见
+    assert "[已脱敏]" not in summary
     knowledge = events[2]
     assert knowledge["data"] == {"source": "rag", "status": "ok", "count": 1}
     # 最终文本引用了检索内容

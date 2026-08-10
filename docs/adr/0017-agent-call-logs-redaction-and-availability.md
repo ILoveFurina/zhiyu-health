@@ -16,3 +16,14 @@ trace 事件落库走**独立可失败路径**，不复用 `ChatRoundPersistence
 - trace 写入与 messages 落库是两套路径，未来 reader 看到 `forward` 里 trace 用 try-catch 隔离、messages 走 `persistEvent` 事务时，本 ADR 解释为何不统一。
 - `agent_call_logs` 表结构是脱敏的物理边界，加列需先评估是否引入原文载体；任何"加个摘要列方便审计"的提案应先对照本 ADR。
 - trace 落库失败只产 `log.warn`，不进任何用户可见通道；若需追踪可观测错误，查 server-java 日志按 `roundId` 过滤。
+
+## RAG 检索词与命中片段例外（query/chunks 不脱敏）
+
+`search_knowledge` 工具的 `query` 参数是 LLM 据患者症状改写的**检索词**（症状词/医学术语，如"头晕 恶心"），`chunks` 是命中的**医学知识库原文片段**（库内已存在的医学知识，非患者输入）。两者都不是患者原文逐字回显，与 `entities`、`summary`、`condition_summary` 等病情归纳/患者实体载体性质不同。为回看 RAG 检索质量（检索词是否合理、命中片段是否相关），`query` 与 `chunks` 不进入 server-py `app/agent/events.py` 的 `_MASK_SENSITIVE_KEYS`，在 `tool_output_summary` 中原样保留；其余健康原文载体仍遮蔽为 `[已脱敏]`。
+
+这是 hard constraint 5 的受控例外，边界明确：
+
+- **不例外**：患者输入原文、图谱实体与病情归纳（entities/summary/condition_summary），仍按硬约束 5 全部遮蔽。
+- **例外仅限**：LLM 工具调用入参 `query` 及 RAG 命中的知识库片段 `chunks`，且仅经 `tool_output_summary` 这一 B 端 trace 展示字段呈现，不进患者侧任何通道。
+
+若未来发现 query/chunks 实际承载了患者 PII（如 LLM 把患者原话直接当 query 透传，或知识库片段混入患者原文），应重新评估是否收回本例外。

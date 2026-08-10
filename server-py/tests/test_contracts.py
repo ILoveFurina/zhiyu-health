@@ -180,11 +180,19 @@ def test_online_consultation_follow_up_is_pinned() -> None:
 
 def test_payment_flow_values_are_loaded() -> None:
     flow = get_contracts().payment_flow
+def test_payment_flow_values_are_loaded() -> None:
+    # 票 90 退款能力：statuses/refunded、decisions/refund、refund_success/not_refundable
+    flow = get_contracts().payment_flow
     assert flow.statuses == {"unpaid": "UNPAID", "paid": "PAID", "refunded": "REFUNDED"}
-    assert flow.status_labels == {"UNPAID": "待支付", "PAID": "已支付", "REFUNDED": "已退款"}
+    assert flow.status_labels == {
+        "UNPAID": "待支付",
+        "PAID": "已支付",
+        "REFUNDED": "已退款",
+    }
     assert flow.decisions == {"pay": "PAY", "refund": "REFUND"}
     assert flow.messages["pay_success"] == "支付成功"
     assert flow.messages["refund_success"] == "退款成功"
+    assert flow.messages["not_refundable"] == "该挂号收费不可退款"
 
 
 def test_order_flow_values_are_loaded() -> None:
@@ -220,7 +228,7 @@ def test_order_flow_values_are_loaded() -> None:
 
 
 def test_staff_roles_are_loaded() -> None:
-    # 票 88（ADR-0035）：B 端角色单一事实源——小写取值沿用现有惯例，新增全局药师
+    # 票 88（ADR-0035）：B 端角色单一事实源--小写取值沿用现有惯例，新增全局药师
     roles = get_contracts().staff_roles
     assert roles.roles == {"admin": "admin", "doctor": "doctor", "pharmacist": "pharmacist"}
     assert roles.role_labels == {"admin": "管理员", "doctor": "医生", "pharmacist": "药师"}

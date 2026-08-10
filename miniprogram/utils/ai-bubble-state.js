@@ -1,11 +1,17 @@
+// 工具名->中文文案，覆盖 contracts/sse-events.json tool_to_event 全集 + 知识工具；
+// 用词与 admin AgentTrace/index.tsx TOOL_LABELS 对齐
 const TOOL_LABELS = {
   recommend_doctors: '推荐医生',
   get_doctor_slots: '查询号源',
   get_standard_department_slots: '查询科室号源',
   suggest_standard_departments: '整理候选科室',
-  find_hospitals: '查找医院',
   create_appointment: '挂号',
   get_appointment: '查询挂号',
+  search_medications: '药品查询',
+  list_approved_prescriptions: '已审核处方',
+  prepare_drug_order: '购药准备',
+  search_knowledge: '知识检索',
+  traverse_graph: '图谱遍历',
 }
 
 const PROFILES = {

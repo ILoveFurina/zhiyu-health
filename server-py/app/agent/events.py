@@ -32,10 +32,11 @@ _PREVIEW_PRICE_STOCK_NOTICE = "价格库存以确认页为准"
 _PREVIEW_ITEM_KEYS = ("medication_id", "name", "specification", "quantity")
 _PREVIEW_PRESCRIPTION_KEYS = ("doctor_name", "prescription_date", "hospital_name", "campus_name")
 
+# RAG 检索词 query 与命中知识片段 chunks 是 LLM 据症状检索的医学知识（症状词/医学术语/
+# 库内知识原文，非患者原文逐字回显），保留入 trace 供回看检索质量（硬约束 5 例外见 ADR-0017）；
+# 其余健康原文载体仍遮蔽。
 _MASK_SENSITIVE_KEYS = frozenset(
     {
-        "query",
-        "chunks",
         "entities",
         "summary",
         "condition_summary",
@@ -134,7 +135,10 @@ def _tool_end_data(message: ToolMessage) -> dict[str, Any]:
 def _classify_tool_result(message: ToolMessage) -> TraceResult:
     payload = _parse_tool_payload(message)
     if payload is None:
-        return "error"
+        # 工具返回纯字符串是业务降级引导（如科室名匹配不上时的"可用标准科室为…"），
+        # 执行本身成功，记 success；content 非 str 才是真异常（LangGraph 未配错误处理时
+        # 异常会中断流而非落到此处，此分支实际由字符串降级触发）。
+        return "success" if isinstance(message.content, str) else "error"
     if message.name in (KNOWLEDGE_TOOL, GRAPH_TOOL):
         return "success" if int(payload.get("count", 0)) > 0 else "skipped"
     return "success"
