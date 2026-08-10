@@ -17,6 +17,14 @@ const FEATURE_BUBBLES = [
     action: 'triage',
   },
   {
+    key: 'drugGuide',
+    // 票 94：与首页宫格入口统一命名「便捷购药」，进对话购药引导卡
+    label: '便捷购药',
+    icon: 'capsule',
+    enabled: true,
+    action: 'drugGuide',
+  },
+  {
     key: 'consult',
     label: '在线问诊',
     icon: 'consult',

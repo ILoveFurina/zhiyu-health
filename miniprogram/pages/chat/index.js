@@ -114,10 +114,11 @@ Page({
       .catch(() => this.setData({ currentProfile: null, profileLoaded: true }))
     // 消费 tab 外入口经 globalData 传入的上下文（switchTab 不能带参，票 42 阶段三）：
     // 报告解读入口页已完成分段上传的待解读请求、报告记录指定的待打开会话、
-    // 首页「智能导诊」入口的导诊引导（票 62）
+    // 首页「智能导诊」入口的导诊引导（票 62）、首页宫格「便捷购药」入口的购药引导（票 94）
     this.consumeReportEntry()
     this.consumeOpenConversation()
     this.consumeTriageEntry()
+    this.consumeDrugGuideEntry()
   },
 
   // 点击对话中的图片消息全屏预览（ADR-0023 回拉链路）
