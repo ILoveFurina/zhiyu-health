@@ -46,9 +46,10 @@ public class ReceptionService {
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
-        // 接诊台入口先全局惰性收敛过期待支付单（释放号源），再查可见列表：
+        // 接诊台入口先全局惰性收敛：过期待支付单（释放号源）+ 过点未叫号已支付单（取消+退款+消息，票 92），再查可见列表：
         // 收敛是全局副作用，可见性是医生视角过滤，两者解耦（ADR-0033）。
         appointments.expireOverdueAppointments();
+        appointments.expireUncalledAppointments();
         LocalDate today = LocalDate.now();
         List<ScheduleView> schedules = receptionMapper.selectSchedules(doctorId, today).stream()
                 .map(this::toScheduleView)

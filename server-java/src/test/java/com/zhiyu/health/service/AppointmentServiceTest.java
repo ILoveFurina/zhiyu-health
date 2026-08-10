@@ -37,6 +37,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -487,6 +488,127 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void uncalledBookedAppointmentIsCancelledRefundedAndNotified() {
+        // 票 92：过点未叫号已支付预约惰性收敛为已取消+退款+站内消息。
+        slotCounter.initialize(9L, 2);
+        // 过点 guard：当天上午已过 11:30（Clock 固定 12:00），isClosed 返回 true。
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectUncalledBookedToday("BOOKED"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.UncalledAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markCancelledIfBooked(21L, "BOOKED", "CANCELLED"))
+                .thenReturn(1);
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        when(payments.refundIfPaid(21L)).thenReturn(true);
+
+        service.expireUncalledAppointments();
+
+        verify(appointmentMapper).markCancelledIfBooked(21L, "BOOKED", "CANCELLED");
+        verify(scheduleMapper).incrementRemainingSlots(9L);
+        verify(payments).refundIfPaid(21L);
+        // 号源回补（withRefund grant 做 Redis INCR）。
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+        // 站内消息幂等写入，文案为契约固定「医生暂未接诊，费用已原路返回」。
+        ArgumentCaptor<InAppMessage> msgCaptor = ArgumentCaptor.forClass(InAppMessage.class);
+        verify(messageMapper).insertIgnoreConflict(msgCaptor.capture());
+        InAppMessage msg = msgCaptor.getValue();
+        assertThat(msg.getType()).isEqualTo("appointment_auto_cancelled");
+        assertThat(msg.getTitle()).isEqualTo("挂号已自动取消");
+        assertThat(msg.getContent()).isEqualTo("医生暂未接诊，费用已原路返回");
+        assertThat(msg.getPatientId()).isEqualTo(12L);
+        assertThat(msg.getRelatedAppointmentId()).isEqualTo(21L);
+        assertThat(msg.getDisclaimer()).isNotBlank();
+    }
+
+    @Test
+    void uncalledCancellationSkipsAppointmentStillInWindow() {
+        // 未过点（上午 10:00 在窗口内）不收敛：isClosed 返回 false。
+        slotCounter.initialize(9L, 2);
+        AppointmentService service = service(); // 默认 guard Clock 10:00
+        when(appointmentMapper.selectUncalledBookedToday("BOOKED"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.UncalledAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+
+        service.expireUncalledAppointments();
+
+        verify(appointmentMapper, never()).markCancelledIfBooked(anyLong(), any(), any());
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(payments, never()).refundIfPaid(anyLong());
+        verify(messageMapper, never()).insertIgnoreConflict(any());
+    }
+
+    @Test
+    void uncalledCancellationSkipsInProgressAppointment() {
+        // CAS 守卫：状态不再是 BOOKED（已叫号 IN_PROGRESS）则 markCancelledIfBooked 返回 0 跳过，不退款不发消息。
+        slotCounter.initialize(9L, 2);
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectUncalledBookedToday("BOOKED"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.UncalledAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markCancelledIfBooked(21L, "BOOKED", "CANCELLED"))
+                .thenReturn(0);
+
+        service.expireUncalledAppointments();
+
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(payments, never()).refundIfPaid(anyLong());
+        verify(messageMapper, never()).insertIgnoreConflict(any());
+        assertThat(slotCounter.values.get(9L)).hasValue(2);
+    }
+
+    @Test
+    void uncalledCancellationSkipsUnknownTimeSlot() {
+        // fail-open：契约未定义窗口的时段（"夜间"）不取消，与 isClosed/isPastCancelCutoff 同口径。
+        slotCounter.initialize(9L, 2);
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectUncalledBookedToday("BOOKED"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.UncalledAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "夜间")));
+
+        service.expireUncalledAppointments();
+
+        verify(appointmentMapper, never()).markCancelledIfBooked(anyLong(), any(), any());
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(payments, never()).refundIfPaid(anyLong());
+    }
+
+    @Test
+    void repeatedUncalledCancellationRefundsOnlyOnce() {
+        // 幂等：重复收敛只首次退款+消息+回补（CAS 守卫 + insertIgnoreConflict UNIQUE）。
+        slotCounter.initialize(9L, 2);
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectUncalledBookedToday("BOOKED"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.UncalledAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markCancelledIfBooked(21L, "BOOKED", "CANCELLED"))
+                .thenReturn(1) // 首次收敛成功
+                .thenReturn(0); // 二次收敛 CAS 跳过（状态已 CANCELLED）
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        when(payments.refundIfPaid(21L)).thenReturn(true);
+
+        service.expireUncalledAppointments();
+        service.expireUncalledAppointments();
+
+        verify(appointmentMapper, times(2)).markCancelledIfBooked(21L, "BOOKED", "CANCELLED");
+        verify(scheduleMapper, times(1)).incrementRemainingSlots(9L);
+        verify(payments, times(1)).refundIfPaid(21L);
+        verify(messageMapper, times(1)).insertIgnoreConflict(any());
+        assertThat(slotCounter.values.get(9L)).hasValue(3); // 只回补一次
+    }
+
+    @Test
     void soldOutAppointmentReturnsConflictWithoutTouchingPostgresCount() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 0));
         slotCounter.initialize(9L, 0);
@@ -547,6 +669,8 @@ class AppointmentServiceTest {
         when(scheduleRequestMapper.countPendingBlockingBySchedule(9L)).thenReturn(0);
         // 支付超时惰性收敛（票 81）：默认无过期待支付单，list/cancel 入口收敛为空操作。
         when(appointmentMapper.selectOverduePending(any())).thenReturn(java.util.List.of());
+        // 过点未叫号收敛（票 92）：默认无当天 BOOKED 单，list/cancel 入口收敛为空操作。
+        when(appointmentMapper.selectUncalledBookedToday(any())).thenReturn(java.util.List.of());
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);

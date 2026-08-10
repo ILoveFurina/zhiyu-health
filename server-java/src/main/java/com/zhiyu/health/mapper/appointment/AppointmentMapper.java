@@ -2,6 +2,7 @@ package com.zhiyu.health.mapper.appointment;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhiyu.health.entity.appointment.Appointment;
+import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -58,6 +59,23 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     /** 过期待支付挂号单的轻量投影（id + 排班），供惰性收敛逐条退款。 */
     record OverdueAppointment(Long id, Long scheduleId) {}
 
+    // 过点未叫号已支付预约惰性收敛（票 92，反转 ADR-0034 第 3 条）：查当天 BOOKED 单（含排班日期与时段，
+    // 供 service 层用 SlotWindowGuard.isClosed 逐条判过点）。JOIN schedules 取窗口判定所需字段；
+    // 不在 SQL 判窗口因 EffectiveSlotWindows 含 Redis 演示覆盖，不宜下推 SQL。轻量投影不加锁，
+    // 收敛逐条进入 withRefund 事务由 markCancelledIfBooked 的 CAS 守卫并发。
+    @Select(
+            """
+            SELECT a.id, a.schedule_id, a.patient_id, s.schedule_date, s.time_slot
+            FROM appointments a
+            JOIN schedules s ON s.id = a.schedule_id
+            WHERE a.status = #{bookedStatus}
+              AND s.schedule_date = CURRENT_DATE
+            """)
+    List<UncalledAppointment> selectUncalledBookedToday(@Param("bookedStatus") String bookedStatus);
+
+    /** 过点未叫号已支付挂号单的轻量投影（id + 排班 + 患者 + 日期 + 时段），供惰性收敛逐条退款+发消息。 */
+    record UncalledAppointment(Long id, Long scheduleId, Long patientId, LocalDate scheduleDate, String timeSlot) {}
+
     @Update(
             """
             UPDATE appointments SET status = #{cancelledStatus}, cancelled_at = now()
@@ -66,6 +84,19 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     int markCancelled(
             @Param("appointmentId") long appointmentId,
             @Param("pendingPaymentStatus") String pendingPaymentStatus,
+            @Param("bookedStatus") String bookedStatus,
+            @Param("cancelledStatus") String cancelledStatus);
+
+    // 过点未叫号系统自动取消 CAS（票 92）：from 只接受 BOOKED，区别于患者主动 markCancelled（from 含
+    // PENDING_PAYMENT+BOOKED）。CAS 守卫：并发收敛或患者已手动取消/已叫号（IN_PROGRESS）时状态不再是
+    // BOOKED，UPDATE 返回 0 即安全跳过，不会误取消已叫号或已取消的挂号单。
+    @Update(
+            """
+            UPDATE appointments SET status = #{cancelledStatus}, cancelled_at = now()
+            WHERE id = #{appointmentId} AND status = #{bookedStatus}
+            """)
+    int markCancelledIfBooked(
+            @Param("appointmentId") long appointmentId,
             @Param("bookedStatus") String bookedStatus,
             @Param("cancelledStatus") String cancelledStatus);
 

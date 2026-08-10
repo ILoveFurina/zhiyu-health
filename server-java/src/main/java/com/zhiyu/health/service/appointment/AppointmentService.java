@@ -227,8 +227,9 @@ public class AppointmentService {
      * @return 挂号视图列表
      */
     public List<AppointmentView> listForPatient(long patientId) {
-        // C 端列表入口惰性收敛过期待支付单（释放号源），与接诊台入口同构（ADR-0033）。
+        // C 端列表入口惰性收敛：先过期待支付单（释放号源），再过点未叫号已支付单（取消+退款+消息，票 92）。
         expireOverdueAppointments();
+        expireUncalledAppointments();
         long profileId = healthProfiles.requireActive(patientId).getId();
         return appointmentMapper.selectViewsByProfile(patientId, profileId).stream()
                 .map(this::toView)
@@ -279,8 +280,9 @@ public class AppointmentService {
      * @return 取消后的挂号视图
      */
     public AppointmentView cancel(long patientId, long appointmentId) {
-        // C 端取消入口惰性收敛：若该单已超时，先收敛为已取消并释放号源，再返回最新视图。
+        // C 端取消入口惰性收敛：先过期待支付单，再过点未叫号已支付单（取消+退款+消息，票 92）。
         expireOverdueAppointments();
+        expireUncalledAppointments();
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withRefund 的补偿范围覆盖整个事务（含提交失败）：已退还未提交即撤销退还。
         Long resultId = slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
@@ -388,6 +390,90 @@ public class AppointmentService {
             refund.grant(scheduleId);
             return null;
         }));
+    }
+
+    /**
+     * 过点未叫号已支付预约惰性收敛（票 92，反转 ADR-0034 第 3 条）。
+     * <p>
+     * 在接诊台 / C 端列表 / cancel 入口与 {@link #expireOverdueAppointments} 并排调用，把当天 BOOKED 但
+     * 已过号源时段窗口 end 的预约推进为已取消 + 退款 + 站内消息。与待支付超时收敛同构--不引入调度
+     * 中间件，号源释放与退款靠下次入口访问触发。过点判定复用 {@link SlotWindowGuard#isClosed}（当天且
+     * now > end，fail-open 未知窗口不取消，与 {@code isPastCancelCutoff} 同口径）。
+     * </p>
+     * <p>
+     * 每条独立 withRefund 事务：{@code markCancelledIfBooked} 的 CAS 守卫并发重复收敛（返回 0 即跳过），
+     * 单条失败的事务整体回滚不影响其余条目。
+     * </p>
+     */
+    public void expireUncalledAppointments() {
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        List<AppointmentMapper.UncalledAppointment> uncalled =
+                appointmentMapper.selectUncalledBookedToday(flow.status("booked"));
+        for (AppointmentMapper.UncalledAppointment item : uncalled) {
+            // isClosed 内部已判当天（查询已限今天，冗余安全）+ window 非空 + now > end；未知窗口 fail-open 不取消。
+            if (!slotWindowGuard.isClosed(item.scheduleDate(), item.timeSlot())) {
+                continue;
+            }
+            try {
+                cancelUncalled(item.id(), item.scheduleId(), item.patientId());
+            } catch (RuntimeException ignored) {
+                // 单条收敛失败不阻断其余条目；下次入口访问会再次尝试该条。
+            }
+        }
+    }
+
+    /**
+     * 过点未叫号单条已支付预约的系统取消：无患者身份校验，同事务退款 + 发消息。
+     * <p>
+     * CAS 守卫：并发收敛或患者已手动取消/已叫号（IN_PROGRESS）时状态不再是 BOOKED，UPDATE 返回 0 即
+     * 安全跳过，不会误取消已叫号或已取消的挂号单。退款 CAS（PAID->REFUNDED）与消息 insertIgnoreConflict
+     * 均幂等，重复收敛只首次生效。
+     * </p>
+     *
+     * @param appointmentId 挂号单 ID
+     * @param scheduleId    关联排班 ID（用于号源回补）
+     * @param patientId     患者 ID（用于写站内消息）
+     */
+    private void cancelUncalled(long appointmentId, long scheduleId, long patientId) {
+        slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
+            Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+            Contracts.AppointmentFlow.Transition autoCancel = flow.transitions().get("auto_cancel_uncalled");
+            // CAS 守卫：状态不再是 BOOKED 则返回 0 跳过（并发收敛/患者已取消/已叫号）。
+            if (appointmentMapper.markCancelledIfBooked(
+                            appointmentId, autoCancel.from().get(0), autoCancel.to())
+                    != 1) {
+                return null;
+            }
+            if (scheduleMapper.incrementRemainingSlots(scheduleId) != 1) {
+                throw new IllegalStateException("过点未叫号取消的 PostgreSQL 号源回补失败");
+            }
+            // 已支付预约系统取消需同步退款（票 90/91）：PAID -> REFUNDED，与号源回补同事务同提交同回滚。
+            // refundIfPaid 的 CAS 守卫幂等：重复收敛只首次退款，非 PAID 安全跳过。
+            payments.refundIfPaid(appointmentId);
+            // 站内消息：医生暂未接诊，费用已原路返回。insertIgnoreConflict 幂等（UNIQUE(related_appointment_id, type)）。
+            writeAutoCancelledMessage(patientId, appointmentId);
+            refund.grant(scheduleId);
+            return null;
+        }));
+    }
+
+    /**
+     * 过点未叫号自动取消的站内消息（票 92）：纯文本，content 为契约固定文案「医生暂未接诊，费用已原路返回」。
+     * 幂等写入（ON CONFLICT DO NOTHING）：重复收敛撞 UNIQUE(related_appointment_id, type) 返回 0 且事务不受损
+     * （PG 约束违例会 abort 事务，Java 侧 catch 无法挽救，故用 ON CONFLICT 而非 try/catch，与票 60 同构）。
+     */
+    private void writeAutoCancelledMessage(long patientId, long appointmentId) {
+        Contracts.AppointmentFlow.UncalledNotice notice =
+                contracts.appointmentFlow().uncalledNotice();
+        InAppMessage message = new InAppMessage();
+        message.setPatientId(patientId);
+        message.setType(notice.messageType());
+        message.setTitle(notice.title());
+        message.setContent(notice.content());
+        // server-java 出口兜底：免责声明一律经 DisclaimerService 从契约注入，不信任上游。
+        message.setDisclaimer(disclaimers.text());
+        message.setRelatedAppointmentId(appointmentId);
+        messageMapper.insertIgnoreConflict(message);
     }
 
     private AppointmentView view(Long appointmentId) {
