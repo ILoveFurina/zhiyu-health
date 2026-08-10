@@ -1,17 +1,22 @@
 {
   "statuses": {
     "unpaid": "UNPAID",
-    "paid": "PAID"
+    "paid": "PAID",
+    "refunded": "REFUNDED"
   },
   "status_labels": {
     "UNPAID": "待支付",
-    "PAID": "已支付"
+    "PAID": "已支付",
+    "REFUNDED": "已退款"
   },
   "decisions": {
-    "pay": "PAY"
+    "pay": "PAY",
+    "refund": "REFUND"
   },
   "messages": {
     "pay_success": "支付成功",
-    "already_paid": "该挂号收费已支付"
+    "already_paid": "该挂号收费已支付",
+    "refund_success": "退款成功",
+    "not_refundable": "该挂号收费不可退款"
   }
 }

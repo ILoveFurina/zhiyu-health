@@ -20,6 +20,7 @@ class ApplicationRuntime:
     graph_projector: Any
     voice_service: Any
     medication_streamer: Any
+    knowledge_embedder: Any
 
 
 def install_runtime(app: FastAPI, runtime: ApplicationRuntime) -> None:

@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * 可搜索的图谱节点选择器（票 89）：远程调 GET /nodes 按名称模糊搜索。
+ * 可搜索的图谱节点选择器（票 91）：远程调 GET /nodes 按名称模糊搜索。
  * 已选中的选项会与历次搜索结果合并保留，避免搜索刷新后已选项丢失回显。
  */
 export default function NodeSelect({ nodeLabel, placeholder, disabled, value, onChange }: Props) {

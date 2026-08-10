@@ -34,6 +34,8 @@
   },
   "payment_timeout_seconds": 60,
   "_payment_timeout_seconds_doc": "待支付挂号单的支付截止秒数；过期在接诊台/C 端列表/详情/pay/cancel 入口惰性收敛为 CANCELLED 并释放号源，不引入调度中间件（与在线问诊 accept_timeout_seconds 同构）。演示默认 60 秒便于观察超时收敛，正式可调大。",
+  "cancel_cutoff_minutes": 30,
+  "_cancel_cutoff_minutes_doc": "已支付（BOOKED）预约的可取消截止分钟数：仅可在号源起始时间前 N 分钟取消，过点后不可取消（避免临近就诊时段释放号源造成的调度浪费与号源空置）。待支付（PENDING_PAYMENT）不受此约束（鼓励尽早释放号源）。server-java 经 SlotWindowGuard 复用 EffectiveSlotWindows 计算截止时刻，cancellable 标记由后端下发、前端不自行复制时段表（ADR-0034 同构）。",
   "reception_visible_statuses": ["BOOKED", "IN_PROGRESS", "VISITED"],
   "_reception_visible_statuses_doc": "B 端接诊台可见的挂号状态白名单：待支付（PENDING_PAYMENT）对医生不可见，支付完成推进为待就诊（BOOKED）后才进入接诊台队列；接诊台入口先全局惰性收敛过期待支付单再按此白名单查询。",
   "called_notice": {

@@ -384,7 +384,7 @@ export default function KnowledgeGraphPage() {
       <Drawer
         title="节点详情"
         open={drawerOpen}
-        // 编辑跳转（票 89 决策 4）：本页保持只读，白名单内节点跳「图谱管理」页，
+        // 编辑跳转（票 91 决策 4）：本页保持只读，白名单内节点跳「图谱管理」页，
         // 带 keyword 定位参数；Medication/Contraindication 不在线编辑，不出入口
         extra={
           detail &&

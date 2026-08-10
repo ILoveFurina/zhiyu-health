@@ -27,6 +27,7 @@ public class AgentClient {
     private final KnowledgeGraphAgentApi knowledgeGraph;
     private final VisionAgentApi vision;
     private final VoiceAgentApi voice;
+    private final KnowledgeEmbeddingAgentApi knowledgeEmbedding;
 
     public AgentClient(
             WebClient.Builder builder,
@@ -42,6 +43,7 @@ public class AgentClient {
         this.knowledgeGraph = new KnowledgeGraphAgentApi(webClient);
         this.vision = new VisionAgentApi(webClient, objectMapper, contracts);
         this.voice = new VoiceAgentApi(webClient, objectMapper, contracts);
+        this.knowledgeEmbedding = new KnowledgeEmbeddingAgentApi(webClient, objectMapper, contracts);
     }
 
     public Flux<ServerSentEvent<String>> chat(Map<String, Object> requestBody) {
@@ -85,6 +87,17 @@ public class AgentClient {
     public byte[] synthesizeSpeech(String text) {
         return voice.synthesize(text);
     }
+
+    /**
+     * 批量计算知识文档 embedding（ADR-0036）：输入 (title, content) 列表，
+     * 返回向量列表。server-java 切分后调本方法，再写 knowledge_chunks。
+     */
+    public List<float[]> embedKnowledgeTexts(List<EmbedTextItem> texts) {
+        return knowledgeEmbedding.embedKnowledgeTexts(texts);
+    }
+
+    /** 单条 embedding 输入：title + content，由 server-py 拼 {@code title。content} 后调方舟。 */
+    public record EmbedTextItem(String title, String content) {}
 
     public record VisionResponse(
             JsonNode result,

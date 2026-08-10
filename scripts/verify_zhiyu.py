@@ -63,8 +63,8 @@ print("   ", [r[0] for r in q("SELECT extname FROM pg_extension ORDER BY extname
 print("== 4. seed 关键表行数")
 for t in ["hospitals", "hospital_campuses", "standard_departments", "department_categories",
           "departments", "doctors", "medications", "patients", "health_profiles",
-          "health_profile_allergies", "knowledge_chunks", "prescription_templates",
-          "prescription_template_items"]:
+          "health_profile_allergies", "knowledge_chunks", "knowledge_documents",
+          "prescription_templates", "prescription_template_items"]:
     n = q(f'SELECT count(*) FROM "{t}"')[0][0]
     print(f"   {t}: {n}")
 
@@ -107,9 +107,25 @@ for t, expected in [("report_interpretations", 2), ("health_observations", 16)]:
     print(f"   {t}: {n}")
     assert n == expected, f"{t} 应为 {expected}，实际 {n}"
 
+print("== 5d. 票88 知识文档 seed 基线（1 条 SEED 文档 + 50 条 chunk 回填 document_id）")
+n = q("SELECT count(*) FROM knowledge_documents")[0][0]
+print(f"   knowledge_documents: {n}")
+assert n == 1, f"knowledge_documents 应为 1（系统预置 SEED 文档），实际 {n}"
+seed_doc = q("SELECT source, status, chunk_count FROM knowledge_documents WHERE id = 1")[0]
+assert seed_doc[0] == "SEED", f"knowledge_documents(1) source 应为 SEED，实际 {seed_doc[0]}"
+assert seed_doc[1] == "READY", f"knowledge_documents(1) status 应为 READY，实际 {seed_doc[1]}"
+print(f"   SEED 文档: source={seed_doc[0]} status={seed_doc[1]} chunk_count={seed_doc[2]}")
+orphan_chunks = q("SELECT count(*) FROM knowledge_chunks WHERE document_id IS NULL")[0][0]
+print(f"   knowledge_chunks.document_id NULL 孤儿: {orphan_chunks}")
+assert orphan_chunks == 0, f"knowledge_chunks 应全部回填 document_id，仍有 {orphan_chunks} 条为 NULL"
+linked = q("SELECT count(*) FROM knowledge_chunks WHERE document_id = 1")[0][0]
+print(f"   knowledge_chunks 指向 SEED 文档(document_id=1): {linked}")
+assert linked == 50, f"knowledge_chunks 指向 SEED 文档应为 50，实际 {linked}"
+
 print("== 6. 序列与 MAX(id) 对齐（setval 生效）")
 for t, seq in [("hospitals", "hospitals_id_seq"), ("doctors", "doctors_id_seq"),
                ("patients", "patients_id_seq"), ("knowledge_chunks", "knowledge_chunks_id_seq"),
+               ("knowledge_documents", "knowledge_documents_id_seq"),
                ("report_interpretations", "report_interpretations_id_seq"),
                ("health_observations", "health_observations_id_seq"),
                ("schedules", "schedules_id_seq")]:

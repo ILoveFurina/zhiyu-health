@@ -40,7 +40,7 @@ class ArchitectureTest {
 
     /**
      * Neo4j 只经 seam 访问：rule/ 只读事实适配器（规则引擎）与 service/knowledge 图谱管理写
-     * seam（票 89，ADR-0006 修订）之外，入口与业务 mapper 不得绕过 seam 直连 Neo4j。
+     * seam（票 91，ADR-0006 修订）之外，入口与业务 mapper 不得绕过 seam 直连 Neo4j。
      */
     @ArchTest
     static final ArchRule controller和mapper不依赖Neo4j驱动 = noClasses()

@@ -42,7 +42,7 @@
     <view a:if="{{item.isPendingPayment && item.paymentCountdownText}}" class="countdown">支付剩余 {{item.paymentCountdownText}}</view>
     <view a:if="{{item.registration_fee !== undefined}}" class="payment {{item.payment_payable ? 'payment-unpaid' : ''}}">
       <text>{{(item.isCancelled || item.paymentExpired) ? '诊查费' : (item.payment_payable ? '待支付诊查费' : '诊查费')}}</text>
-      <text>¥{{item.registration_fee}} · {{(item.isCancelled || item.paymentExpired) ? '挂号已取消，无需支付' : (item.payment_status_label || '收费记录待补建')}}</text>
+      <text>¥{{item.registration_fee}} · {{(item.isCancelled && item.isRefunded) ? '挂号已取消，费用已原路退回' : ((item.isCancelled || item.paymentExpired) ? '挂号已取消，无需支付' : (item.payment_status_label || '收费记录待补建'))}}</text>
     </view>
     <view
       a:if="{{item.payment_payable}}"
@@ -61,7 +61,7 @@
       <view class="voucher-row"><text>地址</text><text>{{item.campus_address}}</text></view>
     </view>
     <view
-      a:if="{{item.isPendingPayment && !item.paymentExpired}}"
+      a:if="{{item.isCancellable}}"
       class="cancel"
       data-id="{{item.appointment_id}}"
       onTap="cancel"

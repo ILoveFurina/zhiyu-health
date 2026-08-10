@@ -400,10 +400,17 @@ class ContractsTest {
     @Test
     void paymentFlowStatusesAndMessagesAreLoaded() {
         Contracts.PaymentFlow payment = contracts.paymentFlow();
-        assertThat(payment.statuses()).containsExactlyInAnyOrderEntriesOf(Map.of("unpaid", "UNPAID", "paid", "PAID"));
-        assertThat(payment.statusLabels()).containsEntry("UNPAID", "待支付").containsEntry("PAID", "已支付");
-        assertThat(payment.decisions()).containsEntry("pay", "PAY");
+        // 票 90：新增 refunded 态与 refund decision/文案。
+        assertThat(payment.statuses())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("unpaid", "UNPAID", "paid", "PAID", "refunded", "REFUNDED"));
+        assertThat(payment.statusLabels())
+                .containsEntry("UNPAID", "待支付")
+                .containsEntry("PAID", "已支付")
+                .containsEntry("REFUNDED", "已退款");
+        assertThat(payment.decisions()).containsEntry("pay", "PAY").containsEntry("refund", "REFUND");
         assertThat(payment.messages()).containsEntry("pay_success", "支付成功");
+        assertThat(payment.messages()).containsEntry("refund_success", "退款成功");
+        assertThat(payment.messages()).containsEntry("not_refundable", "该挂号收费不可退款");
     }
 
     @Test
@@ -422,6 +429,41 @@ class ContractsTest {
         assertThat(knowledge.vectorColumn()).isEqualTo("vector");
         assertThat(knowledge.searchTopK()).isEqualTo(3);
         assertThat(knowledge.similarityThreshold()).isEqualTo(0.3);
+    }
+
+    @Test
+    void knowledgeDocumentsContractIsLoaded() {
+        // 票 89（ADR-0036）：文档状态机四态、来源二态、孤儿超时、在线 embedding 端点、切分参数与上传限制
+        Contracts.KnowledgeDocuments docs = contracts.knowledgeDocuments();
+        assertThat(docs.documentStatus()).containsExactly("PROCESSING", "READY", "FAILED", "ARCHIVED");
+        assertThat(docs.documentSource()).containsExactly("SEED", "UPLOAD");
+        assertThat(docs.orphanTimeoutSeconds()).isEqualTo(600);
+        // 在线 embedding 端点配置：与 seed_embeddings.py 的 batch_size=10 一致
+        Contracts.EmbeddingEndpoint embedding = docs.embedding();
+        assertThat(embedding.endpoint()).isEqualTo("/api/agent/knowledge/embeddings");
+        assertThat(embedding.maxTexts()).isEqualTo(50);
+        assertThat(embedding.batchSize()).isEqualTo(10);
+        assertThat(embedding.timeoutMs()).isEqualTo(60000);
+        assertThat(embedding.errorCodes())
+                .containsExactly("KNOWLEDGE_EMBEDDING_INVALID", "EMBEDDING_MODEL_TIMEOUT", "EMBEDDING_MODEL_FAILED");
+        // embedding 输入拼接格式必须与离线脚本 seed_embeddings.py 完全一致
+        assertThat(docs.embeddingInputFormat()).isEqualTo("{title}。{content}");
+        // 切分参数：滑动窗口 500 字符、重叠 50 字符
+        Contracts.Chunking chunking = docs.chunking();
+        assertThat(chunking.chunkSize()).isEqualTo(500);
+        assertThat(chunking.chunkOverlap()).isEqualTo(50);
+        // 上传限制：纯文本 + Markdown，单文件 2MB
+        Contracts.Upload upload = docs.upload();
+        assertThat(upload.allowedTypes()).containsExactly("text/plain", "text/markdown");
+        assertThat(upload.allowedExtensions()).containsExactly(".txt", ".md");
+        assertThat(upload.maxFileBytes()).isEqualTo(2L * 1024 * 1024);
+        assertThat(upload.maxFiles()).isEqualTo(1);
+        assertThat(docs.titleFormat()).isEqualTo("{document_title} - 第{n}段");
+        assertThat(docs.errorCodes()).hasSize(8).contains("ORPHANED", "KNOWLEDGE_DOCUMENT_SEED_READONLY");
+        assertThat(docs.isKnownStatus("PROCESSING")).isTrue();
+        assertThat(docs.isKnownStatus("UNKNOWN")).isFalse();
+        assertThat(docs.isKnownSource("SEED")).isTrue();
+        assertThat(docs.isKnownSource("UNKNOWN")).isFalse();
     }
 
     @Test
@@ -544,6 +586,8 @@ class ContractsTest {
         assertThat(flow.transitions().get("cancel").to()).isEqualTo("CANCELLED");
         // 支付截止默认 60 秒（演示便于观察超时收敛）；接诊台可见白名单排除待支付。
         assertThat(flow.paymentTimeoutSeconds()).isEqualTo(60);
+        // 票 90：已支付预约取消截止分钟数，距号源起始时间不足此值不可取消。
+        assertThat(flow.cancelCutoffMinutes()).isEqualTo(30);
         assertThat(flow.receptionVisibleStatuses()).containsExactly("BOOKED", "IN_PROGRESS", "VISITED");
         Contracts.AppointmentFlow.CalledNotice notice = flow.calledNotice();
         assertThat(notice.messageType()).isEqualTo("appointment_called");
@@ -617,7 +661,7 @@ class ContractsTest {
 
     @Test
     void graphManagementWhitelistIsLoaded() {
-        // 票 89：图谱在线编辑白名单——三类节点、可编辑属性、三类关系及两端 label 组合
+        // 票 91：图谱在线编辑白名单——三类节点、可编辑属性、三类关系及两端 label 组合
         Contracts.GraphManagement graph = contracts.graphManagement();
         assertThat(graph.nodeLabels()).containsExactly("Symptom", "Disease", "Department");
         assertThat(graph.editableProperties())

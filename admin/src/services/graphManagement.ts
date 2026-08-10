@@ -1,7 +1,7 @@
 import { request } from '@umijs/max';
 import type { GraphEdgeType, GraphNodeLabel } from '@/contracts/graphManagement';
 
-/** 图谱管理节点（票 89）：白名单内 Symptom/Disease/Department。 */
+/** 图谱管理节点（票 91）：白名单内 Symptom/Disease/Department。 */
 export interface GraphNodeItem {
   node_id: string;
   label: GraphNodeLabel;
@@ -28,7 +28,7 @@ export interface GraphNodeUpdateInput {
   description?: string;
 }
 
-/** 改/删节点响应：命中同名 RAG 知识块时 rag_chunk_count 非 null，B 端需弹提示（票 89 决策 3）。 */
+/** 改/删节点响应：命中同名 RAG 知识块时 rag_chunk_count 非 null，B 端需弹提示（票 91 决策 3）。 */
 export interface GraphNodeMutationResult {
   node: GraphNodeItem;
   rag_chunk_count: number | null;

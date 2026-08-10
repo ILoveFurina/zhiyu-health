@@ -25,7 +25,11 @@ public class ScheduleRequest {
     private LocalDate scheduleDate;
     private TimeSlot timeSlot;
     private Integer totalSlots;
+    // 申请动作：CREATE（新建排班）/ MODIFY（调整号源）/ DISABLE（停诊）/ ENABLE（复诊），
+    // mapper 多处 action IN (...) 依赖此枚举，审核流据此分流落盘逻辑。
     private String action;
+    // DISABLE/MODIFY/ENABLE 申请的作用对象（指向既有 schedules 行），与 scheduleId 含义相反；
+    // scheduleId 是 CREATE 审核通过后回填的新建排班行 ID。二者绝不同时非空，是最易误用的字段。
     private Long targetScheduleId;
     private String status;
     private Long submittedBy;

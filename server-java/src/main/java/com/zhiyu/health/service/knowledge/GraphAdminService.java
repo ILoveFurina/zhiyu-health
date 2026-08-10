@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * 图谱在线管理写 seam（票 89 / grilling 决策 1、2）：B 端 admin 经本 service 直连 Neo4j
+ * 图谱在线管理写 seam（票 91 / grilling 决策 1、2）：B 端 admin 经本 service 直连 Neo4j
  * 编辑医学图谱，不经 server-py；读投影（G6 可视化）仍走 KnowledgeGraphController 转调 server-py。
  *
  * 白名单（contracts/graph-management.json 单一事实源）：仅 Symptom/Disease/Department 三类

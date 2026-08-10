@@ -30,7 +30,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 图谱管理端点（票 89）：admin 主链路冒烟 + doctor 403 权限负向 + 400/409 出口形状。 */
+/** 图谱管理端点（票 91）：admin 主链路冒烟 + doctor 403 权限负向 + 400/409 出口形状。 */
 @WebMvcTest(GraphAdminController.class)
 @Import(GraphInputMapperImpl.class)
 class GraphAdminControllerTest {

@@ -22,7 +22,7 @@ interface Props {
 }
 
 /**
- * 节点新建/编辑表单（票 89）：
+ * 节点新建/编辑表单（票 91）：
  * - label 下拉限白名单三类，创建后不可改（label 是 node_id 前缀的一部分）；
  * - aliases/description 按 contracts 白名单的 editable_properties 决定显隐
  *   （Symptom 无 description，Department 无 aliases）；

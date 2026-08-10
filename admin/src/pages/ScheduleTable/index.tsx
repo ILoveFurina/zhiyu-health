@@ -46,6 +46,21 @@ export default function ScheduleTablePage() {
 
   const onAdjustSubmit = async () => {
     if (!modifying) return;
+    if (newTotalSlots < 1) {
+      // InputNumber 的 min 只约束步进按钮，不拦键盘输入；手动输 0/负数时先于请求拦截。
+      message.warning('号源数必须至少为 1');
+      return;
+    }
+    if (newTotalSlots > scheduleRequestMaxTotalSlots) {
+      // 与 min 同理：手动输入超过 max 的越界值不会触发 onChange，这里在提交时拦截。
+      message.warning(`号源数最多为 ${scheduleRequestMaxTotalSlots}`);
+      return;
+    }
+    const usedSlots = modifying.total_slots - modifying.remaining_slots;
+    if (newTotalSlots < usedSlots) {
+      message.warning(`号源数不能小于已约数量（${usedSlots}）`);
+      return;
+    }
     setSubmitting(true);
     try {
       await submitScheduleChange(modifying.id, 'modify', newTotalSlots);
@@ -246,15 +261,14 @@ export default function ScheduleTablePage() {
             </Typography.Text>
             <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>新号源数</Typography.Text>
             <InputNumber
-              min={Math.max(1, modifying.total_slots - modifying.remaining_slots)}
-              max={scheduleRequestMaxTotalSlots}
+              min={0}
               precision={0}
               value={newTotalSlots}
               onChange={(v) => setNewTotalSlots(v ?? 1)}
               style={{ width: '100%' }}
             />
             <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
-              号源数不能小于已约数量（{modifying.total_slots - modifying.remaining_slots}），调整申请需管理员审核通过后生效
+              号源数须在 1-{scheduleRequestMaxTotalSlots} 之间且不能小于已约数量（{modifying.total_slots - modifying.remaining_slots}），调整申请需管理员审核通过后生效
             </Typography.Text>
           </div>
         )}

@@ -19,7 +19,7 @@ const EDGE_COLORS: Record<GraphEdgeType, string> = {
 };
 
 /**
- * 关系页签（票 89）：类型筛选 + 按任一端节点过滤 + 分页表格。
+ * 关系页签（票 91）：类型筛选 + 按任一端节点过滤 + 分页表格。
  * 关系不可编辑（修改 = 删除后重建）；新建经 EdgeForm，
  * 两端 label 组合由 contracts 白名单约束（EdgeForm 内实现）。
  */

@@ -6,7 +6,7 @@ import NodesPanel from './components/NodesPanel';
 import EdgesPanel from './components/EdgesPanel';
 
 /**
- * 图谱管理页（票 89）：在线维护 Neo4j 医学图谱的节点与关系。
+ * 图谱管理页（票 91）：在线维护 Neo4j 医学图谱的节点与关系。
  * 编辑范围限 contracts/graph-management.json 白名单（Symptom/Disease/Department
  * 节点 + INDICATES/TREATED_BY/SUGGESTS_DEPARTMENT 关系）；Medication/Contraindication
  * 及药品相关关系不在线编辑，继续走 PG + seed 离线链路。

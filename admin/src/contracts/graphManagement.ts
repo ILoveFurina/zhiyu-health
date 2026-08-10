@@ -1,6 +1,6 @@
 import contract from '../../../contracts/graph-management.json';
 
-// 图谱在线管理白名单（票 89 / ADR-0006 修订）：可在线编辑的节点 label、
+// 图谱在线管理白名单（票 91 / ADR-0006 修订）：可在线编辑的节点 label、
 // 各 label 可编辑属性、关系类型及两端 label 组合。TS 类型与表单选项均从
 // contracts/graph-management.json 推导，与 server-java 强校验同源。
 export type GraphNodeLabel = keyof typeof contract.editable_properties;

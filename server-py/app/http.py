@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.agent import router as agent_router
 from app.api.clinical import router as clinical_router
+from app.api.embeddings import router as embeddings_router
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
 from app.api.medication import router as medication_router
@@ -37,6 +38,7 @@ def build_http_app(lifespan: Lifespan, cors_origins: list[str]) -> FastAPI:
         knowledge_router,
         medication_router,
         voice_router,
+        embeddings_router,
     ):
         application.include_router(router, prefix="/api")
     return application

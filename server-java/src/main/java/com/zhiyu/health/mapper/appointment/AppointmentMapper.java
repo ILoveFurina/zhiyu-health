@@ -25,6 +25,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("scheduleId") long scheduleId,
             @Param("cancelledStatus") String cancelledStatus);
 
+    // 行锁 scope 到 patient+profile：同时完成患者归属校验与并发改单互斥，
+    // cancel 路径据此保证重复取消只让首次状态转换进入双存储回补分支。
     @Select(
             """
             SELECT * FROM appointments
@@ -36,6 +38,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("patientId") long patientId,
             @Param("profileId") long profileId);
 
+    // 就诊序号 MAX+1：本身非原子，依赖 reserve 临界区已持 schedule 行锁（selectByIdForUpdate）
+    // 串行化取号，保证同一排班下并发挂号不重号；离开行锁调用会产生重号。
     @Select("SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM appointments WHERE schedule_id = #{scheduleId}")
     int nextSequenceNumber(@Param("scheduleId") long scheduleId);
 
@@ -77,6 +81,9 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("pendingPaymentStatus") String pendingPaymentStatus,
             @Param("bookedStatus") String bookedStatus);
 
+    // 病情摘要 CAS 写入：COALESCE(condition_summary, #{summary}) 只在原值为 NULL 时写入，
+    // 已有摘要不覆盖（幂等重试返回的挂号单保留原会话摘要）；patient+profile+conversation 三重限定
+    // 防止跨档案/跨会话误写。返回 0 由 service 报 404 挂号单不存在。
     @Update(
             """
             UPDATE appointments
@@ -93,6 +100,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("conversationId") long conversationId,
             @Param("summary") String summary);
 
+    // 挂号卡视图联查：LEFT JOIN payments（非 INNER）--挂号成功后收费单由 createUnpaid 异步补建，
+    // 期间 payment_status 可能为 NULL；INNER JOIN 会让未建支付单的挂号卡从列表消失。
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,
@@ -109,6 +118,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             """)
     Appointment selectViewById(@Param("appointmentId") long appointmentId);
 
+    // C 端挂号列表视图：LEFT JOIN payments 同上（payment_status 可能为 NULL）。
     @Select(
             """
             SELECT a.*, s.doctor_id, d.name AS doctor_name, dep.name AS department_name,

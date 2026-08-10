@@ -113,14 +113,19 @@ Page({
 
   cancel(e) {
     const appointmentId = e.currentTarget.dataset.id
+    const appointment = this.data.allAppointments.find((item) => item.appointment_id === appointmentId)
+    // 票 89：已支付预约取消需提示退款，待支付只提示号源返还。
+    const isBooked = appointment && appointment.isBooked
     my.confirm({
       title: '取消挂号',
-      content: '确认取消这次挂号吗？号源将自动返还。',
+      content: isBooked
+        ? '确认取消这次挂号吗？费用将原路退回，号源自动返还。'
+        : '确认取消这次挂号吗？号源将自动返还。',
       success: (result) => {
         if (!result.confirm) return
         cancelAppointment(appointmentId)
           .then(() => {
-            my.showToast({ content: '已取消', type: 'success' })
+            my.showToast({ content: isBooked ? '已取消，费用将原路退回' : '已取消', type: 'success' })
             this.loadAppointments()
           })
           .catch(() => my.showToast({ content: '取消失败，请稍后重试', type: 'fail' }))

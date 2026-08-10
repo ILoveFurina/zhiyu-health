@@ -21,4 +21,4 @@ server-py 暴露**两个分离的只读入口**，共用底层 Neo4j 只读 clie
 ## 关联
 
 - 不修订 ADR-0010（知识源选择器与工具注入范式已覆盖 graph 态）。
-- 写入管理（增删图谱节点/关系）由票 89 落地：写路径不复用本决策的 server-py 只读入口，而是经 server-java `GraphAdminService` 写 seam 直连 Neo4j（见 ADR-0006 修订）；本决策描述的两条只读通路保持原状。RAG 文本在线管理仍属后续扩展。
+- 写入管理（增删图谱节点/关系）由票 91 落地：写路径不复用本决策的 server-py 只读入口，而是经 server-java `GraphAdminService` 写 seam 直连 Neo4j（见 ADR-0006 修订）；本决策描述的两条只读通路保持原状。RAG 文本在线管理仍属后续扩展。

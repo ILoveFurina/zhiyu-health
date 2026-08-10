@@ -1,4 +1,4 @@
-# 89 — 医学图谱在线管理（管理员增改）
+# 91 — 医学图谱在线管理（管理员增改）
 
 **What to build:** B 端新增"图谱管理"页，管理员可在线编辑 Neo4j 医学图谱：修改节点属性、增删节点、增删关系。写入链路为 server-java 直连 Neo4j（扩展现有只读 Driver seam 为可写），不经过 server-py；读链路（G6 可视化页）保持不变。编辑范围限定 Symptom/Disease/Department 三类节点及 INDICATES/TREATED_BY/SUGGESTS_DEPARTMENT 三类关系；Medication/Contraindication 节点与药品相关关系继续走 PG + seed 离线链路。同步修订 ADR-0006（运行时只读 → 读经 server-py、写经 server-java seam）。
 

@@ -18,6 +18,10 @@ import org.springframework.stereotype.Component;
  * <p>{@code isWithinWindow} 是 B 端叫号判断：排班当天且当前时间处于 [start, end] 闭区间内才可叫号；
  * 未知时段或 null 一律返回 false（fail-closed），过点滞留的待就诊患者不可叫号。
  *
+ * <p>{@code isPastCancelCutoff} 是已支付预约取消截止判断（票 90）：排班当天且当前时间已超过
+ * {@code start - cutoffMinutes}，则已支付（BOOKED）预约不可再取消。未来日期不截止（可取消）；
+ * 未知时段或 null 安全返回 false（不阻断取消，与 {@code isClosed} 同口径）。
+ *
  * <p>时间经注入的 {@link Clock} 读取，测试可固定时钟覆盖上午/下午截止边界。
  */
 @Component
@@ -72,5 +76,29 @@ public class SlotWindowGuard {
         }
         LocalTime now = LocalTime.now(clock);
         return !now.isBefore(LocalTime.parse(window.start())) && !now.isAfter(LocalTime.parse(window.end()));
+    }
+
+    /**
+     * 已支付预约是否已过取消截止时刻（票 90）：排班当天且当前时间已超过 {@code start - cutoffMinutes}。
+     * 返回 true 表示该预约已不可取消（距就诊开始不足 cutoffMinutes 分钟）；返回 false 表示仍可取消。
+     * 非当天（未来日期）返回 false；未知时段或 null 安全返回 false（不阻断取消，与 {@code isClosed} 同口径）。
+     */
+    public boolean isPastCancelCutoff(LocalDate scheduleDate, String timeSlotValue, int cutoffMinutes) {
+        if (scheduleDate == null || timeSlotValue == null) {
+            return false;
+        }
+        if (!scheduleDate.equals(LocalDate.now(clock))) {
+            return false;
+        }
+        Contracts.ScheduleRequestFlow.TimeSlotWindow window =
+                effectiveSlotWindows.windows().get(timeSlotValue);
+        if (window == null) {
+            return false;
+        }
+        // 截止时刻 = 时段开始 - cutoffMinutes；当前时间已过该时刻则不可取消。
+        // 分钟减法用 minusMinutes 处理跨日回绕（如 cutoff 大于 0 点前的分钟数），结果可能为负值次日时刻，
+        // 此时 now.isAfter 必然为 true（当天不会再回到该时刻），语义正确--凌晨后已过昨日截止。
+        LocalTime cancelCutoff = LocalTime.parse(window.start()).minusMinutes(cutoffMinutes);
+        return LocalTime.now(clock).isAfter(cancelCutoff);
     }
 }

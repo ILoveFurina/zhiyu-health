@@ -15,7 +15,7 @@ interface Props {
 }
 
 /**
- * 节点页签（票 89）：label 筛选 + 名称模糊搜索 + 分页表格，
+ * 节点页签（票 91）：label 筛选 + 名称模糊搜索 + 分页表格，
  * 新建/编辑经 NodeForm，删除经 Popconfirm 确认。
  * 改/删命中同名 RAG 知识块时（rag_chunk_count 非 null）弹同步维护提示；
  * 删除保护 409 时把 detail 中的关系计数展示给用户，引导先删关系。
@@ -30,7 +30,7 @@ export default function NodesPanel({ initialKeyword }: Props) {
 
   const reload = () => actionRef.current?.reload();
 
-  // pgvector 对齐护栏（票 89 决策 3）：仅提示不阻断，真正对齐由后续 RAG 管理票解决
+  // pgvector 对齐护栏（票 91 决策 3）：仅提示不阻断，真正对齐由后续 RAG 管理票解决
   const warnRagChunks = (count: number | null, nodeName: string) => {
     if (count != null && count > 0) {
       modal.warning({
@@ -47,7 +47,7 @@ export default function NodesPanel({ initialKeyword }: Props) {
       warnRagChunks(res.rag_chunk_count, row.name);
       reload();
     } catch (err: any) {
-      // 删除保护（票 89 决策 5）：detail 含关系计数，提示先在「关系」页签处理
+      // 删除保护（票 91 决策 5）：detail 含关系计数，提示先在「关系」页签处理
       if (err?.response?.status === 409) {
         const detail = err?.response?.data?.detail;
         modal.warning({

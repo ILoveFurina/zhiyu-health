@@ -13,7 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** server-py 业务工具回调接口：只做参数校验与响应装配。 */
+/**
+ * server-py 业务工具回调接口：只做参数校验与响应装配。
+ * 这是 Agent 导诊链路的只读回调端点（server-py 在确定科室后回调此处取推荐医生与号源），
+ * 非患者直连--鉴权走内网回调口径，不带 @RequestAttribute 患者/B 端身份，勿误判为漏鉴权。
+ */
 @Validated
 @RestController
 @RequestMapping("/api/agent/doctors")
@@ -22,11 +26,13 @@ public class DoctorRecommendationController {
 
     private final DoctorRecommendationService recommendationService;
 
+    // 导诊流程"科室确定后的医生选择步"：按科室名返回推荐医生列表供 Agent 下一步选号源。
     @GetMapping("/recommend")
     public DoctorRecommendations recommend(@RequestParam("department_name") @NotBlank String departmentName) {
         return new DoctorRecommendations(recommendationService.recommendDoctors(departmentName));
     }
 
+    // 导诊流程"选定医生后的号源展示步"：返回该医生可挂号源供 Agent 推进挂号。
     @GetMapping("/{doctorId}/slots")
     public DoctorSlots slots(@PathVariable @Positive long doctorId) {
         return new DoctorSlots(doctorId, recommendationService.getDoctorSlots(doctorId));

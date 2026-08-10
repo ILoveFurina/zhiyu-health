@@ -37,7 +37,7 @@ import org.neo4j.driver.exceptions.Neo4jException;
 import org.neo4j.driver.summary.ResultSummary;
 
 /**
- * 图谱管理写 seam（票 89）：增删改正常路径、删除保护 409、白名单 400、重名 409、
+ * 图谱管理写 seam（票 91）：增删改正常路径、删除保护 409、白名单 400、重名 409、
  * RAG 护栏命中/未命中。Driver/Session 全 mock，按 service 内语句顺序依次返回结果。
  */
 @ExtendWith(MockitoExtension.class)

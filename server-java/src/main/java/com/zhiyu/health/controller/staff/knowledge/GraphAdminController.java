@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 图谱在线管理（票 89）：admin 对 Neo4j 图谱的写端点与管理列表查询，业务全在
+ * 图谱在线管理（票 91）：admin 对 Neo4j 图谱的写端点与管理列表查询，业务全在
  * GraphAdminService。仅 admin 可访问（AdminInterceptor 保护 /api/b/**）。
  * 读投影（G6 可视化）保持在 KnowledgeGraphController 转调 server-py，与本写链路分离。
  */
