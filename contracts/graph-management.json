@@ -1,0 +1,14 @@
+{
+  "_doc": "图谱在线管理白名单（票 89 / ADR-0006 修订）：B 端可在线编辑的 Neo4j 节点 label、各 label 可编辑属性、关系类型及两端 label 组合。Medication/Contraindication 节点与药品相关关系不在线编辑，继续走 PG + seed 离线链路。本文件是 server-java 强校验与 admin TS 类型的单一事实源，改此文件需双栈同步发版。",
+  "node_labels": ["Symptom", "Disease", "Department"],
+  "editable_properties": {
+    "Symptom": ["name", "aliases"],
+    "Disease": ["name", "aliases", "description"],
+    "Department": ["name", "description"]
+  },
+  "edge_types": {
+    "INDICATES": {"from_label": "Symptom", "to_label": "Disease"},
+    "TREATED_BY": {"from_label": "Disease", "to_label": "Department"},
+    "SUGGESTS_DEPARTMENT": {"from_label": "Symptom", "to_label": "Department"}
+  }
+}

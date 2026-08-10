@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Drawer, Spin, Tag, Empty, message } from 'antd';
+import { Button, Drawer, Spin, Tag, Empty, message } from 'antd';
+import { Link } from '@umijs/max';
 import { PageContainer } from '@ant-design/pro-components';
 import { Graph } from '@antv/g6';
 import {
@@ -8,6 +9,7 @@ import {
   type GraphNode,
   type GraphNodeDetail,
 } from '@/services/knowledgeGraph';
+import { graphNodeLabels } from '@/contracts/graphManagement';
 import PageHead from '@/components/PageHead';
 
 // 五类节点颜色（按 group 着色，grilling 决策 6）
@@ -382,6 +384,19 @@ export default function KnowledgeGraphPage() {
       <Drawer
         title="节点详情"
         open={drawerOpen}
+        // 编辑跳转（票 89 决策 4）：本页保持只读，白名单内节点跳「图谱管理」页，
+        // 带 keyword 定位参数；Medication/Contraindication 不在线编辑，不出入口
+        extra={
+          detail &&
+          detail.name &&
+          graphNodeLabels.includes(detail.node_type as (typeof graphNodeLabels)[number]) && (
+            <Link to={`/graph-management?keyword=${encodeURIComponent(detail.name)}`}>
+              <Button size="small" type="primary">
+                编辑
+              </Button>
+            </Link>
+          )
+        }
         onClose={() => {
           setDrawerOpen(false);
           setDetail(null);

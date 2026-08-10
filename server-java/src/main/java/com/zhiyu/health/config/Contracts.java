@@ -46,6 +46,7 @@ public class Contracts {
     private final ConsultationPhotoLimits consultationPhotoLimits;
     private final HealthObservations healthObservations;
     private final ScheduleRequestFlow scheduleRequestFlow;
+    private final GraphManagement graphManagement;
 
     /** Spring 启动入口：构造期完成全部加载，任一文件失败即启动失败。 */
     public Contracts() {
@@ -82,6 +83,7 @@ public class Contracts {
                 read(mapper, dir, "consultation-photo-limits.json", ConsultationPhotoLimits.class);
         this.healthObservations = read(mapper, dir, "health-observations.json", HealthObservations.class);
         this.scheduleRequestFlow = read(mapper, dir, "schedule-request-flow.json", ScheduleRequestFlow.class);
+        this.graphManagement = read(mapper, dir, "graph-management.json", GraphManagement.class);
     }
 
     /** 测试与工具入口：从指定目录加载。 */
@@ -140,6 +142,11 @@ public class Contracts {
     /** 医生排班申请审核流：状态机/决定/时段/可排天数上限/号源上限。 */
     public ScheduleRequestFlow scheduleRequestFlow() {
         return scheduleRequestFlow;
+    }
+
+    /** 图谱在线管理白名单（票 89）：可编辑节点 label、各 label 可编辑属性、关系类型及两端组合。 */
+    public GraphManagement graphManagement() {
+        return graphManagement;
     }
 
     public ChatDefaults chatDefaults() {
@@ -885,5 +892,31 @@ public class Contracts {
 
         /** 排班时段窗口（挂号截止校验的单一事实源）：上午 09:00-11:30，下午 14:00-18:00。 */
         public record TimeSlotWindow(String start, String end) {}
+    }
+
+    /**
+     * 图谱在线管理白名单（票 89，ADR-0006 修订）：仅 nodeLabels 三类节点与 edgeTypes
+     * 三类关系开放 B 端在线编辑；Medication/Contraindication 及药品关系排除（双写一致性
+     * 与用药禁忌红线安全）。关系类型语义由两端 label 组合钉死，如 INDICATES 仅 Symptom→Disease。
+     */
+    public record GraphManagement(
+            List<String> nodeLabels,
+            Map<String, List<String>> editableProperties,
+            Map<String, EdgeEndpoints> edgeTypes) {
+        public GraphManagement {
+            nodeLabels = List.copyOf(nodeLabels);
+            editableProperties = editableProperties.entrySet().stream()
+                    .collect(java.util.stream.Collectors.collectingAndThen(
+                            java.util.stream.Collectors.toMap(
+                                    Map.Entry::getKey,
+                                    entry -> List.copyOf(entry.getValue()),
+                                    (a, b) -> a,
+                                    java.util.LinkedHashMap::new),
+                            java.util.Collections::unmodifiableMap));
+            edgeTypes = Map.copyOf(edgeTypes);
+        }
+
+        /** 关系两端 label 组合：fromLabel → toLabel。 */
+        public record EdgeEndpoints(String fromLabel, String toLabel) {}
     }
 }

@@ -72,7 +72,7 @@ uv run python scripts/verify_zhiyu.py
 
 1. 所有 AI 产出必须带“仅供参考，不替代医生诊断”：server-py 生成时注入，server-java 出口兜底，界面无例外。
 2. 红线症状由 server-java 在 C 端对话入口确定性判断；用药禁忌仅在 B 端医生开方流程由 server-java 确定性判断。C 端 Agent 不做个性化用药决策，只提供通用药品知识解释并引导咨询医生或药师。
-3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；MinIO 旁路存储图片对象：拍照分析原图、医生头像与在线问诊交流图片（ADR-0023、ADR-0029）；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。
+3. PostgreSQL 存业务实体；Neo4j 只存症状、疾病、科室、药品、禁忌等医学知识；MinIO 旁路存储图片对象：拍照分析原图、医生头像与在线问诊交流图片（ADR-0023、ADR-0029）；禁止双写。server-py 对 pgvector 只读，Redis 号源计数仅由 server-java 操作。图谱在线写入（票 89 起）只经 server-java `service/knowledge/GraphAdminService` 写 seam，白名单见 `contracts/graph-management.json`；server-py 对 Neo4j 保持只读。
 4. 号源扣减必须使用 Redis 原子 DECR + PostgreSQL 事务对账，禁止先查后改。
 5. `.env` 永不入库、不打印、不写进代码或测试。审计日志和 Agent trace 不记录患者敏感原文，只记录脱敏摘要、工具名、参数类型与结果；审计统一在 server-java 入口执行。
 6. schema 由 `schema.sql` + 幂等 seed 管理，不使用迁移工具；开发期变更统一 drop + recreate + seed，由 AI 按“运行拓扑”一节在 schema 变更票完成后自动重建云演示库并验证。server-java 启动不执行任何 DDL/seed（`spring.sql.init.mode=never`），建表与 seed 只经 `scripts/reset_zhiyu.py` 显式重建；`schema.sql` 应保持幂等（`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`），破坏性重建只由 reset_zhiyu.py 整库 drop + create 完成，禁止借启动重放机制执行 DROP（曾因启动重放 schema.sql 内的 `DROP TABLE departments/department_categories` 误删 B 端人工新增数据）。

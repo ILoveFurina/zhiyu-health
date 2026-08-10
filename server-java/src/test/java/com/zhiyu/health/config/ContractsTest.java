@@ -614,4 +614,22 @@ class ContractsTest {
         assertThat(flow.maxTotalSlots()).isEqualTo(50);
         assertThat(flow.reviewReasonMaxLength()).isEqualTo(500);
     }
+
+    @Test
+    void graphManagementWhitelistIsLoaded() {
+        // 票 89：图谱在线编辑白名单——三类节点、可编辑属性、三类关系及两端 label 组合
+        Contracts.GraphManagement graph = contracts.graphManagement();
+        assertThat(graph.nodeLabels()).containsExactly("Symptom", "Disease", "Department");
+        assertThat(graph.editableProperties())
+                .containsEntry("Symptom", List.of("name", "aliases"))
+                .containsEntry("Disease", List.of("name", "aliases", "description"))
+                .containsEntry("Department", List.of("name", "description"));
+        assertThat(graph.edgeTypes()).containsOnlyKeys("INDICATES", "TREATED_BY", "SUGGESTS_DEPARTMENT");
+        assertThat(graph.edgeTypes().get("INDICATES").fromLabel()).isEqualTo("Symptom");
+        assertThat(graph.edgeTypes().get("INDICATES").toLabel()).isEqualTo("Disease");
+        assertThat(graph.edgeTypes().get("TREATED_BY").fromLabel()).isEqualTo("Disease");
+        assertThat(graph.edgeTypes().get("TREATED_BY").toLabel()).isEqualTo("Department");
+        assertThat(graph.edgeTypes().get("SUGGESTS_DEPARTMENT").fromLabel()).isEqualTo("Symptom");
+        assertThat(graph.edgeTypes().get("SUGGESTS_DEPARTMENT").toLabel()).isEqualTo("Department");
+    }
 }
