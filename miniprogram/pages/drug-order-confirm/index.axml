@@ -21,6 +21,7 @@
         </view>
         <view class="dcn-pharmacy-name">{{preview.pharmacy_name}}</view>
         <view class="dcn-pharmacy-meta">{{preview.hospital_name}} · {{preview.campus_name}}</view>
+        <view class="dcn-pharmacy-hint">处方药由开方医生所属院区药房承接，保障处方审核与调剂责任闭环</view>
       </view>
       <view class="dcn-card">
         <view class="dcn-card-title">药品明细</view>
