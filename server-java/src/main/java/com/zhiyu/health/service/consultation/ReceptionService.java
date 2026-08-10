@@ -54,7 +54,7 @@ public class ReceptionService {
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
         // 接诊台入口先全局惰性收敛：过期待支付单（释放号源）+ 过点未叫号已支付单（取消+退款+消息，票 92）
-        // + 过点就诊中单（自动转已接诊，票 94，释放单叫号约束），再查可见列表：
+        // + 过点就诊中单（自动转已接诊，票 97，释放单叫号约束），再查可见列表：
         // 收敛是全局副作用，可见性是医生视角过滤，两者解耦（ADR-0033）。
         appointments.expireOverdueAppointments();
         appointments.expireUncalledAppointments();
@@ -91,7 +91,7 @@ public class ReceptionService {
                 prescriptionDetailOf(appointmentId));
     }
 
-    /** 接诊详情患者健康档案信息（票 94）：取挂号时固化的 health_profile_id（非当前活跃档案），过敏史空返回空列表。 */
+    /** 接诊详情患者健康档案信息（票 97）：取挂号时固化的 health_profile_id（非当前活跃档案），过敏史空返回空列表。 */
     private PatientProfile patientProfileOf(Appointment appointment) {
         Long profileId = appointment.getHealthProfileId();
         if (profileId == null) {
@@ -105,7 +105,7 @@ public class ReceptionService {
         return new PatientProfile(appointment.getGender(), age, allergies);
     }
 
-    /** 接诊详情处方明细（票 94）：无处方返回 null；有处方带出药品列表 + 状态 + 驳回原因。 */
+    /** 接诊详情处方明细（票 97）：无处方返回 null；有处方带出药品列表 + 状态 + 驳回原因。 */
     private PrescriptionDetail prescriptionDetailOf(long appointmentId) {
         Prescription prescription = prescriptionMapper.selectByAppointmentId(appointmentId);
         if (prescription == null) {
@@ -354,10 +354,10 @@ public class ReceptionService {
             PatientProfile patientProfile,
             PrescriptionDetail prescription) {}
 
-    /** 接诊详情患者健康档案（票 94）：性别/年龄/过敏史，过敏史空列表由前端显示"未填"。 */
+    /** 接诊详情患者健康档案（票 97）：性别/年龄/过敏史，过敏史空列表由前端显示"未填"。 */
     public record PatientProfile(String gender, Integer age, List<String> allergies) {}
 
-    /** 接诊详情处方明细（票 94）：状态 + 驳回原因 + 药品列表；无处方时整体为 null。 */
+    /** 接诊详情处方明细（票 97）：状态 + 驳回原因 + 药品列表；无处方时整体为 null。 */
     public record PrescriptionDetail(
             String status, @JsonProperty("review_reason") String reviewReason, List<PrescriptionItemView> items) {}
 

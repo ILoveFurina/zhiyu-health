@@ -611,7 +611,7 @@ class AppointmentServiceTest {
 
     @Test
     void overdueInProgressAppointmentIsAutoCompletedWithoutRecordOrMessage() {
-        // 票 94：过点就诊中惰性收敛为已接诊，只推进状态，不落接诊记录、不发消息、不释放号源、不退款。
+        // 票 97：过点就诊中惰性收敛为已接诊，只推进状态，不落接诊记录、不发消息、不释放号源、不退款。
         SlotWindowGuard pastEndGuard = new SlotWindowGuard(
                 Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
                 TestSlotWindows.contractOnly());
@@ -778,7 +778,7 @@ class AppointmentServiceTest {
         when(appointmentMapper.selectOverduePending(any())).thenReturn(java.util.List.of());
         // 过点未叫号收敛（票 92）：默认无当天 BOOKED 单，list/cancel 入口收敛为空操作。
         when(appointmentMapper.selectUncalledBookedToday(any())).thenReturn(java.util.List.of());
-        // 过点就诊中收敛（票 94）：默认无 IN_PROGRESS 单，list/cancel 入口收敛为空操作。
+        // 过点就诊中收敛（票 97）：默认无 IN_PROGRESS 单，list/cancel 入口收敛为空操作。
         when(appointmentMapper.selectInProgress(any())).thenReturn(java.util.List.of());
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {

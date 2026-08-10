@@ -64,9 +64,9 @@ export interface AppointmentDetail {
   diagnosis?: string;
   advice?: string;
   completed_at?: string;
-  /** 患者健康档案（票 94）：挂号时固化的 health_profile_id 派生，过敏史空列表前端显示"未填" */
+  /** 患者健康档案（票 97）：挂号时固化的 health_profile_id 派生，过敏史空列表前端显示"未填" */
   patient_profile?: PatientProfile | null;
-  /** 处方明细（票 94）：无处方为 null；有处方带药品列表 + 状态 + 驳回原因 */
+  /** 处方明细（票 97）：无处方为 null；有处方带药品列表 + 状态 + 驳回原因 */
   prescription?: PrescriptionDetail | null;
 }
 

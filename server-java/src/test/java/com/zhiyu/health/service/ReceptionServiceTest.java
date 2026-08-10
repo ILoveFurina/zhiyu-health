@@ -368,7 +368,7 @@ class ReceptionServiceTest {
 
     @Test
     void dashboardTriggersAllExpirations() {
-        // 票 94：接诊台入口并排触发三套惰性收敛（过期待支付 + 过点未叫号 + 过点就诊中）。
+        // 票 97：接诊台入口并排触发三套惰性收敛（过期待支付 + 过点未叫号 + 过点就诊中）。
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
         when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of());
         when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
@@ -383,7 +383,7 @@ class ReceptionServiceTest {
 
     @Test
     void detailReturnsPatientProfileAndPrescriptionDetail() {
-        // 票 94：接诊详情带患者健康档案（性别/年龄/过敏史）与处方明细（药品列表+状态+驳回原因）。
+        // 票 97：接诊详情带患者健康档案（性别/年龄/过敏史）与处方明细（药品列表+状态+驳回原因）。
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
         Appointment inProgress = appointment("IN_PROGRESS");
         inProgress.setHealthProfileId(31L);
@@ -418,7 +418,7 @@ class ReceptionServiceTest {
 
     @Test
     void detailReturnsEmptyAllergiesAndNullPrescriptionWhenAbsent() {
-        // 过敏史为空：后端返回空列表（前端显示"未填"）；无处方：prescription 为 null（票 94）。
+        // 过敏史为空：后端返回空列表（前端显示"未填"）；无处方：prescription 为 null（票 97）。
         when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
         Appointment inProgress = appointment("IN_PROGRESS");
         inProgress.setHealthProfileId(31L);

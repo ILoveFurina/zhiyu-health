@@ -76,7 +76,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     /** 过点未叫号已支付挂号单的轻量投影（id + 排班 + 患者 + 日期 + 时段），供惰性收敛逐条退款+发消息。 */
     record UncalledAppointment(Long id, Long scheduleId, Long patientId, LocalDate scheduleDate, String timeSlot) {}
 
-    // 过点就诊中惰性收敛（票 94）：查所有 IN_PROGRESS 单（不限当天，跨天滞留也要收敛），JOIN schedules
+    // 过点就诊中惰性收敛（票 97）：查所有 IN_PROGRESS 单（不限当天，跨天滞留也要收敛），JOIN schedules
     // 取窗口判定所需字段；不在 SQL 判窗口因 EffectiveSlotWindows 含 Redis 演示覆盖，且跨天判定（schedule_date
     // < today）需 service 层 isPast 统一处理。轻量投影不加锁，收敛逐条进入事务由 markVisitedIfInProgress
     // 的 CAS 守卫并发。
@@ -116,7 +116,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             @Param("bookedStatus") String bookedStatus,
             @Param("cancelledStatus") String cancelledStatus);
 
-    // 过点就诊中系统自动转已接诊 CAS（票 94）：from 只接受 IN_PROGRESS，区别于患者主动 markCancelled 与
+    // 过点就诊中系统自动转已接诊 CAS（票 97）：from 只接受 IN_PROGRESS，区别于患者主动 markCancelled 与
     // 医生主动 markVisited（SQL 同 markVisited 但语义独立，便于审计系统触发 vs 医生主动）。CAS 守卫：
     // 并发收敛或医生已手动完成/已取消时状态不再是 IN_PROGRESS，UPDATE 返回 0 即安全跳过，不误改终态单。
     @Update(

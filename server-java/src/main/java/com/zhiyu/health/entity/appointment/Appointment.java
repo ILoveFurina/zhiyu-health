@@ -103,11 +103,11 @@ public class Appointment {
     @TableField(exist = false)
     private String patientNickname;
 
-    /** 患者性别（视图投影，联查 health_profiles，票 94 接诊详情展示）。 */
+    /** 患者性别（视图投影，联查 health_profiles，票 97 接诊详情展示）。 */
     @TableField(exist = false)
     private String gender;
 
-    /** 患者出生日期（视图投影，联查 health_profiles，票 94 接诊详情算年龄）。 */
+    /** 患者出生日期（视图投影，联查 health_profiles，票 97 接诊详情算年龄）。 */
     @TableField(exist = false)
     private LocalDate birthDate;
 

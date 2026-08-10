@@ -37,7 +37,7 @@
       "to": "CANCELLED"
     },
     "auto_complete_overdue": {
-      "_doc": "系统触发的过点就诊中自动转已接诊（票 94）：区别于医生主动 complete（同样 from=IN_PROGRESS），此迁移由 expireUnfinishedConsultations 惰性触发，只推进状态、不落接诊记录、不发就诊小结消息（医生未填诊断，不伪造医疗内容；consultation_records.diagnosis/advice NOT NULL）。过点判定：跨天滞留（schedule_date < today）或当天已过时段 end 即收敛，释放单叫号约束（医生忘了点接诊完成导致叫不了下一个号）。",
+      "_doc": "系统触发的过点就诊中自动转已接诊（票 97）：区别于医生主动 complete（同样 from=IN_PROGRESS），此迁移由 expireUnfinishedConsultations 惰性触发，只推进状态、不落接诊记录、不发就诊小结消息（医生未填诊断，不伪造医疗内容；consultation_records.diagnosis/advice NOT NULL）。过点判定：跨天滞留（schedule_date < today）或当天已过时段 end 即收敛，释放单叫号约束（医生忘了点接诊完成导致叫不了下一个号）。",
       "from": ["IN_PROGRESS"],
       "to": "VISITED"
     }

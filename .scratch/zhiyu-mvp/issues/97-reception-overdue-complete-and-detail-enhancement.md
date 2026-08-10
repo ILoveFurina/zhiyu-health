@@ -1,4 +1,4 @@
-# 94 - 接诊台三项增强：过点就诊中自动转已接诊 + 接诊详情补健康档案与处方明细
+# 97 - 接诊台三项增强：过点就诊中自动转已接诊 + 接诊详情补健康档案与处方明细
 
 **What to build:** B 端接诊台三处增强：
 1. **过点"就诊中"自动转"已接诊"**：医生叫号后患者进入就诊中，但医生忘了点"接诊完成"按钮，过了号源时段（甚至跨天）后该挂号单一直滞留就诊中，卡住单叫号约束（医生无法叫下一个号）。新增惰性收敛：过点（含跨天滞留）的 IN_PROGRESS 单由系统自动推进为 VISITED。只推进状态，不落接诊记录、不发就诊小结消息（医生未填诊断，不伪造医疗内容；consultation_records.diagnosis/advice NOT NULL）。复用 ADR-0038 惰性收敛范式。
@@ -47,7 +47,7 @@
 - [x] ADR-0039 + 修订 CONTEXT.md（挂号单/接诊/叫号）+ 修订 ADR-0034 第4条
 - [x] mvn test + spotless:check；admin typecheck/build
 - [ ] 前端实测：过点演示加速（/api/b/demo/time-slot-windows）；接诊详情看健康档案；查看页看处方明细
-- [ ] 票单置 done 前：README 依赖图 T94 节点加 [x]
+- [ ] 票单置 done 前：README 依赖图 T97 节点加 [x]
 
 ## Comments
 

@@ -125,7 +125,7 @@ export default function ConsultationDrawer(props: Props) {
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>
                 <Descriptions.Item label="医嘱">{detail?.advice}</Descriptions.Item>
-                {/* 处方明细（票 94）：无处方不渲染；状态 + 驳回原因 + 药品清单 */}
+                {/* 处方明细（票 97）：无处方不渲染；状态 + 驳回原因 + 药品清单 */}
                 {detail?.prescription && (
                   <Descriptions.Item label="处方审核">
                     <Space direction="vertical" size={4} style={{ width: '100%' }}>

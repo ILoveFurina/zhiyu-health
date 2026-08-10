@@ -229,7 +229,7 @@ public class AppointmentService {
      */
     public List<AppointmentView> listForPatient(long patientId) {
         // C 端列表入口惰性收敛：先过期待支付单（释放号源），再过点未叫号已支付单（取消+退款+消息，票 92），
-        // 最后过点就诊中单（自动转已接诊，票 94，释放单叫号约束）。
+        // 最后过点就诊中单（自动转已接诊，票 97，释放单叫号约束）。
         expireOverdueAppointments();
         expireUncalledAppointments();
         expireUnfinishedConsultations();
@@ -284,7 +284,7 @@ public class AppointmentService {
      */
     public AppointmentView cancel(long patientId, long appointmentId) {
         // C 端取消入口惰性收敛：先过期待支付单，再过点未叫号已支付单（取消+退款+消息，票 92），
-        // 最后过点就诊中单（自动转已接诊，票 94）。
+        // 最后过点就诊中单（自动转已接诊，票 97）。
         expireOverdueAppointments();
         expireUncalledAppointments();
         expireUnfinishedConsultations();
@@ -482,7 +482,7 @@ public class AppointmentService {
     }
 
     /**
-     * 过点就诊中惰性收敛（票 94）：医生叫号后忘了点"接诊完成"，过了号源时段（甚至跨天）后就诊中单
+     * 过点就诊中惰性收敛（票 97）：医生叫号后忘了点"接诊完成"，过了号源时段（甚至跨天）后就诊中单
      * 一直滞留，卡住单叫号约束（医生无法叫下一个号）。在接诊台 / C 端列表 / cancel 入口与
      * {@link #expireUncalledAppointments} 并排触发，把过点的 IN_PROGRESS 单推进为 VISITED。
      * <p>与过点未叫号收敛（ADR-0038）同构--不引入调度中间件，下次入口访问即收敛。区别：不落接诊记录、
