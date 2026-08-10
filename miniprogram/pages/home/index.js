@@ -4,6 +4,8 @@ const { listAppointments, payAppointment } = require('../../services/appointment
 const { listDrugOrders } = require('../../services/drug-orders')
 const { loadRegistrationSummary } = require('../../services/registration')
 const { listConsultationProgress } = require('../../services/consultation')
+const { listMessages, listMedCheckins, checkMedCheckin } = require('../../services/patient-care')
+const { readInAppMessageIds } = require('../../utils/messages')
 const { hasLocation, isSkipped, markSkipped, chooseLocation } = require('../../utils/location')
 const {
   decorateAppointment,
@@ -74,8 +76,8 @@ const PRESCRIPTION_TODO = {
   REJECTED: { badge: '处方未通过', badgeClass: 'todo-badge-muted', meta: '处方未通过，点击查看详情 ›' },
 }
 
-/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进）。 */
-function buildTodos(appointments, orders, consultationProgress) {
+/** 待办横卡：在线问诊进度优先，其后为处方追踪、待支付挂号、即将就诊/就诊中与药品订单（待支付 + 待取药/配送中履约跟进），服药提醒殿后（票 93）。 */
+function buildTodos(appointments, orders, consultationProgress, reminders) {
   const today = todayString()
   const decorated = (appointments || []).map(decorateAppointment)
   const pendingPayments = decorated
@@ -194,7 +196,21 @@ function buildTodos(appointments, orders, consultationProgress) {
       url,
     }
   })
-  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid, ...fulfillment].sort(
+  // 服药打卡提醒（票 93）：服务端只返回到点未打卡的 PENDING 记录，就地打卡后摘卡；
+  // 卡片点击仍可达消息中心查看剂量详情。
+  const medCheckins = (reminders || []).map((item) => ({
+    key: `medcheckin-${item.id}`,
+    kind: 'med_checkin',
+    badge: '服药提醒',
+    badgeClass: 'todo-badge-warn',
+    title: item.medication_name,
+    meta: `${item.dosage} · ${item.frequency}`,
+    checkinId: item.id,
+    priority: 10,
+    updatedAt: item.due_date || '',
+    url: '/pages/messages/index',
+  }))
+  return [...consultation, ...pendingPayments, ...upcoming, ...unpaid, ...fulfillment, ...medCheckins].sort(
     (a, b) => a.priority - b.priority || b.updatedAt.localeCompare(a.updatedAt)
   )
 }
@@ -208,6 +224,8 @@ Page({
     activeProfile: null,
     sheetOpen: false,
     todos: [],
+    // 消息中心未读角标（票 93）：与消息中心页共用本机已读口径，仅 onShow 随 load 拉取
+    unreadCount: 0,
     showEntrance: true,
     // AI挂号助手精简主卡：当前城市 + 平台医院真实总数
     regCityName: '',
@@ -353,19 +371,26 @@ Page({
           listConsultationProgress()
             .then((res) => (res && res.items) || [])
             .catch(() => this._consultationProgress || []),
+          // 未读角标失败降级为不显示，不阻塞首页
+          listMessages().catch(() => []),
+          // 服药提醒失败降级为空，不阻塞首页（无激活档案时服务端 404 也走此降级）
+          listMedCheckins().catch(() => []),
         ])
       )
-      .then(([profiles, appointments, orders, consultationProgress]) => {
+      .then(([profiles, appointments, orders, consultationProgress, messages, reminders]) => {
+        const readIds = readInAppMessageIds()
         profiles = profiles.map((item) => ({ ...item, initial: item.display_name.slice(0, 1) }))
         const activeProfile = profiles.find((item) => item.active) || null
         this._appointments = appointments
         this._orders = orders
         this._consultationProgress = consultationProgress
+        this._reminders = reminders
         this.setData({
           profiles,
           activeProfile,
           profileLoaded: true,
-          todos: buildTodos(appointments, orders, consultationProgress),
+          todos: buildTodos(appointments, orders, consultationProgress, reminders),
+          unreadCount: messages.filter((item) => !readIds.includes(String(item.id))).length,
         }, () => this.startTodoCountdown())
       })
       .catch(() => my.showToast({ content: '加载失败，请稍后重试', type: 'fail' }))
@@ -384,15 +409,43 @@ Page({
     if (item && item.url) my.navigateTo({ url: item.url })
   },
 
+  openMessages() {
+    my.navigateTo({ url: '/pages/messages/index' })
+  },
+
   refreshConsultationTodos() {
     return listConsultationProgress()
       .then((res) => {
         this._consultationProgress = (res && res.items) || []
         this.setData({
-          todos: buildTodos(this._appointments || [], this._orders || [], this._consultationProgress),
+          todos: buildTodos(
+            this._appointments || [],
+            this._orders || [],
+            this._consultationProgress,
+            this._reminders || []
+          ),
         })
       })
       .catch(() => {})
+  },
+
+  /** 待办卡就地打卡（票 93，对齐 payTodo 的 catchTap 模式）：成功 toast 连续天数并摘卡，失败保留卡片。 */
+  checkinTodo(e) {
+    const id = e.currentTarget.dataset.id
+    checkMedCheckin(id)
+      .then((view) => {
+        my.showToast({ content: `已打卡，连续 ${view.streak} 天`, type: 'success' })
+        this._reminders = (this._reminders || []).filter((r) => String(r.id) !== String(id))
+        this.setData({
+          todos: buildTodos(
+            this._appointments || [],
+            this._orders || [],
+            this._consultationProgress || [],
+            this._reminders
+          ),
+        })
+      })
+      .catch(() => my.showToast({ content: '打卡失败，请重试', type: 'fail' }))
   },
 
   openSheet() {
