@@ -361,8 +361,19 @@ CREATE TABLE IF NOT EXISTS payments (
     status VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     paid_at TIMESTAMPTZ,
-    CONSTRAINT ck_payments_status CHECK (status IN ('UNPAID', 'PAID'))
+    CONSTRAINT ck_payments_status CHECK (status IN ('UNPAID', 'PAID', 'REFUNDED'))
 );
+
+-- 支付状态约束幂等演进（票 89）：CREATE TABLE IF NOT EXISTS 对已存在表不会改 CHECK 约束，
+-- 旧库的 ck_payments_status 只允许 UNPAID/PAID，需先 DROP 再加含 REFUNDED 的约束，
+-- 保证旧库演进与新库初始化均可重复执行。
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS ck_payments_status;
+ALTER TABLE payments ADD CONSTRAINT ck_payments_status
+    CHECK (status IN ('UNPAID', 'PAID', 'REFUNDED'));
+
+-- 退款时间列幂等补建（票 89）：CREATE TABLE IF NOT EXISTS 对已存在表不会补列，
+-- 用 ADD COLUMN IF NOT EXISTS 保证旧库演进与新库初始化均可重复执行。
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
 
 -- 接诊记录来源二选一（票 56）：挂号单或在线问诊，两个真实外键恰好一个非空
 -- （XOR 由 ck_consultation_records_source 保证）；online_consultation_id 的外键、
