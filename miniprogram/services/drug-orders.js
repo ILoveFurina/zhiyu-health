@@ -56,6 +56,7 @@ const payDrugOrder = (orderId) => request({
 module.exports = {
   previewDrugOrder,
   listOtcCandidates,
+  listPharmacyOtcCatalog,
   createDrugOrder,
   listDrugOrders,
   getDrugOrder,

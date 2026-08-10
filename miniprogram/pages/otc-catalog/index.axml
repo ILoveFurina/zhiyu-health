@@ -13,7 +13,7 @@
         <text>配送费 ¥{{item.delivery_fee}}</text>
         <text a:if="{{item.estimated_minutes}}">约 {{item.estimated_minutes}} 分钟送达</text>
       </view>
-      <view a:for="{{item.items}}" a:for-item="med" a:key="medication_id" class="otc-item">
+      <view a:for="{{item.items_display}}" a:for-item="med" a:key="medication_id" class="otc-item">
         <view class="otc-item-info">
           <view class="otc-item-head">
             <view class="otc-item-name">{{med.name}}</view>
@@ -32,6 +32,13 @@
           onTap="buy"
         >去买</button>
       </view>
+      <!-- 默认只展示前 3 种，点击展开/收起（品种多的药房一屏放不下） -->
+      <view
+        a:if="{{item.items.length > 3}}"
+        class="otc-toggle"
+        data-index="{{index}}"
+        onTap="toggleExpand"
+      >{{item.expanded ? '收起' : '展开全部 ' + item.items.length + ' 种'}}</view>
     </view>
   </block>
 </view>

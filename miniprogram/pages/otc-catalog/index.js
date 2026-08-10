@@ -33,16 +33,22 @@ Page({
     const coords = getCoords()
     return listPharmacyOtcCatalog(coords)
       .then((res) => {
-        const pharmacies = ((res && res.pharmacies) || []).map((pharmacy) => ({
-          ...pharmacy,
-          distance_text: located ? formatDistance(pharmacy.distance_meters) : '',
-          items: (pharmacy.items || []).map((item) => ({
+        const pharmacies = ((res && res.pharmacies) || []).map((pharmacy) => {
+          const items = (pharmacy.items || []).map((item) => ({
             ...item,
             price_text: money(item.price),
             spec_text: [item.generic_name, item.specification].filter(Boolean).join(' · '),
             out_of_stock: !item.stock || item.stock <= 0,
-          })),
-        }))
+          }))
+          return {
+            ...pharmacy,
+            distance_text: located ? formatDistance(pharmacy.distance_meters) : '',
+            items,
+            // 折叠：默认只展示前 3 种，expanded 切换后 items_display 指向全量
+            expanded: false,
+            items_display: items.slice(0, 3),
+          }
+        })
         this.setData({ located, pharmacies })
       })
       .catch((err) => {
@@ -57,5 +63,17 @@ Page({
     if (!name) return
     getApp().globalData.pendingDrugPurchasePrompt = `我想买${name}`
     my.switchTab({ url: '/pages/chat/index' })
+  },
+
+  /** 展开/收起某个药房的药品清单（默认前 3 种）。 */
+  toggleExpand(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const pharmacy = this.data.pharmacies[index]
+    if (!pharmacy) return
+    const expanded = !pharmacy.expanded
+    this.setData({
+      [`pharmacies[${index}].expanded`]: expanded,
+      [`pharmacies[${index}].items_display`]: expanded ? pharmacy.items : pharmacy.items.slice(0, 3),
+    })
   },
 })
