@@ -41,6 +41,19 @@ public class AppointmentService {
     private final ObjectMapper objectMapper;
     private final SlotWindowGuard slotWindowGuard;
 
+    /**
+     * AI 导诊链路挂号：由对话会话触发，允许同一会话重复调用时返回已有挂号单（幂等）。
+     * <p>
+     * 与 {@link #createDirect} 的区别在于重复策略：AI 链路使用
+     * {@code DuplicatePolicy.RETURN_EXISTING}，同一会话内重复挂号返回已有结果；
+     * C 端直接挂号使用 {@code DuplicatePolicy.REJECT}，拒绝重复挂号。
+     * </p>
+     *
+     * @param patientId      患者 ID
+     * @param conversationId 对话会话 ID（AI 导诊上下文）
+     * @param scheduleId     目标排班 ID
+     * @return 挂号视图
+     */
     public AppointmentView create(long patientId, long conversationId, long scheduleId) {
         CreatedAppointment created = reserve(patientId, conversationId, scheduleId, DuplicatePolicy.RETURN_EXISTING);
         try {
@@ -52,7 +65,18 @@ public class AppointmentService {
         return view(created.id());
     }
 
-    /** C 端功能目录直接挂号（票 81 修订票 41 边界）：与 AI 引导挂号统一走待支付。 */
+    /**
+     * C 端小程序直接挂号：患者从功能目录选择排班后下单（票 81 修订票 41 边界）。
+     * <p>
+     * 与 AI 引导挂号统一走"待支付"流程：挂号成功即占用号源，需在规定时间内完成支付，
+     * 否则由 {@link #expireOverdueAppointments} 惰性收敛为已取消并释放号源。
+     * 重复挂号直接拒绝（{@code DuplicatePolicy.REJECT}），返回 409 冲突。
+     * </p>
+     *
+     * @param patientId  患者 ID
+     * @param scheduleId 目标排班 ID
+     * @return 挂号视图
+     */
     public AppointmentView createDirect(long patientId, long scheduleId) {
         CreatedAppointment created = reserve(patientId, null, scheduleId, DuplicatePolicy.REJECT);
         try {
@@ -64,6 +88,25 @@ public class AppointmentService {
         return view(created.id());
     }
 
+    /**
+     * 挂号核心预留逻辑：号源预扣 + 挂号单创建的事务闭环。
+     * <p>
+     * 执行流程：
+     * <ol>
+     *   <li>获取患者活跃健康档案</li>
+     *   <li>Redis 预扣号源（{@link SlotAccounting#withDeduction}）</li>
+     *   <li>事务内：排班行锁 → 有效性校验 → 幂等判重 → PG 扣减 → 生成序号 → 写入挂号单</li>
+     *   <li>写入就诊指引站内信（同事务）</li>
+     * </ol>
+     * <p>
+     * 补偿机制：事务失败时 {@code withDeduction} 自动回补 Redis 预扣，保证 Redis/PG 双写一致性。
+     *
+     * @param patientId       患者 ID
+     * @param conversationId  对话会话 ID（AI 导诊时非空，直接挂号时为 null）
+     * @param scheduleId      目标排班 ID
+     * @param duplicatePolicy 重复挂号策略：RETURN_EXISTING（AI 链路幂等）/ REJECT（C 端拒绝重复）
+     * @return 创建结果（挂号单 ID + 挂号费）
+     */
     private CreatedAppointment reserve(
             long patientId, Long conversationId, long scheduleId, DuplicatePolicy duplicatePolicy) {
         long profileId = healthProfiles.requireActive(patientId).getId();
@@ -173,6 +216,16 @@ public class AppointmentService {
                 .toList();
     }
 
+    /**
+     * 查询患者的挂号列表。
+     * <p>
+     * 查询前先执行惰性收敛：把 payment_deadline 已过的待支付单推进为已取消并释放号源（ADR-0033）。
+     * 与接诊台入口同构，不引入调度中间件，号源释放靠下次入口访问触发。
+     * </p>
+     *
+     * @param patientId 患者 ID
+     * @return 挂号视图列表
+     */
     public List<AppointmentView> listForPatient(long patientId) {
         // C 端列表入口惰性收敛过期待支付单（释放号源），与接诊台入口同构（ADR-0033）。
         expireOverdueAppointments();
@@ -208,6 +261,23 @@ public class AppointmentService {
         return view(appointmentId);
     }
 
+    /**
+     * 患者主动取消挂号。
+     * <p>
+     * 取消规则（票 90）：
+     * <ul>
+     *   <li>待支付（PENDING_PAYMENT）：随时可取消，释放号源</li>
+     *   <li>已支付（BOOKED）：距就诊开始不足 {@code cancelCutoffMinutes} 分钟不可取消，避免临近就诊释放号源造成调度浪费</li>
+     *   <li>其他状态：不可取消</li>
+     * </ul>
+     * <p>
+     * 事务闭环：挂号单状态推进 + 号源 PG 回补 + Redis 退还 + 已支付退款，四者同提交同回滚。
+     * 补偿机制：事务失败时 {@code withRefund} 自动撤销 Redis 退还，保证双写一致性。
+     *
+     * @param patientId     患者 ID
+     * @param appointmentId 挂号单 ID
+     * @return 取消后的挂号视图
+     */
     public AppointmentView cancel(long patientId, long appointmentId) {
         // C 端取消入口惰性收敛：若该单已超时，先收敛为已取消并释放号源，再返回最新视图。
         expireOverdueAppointments();
@@ -228,6 +298,22 @@ public class AppointmentService {
             if (!cancel.allows(appointment.getStatus())) {
                 throw new ApiException(409, "当前状态不可取消");
             }
+            String bookedStatus = flow.status("booked");
+            boolean wasBooked = bookedStatus.equals(appointment.getStatus());
+            // 已支付（BOOKED）预约的取消时间窗口（票 90）：距号源起始时间不足 cancel_cutoff_minutes 分钟不可取消，
+            // 避免临近就诊时段释放号源造成的调度浪费。待支付（PENDING_PAYMENT）不受此约束（鼓励尽早释放号源）。
+            if (wasBooked) {
+                Schedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
+                if (schedule != null
+                        && slotWindowGuard.isPastCancelCutoff(
+                                schedule.getScheduleDate(),
+                                schedule.getTimeSlot() == null
+                                        ? null
+                                        : schedule.getTimeSlot().getValue(),
+                                flow.cancelCutoffMinutes())) {
+                    throw new ApiException(409, "距就诊开始不足半小时，不可取消");
+                }
+            }
             // cancel.from = [PENDING_PAYMENT, BOOKED]，两条来源态都释放号源。
             if (appointmentMapper.markCancelled(
                                     appointmentId,
@@ -238,6 +324,11 @@ public class AppointmentService {
                     || scheduleMapper.incrementRemainingSlots(appointment.getScheduleId()) != 1) {
                 throw new IllegalStateException("取消挂号的 PostgreSQL 回补失败");
             }
+            // 已支付预约取消需同步退款（票 90）：PAID -> REFUNDED，与号源回补同事务同提交同回滚。
+            // refundIfPaid 的 CAS 守卫幂等：重复取消只首次退款，非 PAID 安全跳过。
+            if (wasBooked) {
+                payments.refundIfPaid(appointmentId);
+            }
             refund.grant(appointment.getScheduleId());
             return appointment.getId();
         }));
@@ -245,11 +336,16 @@ public class AppointmentService {
     }
 
     /**
-     * 支付超时惰性收敛（票 81，ADR-0033）：在接诊台/C 端列表/pay/cancel 入口同步调用，
-     * 把 payment_deadline 已过的待支付挂号单推进为已取消并释放号源。与在线问诊
-     * expireOverdue 同构--不引入调度中间件，号源释放靠下次入口访问触发。
-     * 每条独立 withRefund 事务：markCancelled 的 CAS 守卫并发重复收敛（返回 0 即跳过），
-     * 退款失败的事务整体回滚不影响其它条目。
+     * 支付超时惰性收敛（票 81，ADR-0033）。
+     * <p>
+     * 在接诊台 / C 端列表 / pay / cancel 入口同步调用，把 {@code payment_deadline} 已过的
+     * 待支付挂号单推进为已取消并释放号源。与在线问诊 {@code expireOverdue} 同构——
+     * 不引入调度中间件，号源释放靠下次入口访问触发。
+     * </p>
+     * <p>
+     * 每条独立 withRefund 事务：{@code markCancelled} 的 CAS 守卫并发重复收敛（返回 0 即跳过），
+     * 单条失败的事务整体回滚不影响其余条目。
+     * </p>
      */
     public void expireOverdueAppointments() {
         Contracts.AppointmentFlow flow = contracts.appointmentFlow();
@@ -264,7 +360,16 @@ public class AppointmentService {
         }
     }
 
-    /** 超时取消单条挂号：无患者身份校验（系统收敛），CAS 只接受待支付态。 */
+    /**
+     * 超时取消单条挂号：系统级收敛，无患者身份校验。
+     * <p>
+     * CAS 守卫：并发收敛或患者已手动取消时状态不再是待支付，UPDATE 返回 0 即安全跳过，
+     * 不会误取消已支付或已取消的挂号单。
+     * </p>
+     *
+     * @param appointmentId 挂号单 ID
+     * @param scheduleId    关联排班 ID（用于号源回补）
+     */
     private void cancelOverdue(long appointmentId, long scheduleId) {
         slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
             Contracts.AppointmentFlow flow = contracts.appointmentFlow();
@@ -301,18 +406,90 @@ public class AppointmentService {
         String paymentStatusLabel = paymentStatus == null
                 ? null
                 : contracts.paymentFlow().statusLabels().get(paymentStatus);
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        boolean cancellable = isCancellable(appointment, flow);
         return appointmentDtos.toView(
                 appointment,
                 appointment.getStatus(),
-                contracts.appointmentFlow().statusLabel(appointment.getStatus()),
-                paymentStatusLabel);
+                flow.statusLabel(appointment.getStatus()),
+                paymentStatusLabel,
+                cancellable);
     }
 
+    /**
+     * 计算挂号单是否可取消（票 90）。
+     * <p>
+     * 后端统一计算后下发 {@code cancellable} 标志，前端不自行复制时段表逻辑：
+     * <ul>
+     *   <li>待支付（PENDING_PAYMENT）：支付截止未过才可取消（过期后由惰性收敛推进为已取消）</li>
+     *   <li>已支付（BOOKED）：未过取消截止时刻（号源起始时间前 {@code cancelCutoffMinutes}）才可取消</li>
+     *   <li>其他状态（就诊中/已取消/已接诊）：不可取消</li>
+     * </ul>
+     *
+     * @param appointment 挂号单实体
+     * @param flow        挂号状态机契约
+     * @return true 表示患者当前可主动取消该挂号
+     */
+    private boolean isCancellable(Appointment appointment, Contracts.AppointmentFlow flow) {
+        String pendingPayment = flow.status("pending_payment");
+        if (pendingPayment.equals(appointment.getStatus())) {
+            // 待支付：支付截止未过才可取消（过期后由惰性收敛推进为已取消）。
+            OffsetDateTime deadline = appointment.getPaymentDeadline();
+            return deadline == null || deadline.isAfter(OffsetDateTime.now());
+        }
+        String booked = flow.status("booked");
+        if (booked.equals(appointment.getStatus())) {
+            // 已支付：未过取消截止时刻才可取消；scheduleDate/timeSlot 为 null（视图未联查到）时安全返回 false。
+            return !slotWindowGuard.isPastCancelCutoff(
+                    appointment.getScheduleDate(),
+                    appointment.getTimeSlot() == null
+                            ? null
+                            : appointment.getTimeSlot().getValue(),
+                    flow.cancelCutoffMinutes());
+        }
+        return false;
+    }
+
+    /**
+     * 判断挂号单是否允许发起支付。
+     * <p>
+     * 条件：收费单状态为 UNPAID 且挂号单状态为 PENDING_PAYMENT。
+     * 由 controller 调用后下发 {@code payment_payable} 标志给前端。
+     * </p>
+     *
+     * @param paymentStatus     收费单状态
+     * @param appointmentStatus 挂号单状态
+     * @return true 表示允许发起支付
+     */
     public boolean isPaymentPayable(String paymentStatus, String appointmentStatus) {
         return contracts.paymentFlow().statuses().get("unpaid").equals(paymentStatus)
                 && contracts.appointmentFlow().status("pending_payment").equals(appointmentStatus);
     }
 
+    /**
+     * 挂号单视图 DTO：service 层内部传递用，最终经 {@link AppointmentDtoMapper} 转换为 controller 输出。
+     *
+     * @param id                挂号单 ID
+     * @param scheduleId        排班 ID
+     * @param doctorId          医生 ID
+     * @param doctorName        医生姓名
+     * @param departmentName    科室名称
+     * @param scheduleDate      就诊日期
+     * @param timeSlot          就诊时段
+     * @param sequenceNumber    就诊序号
+     * @param statusCode        状态编码（契约值）
+     * @param status            状态显示文本
+     * @param registrationFee   挂号费
+     * @param paymentStatus     收费单状态编码
+     * @param paymentStatusLabel 收费单状态显示文本
+     * @param conditionSummary  病情摘要
+     * @param hospitalName      医院名称
+     * @param campusName        院区名称
+     * @param campusAddress     院区地址
+     * @param createdAt         创建时间
+     * @param paymentDeadline   支付截止时间
+     * @param cancellable       是否可取消
+     */
     public record AppointmentView(
             Long id,
             Long scheduleId,
@@ -332,10 +509,13 @@ public class AppointmentService {
             String campusName,
             String campusAddress,
             String createdAt,
-            String paymentDeadline) {}
+            String paymentDeadline,
+            boolean cancellable) {}
 
+    /** 挂号创建中间结果：仅承载挂号单 ID 与挂号费，供后续建支付单使用。 */
     private record CreatedAppointment(Long id, BigDecimal registrationFee) {}
 
+    /** 重复挂号策略：AI 导诊链路幂等返回已有挂号，C 端直接挂号拒绝重复。 */
     private enum DuplicatePolicy {
         RETURN_EXISTING,
         REJECT
