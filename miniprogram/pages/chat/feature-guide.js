@@ -136,6 +136,25 @@ const featureGuideMethods = {
     app.globalData.pendingDrugGuideEntry = false
     this.enterDrugGuide()
   },
+
+  /**
+   * 消费药房 OTC 目录「去买」的交棒话术（票 95，switchTab 不能带参，经 globalData 传递）：
+   * 把「我想买<药品名>」预填进输入框并滚动到底，不自动发送——话术不带数量
+   * （ADR-0032 硬边界：数量必须由用户在对话中明确给出），用户自行补数量后发送。
+   * sending 时不消费、保留到下次 onShow（与 consumeTriageEntry 同一约定）。
+   */
+  consumeDrugPurchasePrompt() {
+    const app = getApp()
+    const prompt = app.globalData.pendingDrugPurchasePrompt
+    if (!prompt) return
+    if (this.data.sending) return
+    app.globalData.pendingDrugPurchasePrompt = ''
+    this.setData({
+      inputValue: prompt,
+      canSend: prompt.trim().length > 0,
+      anchorId: 'thread-bottom',
+    })
+  },
 }
 
 module.exports = { featureGuideMethods }

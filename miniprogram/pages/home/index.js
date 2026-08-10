@@ -41,6 +41,8 @@ const GRIDS = [
       { key: 'prescriptions', icon: 'file', label: '电子处方', action: 'navigateTo', url: '/pages/prescriptions/index' },
       // 票 94：便捷购药引导入口，经 globalData 交棒 chat 页自动进入购药引导卡（同「智能导诊」）
       { key: 'drugGuide', icon: 'capsule', label: '便捷购药', action: 'switchTab', url: '/pages/chat/index' },
+      // 票 95：药房 OTC 目录只读浏览页（图标复用 file-list 清单类 zy-ico-report，与 capsule 区分）
+      { key: 'otcCatalog', icon: 'report', label: '药房目录', action: 'navigateTo', url: '/pages/otc-catalog/index' },
       { key: 'drugOrders', icon: 'capsule', label: '药品订单', action: 'navigateTo', url: '/pages/drug-orders/index' },
     ],
   },

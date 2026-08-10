@@ -21,6 +21,15 @@ const listOtcCandidates = ({ items, lng, lat }) => request({
   },
 })
 
+// 药房 OTC 目录（票 95，只读浏览）：各院区药房在售 OTC 的价格/库存分组视图；
+// 已授权定位带 lng/lat 按距离升序，未授权不传坐标，服务端按医院/院区稳定序返回且不下发距离
+const listPharmacyOtcCatalog = ({ lng, lat } = {}) => request({
+  url: '/c/pharmacy-otc-catalog',
+  data: {
+    ...(lng != null && lat != null ? { lng, lat } : {}),
+  },
+})
+
 // 下单：处方药 { prescription_id, pickup_method, receiver_*? }；
 // OTC { pharmacy_id, items: [{ medication_id, quantity }], pickup_method, receiver_*? }
 const createDrugOrder = (payload) => request({
