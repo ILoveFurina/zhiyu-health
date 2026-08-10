@@ -1,0 +1,31 @@
+# 无 nginx 形态的一体镜像：server-java 同时承担 API/实时链路与 admin 静态托管。
+# 构建上下文必须是仓库根（需要 admin/ 与 server-java/ 两个子树）。
+
+# ---- 阶段 1：admin 静态构建（Umi hash 路由，纯静态产物）----
+# 目录布局必须镜像仓库：admin/src/contracts/*.ts 以 ../../../contracts/*.json
+# 引用仓库根契约，故 contracts/ 要与 admin/ 同级。
+FROM node:20-alpine AS admin-build
+WORKDIR /repo
+COPY admin/package.json admin/package-lock.json ./admin/
+RUN npm --prefix admin ci
+COPY admin/ ./admin/
+COPY contracts/ ./contracts/
+RUN npm --prefix admin run build
+
+# ---- 阶段 2：server-java 打包（沿用 server-java/Dockerfile 的缓存分层思路）----
+FROM maven:3.9-eclipse-temurin-17 AS java-build
+WORKDIR /app
+COPY server-java/pom.xml .
+RUN mvn -B dependency:go-offline
+COPY server-java/src ./src
+RUN mvn -B package -DskipTests
+
+# ---- 运行段：jar + admin-dist + 跨栈契约（Contracts.load 从文件系统读，非 classpath）----
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=java-build /app/target/server-java-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=admin-build /repo/admin/dist ./admin-dist
+COPY contracts ./contracts
+ENV CONTRACTS_DIR=/app/contracts
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]

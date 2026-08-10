@@ -1,0 +1,29 @@
+# 云服务器应用层一键部署（无 nginx 形态）：server-java(:8080，兼托管 admin 静态页) + server-py(:8000)
+# 数据服务（PG/Redis/Neo4j/MinIO）已由 compose.oneclick.yaml 在同机运行，端口映射在宿主机，
+# 因此应用容器统一 network_mode: host，经 127.0.0.1 直连数据服务，免容器网络配置。
+#
+# 公网唯一入口为 server-java :8080：/api/** 为接口与 WS/SSE，其余路径命中 admin-dist 静态页
+# （admin 为 hash 路由，无 history 回退需求；鉴权/审计/限流过滤器均只挂 /api/*，静态资源不经过）。
+#
+# 用法（仓库根目录，需先准备 deploy/app/env.cloud，见 env.cloud.example）：
+#   docker compose -f deploy/app/compose.app.yaml up -d --build
+name: zhiyu-health-app
+
+services:
+  server-java:
+    build:
+      context: ../..
+      dockerfile: deploy/app/Dockerfile.bundle
+    network_mode: host
+    env_file: env.cloud
+    restart: unless-stopped
+
+  server-py:
+    build:
+      context: ../..
+      dockerfile: deploy/app/Dockerfile.server-py
+      # 构建期容器默认 bridge 网络访问 PyPI CDN 会挂死（宿主机直连正常），改 host 网络构建
+      network: host
+    network_mode: host
+    env_file: env.cloud
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+# server-py Agent 层镜像（ADR-0009）。构建上下文必须是仓库根。
+# 依赖清单 deploy/app/requirements.txt 由 `uv export --frozen --no-dev` 从 uv.lock 导出
+# （uv.lock 变更后需重新导出）；不用 uv 在线安装——uv 在仅有 IPv4 的云主机上解析
+# PyPI CDN 会优先尝试不可达的 IPv6 并挂死，pip 无此问题。
+FROM python:3.12-slim
+
+# 云服务器在国内，pypi.org 直连超时，换清华镜像源（requirements.txt 含哈希，镜像内容一致）
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
+WORKDIR /app
+COPY deploy/app/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY server-py ./server-py
+# 跨栈契约：app.core.contracts 按 __file__ parents[3] 定位 /app/contracts（文件系统读取，非包资源）
+COPY contracts ./contracts
+
+# 只读凭证由 compose env_file 注入，镜像内不含任何 .env。
+# Windows 的 ProactorEventLoop/psycopg 坑仅限 Windows，Linux 直接 uvicorn 即可。
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "app.main:app", \
+     "--app-dir", "server-py", "--host", "0.0.0.0", "--port", "8000"]
