@@ -157,10 +157,8 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
             throw new ApiException(409, "排班申请已审核");
         }
         String target;
-        Long scheduleId = null;
         if (decision("approve").equals(decision)) {
             target = status("approved");
-            scheduleId = applyApprovedAction(request);
         } else if (decision("reject").equals(decision)) {
             if (reason == null || reason.isBlank()) {
                 throw new ApiException(400, "驳回时必须填写原因");
@@ -171,11 +169,15 @@ public class ScheduleRequestService extends ServiceImpl<ScheduleRequestMapper, S
         }
         String trimmedReason = trimToNull(reason);
         String reviewTarget = target;
-        Long reviewScheduleId = scheduleId;
+        boolean approve = decision("approve").equals(decision);
+        // 号源变更与审核状态 CAS 在同一事务内原子提交：applyApprovedAction 在事务体内先执行
+        // （createSchedule/updateSchedule 内含 withAdjustment/withInitialization，PROPAGATION_REQUIRED
+        // 下加入本事务不独立提交），随后 baseMapper.review 做条件更新。若 CAS 返回 0 抛 409，
+        // 事务回滚触发 withAdjustment/withInitialization 的补偿（撤销已应用的 Redis 变更），
+        // 杜绝"号源变更已独立提交但审核状态未更新"导致的 Redis 计数漂移。
         return transactionTemplate.execute(tx -> {
-            // 条件更新保证并发审核只有一个决定生效，避免先通过后被另一请求覆盖为驳回。
-            if (baseMapper.review(id, reviewTarget, trimmedReason, reviewerId, reviewScheduleId, status("pending"))
-                    != 1) {
+            Long scheduleId = approve ? applyApprovedAction(request) : null;
+            if (baseMapper.review(id, reviewTarget, trimmedReason, reviewerId, scheduleId, status("pending")) != 1) {
                 throw new ApiException(409, "排班申请已审核");
             }
             return baseMapper.selectDetailedById(id);
