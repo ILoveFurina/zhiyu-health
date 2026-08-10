@@ -42,6 +42,7 @@
           <view a:if="{{item.hint}}" class="todo-hint">{{item.hint}}</view>
           <view a:if="{{item.payment_payable && item.paymentCountdownText}}" class="todo-countdown">支付剩余 {{item.paymentCountdownText}}</view>
           <view a:if="{{item.payment_payable}}" class="todo-pay" data-id="{{item.appointmentId}}" catchTap="payTodo">模拟支付</view>
+          <view a:if="{{item.kind === 'med_checkin'}}" class="todo-checkin" data-id="{{item.checkinId}}" catchTap="checkinTodo">已服用</view>
         </view>
       </view>
     </scroll-view>

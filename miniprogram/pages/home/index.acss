@@ -159,6 +159,16 @@
   font-size: 22rpx;
 }
 .todo-pay:active { opacity: 0.85; }
+.todo-checkin {
+  display: inline-flex;
+  margin-top: 14rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--zy-color-primary);
+  color: #fff;
+  font-size: 22rpx;
+}
+.todo-checkin:active { opacity: 0.85; }
 
 /* 档案切换弹层 */
 .sheet-mask {
