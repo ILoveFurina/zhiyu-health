@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { App, Button, Card, Descriptions, Drawer, Select, Space, Table, Tag, type TableColumnsType } from 'antd';
+import dayjs from 'dayjs';
 import { paymentMessages, paymentStatusLabels, paymentStatuses } from '@/contracts/payment';
 import {
   getPayment,
@@ -47,8 +48,8 @@ export default function PaymentPage() {
     { title: '收费记录', dataIndex: 'id', width: 110, render: (value) => `#${value}` },
     { title: '挂号单', dataIndex: 'appointment_id', width: 110, render: (value) => `#${value}` },
     { title: '金额（元）', dataIndex: 'amount', width: 120, render: (value) => Number(value).toFixed(2) },
-    { title: '创建时间', dataIndex: 'created_at', width: 220, render: (value) => value || '-' },
-    { title: '支付时间', dataIndex: 'paid_at', width: 220, render: (value) => value || '-' },
+    { title: '创建时间', dataIndex: 'created_at', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+    { title: '支付时间', dataIndex: 'paid_at', width: 160, render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
     { title: '状态', dataIndex: 'status', width: 100, render: (value: PaymentStatus, row) => <Tag color={statusColors[value]}>{row.status_label}</Tag> },
     {
       title: '操作', width: 220, render: (_, row) => <Space>
@@ -90,8 +91,8 @@ export default function PaymentPage() {
           { key: 'appointment', label: '挂号单', children: `#${detail.appointment_id}` },
           { key: 'amount', label: '诊查费', children: `¥${Number(detail.amount).toFixed(2)}` },
           { key: 'status', label: '状态', children: <Tag color={statusColors[detail.status]}>{detail.status_label}</Tag> },
-          { key: 'created', label: '创建时间', children: detail.created_at || '-' },
-          { key: 'paid', label: '支付时间', children: detail.paid_at || '-' },
+          { key: 'created', label: '创建时间', children: detail.created_at ? dayjs(detail.created_at).format('YYYY-MM-DD HH:mm') : '-' },
+          { key: 'paid', label: '支付时间', children: detail.paid_at ? dayjs(detail.paid_at).format('YYYY-MM-DD HH:mm') : '-' },
         ]} />}
       </Drawer>
     </PageContainer>
