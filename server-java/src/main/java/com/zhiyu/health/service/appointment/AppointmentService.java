@@ -113,52 +113,53 @@ public class AppointmentService {
         // withDeduction 的补偿范围覆盖整个事务（含提交失败）：已预扣未提交即回补 Redis。
         CreatedAppointment created = slotAccounting.withDeduction(
                 scheduleId,
-                deduction -> transactionTemplate.execute(status -> {
-                    // 排班行锁把幂等判断、序号分配与 PG 对账串成一个临界区，防止并发重复扣减或重号。
-                    Schedule schedule = scheduleMapper.selectByIdForUpdate(scheduleId);
-                    if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
-                        throw new ApiException(404, "排班不存在或已停用");
-                    }
-                    // 时段截止校验：排班当天当前时间已超过出诊时段结束时间则不可再挂号。
-                    // 判断经 SlotWindowGuard，与号源查询出口共享同一逻辑与契约 time_slot_windows。
-                    if (slotWindowGuard.isClosed(schedule)) {
-                        throw new ApiException(409, "该出诊时段已结束，不可再挂号");
-                    }
-                    // 停诊/调整号源审核冻结：排班存在待审核的停诊或调整号源申请时冻结挂号，
-                    // 符合"只有可出诊才可挂号"。审核通过则落盘，驳回则恢复可挂号，期间不允许新增挂号。
-                    if (scheduleRequestMapper.countPendingBlockingBySchedule(scheduleId) > 0) {
-                        throw new ApiException(409, "该排班正在调整号源或停诊审核中，暂不可挂号");
-                    }
-                    String cancelledStatus = contracts.appointmentFlow().status("cancelled");
-                    Appointment existing = appointmentMapper.selectForProfileAndSchedule(
-                            patientId, profileId, scheduleId, cancelledStatus);
-                    if (existing != null) {
-                        if (duplicatePolicy == DuplicatePolicy.REJECT) {
-                            throw new ApiException(409, "请勿重复挂号");
-                        }
-                        return new CreatedAppointment(existing.getId(), existing.getRegistrationFee());
-                    }
-                    // 幂等检查通过后才预扣；售罄在此处抛 409 且 Redis 已被 SlotAccounting 回补。
-                    deduction.acquire();
-                    if (scheduleMapper.decrementRemainingSlots(scheduleId) != 1) {
-                        throw new ApiException(409, "号源已约满");
-                    }
-                    Appointment appointment = new Appointment();
-                    appointment.setPatientId(patientId);
-                    appointment.setHealthProfileId(profileId);
-                    appointment.setConversationId(conversationId);
-                    appointment.setScheduleId(scheduleId);
-                    appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
-                    appointment.setRegistrationFee(schedule.getRegistrationFee());
-                    // 挂号成功即进入待支付并占用号源（占位等支付，票 81）；
-                    // 号源在扣减时已占住，支付完成推进为待就诊，超时/取消才释放。
-                    appointment.setStatus(contracts.appointmentFlow().status("pending_payment"));
-                    appointment.setPaymentDeadline(OffsetDateTime.now()
-                            .plusSeconds(contracts.appointmentFlow().paymentTimeoutSeconds()));
-                    appointmentMapper.insert(appointment);
-                    writeAppointmentCareMessage(patientId, scheduleId, appointment.getId());
-                    return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
-                }));
+                deduction -> transactionTemplate.execute(
+                        status -> { // 开始事务
+                            // 排班行锁把幂等判断、序号分配与 PG 对账串成一个临界区，防止并发重复扣减或重号。
+                            Schedule schedule = scheduleMapper.selectByIdForUpdate(scheduleId); // 行锁
+                            if (schedule == null || !Boolean.TRUE.equals(schedule.getIsActive())) {
+                                throw new ApiException(404, "排班不存在或已停用");
+                            }
+                            // 时段截止校验：排班当天当前时间已超过出诊时段结束时间则不可再挂号。
+                            // 判断经 SlotWindowGuard，与号源查询出口共享同一逻辑与契约 time_slot_windows。
+                            if (slotWindowGuard.isClosed(schedule)) {
+                                throw new ApiException(409, "该出诊时段已结束，不可再挂号");
+                            }
+                            // 停诊/调整号源审核冻结：排班存在待审核的停诊或调整号源申请时冻结挂号，
+                            // 符合"只有可出诊才可挂号"。审核通过则落盘，驳回则恢复可挂号，期间不允许新增挂号。
+                            if (scheduleRequestMapper.countPendingBlockingBySchedule(scheduleId) > 0) {
+                                throw new ApiException(409, "该排班正在调整号源或停诊审核中，暂不可挂号");
+                            }
+                            String cancelledStatus = contracts.appointmentFlow().status("cancelled");
+                            Appointment existing = appointmentMapper.selectForProfileAndSchedule(
+                                    patientId, profileId, scheduleId, cancelledStatus);
+                            if (existing != null) {
+                                if (duplicatePolicy == DuplicatePolicy.REJECT) {
+                                    throw new ApiException(409, "请勿重复挂号");
+                                }
+                                return new CreatedAppointment(existing.getId(), existing.getRegistrationFee());
+                            }
+                            // 幂等检查通过后才预扣；售罄在此处抛 409 且 Redis 已被 SlotAccounting 回补。
+                            deduction.acquire(); // 预扣号源
+                            if (scheduleMapper.decrementRemainingSlots(scheduleId) != 1) { // pg 扣减
+                                throw new ApiException(409, "号源已约满");
+                            }
+                            Appointment appointment = new Appointment();
+                            appointment.setPatientId(patientId);
+                            appointment.setHealthProfileId(profileId);
+                            appointment.setConversationId(conversationId);
+                            appointment.setScheduleId(scheduleId);
+                            appointment.setSequenceNumber(appointmentMapper.nextSequenceNumber(scheduleId));
+                            appointment.setRegistrationFee(schedule.getRegistrationFee());
+                            // 挂号成功即进入待支付并占用号源（占位等支付，票 81）；
+                            // 号源在扣减时已占住，支付完成推进为待就诊，超时/取消才释放。
+                            appointment.setStatus(contracts.appointmentFlow().status("pending_payment"));
+                            appointment.setPaymentDeadline(OffsetDateTime.now()
+                                    .plusSeconds(contracts.appointmentFlow().paymentTimeoutSeconds()));
+                            appointmentMapper.insert(appointment);
+                            writeAppointmentCareMessage(patientId, scheduleId, appointment.getId());
+                            return new CreatedAppointment(appointment.getId(), appointment.getRegistrationFee());
+                        }));
         return created;
     }
 
@@ -227,9 +228,11 @@ public class AppointmentService {
      * @return 挂号视图列表
      */
     public List<AppointmentView> listForPatient(long patientId) {
-        // C 端列表入口惰性收敛：先过期待支付单（释放号源），再过点未叫号已支付单（取消+退款+消息，票 92）。
+        // C 端列表入口惰性收敛：先过期待支付单（释放号源），再过点未叫号已支付单（取消+退款+消息，票 92），
+        // 最后过点就诊中单（自动转已接诊，票 94，释放单叫号约束）。
         expireOverdueAppointments();
         expireUncalledAppointments();
+        expireUnfinishedConsultations();
         long profileId = healthProfiles.requireActive(patientId).getId();
         return appointmentMapper.selectViewsByProfile(patientId, profileId).stream()
                 .map(this::toView)
@@ -280,9 +283,11 @@ public class AppointmentService {
      * @return 取消后的挂号视图
      */
     public AppointmentView cancel(long patientId, long appointmentId) {
-        // C 端取消入口惰性收敛：先过期待支付单，再过点未叫号已支付单（取消+退款+消息，票 92）。
+        // C 端取消入口惰性收敛：先过期待支付单，再过点未叫号已支付单（取消+退款+消息，票 92），
+        // 最后过点就诊中单（自动转已接诊，票 94）。
         expireOverdueAppointments();
         expireUncalledAppointments();
+        expireUnfinishedConsultations();
         long profileId = healthProfiles.requireActive(patientId).getId();
         // withRefund 的补偿范围覆盖整个事务（含提交失败）：已退还未提交即撤销退还。
         Long resultId = slotAccounting.withRefund(refund -> transactionTemplate.execute(status -> {
@@ -474,6 +479,55 @@ public class AppointmentService {
         message.setDisclaimer(disclaimers.text());
         message.setRelatedAppointmentId(appointmentId);
         messageMapper.insertIgnoreConflict(message);
+    }
+
+    /**
+     * 过点就诊中惰性收敛（票 94）：医生叫号后忘了点"接诊完成"，过了号源时段（甚至跨天）后就诊中单
+     * 一直滞留，卡住单叫号约束（医生无法叫下一个号）。在接诊台 / C 端列表 / cancel 入口与
+     * {@link #expireUncalledAppointments} 并排触发，把过点的 IN_PROGRESS 单推进为 VISITED。
+     * <p>与过点未叫号收敛（ADR-0038）同构--不引入调度中间件，下次入口访问即收敛。区别：不落接诊记录、
+     * 不发就诊小结消息（医生未填诊断，不伪造医疗内容；consultation_records.diagnosis/advice NOT NULL）、
+     * 不释放号源（号源已扣、患者已就诊）、不退款。过点判定用 {@link SlotWindowGuard#isPast}：
+     * 跨天滞留（schedule_date < today）或当天已过时段 end 即收敛。
+     * <p>每条独立事务：{@code markVisitedIfInProgress} 的 CAS 守卫并发重复收敛（返回 0 即跳过），
+     * 单条失败的事务整体回滚不影响其余条目。
+     */
+    public void expireUnfinishedConsultations() {
+        Contracts.AppointmentFlow flow = contracts.appointmentFlow();
+        List<AppointmentMapper.InProgressAppointment> inProgress =
+                appointmentMapper.selectInProgress(flow.status("in_progress"));
+        for (AppointmentMapper.InProgressAppointment item : inProgress) {
+            // isPast：跨天滞留直接 true（不论时段）；当天则 now > end；当天未知时段 fail-open 不收敛。
+            if (!slotWindowGuard.isPast(item.scheduleDate(), item.timeSlot())) {
+                continue;
+            }
+            try {
+                autoCompleteOverdue(item.id());
+            } catch (RuntimeException ignored) {
+                // 单条收敛失败不阻断其余条目；下次入口访问会再次尝试该条。
+            }
+        }
+    }
+
+    /**
+     * 过点就诊中单条挂号单的系统自动转已接诊：无患者身份校验，只推进状态。
+     * <p>CAS 守卫：状态不再是 IN_PROGRESS（医生已手动完成/已取消）时 UPDATE 返回 0 即安全跳过，
+     * 不会误改终态单。只调 markVisitedIfInProgress，不落 ConsultationRecord、不发就诊小结消息、
+     * 不释放号源、不退款--医生未填诊断，不伪造医疗内容。
+     *
+     * @param appointmentId 挂号单 ID
+     */
+    private void autoCompleteOverdue(long appointmentId) {
+        transactionTemplate.executeWithoutResult(status -> {
+            Contracts.AppointmentFlow.Transition autoComplete =
+                    contracts.appointmentFlow().transitions().get("auto_complete_overdue");
+            // CAS 守卫：状态不再是 IN_PROGRESS 则返回 0 跳过（医生已手动完成/已取消）。
+            if (appointmentMapper.markVisitedIfInProgress(
+                            appointmentId, autoComplete.from().get(0), autoComplete.to())
+                    != 1) {
+                return;
+            }
+        });
     }
 
     private AppointmentView view(Long appointmentId) {

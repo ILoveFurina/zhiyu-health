@@ -61,7 +61,7 @@ class ReceptionControllerTest {
     @Test
     void doctorReadsAndCompletesAppointment() throws Exception {
         ReceptionService.AppointmentDetail detail = new ReceptionService.AppointmentDetail(
-                appointment("已接诊", null), "上呼吸道感染", "清淡饮食，按需复诊", "2026-07-28T10:00:00+08:00");
+                appointment("已接诊", null), "上呼吸道感染", "清淡饮食，按需复诊", "2026-07-28T10:00:00+08:00", null, null);
         when(receptionService.detail(8L, 21L)).thenReturn(detail);
         when(receptionService.complete(8L, 21L, "上呼吸道感染", "清淡饮食，按需复诊")).thenReturn(detail);
 
@@ -97,7 +97,7 @@ class ReceptionControllerTest {
         ReceptionService.AppointmentView appointment = new ReceptionService.AppointmentView(
                 21L, 3L, "小愈", 2, "IN_PROGRESS", "就诊中", null, null, "2026-07-28", "上午", "咳嗽两天", "仅供参考，不替代医生诊断", false);
         ReceptionService.AppointmentDetail detail =
-                new ReceptionService.AppointmentDetail(appointment, null, null, null);
+                new ReceptionService.AppointmentDetail(appointment, null, null, null, null, null);
         when(receptionService.call(8L, 21L)).thenReturn(detail);
 
         mockMvc.perform(post("/api/b/reception/appointments/21/call")

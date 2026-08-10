@@ -103,6 +103,14 @@ public class Appointment {
     @TableField(exist = false)
     private String patientNickname;
 
+    /** 患者性别（视图投影，联查 health_profiles，票 94 接诊详情展示）。 */
+    @TableField(exist = false)
+    private String gender;
+
+    /** 患者出生日期（视图投影，联查 health_profiles，票 94 接诊详情算年龄）。 */
+    @TableField(exist = false)
+    private LocalDate birthDate;
+
     /**
      * 收费单状态编码（视图投影：LEFT JOIN payments）。
      * 挂号单可能尚未建支付单（createUnpaid 异步补建），此时为 NULL。

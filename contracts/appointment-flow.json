@@ -35,6 +35,11 @@
       "_doc": "系统触发的过点未叫号自动取消（票 92，反转 ADR-0034 第 3 条）：区别于患者主动 cancel（from 含 PENDING_PAYMENT），此迁移只接受 BOOKED，由 expireUncalledAppointments 惰性触发，同事务退款+消息。",
       "from": ["BOOKED"],
       "to": "CANCELLED"
+    },
+    "auto_complete_overdue": {
+      "_doc": "系统触发的过点就诊中自动转已接诊（票 94）：区别于医生主动 complete（同样 from=IN_PROGRESS），此迁移由 expireUnfinishedConsultations 惰性触发，只推进状态、不落接诊记录、不发就诊小结消息（医生未填诊断，不伪造医疗内容；consultation_records.diagnosis/advice NOT NULL）。过点判定：跨天滞留（schedule_date < today）或当天已过时段 end 即收敛，释放单叫号约束（医生忘了点接诊完成导致叫不了下一个号）。",
+      "from": ["IN_PROGRESS"],
+      "to": "VISITED"
     }
   },
   "payment_timeout_seconds": 60,

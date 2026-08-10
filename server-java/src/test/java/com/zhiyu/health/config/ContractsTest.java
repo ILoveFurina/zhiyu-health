@@ -630,6 +630,9 @@ class ContractsTest {
         // 票 92：过点未叫号已支付预约的系统自动取消迁移，from 只接受 BOOKED（区别于患者主动 cancel）。
         assertThat(flow.transitions().get("auto_cancel_uncalled").from()).containsExactly("BOOKED");
         assertThat(flow.transitions().get("auto_cancel_uncalled").to()).isEqualTo("CANCELLED");
+        // 票 94：过点就诊中系统自动转已接诊迁移，from 只接受 IN_PROGRESS（区别于医生主动 complete）。
+        assertThat(flow.transitions().get("auto_complete_overdue").from()).containsExactly("IN_PROGRESS");
+        assertThat(flow.transitions().get("auto_complete_overdue").to()).isEqualTo("VISITED");
         // 支付截止默认 60 秒（演示便于观察超时收敛）；接诊台可见白名单排除待支付。
         assertThat(flow.paymentTimeoutSeconds()).isEqualTo(60);
         // 票 90：已支付预约取消截止分钟数，距号源起始时间不足此值不可取消。

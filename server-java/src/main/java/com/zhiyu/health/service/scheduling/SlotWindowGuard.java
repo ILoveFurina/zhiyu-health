@@ -101,4 +101,20 @@ public class SlotWindowGuard {
         LocalTime cancelCutoff = LocalTime.parse(window.start()).minusMinutes(cutoffMinutes);
         return LocalTime.now(clock).isAfter(cancelCutoff);
     }
+
+    /**
+     * 排班日期 + 时段标签是否已过点（票 94）：供"就诊中"自动转已接诊收敛使用。
+     * <p>跨天滞留（schedule_date 早于今天）直接返回 true--不论时段是否已知，过去的就诊中单必须收敛，
+     * 彻底释放卡住单叫号约束的滞留单；当天则复用 {@link #isClosed}（now > end，未知时段 fail-open 返回 false，
+     * 与挂号截止同口径）；未来日期或 null 返回 false（就诊中不会有未来日期，保险返回 false）。
+     */
+    public boolean isPast(LocalDate scheduleDate, String timeSlotValue) {
+        if (scheduleDate == null) {
+            return false;
+        }
+        if (scheduleDate.isBefore(LocalDate.now(clock))) {
+            return true;
+        }
+        return isClosed(scheduleDate, timeSlotValue);
+    }
 }

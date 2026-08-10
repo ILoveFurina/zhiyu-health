@@ -42,7 +42,7 @@ public interface ReceptionMapper {
     @Select(
             """
             SELECT a.*, s.doctor_id, s.schedule_date, s.time_slot,
-                   hp.display_name AS patient_nickname
+                   hp.display_name AS patient_nickname, hp.gender, hp.birth_date
             FROM appointments a
             JOIN schedules s ON s.id = a.schedule_id
             JOIN health_profiles hp ON hp.id = a.health_profile_id

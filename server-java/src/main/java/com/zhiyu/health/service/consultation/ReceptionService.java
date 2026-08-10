@@ -16,11 +16,15 @@ import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
+import com.zhiyu.health.mapper.health.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.common.DisclaimerService;
 import com.zhiyu.health.service.scheduling.SlotWindowGuard;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +40,9 @@ public class ReceptionService {
     private final ConsultationRecordMapper consultationRecordMapper;
     private final InAppMessageMapper messageMapper;
     private final PrescriptionMapper prescriptionMapper;
+    private final PrescriptionItemMapper prescriptionItemMapper;
+    private final HealthProfileAllergyMapper allergyMapper;
+    private final Clock clock;
     private final TransactionTemplate transactionTemplate;
     private final AgentClient agentClient;
     private final DisclaimerService disclaimers;
@@ -46,10 +53,12 @@ public class ReceptionService {
 
     public ReceptionDashboard today(long staffId) {
         long doctorId = requireDoctor(staffId);
-        // 接诊台入口先全局惰性收敛：过期待支付单（释放号源）+ 过点未叫号已支付单（取消+退款+消息，票 92），再查可见列表：
+        // 接诊台入口先全局惰性收敛：过期待支付单（释放号源）+ 过点未叫号已支付单（取消+退款+消息，票 92）
+        // + 过点就诊中单（自动转已接诊，票 94，释放单叫号约束），再查可见列表：
         // 收敛是全局副作用，可见性是医生视角过滤，两者解耦（ADR-0033）。
         appointments.expireOverdueAppointments();
         appointments.expireUncalledAppointments();
+        appointments.expireUnfinishedConsultations();
         LocalDate today = LocalDate.now();
         List<ScheduleView> schedules = receptionMapper.selectSchedules(doctorId, today).stream()
                 .map(this::toScheduleView)
@@ -77,7 +86,42 @@ public class ReceptionService {
                 record == null ? null : record.getAdvice(),
                 record == null || record.getCreatedAt() == null
                         ? null
-                        : record.getCreatedAt().toString());
+                        : record.getCreatedAt().toString(),
+                patientProfileOf(appointment),
+                prescriptionDetailOf(appointmentId));
+    }
+
+    /** 接诊详情患者健康档案信息（票 94）：取挂号时固化的 health_profile_id（非当前活跃档案），过敏史空返回空列表。 */
+    private PatientProfile patientProfileOf(Appointment appointment) {
+        Long profileId = appointment.getHealthProfileId();
+        if (profileId == null) {
+            return null;
+        }
+        List<String> allergies = allergyMapper.selectAllergens(profileId);
+        Integer age = appointment.getBirthDate() == null
+                ? null
+                : Period.between(appointment.getBirthDate(), LocalDate.now(clock))
+                        .getYears();
+        return new PatientProfile(appointment.getGender(), age, allergies);
+    }
+
+    /** 接诊详情处方明细（票 94）：无处方返回 null；有处方带出药品列表 + 状态 + 驳回原因。 */
+    private PrescriptionDetail prescriptionDetailOf(long appointmentId) {
+        Prescription prescription = prescriptionMapper.selectByAppointmentId(appointmentId);
+        if (prescription == null) {
+            return null;
+        }
+        List<PrescriptionItemView> itemViews = prescriptionItemMapper.selectDetailed(prescription.getId()).stream()
+                .map(item -> new PrescriptionItemView(
+                        item.getMedicationName(),
+                        item.getSpecification(),
+                        item.getDosage(),
+                        item.getFrequency(),
+                        item.getDuration(),
+                        item.getQuantity(),
+                        item.getNotes()))
+                .toList();
+        return new PrescriptionDetail(prescription.getStatus(), prescription.getReviewReason(), itemViews);
     }
 
     public AppointmentDetail complete(long staffId, long appointmentId, String diagnosis, String advice) {
@@ -302,5 +346,27 @@ public class ReceptionService {
             String summaryDisclaimer,
             boolean callable) {}
 
-    public record AppointmentDetail(AppointmentView appointment, String diagnosis, String advice, String completedAt) {}
+    public record AppointmentDetail(
+            AppointmentView appointment,
+            String diagnosis,
+            String advice,
+            String completedAt,
+            PatientProfile patientProfile,
+            PrescriptionDetail prescription) {}
+
+    /** 接诊详情患者健康档案（票 94）：性别/年龄/过敏史，过敏史空列表由前端显示"未填"。 */
+    public record PatientProfile(String gender, Integer age, List<String> allergies) {}
+
+    /** 接诊详情处方明细（票 94）：状态 + 驳回原因 + 药品列表；无处方时整体为 null。 */
+    public record PrescriptionDetail(
+            String status, @JsonProperty("review_reason") String reviewReason, List<PrescriptionItemView> items) {}
+
+    public record PrescriptionItemView(
+            String name,
+            String specification,
+            String dosage,
+            String frequency,
+            String duration,
+            Integer quantity,
+            String notes) {}
 }

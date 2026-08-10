@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -609,6 +610,112 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void overdueInProgressAppointmentIsAutoCompletedWithoutRecordOrMessage() {
+        // 票 94：过点就诊中惰性收敛为已接诊，只推进状态，不落接诊记录、不发消息、不释放号源、不退款。
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED"))
+                .thenReturn(1);
+
+        service.expireUnfinishedConsultations();
+
+        verify(appointmentMapper).markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED");
+        // 不落接诊记录、不发消息、不释放号源、不退款。
+        verify(messageMapper, never()).insert(any(InAppMessage.class));
+        verify(messageMapper, never()).insertIgnoreConflict(any());
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(payments, never()).refundIfPaid(anyLong());
+    }
+
+    @Test
+    void inProgressAppointmentWithinWindowNotAutoCompleted() {
+        // 未过点（上午 10:00 在窗口内）不收敛：isPast 返回 false。
+        AppointmentService service = service(); // 默认 guard Clock 10:00
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+
+        service.expireUnfinishedConsultations();
+
+        verify(appointmentMapper, never()).markVisitedIfInProgress(anyLong(), any(), any());
+    }
+
+    @Test
+    void alreadyVisitedAppointmentSkippedByAutoComplete() {
+        // CAS 守卫：状态不再是 IN_PROGRESS（医生已手动完成）则 markVisitedIfInProgress 返回 0 跳过。
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED"))
+                .thenReturn(0);
+
+        service.expireUnfinishedConsultations();
+
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(messageMapper, never()).insertIgnoreConflict(any());
+    }
+
+    @Test
+    void crossDayInProgressAppointmentIsAutoCompleted() {
+        // 跨天滞留（schedule_date = 昨天）必收敛：isPast 对 schedule_date < today 直接返回 true（不论时段）。
+        AppointmentService service = service(); // 默认 guard Clock 2026-07-28T10:00
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 27), "上午")));
+        when(appointmentMapper.markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED"))
+                .thenReturn(1);
+
+        service.expireUnfinishedConsultations();
+
+        verify(appointmentMapper).markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED");
+    }
+
+    @Test
+    void inProgressUnknownTimeSlotTodayNotAutoCompleted() {
+        // 当天未知时段 fail-open：isPast 当天复用 isClosed，未知时段返回 false，不收敛。
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "夜间")));
+
+        service.expireUnfinishedConsultations();
+
+        verify(appointmentMapper, never()).markVisitedIfInProgress(anyLong(), any(), any());
+    }
+
+    @Test
+    void repeatedAutoCompleteIsIdempotent() {
+        // 幂等：重复收敛只首次推进（CAS 守卫），二次 markVisitedIfInProgress 返回 0 跳过。
+        SlotWindowGuard pastEndGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T12:00:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+        AppointmentService service = serviceWithGuard(pastEndGuard);
+        when(appointmentMapper.selectInProgress("IN_PROGRESS"))
+                .thenReturn(java.util.List.of(
+                        new AppointmentMapper.InProgressAppointment(21L, 9L, 12L, LocalDate.of(2026, 7, 28), "上午")));
+        when(appointmentMapper.markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED"))
+                .thenReturn(1)
+                .thenReturn(0);
+
+        service.expireUnfinishedConsultations();
+        service.expireUnfinishedConsultations();
+
+        verify(appointmentMapper, times(2)).markVisitedIfInProgress(21L, "IN_PROGRESS", "VISITED");
+    }
+
+    @Test
     void soldOutAppointmentReturnsConflictWithoutTouchingPostgresCount() {
         when(scheduleMapper.selectByIdForUpdate(9L)).thenReturn(schedule(1, 0));
         slotCounter.initialize(9L, 0);
@@ -671,11 +778,21 @@ class AppointmentServiceTest {
         when(appointmentMapper.selectOverduePending(any())).thenReturn(java.util.List.of());
         // 过点未叫号收敛（票 92）：默认无当天 BOOKED 单，list/cancel 入口收敛为空操作。
         when(appointmentMapper.selectUncalledBookedToday(any())).thenReturn(java.util.List.of());
+        // 过点就诊中收敛（票 94）：默认无 IN_PROGRESS 单，list/cancel 入口收敛为空操作。
+        when(appointmentMapper.selectInProgress(any())).thenReturn(java.util.List.of());
         TransactionTemplate transaction = mock(TransactionTemplate.class);
         when(transaction.execute(any())).thenAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
         });
+        // autoCompleteOverdue 用 executeWithoutResult（无返回值事务），需单独 mock 执行回调。
+        doAnswer(invocation -> {
+                    java.util.function.Consumer<TransactionStatus> callback = invocation.getArgument(0);
+                    callback.accept(mock(TransactionStatus.class));
+                    return null;
+                })
+                .when(transaction)
+                .executeWithoutResult(any());
         return new AppointmentService(
                 appointmentMapper,
                 scheduleMapper,

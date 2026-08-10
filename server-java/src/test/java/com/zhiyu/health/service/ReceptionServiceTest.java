@@ -1,7 +1,9 @@
 package com.zhiyu.health.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -18,12 +20,16 @@ import com.zhiyu.health.entity.appointment.Appointment;
 import com.zhiyu.health.entity.common.InAppMessage;
 import com.zhiyu.health.entity.common.StaffUser;
 import com.zhiyu.health.entity.consultation.ConsultationRecord;
+import com.zhiyu.health.entity.prescription.Prescription;
+import com.zhiyu.health.entity.prescription.PrescriptionItem;
 import com.zhiyu.health.entity.scheduling.Schedule;
 import com.zhiyu.health.entity.scheduling.TimeSlot;
 import com.zhiyu.health.mapper.common.InAppMessageMapper;
 import com.zhiyu.health.mapper.common.StaffUserMapper;
 import com.zhiyu.health.mapper.consultation.ConsultationRecordMapper;
 import com.zhiyu.health.mapper.consultation.ReceptionMapper;
+import com.zhiyu.health.mapper.health.HealthProfileAllergyMapper;
+import com.zhiyu.health.mapper.prescription.PrescriptionItemMapper;
 import com.zhiyu.health.mapper.prescription.PrescriptionMapper;
 import com.zhiyu.health.service.appointment.AppointmentService;
 import com.zhiyu.health.service.consultation.ReceptionService;
@@ -55,6 +61,8 @@ class ReceptionServiceTest {
     private final AgentClient agentClient = mock(AgentClient.class);
     private final InAppMessageMapper messageMapper = mock(InAppMessageMapper.class);
     private final PrescriptionMapper prescriptionMapper = mock(PrescriptionMapper.class);
+    private final PrescriptionItemMapper prescriptionItemMapper = mock(PrescriptionItemMapper.class);
+    private final HealthProfileAllergyMapper allergyMapper = mock(HealthProfileAllergyMapper.class);
     private final AppointmentService appointments = mock(AppointmentService.class);
     private ReceptionService service;
 
@@ -73,6 +81,9 @@ class ReceptionServiceTest {
                 consultationMapper,
                 messageMapper,
                 prescriptionMapper,
+                prescriptionItemMapper,
+                allergyMapper,
+                clock,
                 transactionTemplate,
                 agentClient,
                 TestDisclaimers.instance(),
@@ -353,6 +364,74 @@ class ReceptionServiceTest {
         assertEquals("当前不在该挂号所属出诊时段内，暂不可叫号", exception.getMessage());
         verify(messageMapper, never()).insert(any(InAppMessage.class));
         verify(receptionMapper, never()).markInProgress(anyLong(), any(), any());
+    }
+
+    @Test
+    void dashboardTriggersAllExpirations() {
+        // 票 94：接诊台入口并排触发三套惰性收敛（过期待支付 + 过点未叫号 + 过点就诊中）。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        when(receptionMapper.selectSchedules(7L, LocalDate.now())).thenReturn(List.of());
+        when(receptionMapper.selectAppointments(7L, LocalDate.now(), "BOOKED", "IN_PROGRESS", "VISITED"))
+                .thenReturn(List.of());
+
+        service.today(8L);
+
+        verify(appointments).expireOverdueAppointments();
+        verify(appointments).expireUncalledAppointments();
+        verify(appointments).expireUnfinishedConsultations();
+    }
+
+    @Test
+    void detailReturnsPatientProfileAndPrescriptionDetail() {
+        // 票 94：接诊详情带患者健康档案（性别/年龄/过敏史）与处方明细（药品列表+状态+驳回原因）。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        Appointment inProgress = appointment("IN_PROGRESS");
+        inProgress.setHealthProfileId(31L);
+        inProgress.setGender("男");
+        inProgress.setBirthDate(LocalDate.of(1990, 5, 1));
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(inProgress);
+        when(allergyMapper.selectAllergens(31L)).thenReturn(List.of("青霉素", "海鲜"));
+        Prescription prescription = new Prescription();
+        prescription.setId(55L);
+        prescription.setStatus("PENDING");
+        when(prescriptionMapper.selectByAppointmentId(21L)).thenReturn(prescription);
+        PrescriptionItem item = new PrescriptionItem();
+        item.setMedicationName("阿莫西林胶囊");
+        item.setSpecification("0.25g*24粒");
+        item.setDosage("每次1粒");
+        item.setFrequency("每日3次");
+        item.setDuration("7天");
+        item.setQuantity(21);
+        when(prescriptionItemMapper.selectDetailed(55L)).thenReturn(List.of(item));
+
+        ReceptionService.AppointmentDetail result = service.detail(8L, 21L);
+
+        assertEquals("男", result.patientProfile().gender());
+        // Clock 固定 2026-08-08，1990-05-01 出生 -> 36 岁
+        assertEquals(36, result.patientProfile().age());
+        assertEquals(List.of("青霉素", "海鲜"), result.patientProfile().allergies());
+        assertEquals("PENDING", result.prescription().status());
+        assertEquals(1, result.prescription().items().size());
+        assertEquals("阿莫西林胶囊", result.prescription().items().get(0).name());
+        assertEquals(21, result.prescription().items().get(0).quantity());
+    }
+
+    @Test
+    void detailReturnsEmptyAllergiesAndNullPrescriptionWhenAbsent() {
+        // 过敏史为空：后端返回空列表（前端显示"未填"）；无处方：prescription 为 null（票 94）。
+        when(staffUserMapper.selectById(8L)).thenReturn(doctorStaff(7L));
+        Appointment inProgress = appointment("IN_PROGRESS");
+        inProgress.setHealthProfileId(31L);
+        inProgress.setGender("女");
+        inProgress.setBirthDate(LocalDate.of(2000, 1, 1));
+        when(receptionMapper.selectAppointment(21L, 7L)).thenReturn(inProgress);
+        when(allergyMapper.selectAllergens(31L)).thenReturn(List.of());
+        when(prescriptionMapper.selectByAppointmentId(21L)).thenReturn(null);
+
+        ReceptionService.AppointmentDetail result = service.detail(8L, 21L);
+
+        assertTrue(result.patientProfile().allergies().isEmpty());
+        assertNull(result.prescription());
     }
 
     private StaffUser doctorStaff(long doctorId) {
