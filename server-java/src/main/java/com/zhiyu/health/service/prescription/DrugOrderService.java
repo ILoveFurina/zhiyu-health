@@ -200,8 +200,8 @@ public class DrugOrderService extends ServiceImpl<DrugOrderMapper, DrugOrder> {
         return new OtcCandidatesView(echoes, candidates);
     }
 
-    /** 球面距离（米，haversine）：院区坐标缺失返回 null（排最后，不伪造距离）。 */
-    private static Double distanceMeters(double lng, double lat, Double campusLng, Double campusLat) {
+    /** 球面距离（米，haversine）：院区坐标缺失返回 null（排最后，不伪造距离）。票 95 药房 OTC 目录复用。 */
+    public static Double distanceMeters(double lng, double lat, Double campusLng, Double campusLat) {
         if (campusLng == null || campusLat == null) {
             return null;
         }
