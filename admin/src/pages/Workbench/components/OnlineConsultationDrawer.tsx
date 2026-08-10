@@ -120,7 +120,6 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     setDraft('');
     setPrescriptionCreated(false);
     setPrescription(null);
-    form.resetFields();
     lastIdRef.current = 0;
     setLoading(true);
     fetchDetail(consultationId)
@@ -197,6 +196,11 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [endsAt]);
+
+  // detail 就绪后完成表单才会挂载，此时再重置，避免对尚未连接 Form 的实例执行操作。
+  useEffect(() => {
+    if (open && consultationId && inProgress) form.resetFields();
+  }, [open, consultationId, inProgress, form]);
 
   const handleAccept = async () => {
     if (!consultationId) return;
@@ -281,6 +285,12 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
     }
   };
 
+  // 倒计时会每秒重绘抽屉；保持回调引用稳定，避免 PrescriptionForm 将重绘误判为选药变化并重复预检。
+  const handleCheckPrescriptionSafety = useCallback((ids: number[]) => {
+    if (!consultationId) return Promise.reject(new Error('问诊单不存在'));
+    return checkOnlinePrescriptionSafety(consultationId, ids);
+  }, [consultationId]);
+
   return (
     <Drawer title="在线问诊详情" width={640} open={open} onClose={onClose} destroyOnHidden>
       <Spin spinning={loading}>
@@ -312,7 +322,9 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                   )}
                 </Descriptions.Item>
               )}
-              <Descriptions.Item label="接诊截止" span={2}>{formatDateTime(detail.expires_at)}</Descriptions.Item>
+              <Descriptions.Item label="接诊截止" span={endsAt && remainingSeconds != null ? 1 : 2}>
+                {formatDateTime(detail.expires_at)}
+              </Descriptions.Item>
             </Descriptions>
 
             <Alert
@@ -481,7 +493,7 @@ export default function OnlineConsultationDrawer({ consultationId, open, onClose
                   </Space>
                 ) : (
                   <PrescriptionForm
-                    checkSafety={(ids) => checkOnlinePrescriptionSafety(detail.id, ids)}
+                    checkSafety={handleCheckPrescriptionSafety}
                     medications={medications}
                     submitting={prescriptionSubmitting}
                     onSubmit={handlePrescribe}
