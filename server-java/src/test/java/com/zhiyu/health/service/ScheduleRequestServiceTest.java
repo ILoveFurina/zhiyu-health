@@ -282,6 +282,7 @@ class ScheduleRequestServiceTest {
         target.setScheduleDate(LocalDate.now().plusDays(2));
         target.setTimeSlot(TimeSlot.AFTERNOON);
         target.setTotalSlots(10);
+        target.setRemainingSlots(8);
         target.setIsActive(true);
         when(scheduleMapper.selectById(50L)).thenReturn(target);
 
@@ -292,6 +293,25 @@ class ScheduleRequestServiceTest {
         assertThat(result.getTotalSlots()).isEqualTo(20);
         assertThat(result.getStatus()).isEqualTo("PENDING");
         verify(scheduleRequestMapper).insert(any(ScheduleRequest.class));
+    }
+
+    @Test
+    void submitChangeModifyRejectsTotalSlotsBelowUsedSlots() {
+        when(staffUserMapper.selectById(10L)).thenReturn(staffUser(10L, 5L));
+        Schedule target = new Schedule();
+        target.setId(50L);
+        target.setDoctorId(5L);
+        target.setScheduleDate(LocalDate.now().plusDays(2));
+        target.setTimeSlot(TimeSlot.MORNING);
+        target.setTotalSlots(10);
+        target.setRemainingSlots(7);
+        target.setIsActive(true);
+        when(scheduleMapper.selectById(50L)).thenReturn(target);
+
+        assertThatThrownBy(() -> service.submitChange(10L, 50L, "modify", 2))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("号源总数不能小于已使用号源数");
+        verify(scheduleRequestMapper, never()).insert(any(ScheduleRequest.class));
     }
 
     @Test

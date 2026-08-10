@@ -101,7 +101,8 @@ class AppointmentToolControllerTest {
                 null,
                 null,
                 "2026-07-28T10:00:00+08:00",
-                null);
+                null,
+                true);
     }
 
     private AppointmentService.AppointmentView appointmentWithoutSummary() {
@@ -124,6 +125,7 @@ class AppointmentToolControllerTest {
                 null,
                 null,
                 "2026-07-28T10:00:00+08:00",
-                null);
+                null,
+                true);
     }
 }

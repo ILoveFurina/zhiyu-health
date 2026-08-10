@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -328,10 +329,15 @@ class AppointmentServiceTest {
         Appointment booked = appointment(21L, "BOOKED");
         Appointment cancelled = appointment(21L, "CANCELLED");
         when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked, cancelled);
+        // BOOKED 取消需查 schedule 判断时间窗口：排班日期为明天（非当天），未过取消截止。
+        when(scheduleMapper.selectById(9L)).thenReturn(futureSchedule());
         // cancel.from = [PENDING_PAYMENT, BOOKED]（票 81）：markCancelled 接收两个来源态。
         when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
                 .thenReturn(1);
         when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        // 票 90：BOOKED 取消触发退款（PAID->REFUNDED）；重复取消时已是 CANCELLED，在幂等早返回分支
+        // 不再触达 refundIfPaid，CAS 守卫保证退款只发生一次。
+        when(payments.refundIfPaid(21L)).thenReturn(true);
         when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
         slotCounter.initialize(9L, 2);
         AppointmentService service = service();
@@ -342,6 +348,93 @@ class AppointmentServiceTest {
         assertThat(slotCounter.values.get(9L)).hasValue(3);
         verify(appointmentMapper).markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED");
         verify(scheduleMapper).incrementRemainingSlots(9L);
+        verify(payments, times(1)).refundIfPaid(21L);
+    }
+
+    @Test
+    void bookedAppointmentCancelledBeforeCutoffRefundsAndReleasesSlot() {
+        // 票 90：已支付预约在号源起始时间半小时前可取消，同事务退款（PAID->REFUNDED）并释放号源。
+        Appointment booked = appointment(21L, "BOOKED");
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked);
+        // 排班日期为明天（非当天），未过取消截止，可取消。
+        when(scheduleMapper.selectById(9L)).thenReturn(futureSchedule());
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(1);
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        when(payments.refundIfPaid(21L)).thenReturn(true);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
+        slotCounter.initialize(9L, 2);
+
+        service().cancel(12L, 21L);
+
+        verify(appointmentMapper).markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED");
+        verify(scheduleMapper).incrementRemainingSlots(9L);
+        verify(payments).refundIfPaid(21L);
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+    }
+
+    @Test
+    void bookedAppointmentPastCancelCutoffIsRejected() {
+        // 票 90：已支付预约距号源起始时间不足半小时不可取消。
+        // 时钟固定 08:45（上午窗口 09:00，截止 = 09:00 - 30min = 08:30，当前 08:45 已过截止）。
+        Appointment booked = appointment(21L, "BOOKED");
+        booked.setScheduleDate(java.time.LocalDate.of(2026, 7, 28));
+        booked.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked);
+        when(scheduleMapper.selectById(9L)).thenReturn(todayMorningSchedule());
+        SlotWindowGuard pastCutoffGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T08:45:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+
+        assertThatThrownBy(() -> serviceWithGuard(pastCutoffGuard).cancel(12L, 21L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("距就诊开始不足半小时，不可取消");
+
+        verify(appointmentMapper, never()).markCancelled(anyLong(), any(), any(), any());
+        verify(scheduleMapper, never()).incrementRemainingSlots(anyLong());
+        verify(payments, never()).refundIfPaid(anyLong());
+    }
+
+    @Test
+    void bookedAppointmentBeforeCutoffIsCancellable() {
+        // 票 90：已支付预约在号源起始时间半小时前（当前 08:25 < 截止 08:30）可取消。
+        Appointment booked = appointment(21L, "BOOKED");
+        booked.setScheduleDate(java.time.LocalDate.of(2026, 7, 28));
+        booked.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(booked);
+        when(scheduleMapper.selectById(9L)).thenReturn(todayMorningSchedule());
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(1);
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        when(payments.refundIfPaid(21L)).thenReturn(true);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
+        slotCounter.initialize(9L, 2);
+        SlotWindowGuard beforeCutoffGuard = new SlotWindowGuard(
+                Clock.fixed(Instant.parse("2026-07-28T08:25:00+08:00"), ZoneId.of("Asia/Shanghai")),
+                TestSlotWindows.contractOnly());
+
+        serviceWithGuard(beforeCutoffGuard).cancel(12L, 21L);
+
+        verify(payments).refundIfPaid(21L);
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
+    }
+
+    @Test
+    void pendingPaymentCancellationDoesNotRefund() {
+        // 票 90：待支付取消不触发退款（payment 仍 UNPAID），只释放号源。
+        Appointment pending = appointment(21L, "PENDING_PAYMENT");
+        when(appointmentMapper.selectByIdForUpdate(21L, 12L, 31L)).thenReturn(pending);
+        when(appointmentMapper.markCancelled(21L, "PENDING_PAYMENT", "BOOKED", "CANCELLED"))
+                .thenReturn(1);
+        when(scheduleMapper.incrementRemainingSlots(9L)).thenReturn(1);
+        when(appointmentMapper.selectViewById(21L)).thenReturn(view("CANCELLED", 1));
+        slotCounter.initialize(9L, 2);
+
+        service().cancel(12L, 21L);
+
+        verify(payments, never()).refundIfPaid(anyLong());
+        verify(scheduleMapper).incrementRemainingSlots(9L);
+        assertThat(slotCounter.values.get(9L)).hasValue(3);
     }
 
     @Test
@@ -503,6 +596,22 @@ class AppointmentServiceTest {
         schedule.setRemainingSlots(remaining);
         schedule.setIsActive(true);
         schedule.setRegistrationFee(new BigDecimal("30.00"));
+        return schedule;
+    }
+
+    /** 未来日期排班（明天）：非当天，取消时间窗口不截止，BOOKED 可取消。 */
+    private Schedule futureSchedule() {
+        Schedule schedule = schedule(3, 2);
+        schedule.setScheduleDate(LocalDate.of(2026, 7, 29));
+        schedule.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
+        return schedule;
+    }
+
+    /** 当天上午排班：配合固定时钟判断取消截止（上午窗口 09:00，截止 = 08:30）。 */
+    private Schedule todayMorningSchedule() {
+        Schedule schedule = schedule(3, 2);
+        schedule.setScheduleDate(LocalDate.of(2026, 7, 28));
+        schedule.setTimeSlot(com.zhiyu.health.entity.scheduling.TimeSlot.MORNING);
         return schedule;
     }
 
