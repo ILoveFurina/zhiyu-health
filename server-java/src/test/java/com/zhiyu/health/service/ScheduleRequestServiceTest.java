@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -210,6 +211,29 @@ class ScheduleRequestServiceTest {
         assertThatThrownBy(() -> service.review(20L, 1L, "APPROVE", null))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("排班申请已审核");
+        // 修复后号源变更（createSchedule）与审核 CAS 在同一事务内：transactionTemplate 只执行一次，
+        // 生产环境下 CAS 失败抛 409 触发事务回滚，withAdjustment/withInitialization 补偿 Redis。
+        verify(transactionTemplate, times(1)).execute(any());
+    }
+
+    @Test
+    void reviewApproveApplyAndCasShareOneTransaction() {
+        // 回归测试（号源 Redis 漂移根因修复）：applyApprovedAction 必须与 baseMapper.review 的 CAS
+        // 在同一个 transactionTemplate.execute 内，而非分离的两个事务。否则 CAS 失败时号源变更
+        // 已独立提交无法回滚，导致 Redis 计数漂移（PG 有 CAS 守卫挡住、Redis 无）。
+        ScheduleRequest modifyReq = request(1L, "PENDING");
+        modifyReq.setAction("MODIFY");
+        modifyReq.setTargetScheduleId(50L);
+        modifyReq.setTotalSlots(20);
+        when(scheduleRequestMapper.selectDetailedById(1L)).thenReturn(modifyReq, modifyReq);
+        when(scheduleRequestMapper.review(eq(1L), eq("APPROVED"), any(), eq(20L), eq(50L), eq("PENDING")))
+                .thenReturn(1);
+
+        service.review(20L, 1L, "APPROVE", null);
+
+        // 号源变更与 CAS 在同一事务：transactionTemplate 只执行一次
+        verify(transactionTemplate, times(1)).execute(any());
+        verify(scheduleService).updateSchedule(any(Schedule.class));
     }
 
     @Test
