@@ -54,6 +54,8 @@ export interface PrescriptionInput {
     dosage: string;
     frequency: string;
     duration: string;
+    // 票 88：配药数量由医生开方时确定（正整数），患者不可修改
+    quantity: number;
     notes?: string;
   }>;
 }

@@ -1,6 +1,7 @@
 import { ImportOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Form, Input, List, Modal, Select, Space, Typography } from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, List, Modal, Select, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
+import { contraindicationDecisions } from '@/contracts/contraindication';
 import {
   checkPrescriptionSafety,
   type Medication,
@@ -52,6 +53,8 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
           dosage: item.dosage,
           frequency: item.frequency,
           duration: item.duration,
+          // 票 88：引用模板开方时把模板配药数量带入处方明细，医生仍可改
+          quantity: item.quantity,
           notes: item.notes,
         });
       } else {
@@ -120,6 +123,12 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
                 }]}>
                   <Input placeholder="疗程，如 5天" />
                 </Form.Item>
+                {/* 票 88：配药数量由医生开方时确定（正整数，默认 1），患者不可修改 */}
+                <Form.Item {...rest} name={[name, 'quantity']} initialValue={1} rules={[{
+                  required: true, message: '请输入配药数量',
+                }]}>
+                  <InputNumber min={1} precision={0} style={{ width: 76 }} placeholder="数量" />
+                </Form.Item>
                 <Form.Item {...rest} name={[name, 'notes']}><Input placeholder="用药备注" /></Form.Item>
                 {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
               </Space>
@@ -135,7 +144,8 @@ export default function PrescriptionForm({ appointmentId, checkSafety, medicatio
       {safety && (
         <Alert
           style={{ marginBottom: 16 }}
-          type={blocked ? 'error' : 'success'}
+          // REVIEW_REQUIRED 是 fail-closed 的拦截态，用 warning 而非 success 提示医生
+          type={blocked ? 'error' : safety.decision === contraindicationDecisions.review_required ? 'warning' : 'success'}
           showIcon
           message={safety.message}
           description={blocked ? (

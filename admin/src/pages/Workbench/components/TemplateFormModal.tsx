@@ -1,6 +1,6 @@
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { ModalForm, ProFormText } from '@ant-design/pro-components';
-import { Button, Form, Input, Select, Space } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Space } from 'antd';
 import type { Medication } from '@/services/prescription';
 import {
   createTemplate,
@@ -20,8 +20,8 @@ interface Props {
 // record 的 items 带后端回显字段（id/medication_name/specification），提交前需裁剪成输入结构
 const toInitialValues = (record: PrescriptionTemplate): PrescriptionTemplateInput => ({
   name: record.name,
-  items: record.items.map(({ medication_id, dosage, frequency, duration, notes }) => ({
-    medication_id, dosage, frequency, duration, notes,
+  items: record.items.map(({ medication_id, dosage, frequency, duration, quantity, notes }) => ({
+    medication_id, dosage, frequency, duration, quantity, notes,
   })),
 });
 
@@ -65,6 +65,10 @@ export default function TemplateFormModal({ open, record, medications, onOpenCha
                   </Form.Item>
                   <Form.Item {...rest} name={[name, 'duration']} rules={[{ required: true, whitespace: true }]}>
                     <Input placeholder="疗程，如 5天" />
+                  </Form.Item>
+                  {/* 票 88：模板明细同样由医生填写配药数量（正整数，默认 1），引用模板开方时带入处方明细 */}
+                  <Form.Item {...rest} name={[name, 'quantity']} initialValue={1} rules={[{ required: true, message: '请输入配药数量' }]}>
+                    <InputNumber min={1} precision={0} style={{ width: 76 }} placeholder="数量" />
                   </Form.Item>
                   <Form.Item {...rest} name={[name, 'notes']}><Input placeholder="用药备注" /></Form.Item>
                   {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}

@@ -74,40 +74,44 @@ export default function ConsultationDrawer(props: Props) {
                 }
               />
             )}
-            {/* 处方默认折叠：线下接诊主动作是完成接诊；已有处方或刚提交时展开以便查看状态 */}
-            <Collapse
-              ghost
-              defaultActiveKey={appointment.prescription_status || prescriptionCreated ? ['prescription'] : []}
-              items={[{
-                key: 'prescription',
-                label: '开具电子处方',
-                children: hasPrescription ? (
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                    <Space>
-                      <Typography.Text>处方审核状态：</Typography.Text>
-                      <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status ?? prescriptionStatuses.pending] ?? 'default'}>
-                        {appointment.prescription_status
-                          ? (prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
-                            ?? appointment.prescription_status)
-                          : '审核中'}
-                      </Tag>
+            {/* 已接诊为只读终态（票 93）：开方区整体隐藏，处方状态已由下方「接诊记录」只读区带出；
+                与在线问诊完成态（inProgress 门控）对齐。处方默认折叠：线下接诊主动作是完成接诊；
+                已有处方或刚提交时展开以便查看状态 */}
+            {!completed && (
+              <Collapse
+                ghost
+                defaultActiveKey={appointment.prescription_status || prescriptionCreated ? ['prescription'] : []}
+                items={[{
+                  key: 'prescription',
+                  label: '开具电子处方',
+                  children: hasPrescription ? (
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space>
+                        <Typography.Text>处方审核状态：</Typography.Text>
+                        <Tag color={PRESCRIPTION_COLORS[appointment.prescription_status ?? prescriptionStatuses.pending] ?? 'default'}>
+                          {appointment.prescription_status
+                            ? (prescriptionStatusLabels[appointment.prescription_status as keyof typeof prescriptionStatusLabels]
+                              ?? appointment.prescription_status)
+                            : '审核中'}
+                        </Tag>
+                      </Space>
+                      {/* 驳回即终态，不提供编辑/重提入口；仅展示驳回原因供医生知悉（对齐在线问诊） */}
+                      {prescriptionRejected && (
+                        <Alert
+                          type="error"
+                          showIcon
+                          message="处方已被驳回"
+                          description={appointment.prescription_review_reason || '未填写驳回原因'}
+                        />
+                      )}
                     </Space>
-                    {/* 驳回即终态，不提供编辑/重提入口；仅展示驳回原因供医生知悉（对齐在线问诊） */}
-                    {prescriptionRejected && (
-                      <Alert
-                        type="error"
-                        showIcon
-                        message="处方已被驳回"
-                        description={appointment.prescription_review_reason || '未填写驳回原因'}
-                      />
-                    )}
-                  </Space>
-                ) : (
-                  <PrescriptionForm appointmentId={appointment.id} medications={medications}
-                    submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
-                ),
-              }]}
-            />
+                  ) : (
+                    <PrescriptionForm appointmentId={appointment.id} medications={medications}
+                      submitting={prescriptionSubmitting} onSubmit={onPrescribe} />
+                  ),
+                }]}
+              />
+            )}
             {completed ? (
               <Descriptions title="接诊记录" column={1} bordered>
                 <Descriptions.Item label="诊断结论">{detail?.diagnosis}</Descriptions.Item>
